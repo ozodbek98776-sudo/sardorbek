@@ -1,0 +1,673 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   🎨 Modern PWA Design System 2025-2026
+   Clean • Minimal • Professional • iOS Optimized
+   ============================================ */
+
+@layer base {
+  :root {
+    /* iOS Safe Area Variables */
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* iOS specific */
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  body {
+    @apply font-sans bg-gray-50 text-gray-900;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    line-height: 1.6;
+    /* iOS specific */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    /* PWA safe areas */
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  /* iOS PWA Status Bar */
+  @media (display-mode: standalone) {
+    body {
+      padding-top: max(var(--safe-area-inset-top), 20px);
+    }
+  }
+
+  /* Skeleton Loading Animations */
+  .skeleton {
+    @apply bg-slate-200 animate-pulse rounded-lg;
+  }
+
+  .skeleton-title {
+    @apply h-4 bg-slate-200 animate-pulse rounded w-3/4 mb-2;
+  }
+
+  .skeleton-text {
+    @apply h-3 bg-slate-200 animate-pulse rounded;
+  }
+
+  /* Modern Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-blue-500/20 text-blue-900;
+  }
+
+  /* iOS specific touch styles */
+  button, input, select, textarea {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: 0;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer components {
+  /* ============================================
+     📦 Card Components
+     ============================================ */
+  .card {
+    @apply bg-white rounded-2xl p-6 border border-gray-200 shadow-sm;
+    @apply transition-all duration-300;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5;
+  }
+
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200 shadow-lg;
+  }
+
+  /* ============================================
+     🔘 Button Components - iOS Optimized
+     ============================================ */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    /* iOS specific */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height: 44px; /* iOS minimum touch target */
+  }
+
+  .btn-sm {
+    @apply btn px-3 py-2 text-sm;
+    min-height: 36px;
+  }
+
+  .btn-md {
+    @apply btn px-4 py-2.5 text-sm;
+    min-height: 44px;
+  }
+
+  .btn-lg {
+    @apply btn px-6 py-3 text-base;
+    min-height: 48px;
+  }
+
+  /* Primary Button - Blue */
+  .btn-primary {
+    @apply btn-md bg-blue-600 text-white shadow-sm;
+    @apply hover:bg-blue-700 hover:shadow-md hover:-translate-y-0.5;
+    @apply active:bg-blue-800 active:translate-y-0 active:scale-95;
+    @apply focus-visible:ring-blue-500;
+  }
+
+  /* Secondary Button - Gray */
+  .btn-secondary {
+    @apply btn-md bg-gray-100 text-gray-700;
+    @apply hover:bg-gray-200 hover:text-gray-900;
+    @apply active:bg-gray-300 active:scale-95;
+    @apply focus-visible:ring-gray-400;
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    @apply btn-md bg-transparent text-gray-600;
+    @apply hover:bg-gray-100 hover:text-gray-900;
+    @apply active:bg-gray-200 active:scale-95;
+  }
+
+  /* Success Button - Green */
+  .btn-success {
+    @apply btn-md bg-emerald-600 text-white shadow-sm;
+    @apply hover:bg-emerald-700 hover:shadow-md hover:-translate-y-0.5;
+    @apply active:bg-emerald-800 active:translate-y-0 active:scale-95;
+    @apply focus-visible:ring-emerald-500;
+  }
+
+  /* Danger Button - Red */
+  .btn-danger {
+    @apply btn-md bg-red-600 text-white shadow-sm;
+    @apply hover:bg-red-700 hover:shadow-md hover:-translate-y-0.5;
+    @apply active:bg-red-800 active:translate-y-0 active:scale-95;
+    @apply focus-visible:ring-red-500;
+  }
+
+  /* Warning Button - Orange */
+  .btn-warning {
+    @apply btn-md bg-orange-500 text-white shadow-sm;
+    @apply hover:bg-orange-600 hover:shadow-md hover:-translate-y-0.5;
+    @apply active:bg-orange-700 active:translate-y-0 active:scale-95;
+    @apply focus-visible:ring-orange-500;
+  }
+
+  /* Icon Button */
+  .btn-icon {
+    @apply btn p-2.5 rounded-xl;
+    @apply bg-transparent text-gray-500;
+    @apply hover:bg-gray-100 hover:text-gray-700;
+    @apply active:bg-gray-200 active:scale-95;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .btn-icon-sm {
+    @apply btn p-2 rounded-lg;
+    @apply bg-transparent text-gray-500;
+    @apply hover:bg-gray-100 hover:text-gray-700;
+    @apply active:bg-gray-200 active:scale-95;
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* ============================================
+     📝 Input Components - iOS Optimized
+     ============================================ */
+  .input {
+    @apply w-full px-4 py-3 text-gray-900 bg-white;
+    @apply border border-gray-300 rounded-xl;
+    @apply placeholder:text-gray-400;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10;
+    @apply disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed;
+    /* iOS specific */
+    -webkit-appearance: none;
+    appearance: none;
+    font-size: 16px; /* Prevent zoom on iOS */
+    min-height: 44px;
+  }
+
+  .input-sm {
+    @apply input px-3 py-2 text-sm rounded-lg;
+    min-height: 36px;
+  }
+
+  .input-lg {
+    @apply input px-5 py-4 text-lg rounded-2xl;
+    min-height: 52px;
+  }
+
+  /* Select */
+  .select {
+    @apply input cursor-pointer pr-10;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+  }
+
+  /* ============================================
+     🏷️ Badge Components
+     ============================================ */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full;
+  }
+
+  .badge-default {
+    @apply badge bg-gray-100 text-gray-700;
+  }
+
+  .badge-primary {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-100 text-emerald-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-orange-100 text-orange-700;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700;
+  }
+
+  /* ============================================
+     📊 Stat Card Components
+     ============================================ */
+  .stat-card {
+    @apply bg-white rounded-2xl p-5 border border-gray-100 shadow-sm;
+    @apply transition-all duration-300;
+    @apply hover:shadow-md hover:border-gray-200;
+  }
+
+  .stat-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold text-gray-900 tracking-tight;
+  }
+
+  .stat-label {
+    @apply text-sm text-gray-500 font-medium;
+  }
+
+  /* ============================================
+     🧭 Navigation Components
+     ============================================ */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl;
+    @apply text-gray-600 font-medium;
+    @apply transition-all duration-200;
+    @apply hover:bg-gray-100 hover:text-gray-900;
+    /* iOS specific */
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-blue-50 text-blue-600;
+    @apply hover:bg-blue-100 hover:text-blue-700;
+  }
+
+  /* ============================================
+     🎭 Modal & Overlay
+     ============================================ */
+  .overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .modal {
+    @apply bg-white rounded-3xl shadow-2xl;
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  /* ============================================
+     📋 Table Components
+     ============================================ */
+  .table-header {
+    @apply bg-gray-50 border-b border-gray-200;
+  }
+
+  .table-header-cell {
+    @apply text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  }
+
+  /* ============================================
+     🔔 Alert Components
+     ============================================ */
+  .alert {
+    @apply flex items-start gap-3 p-4 rounded-xl border;
+  }
+
+  .alert-info {
+    @apply alert bg-blue-50 border-blue-200 text-blue-800;
+  }
+
+  .alert-success {
+    @apply alert bg-emerald-50 border-emerald-200 text-emerald-800;
+  }
+
+  .alert-warning {
+    @apply alert bg-orange-50 border-orange-200 text-orange-800;
+  }
+
+  .alert-danger {
+    @apply alert bg-red-50 border-red-200 text-red-800;
+  }
+
+  /* ============================================
+     ⏳ Loading States
+     ============================================ */
+  .spinner {
+    @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
+  }
+
+  /* ============================================
+     📱 PWA Specific Styles
+     ============================================ */
+  .pwa-safe-top {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .pwa-safe-bottom {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  .pwa-safe-left {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .pwa-safe-right {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .pwa-safe-all {
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
+  }
+}
+
+/* ============================================
+   🎬 Animations
+   ============================================ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* ============================================
+   📱 iOS & PWA Responsive Adjustments
+   ============================================ */
+@media (max-width: 768px) {
+  .card {
+    @apply p-4 rounded-xl;
+  }
+
+  .btn-md {
+    @apply px-3 py-2;
+    min-height: 44px;
+  }
+
+  .input {
+    @apply px-3 py-2.5;
+    font-size: 16px; /* Prevent zoom on iOS */
+    min-height: 44px;
+  }
+
+  .stat-card {
+    @apply p-4;
+  }
+
+  .stat-icon {
+    @apply w-10 h-10;
+  }
+
+  .stat-value {
+    @apply text-xl;
+  }
+}
+
+/* iOS specific media queries */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  .input {
+    font-size: 16px !important;
+  }
+}
+
+/* PWA display mode styles */
+@media (display-mode: standalone) {
+  /* Hide browser UI elements when in PWA mode */
+  .browser-only {
+    display: none !important;
+  }
+  
+  /* Add PWA specific styles */
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Allow text selection in inputs and content areas */
+  input, textarea, [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+/* Landscape orientation adjustments for mobile */
+@media (orientation: landscape) and (max-height: 500px) {
+  .mobile-landscape-adjust {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .high-dpi-optimize {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* ============================================
+   🔒 KASSA HIMOYA TIZIMI - CHIQISH TAQIQLANADI
+   ============================================ */
+
+/* Kassa sahifalarida barcha chiqish yo'llarini bloklash */
+body.kassa-locked {
+  /* Context menu ni bloklash */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Drag & drop ni bloklash */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  
+  /* Print ni bloklash */
+  -webkit-print-color-adjust: exact;
+}
+
+/* Kassa sahifalarida F12, Ctrl+Shift+I va boshqa dev tools tugmalarini bloklash */
+body.kassa-locked * {
+  pointer-events: auto;
+}
+
+/* Kassa sahifalarida text selection ni bloklash */
+body.kassa-locked *::selection {
+  background: transparent;
+}
+
+body.kassa-locked *::-moz-selection {
+  background: transparent;
+}
+
+/* Kassa himoyalangan elementlar */
+.kassa-protected {
+  /* Copy-paste ni bloklash */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Right click ni bloklash */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Kassa bloklangan tugma */
+.kassa-blocked-button {
+  @apply cursor-not-allowed opacity-50 bg-gray-200 text-gray-400;
+  pointer-events: none !important;
+}
+
+/* Kassa himoyalangan oyna */
+.kassa-secure-window {
+  /* Sahifa yopilishini bloklash */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+}
+
+/* Kassa xavfsizlik xabari */
+.kassa-security-notice {
+  @apply fixed top-4 right-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded-lg text-sm font-medium z-50;
+  animation: pulse 2s infinite;
+}
+
+/* Kassa session indikatori */
+.kassa-session-indicator {
+  @apply fixed bottom-4 left-4 bg-green-100 border border-green-300 text-green-800 px-3 py-1 rounded-full text-xs font-medium z-50;
+}
+
+/* Kassa himoyalangan input */
+.kassa-secure-input {
+  @apply input;
+  /* Autocomplete ni bloklash */
+  autocomplete: off !important;
+  /* Browser parol saqlashni bloklash */
+  data-lpignore: true;
+}
+
+/* Kassa himoyalangan forma */
+.kassa-secure-form {
+  /* Form submit ni bloklash (faqat JavaScript orqali) */
+  onsubmit: return false;
+}
+
+/* Mobile uchun qo'shimcha himoya */
+@media (max-width: 768px) {
+  body.kassa-locked {
+    /* Mobile browser menu ni bloklash */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    
+    /* Zoom ni bloklash */
+    touch-action: manipulation;
+  }
+}
+
+/* Kassa tizimi uchun maxsus cursor */
+.kassa-cursor-locked {
+  cursor: not-allowed !important;
+}
+
+/* Kassa himoyalangan matn */
+.kassa-no-copy {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Kassa xavfsizlik overlay */
+.kassa-security-overlay {
+  @apply fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center;
+}
+
+.kassa-security-message {
+  @apply bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl;
+}
+
+/* Print ni to'liq bloklash */
+@media print {
+  body.kassa-locked {
+    display: none !important;
+  }
+  
+  body.kassa-locked::before {
+    content: "KASSA TIZIMI - CHOP ETISH TAQIQLANADI";
+    display: block !important;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: red;
+    margin: 50px;
+  }
+}
