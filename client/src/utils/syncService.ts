@@ -13,8 +13,7 @@ import {
   getUnsyncedSales,
   markSalesAsSynced,
   deleteSyncedSales,
-  getUnsyncedSalesCount,
-  OfflineSale
+  getUnsyncedSalesCount
 } from './indexedDbService';
 
 // Sync status for UI updates

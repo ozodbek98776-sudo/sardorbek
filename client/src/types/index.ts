@@ -51,11 +51,15 @@ export interface Customer {
 
 export interface Debt {
   _id: string;
-  customer: Customer;
+  customer?: Customer;
+  creditorName?: string;
   amount: number;
   paidAmount: number;
   dueDate: string;
-  status: 'pending' | 'overdue' | 'paid' | 'blacklist';
+  status: 'pending_approval' | 'approved' | 'overdue' | 'paid' | 'blacklist';
+  type: 'receivable' | 'payable';
+  description?: string;
+  collateral?: string;
   payments: Payment[];
   items?: DebtItem[];
   description?: string;

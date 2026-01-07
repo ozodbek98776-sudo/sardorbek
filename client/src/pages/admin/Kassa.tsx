@@ -22,7 +22,6 @@ export default function Kassa() {
   const { isOnline, pendingCount, isSyncing, manualSync } = useOffline();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [inputMode, setInputMode] = useState<'code'>('code');
   const [inputValue, setInputValue] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -123,12 +122,6 @@ export default function Kassa() {
     setSearchQuery('');
   };
 
-  const updateQuantity = (id: string, delta: number) => {
-    setCart(prev => prev.map(item => 
-      item._id === id ? { ...item, cartQuantity: Math.max(1, item.cartQuantity + delta) } : item
-    ));
-  };
-
   const toggleReturnMode = () => {
     if (!isReturnMode) {
       // Entering return mode - show search modal
@@ -197,7 +190,7 @@ export default function Kassa() {
 
     try {
       // Import offline sale function
-      const { saveOfflineSale, markSalesAsSynced, deleteSyncedSales, getUnsyncedSalesCount } = await import('../../utils/indexedDbService');
+      const { saveOfflineSale, markSalesAsSynced, deleteSyncedSales } = await import('../../utils/indexedDbService');
       
       // Step 1: ALWAYS save locally first (safety - never lose sales)
       const offlineSale = await saveOfflineSale(saleData);

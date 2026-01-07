@@ -10,7 +10,7 @@ const productSchema = new mongoose.Schema({
   isMainWarehouse: { type: Boolean, default: false },
   category: String,
   images: [{ type: String }], // Array of image paths
-  minStock: { type: Number, default: 5 },
+  minStock: { type: Number, default: 100 },
   // Package/batch information
   packages: [{
     packageCount: { type: Number, required: true }, // Nechta qop

@@ -93,7 +93,7 @@ export interface StaffReceiptDBRecord {
   syncStatus: StaffReceiptSyncStatus;
 }
 
-export const saveStaffReceipt = async (receipt: Omit<StaffReceiptDBRecord, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'> & {id?: string, updatedAt?: string, syncStatus?: StaffReceiptSyncStatus}): Promise<StaffReceiptDBRecord> => {
+export const saveStaffReceipt = async (receipt: Omit<StaffReceiptDBRecord, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'> & {id?: string, createdAt?: string, updatedAt?: string, syncStatus?: StaffReceiptSyncStatus}): Promise<StaffReceiptDBRecord> => {
   const database = await initDB();
 
   const now = new Date().toISOString();
@@ -150,9 +150,13 @@ export const markStaffReceiptsAsSynced = async (ids: string[]): Promise<void> =>
     const store = transaction.objectStore(STORES.STAFF_RECEIPTS);
     let completed = 0;
     const total = ids.length;
+    
+    transaction.onerror = () => reject(transaction.error);
+    
     if (total === 0) { resolve(); return; }
     ids.forEach((id) => {
       const getRequest = store.get(id);
+      getRequest.onerror = () => reject(getRequest.error);
       getRequest.onsuccess = () => {
         const record = getRequest.result;
         if (record) {
@@ -178,6 +182,9 @@ export const deleteSyncedStaffReceipts = async (ids: string[]): Promise<void> =>
     const store = transaction.objectStore(STORES.STAFF_RECEIPTS);
     let completed = 0;
     const total = ids.length;
+    
+    transaction.onerror = () => reject(transaction.error);
+    
     if (total === 0) { resolve(); return; }
     ids.forEach((id) => {
       const request = store.delete(id);
@@ -301,6 +308,8 @@ export const markSalesAsSynced = async (saleIds: string[]): Promise<void> => {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([STORES.SALES], 'readwrite');
     const store = transaction.objectStore(STORES.SALES);
+    
+    transaction.onerror = () => reject(transaction.error);
 
     let completed = 0;
     const total = saleIds.length;
@@ -344,6 +353,8 @@ export const deleteSyncedSales = async (saleIds: string[]): Promise<void> => {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([STORES.SALES], 'readwrite');
     const store = transaction.objectStore(STORES.SALES);
+    
+    transaction.onerror = () => reject(transaction.error);
 
     let completed = 0;
     const total = saleIds.length;

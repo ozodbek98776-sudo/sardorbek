@@ -15,6 +15,7 @@ const orderRoutes = require('./routes/orders');
 const receiptRoutes = require('./routes/receipts');
 const userRoutes = require('./routes/users');
 const statsRoutes = require('./routes/stats');
+const telegramRoutes = require('./routes/telegram');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal_uz')

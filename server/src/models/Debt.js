@@ -12,7 +12,7 @@ const debtSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   paidAmount: { type: Number, default: 0 },
   dueDate: { type: Date, required: true },
-  status: { type: String, enum: ['pending', 'overdue', 'paid', 'blacklist'], default: 'pending' },
+  status: { type: String, enum: ['pending_approval', 'approved', 'overdue', 'paid', 'blacklist'], default: 'pending_approval' },
   type: { type: String, enum: ['receivable', 'payable'], default: 'receivable' }, // receivable = they owe me, payable = I owe them
   description: { type: String },
   collateral: { type: String }, // Garov - what was left as collateral

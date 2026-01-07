@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Eye, EyeOff, Phone, Lock, ArrowRight, Building2, Shield } from 'lucide-react';
 import { formatPhone, getRawPhone } from '../utils/format';
+import api from '../utils/api';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
@@ -32,7 +33,24 @@ export default function Login() {
     try {
       const rawPhone = getRawPhone(phone);
       await login(rawPhone, password);
-      navigate('/');
+      
+      // Role-based yo'naltirish
+      const userResponse = await api.get('/auth/me');
+      const userData = userResponse.data;
+      
+      switch (userData.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'cashier':
+          navigate('/cashier');
+          break;
+        case 'helper':
+          navigate('/helper');
+          break;
+        default:
+          navigate('/');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Xatolik yuz berdi');
     } finally {

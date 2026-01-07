@@ -3,102 +3,150 @@ const axios = require('axios');
 class TelegramService {
   constructor() {
     this.botToken = process.env.TELEGRAM_BOT_TOKEN;
-    this.baseURL = `https://api.telegram.org/bot${this.botToken}`;
+    this.chatId = process.env.TELEGRAM_CHAT_ID;
+    this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
   }
 
-  async sendMessage(chatId, message, options = {}) {
+  // Xabar yuborish
+  async sendMessage(message, chatId = null) {
     if (!this.botToken) {
       console.log('Telegram bot token not configured');
-      return null;
+      return;
+    }
+
+    const targetChatId = chatId || this.chatId;
+    if (!targetChatId) {
+      console.log('Telegram chat ID not configured');
+      return;
     }
 
     try {
-      const response = await axios.post(`${this.baseURL}/sendMessage`, {
-        chat_id: chatId,
+      const response = await axios.post(`${this.baseUrl}/sendMessage`, {
+        chat_id: targetChatId,
         text: message,
-        parse_mode: 'HTML',
-        ...options
+        parse_mode: 'HTML'
       });
       return response.data;
     } catch (error) {
       console.error('Telegram send message error:', error.response?.data || error.message);
-      return null;
     }
   }
 
-  async sendPurchaseNotification(customer, items, total, paymentMethod) {
-    if (!customer.telegramChatId) {
-      console.log(`Customer ${customer.name} doesn't have telegram chat ID`);
-      return null;
-    }
-
-    const itemsList = items.map(item =>
-      `• ${item.name} - ${item.quantity} ta x ${this.formatNumber(item.price)} = ${this.formatNumber(item.price * item.quantity)} so'm`
-    ).join('\n');
-
+  // Sotув cheki yuborish
+  async sendSaleReceipt(saleData) {
     const message = `
-🛒 <b>Yangi xarid!</b>
+🧾 <b>YANGI SOTУВ</b>
 
-👤 <b>Mijoz:</b> ${customer.name}
-📞 <b>Telefon:</b> ${customer.phone}
+💰 <b>Jami summa:</b> ${this.formatNumber(saleData.total)} so'm
+💳 <b>To'lov turi:</b> ${saleData.paymentMethod === 'cash' ? 'Naqd' : 'Plastik'}
+👤 <b>Kassir:</b> ${saleData.cashierName}
+📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
 
 📦 <b>Mahsulotlar:</b>
-${itemsList}
+${saleData.items.map(item => 
+  `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
+).join('\n')}
 
-💰 <b>Jami summa:</b> ${this.formatNumber(total)} so'm
-💳 <b>To'lov usuli:</b> ${paymentMethod === 'cash' ? 'Naqd pul' : 'Plastik karta'}
-⏰ <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
+${saleData.customer ? `👤 <b>Mijoz:</b> ${saleData.customer.name} (${saleData.customer.phone})` : ''}
+${saleData.discount > 0 ? `🎯 <b>Chegirma:</b> ${this.formatNumber(saleData.discount)} so'm` : ''}
+    `;
 
-✅ Xaridingiz uchun rahmat!
-    `.trim();
-
-    return await this.sendMessage(customer.telegramChatId, message);
+    return this.sendMessage(message.trim());
   }
 
-  async sendDebtNotification(customer, debtAmount, dueDate) {
-    if (!customer.telegramChatId) {
-      console.log(`Customer ${customer.name} doesn't have telegram chat ID`);
-      return null;
-    }
+  // Qarz qo'shilganda xabar
+  async sendDebtNotification(debtData) {
+    const message = `
+💳 <b>YANGI QARZ QO'SHILDI</b>
+
+👤 <b>Mijoz:</b> ${debtData.customerName}
+📞 <b>Telefon:</b> ${debtData.customerPhone}
+💰 <b>Qarz summasi:</b> ${this.formatNumber(debtData.amount)} so'm
+📅 <b>Muddat:</b> ${new Date(debtData.dueDate).toLocaleDateString('uz-UZ')}
+📝 <b>Izoh:</b> ${debtData.description || 'Yo\'q'}
+${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
+
+⏳ <b>Holat:</b> Admin tasdiqlashini kutmoqda
+    `;
+
+    return this.sendMessage(message.trim());
+  }
+
+  // Qarz tasdiqlanganda xabar
+  async sendDebtApprovalNotification(debtData) {
+    const message = `
+✅ <b>QARZ TASDIQLANDI</b>
+
+👤 <b>Mijoz:</b> ${debtData.customerName}
+💰 <b>Summa:</b> ${this.formatNumber(debtData.amount)} so'm
+📅 <b>Muddat:</b> ${new Date(debtData.dueDate).toLocaleDateString('uz-UZ')}
+
+✅ Admin tomonidan tasdiqlandi va mijozning umumiy qarziga qo'shildi.
+    `;
+
+    return this.sendMessage(message.trim());
+  }
+
+  // Kam qolgan mahsulotlar haqida xabar
+  async sendLowStockAlert(products) {
+    if (!products || products.length === 0) return;
 
     const message = `
-💳 <b>Qarz eslatmasi</b>
+⚠️ <b>KAM QOLGAN MAHSULOTLAR</b>
 
-👤 <b>Mijoz:</b> ${customer.name}
-💰 <b>Qarz miqdori:</b> ${this.formatNumber(debtAmount)} so'm
-📅 <b>To'lov muddati:</b> ${new Date(dueDate).toLocaleDateString('uz-UZ')}
+📦 Quyidagi mahsulotlar 100 tadan kam qoldi:
 
-⚠️ Iltimos, belgilangan muddatda to'lovni amalga oshiring.
+${products.map(product => 
+  `• <b>${product.name}</b> - ${product.quantity} ta qoldi`
+).join('\n')}
 
-📞 Savollar bo'lsa: +998 XX XXX XX XX
-    `.trim();
+🔄 Mahsulotlarni to'ldirish kerak!
+    `;
 
-    return await this.sendMessage(customer.telegramChatId, message);
+    return this.sendMessage(message.trim());
   }
 
-  async sendPaymentReminder(customer, debtAmount, overdueDays) {
-    if (!customer.telegramChatId) {
-      console.log(`Customer ${customer.name} doesn't have telegram chat ID`);
-      return null;
-    }
-
+  // To'lov qilinganida xabar
+  async sendPaymentNotification(paymentData) {
     const message = `
-🚨 <b>Qarz to'lovi eslatmasi</b>
+💰 <b>TO'LOV QILINDI</b>
 
-👤 <b>Mijoz:</b> ${customer.name}
-💰 <b>Qarz miqdori:</b> ${this.formatNumber(debtAmount)} so'm
-⏰ <b>Muddati:</b> ${overdueDays} kun o'tgan
+👤 <b>Mijoz:</b> ${paymentData.customerName}
+💳 <b>To'lov summasi:</b> ${this.formatNumber(paymentData.amount)} so'm
+💰 <b>Qoldiq qarz:</b> ${this.formatNumber(paymentData.remainingDebt)} so'm
+📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
 
-❗️ Qarzingiz muddati o'tgan. Iltimos, tezroq to'lovni amalga oshiring.
+${paymentData.remainingDebt === 0 ? '✅ Qarz to\'liq to\'landi!' : ''}
+    `;
 
-📞 Bog'lanish: +998 XX XXX XX XX
-    `.trim();
-
-    return await this.sendMessage(customer.telegramChatId, message);
+    return this.sendMessage(message.trim());
   }
 
+  // Raqamni formatlash
   formatNumber(num) {
     return new Intl.NumberFormat('uz-UZ').format(num);
+  }
+
+  // Bot ma'lumotlarini olish
+  async getBotInfo() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/getMe`);
+      return response.data;
+    } catch (error) {
+      console.error('Get bot info error:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  // Chat ID ni olish (test uchun)
+  async getUpdates() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/getUpdates`);
+      return response.data;
+    } catch (error) {
+      console.error('Get updates error:', error.response?.data || error.message);
+      return null;
+    }
   }
 }
 
