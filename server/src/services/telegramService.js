@@ -94,7 +94,7 @@ ${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
     const message = `
 ⚠️ <b>KAM QOLGAN MAHSULOTLAR</b>
 
-📦 Quyidagi mahsulotlar 100 tadan kam qoldi:
+📦 Quyidagi mahsulotlar 50 tadan kam qoldi:
 
 ${products.map(product => 
   `• <b>${product.name}</b> - ${product.quantity} ta qoldi`

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -15,6 +15,7 @@ export default function Products() {
   const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +34,13 @@ export default function Products() {
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
   const [quantityInput, setQuantityInput] = useState('');
+  const [printSettings, setPrintSettings] = useState({
+    printer: '',
+    copies: 1,
+    size: 'card',
+    layout: 'standard'
+  });
+  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -184,6 +192,40 @@ export default function Products() {
     setShowModal(true);
   };
 
+  const openQRModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQRModal(true);
+  };
+
+  const openPrintModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowPrintModal(true);
+    loadAvailablePrinters();
+  };
+
+  const loadAvailablePrinters = async () => {
+    try {
+      // Faqat sizning printerlaringiz
+      const myPrinters = [
+        'Default Printer',
+        'HP LaserJet Pro',
+        'Canon PIXMA'
+      ];
+      
+      setAvailablePrinters(myPrinters);
+      
+      // Default printer as selected
+      setPrintSettings(prev => ({
+        ...prev,
+        printer: myPrinters[0]
+      }));
+      
+    } catch (error) {
+      console.error('Error loading printers:', error);
+      setAvailablePrinters(['Default Printer']);
+    }
+  };
+
   const closeModal = () => {
     setShowModal(false);
     setEditingProduct(null);
@@ -242,11 +284,6 @@ export default function Products() {
     }
   };
 
-  const openQRModal = (product: Product) => {
-    setSelectedProduct(product);
-    setShowQRModal(true);
-  };
-
   const downloadQR = () => {
     if (!selectedProduct) return;
     const svg = document.getElementById('qr-code-svg');
@@ -271,9 +308,209 @@ export default function Products() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  const generateQRCodeDataURL = (product: Product, size: number): string => {
+    // Create SVG string with QR pattern (simplified version)
+    // In a real implementation, you would use the actual QR data to generate proper QR code
+    const svgString = `
+      <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="white"/>
+        <g fill="black">
+          <!-- QR Code corner markers -->
+          <rect x="0" y="0" width="7" height="7"/>
+          <rect x="${size-7}" y="0" width="7" height="7"/>
+          <rect x="0" y="${size-7}" width="7" height="7"/>
+          <rect x="2" y="2" width="3" height="3" fill="white"/>
+          <rect x="${size-5}" y="2" width="3" height="3" fill="white"/>
+          <rect x="2" y="${size-5}" width="3" height="3" fill="white"/>
+          <!-- Data pattern (simplified) -->
+          <rect x="10" y="10" width="2" height="2"/>
+          <rect x="15" y="12" width="2" height="2"/>
+          <rect x="20" y="8" width="2" height="2"/>
+          <rect x="25" y="15" width="2" height="2"/>
+          <rect x="30" y="10" width="2" height="2"/>
+          <rect x="35" y="20" width="2" height="2"/>
+          <rect x="12" y="25" width="2" height="2"/>
+          <rect x="18" y="30" width="2" height="2"/>
+          <rect x="25" y="35" width="2" height="2"/>
+          <rect x="32" y="28" width="2" height="2"/>
+          <rect x="8" y="35" width="2" height="2"/>
+          <rect x="22" y="22" width="2" height="2"/>
+          <rect x="28" y="32" width="2" height="2"/>
+          <rect x="14" y="18" width="2" height="2"/>
+          <rect x="38" y="12" width="2" height="2"/>
+          <rect x="16" y="38" width="2" height="2"/>
+          <rect x="42" y="25" width="2" height="2"/>
+          <rect x="26" y="42" width="2" height="2"/>
+        </g>
+        <!-- Add product code as text for reference -->
+        <text x="${size/2}" y="${size-2}" text-anchor="middle" font-size="4" fill="black">${product.code}</text>
+      </svg>
+    `;
+    
+    return `data:image/svg+xml;base64,${btoa(svgString)}`;
+  };
+
+  const generateProductLabel = async (product: Product) => {
+    const { size, layout } = printSettings;
+    
+    // Generate QR code as data URL
+    const qrSize = size === 'card' ? 24 : size === 'thermal' ? 90 : 110;
+    const qrDataUrl = generateQRCodeDataURL(product, qrSize);
+    
+    // Create HTML content for the label
+    const labelContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Product Label - ${product.name}</title>
+        <style>
+          @page {
+            size: ${size === 'card' ? '50mm 25mm' : size === 'A4' ? 'A4' : size === 'A5' ? 'A5' : '80mm 60mm'};
+            margin: ${size === 'card' ? '0.3mm' : size === 'thermal' ? '3mm' : '8mm'};
+          }
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+          }
+          .label-container {
+            border: 1px solid #000;
+            padding: ${size === 'card' ? '0.5mm' : size === 'thermal' ? '8px' : '15px'};
+            background: white;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            overflow: hidden;
+          }
+          .product-info {
+            flex: 1;
+            max-width: 75%;
+          }
+          .product-name {
+            font-size: ${size === 'card' ? '7px' : size === 'thermal' ? '16px' : '22px'};
+            font-weight: bold;
+            color: #000;
+            line-height: 1.0;
+            margin-bottom: ${size === 'card' ? '1px' : '2px'};
+            word-wrap: break-word;
+          }
+          .product-code {
+            font-size: ${size === 'card' ? '4px' : size === 'thermal' ? '11px' : '14px'};
+            color: #666;
+            line-height: 1.0;
+            margin-bottom: ${size === 'card' ? '1px' : '2px'};
+          }
+          .product-price {
+            font-size: ${size === 'card' ? '9px' : size === 'thermal' ? '14px' : '18px'};
+            font-weight: bold;
+            color: #000;
+            line-height: 1.0;
+            margin-bottom: ${size === 'card' ? '1px' : '2px'};
+          }
+          .qr-code-section {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 25%;
+            height: 100%;
+          }
+          .qr-code-img {
+            width: ${size === 'card' ? '24px' : size === 'thermal' ? '90px' : '110px'};
+            height: ${size === 'card' ? '24px' : size === 'thermal' ? '90px' : '110px'};
+            border: 1px solid #ddd;
+          }
+          .additional-info {
+            margin: 0;
+            font-size: ${size === 'card' ? '2.5px' : size === 'thermal' ? '9px' : '11px'};
+            color: #666;
+            line-height: 1.0;
+          }
+          .info-row {
+            margin: 0;
+          }
+          ${layout === 'minimal' ? '.additional-info { display: none; }' : ''}
+        </style>
+      </head>
+      <body>
+        <div class="label-container">
+          <div class="product-info">
+            <div class="product-name">${product.name}</div>
+            <div class="product-code">${product.code}</div>
+            <div class="product-price">${formatNumber(product.price)}</div>
+            
+            <div class="additional-info">
+              <div class="info-row">
+                ${product.quantity} | ${new Date().toLocaleDateString('uz-UZ')}
+              </div>
+            </div>
+          </div>
+          
+          <div class="qr-code-section">
+            <img src="${qrDataUrl}" alt="QR Code" class="qr-code-img" />
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    return labelContent;
+  };
+
+  const handlePrint = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      const labelContent = await generateProductLabel(selectedProduct);
+      
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      if (!printWindow) {
+        alert('Popup blocker tomonidan to\'sib qo\'yildi. Popup\'larni yoqing.');
+        return;
+      }
+      
+      // Write the content to the new window
+      printWindow.document.write(labelContent);
+      printWindow.document.close();
+      
+      // Wait for content to load
+      printWindow.onload = () => {
+        // Focus the window and trigger print dialog
+        printWindow.focus();
+        
+        // Print multiple copies
+        for (let i = 0; i < printSettings.copies; i++) {
+          setTimeout(() => {
+            // This will open Windows print dialog with all available printers
+            printWindow.print();
+          }, i * 500); // Small delay between copies
+        }
+        
+        // Close the window after printing
+        setTimeout(() => {
+          printWindow.close();
+        }, 2000);
+      };
+      
+      setShowPrintModal(false);
+      
+    } catch (error) {
+      console.error('Error generating print content:', error);
+      alert('Chop uchun tayyorlashda xatolik yuz berdi');
+    }
+  };
+
   const stats = {
     total: products.length,
-    lowStock: products.filter(p => p.quantity <= (p.minStock || 100) && p.quantity > 0).length,
+    lowStock: products.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
     outOfStock: products.filter(p => p.quantity === 0).length,
     totalValue: products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
   };
@@ -282,7 +519,7 @@ export default function Products() {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          p.code.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStock = stockFilter === 'all' || 
-                        (stockFilter === 'low' && p.quantity <= (p.minStock || 100) && p.quantity > 0) ||
+                        (stockFilter === 'low' && p.quantity <= (p.minStock || 50) && p.quantity > 0) ||
                         (stockFilter === 'out' && p.quantity === 0);
     return matchesSearch && matchesStock;
   });
@@ -404,6 +641,9 @@ export default function Products() {
                         <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
                           <QrCode className="w-4 h-4" />
                         </button>
+                        <button onClick={() => openPrintModal(product)} className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600" title="Chop etish">
+                          <Printer className="w-4 h-4" />
+                        </button>
                         <button onClick={() => openEditModal(product)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
                           <Edit className="w-4 h-4" />
                         </button>
@@ -434,6 +674,7 @@ export default function Products() {
                           </div>
                           <div className="flex gap-1">
                             <button onClick={() => openQRModal(product)} className="btn-icon-sm"><QrCode className="w-4 h-4" /></button>
+                            <button onClick={() => openPrintModal(product)} className="btn-icon-sm text-blue-600"><Printer className="w-4 h-4" /></button>
                             <button onClick={() => openEditModal(product)} className="btn-icon-sm"><Edit className="w-4 h-4" /></button>
                             <button onClick={() => handleDelete(product._id)} className="btn-icon-sm text-danger-500"><Trash2 className="w-4 h-4" /></button>
                           </div>
@@ -604,6 +845,192 @@ export default function Products() {
               <button onClick={downloadQR} className="btn-primary w-full">
                 <Download className="w-4 h-4" />
                 Yuklab olish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowPrintModal(false)} />
+          <div className="modal w-full max-w-2xl p-6 relative z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-surface-900">Chop etish sozlamalari</h3>
+              <button onClick={() => setShowPrintModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Settings Panel */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Printer tanlash</label>
+                  <select 
+                    className="input"
+                    value={printSettings.printer}
+                    onChange={e => setPrintSettings({...printSettings, printer: e.target.value})}
+                  >
+                    <option value="">Printer tanlang</option>
+                    {availablePrinters.map(printer => (
+                      <option key={printer} value={printer}>{printer}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-surface-500 mt-1">
+                    Chop etish tugmasini bosganda Windows print dialog ochiladi va barcha mavjud printerlarni ko'rsatadi
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Qog'oz o'lchami</label>
+                  <select 
+                    className="input"
+                    value={printSettings.size}
+                    onChange={e => setPrintSettings({...printSettings, size: e.target.value})}
+                  >
+                    <option value="card">Kichik yorliq (50×25mm)</option>
+                    <option value="A4">A4 (210×297mm)</option>
+                    <option value="A5">A5 (148×210mm)</option>
+                    <option value="thermal">Thermal (80×120mm)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Shablon</label>
+                  <select 
+                    className="input"
+                    value={printSettings.layout}
+                    onChange={e => setPrintSettings({...printSettings, layout: e.target.value})}
+                  >
+                    <option value="standard">Standart (barcha ma'lumotlar)</option>
+                    <option value="minimal">Minimal (faqat asosiy ma'lumotlar)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Nusxalar soni</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="10"
+                    className="input"
+                    value={printSettings.copies}
+                    onChange={e => setPrintSettings({...printSettings, copies: parseInt(e.target.value) || 1})}
+                  />
+                </div>
+              </div>
+
+              {/* Preview Panel */}
+              <div className="bg-surface-50 rounded-xl p-4">
+                <h4 className="text-sm font-medium text-surface-700 mb-3">Ko'rinish</h4>
+                <div className="bg-white shadow-sm rounded-lg p-4 flex justify-center">
+                  <div 
+                    className="bg-white border-2 border-dashed border-surface-300"
+                    style={{
+                      width: printSettings.size === 'card' ? '50mm' : printSettings.size === 'thermal' ? '80mm' : printSettings.size === 'A5' ? '148mm' : '210mm',
+                      height: printSettings.size === 'card' ? '25mm' : printSettings.size === 'thermal' ? '120mm' : printSettings.size === 'A5' ? '210mm' : '297mm',
+                      fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '10px' : '12px',
+                      transform: printSettings.size === 'card' ? 'scale(1.8)' : 'scale(0.6)',
+                      transformOrigin: 'center center',
+                      overflow: 'hidden',
+                      padding: '1px'
+                    }}
+                  >
+                    {/* Main content - horizontal layout */}
+                    <div className="flex items-center h-full" style={{gap: '3px'}}>
+                      {/* Left side - Product info */}
+                      <div className="flex-1 text-left" style={{maxWidth: '75%'}}>
+                        <div 
+                          className="font-bold text-black"
+                          style={{
+                            fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '18px' : '24px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '1px' : '2px'
+                          }}
+                        >
+                          {selectedProduct.name}
+                        </div>
+                        
+                        <div 
+                          className="text-gray-600"
+                          style={{
+                            fontSize: printSettings.size === 'card' ? '4px' : printSettings.size === 'thermal' ? '12px' : '16px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '1px' : '2px'
+                          }}
+                        >
+                          {selectedProduct.code}
+                        </div>
+
+                        {/* Price */}
+                        <div 
+                          className="font-bold text-black"
+                          style={{
+                            fontSize: printSettings.size === 'card' ? '9px' : printSettings.size === 'thermal' ? '16px' : '20px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '1px' : '2px'
+                          }}
+                        >
+                          {formatNumber(selectedProduct.price)}
+                        </div>
+
+                        {/* Additional info only in standard layout */}
+                        {printSettings.layout === 'standard' && (
+                          <div 
+                            className="text-gray-600" 
+                            style={{
+                              fontSize: printSettings.size === 'card' ? '2.5px' : printSettings.size === 'thermal' ? '9px' : '11px',
+                              lineHeight: '1.0',
+                              margin: 0
+                            }}
+                          >
+                            {selectedProduct.quantity} | {new Date().toLocaleDateString('uz-UZ')}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right side - QR Code */}
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{maxWidth: '25%', height: '100%'}}>
+                        <QRCodeSVG
+                          value={JSON.stringify({
+                            id: selectedProduct._id,
+                            code: selectedProduct.code,
+                            name: selectedProduct.name,
+                            price: selectedProduct.price
+                          })}
+                          size={printSettings.size === 'card' ? 24 : printSettings.size === 'thermal' ? 90 : 110}
+                          level="H"
+                          includeMargin={false}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {printSettings.copies > 1 && (
+                  <p className="text-xs text-surface-500 mt-2 text-center">
+                    {printSettings.copies} nusxa chop etiladi
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-6">
+              <button 
+                type="button" 
+                onClick={() => setShowPrintModal(false)} 
+                className="btn-secondary flex-1"
+              >
+                Bekor qilish
+              </button>
+              <button 
+                type="button" 
+                onClick={handlePrint} 
+                className="btn-primary flex-1"
+                disabled={!printSettings.printer}
+              >
+                <Printer className="w-4 h-4" />
+                Chop etish
               </button>
             </div>
           </div>

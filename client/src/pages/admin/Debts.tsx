@@ -200,7 +200,6 @@ export default function Debts() {
   });
 
   const statItems = [
-    { label: 'Tasdiqlash', value: stats.pendingApproval, icon: AlertTriangle, color: 'amber', filter: 'pending_approval' },
     { label: 'Tasdiqlangan', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
     { label: "Bugun to'lanadigan", value: stats.today, icon: Calendar, color: 'brand', filter: 'today' },
     { label: "To'langan", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
