@@ -23,7 +23,6 @@ import KassaMain from './pages/kassa/KassaMain';
 import KassaClients from './pages/kassa/KassaClients';
 import KassaDebts from './pages/kassa/KassaDebts';
 import KassaProducts from './pages/kassa/KassaProducts';
-import KassaStaff from './pages/kassa/KassaStaff';
 import TelegramSettings from './pages/admin/TelegramSettings';
 import KassaLogin from './pages/KassaLogin';
 
@@ -225,7 +224,6 @@ function App() {
               <Route path="clients" element={<KassaClients />} />
               <Route path="debts" element={<KassaDebts />} />
               <Route path="products" element={<KassaProducts />} />
-              <Route path="staff" element={<KassaStaff />} />
             </Route>
             
             {/* Admin Routes */}
