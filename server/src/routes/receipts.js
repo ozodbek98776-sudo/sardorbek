@@ -7,6 +7,51 @@ const telegramService = require('../services/telegramService');
 
 const router = express.Router();
 
+// Kassa uchun chek yaratish (auth talab qilmaydi)
+router.post('/kassa', async (req, res) => {
+  try {
+    const { items, total, paymentMethod, customer } = req.body;
+
+    const receiptData = {
+      items: items.map(item => ({
+        product: item.product,
+        name: item.name,
+        code: item.code,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      total,
+      paymentMethod,
+      customer: customer || null,
+      status: 'completed',
+      createdAt: new Date()
+    };
+
+    const receipt = new Receipt(receiptData);
+    await receipt.save();
+
+    // Mahsulot miqdorlarini yangilash
+    for (const item of items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { quantity: -item.quantity } }
+      );
+    }
+
+    // Mijoz statistikasini yangilash
+    if (customer) {
+      await Customer.findByIdAndUpdate(
+        customer,
+        { $inc: { totalPurchases: total } }
+      );
+    }
+
+    res.status(201).json(receipt);
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const { status } = req.query;

@@ -6,8 +6,15 @@ const paymentSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 });
 
+const debtItemSchema = new mongoose.Schema({
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  quantity: { type: Number, required: true },
+  price: { type: Number, required: true }
+});
+
 const debtSchema = new mongoose.Schema({
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Admin kiritgan foydalanuvchi
   creditorName: { type: String }, // For own debts (who you owe to)
   amount: { type: Number, required: true },
   paidAmount: { type: Number, default: 0 },
@@ -16,6 +23,7 @@ const debtSchema = new mongoose.Schema({
   type: { type: String, enum: ['receivable', 'payable'], default: 'receivable' }, // receivable = they owe me, payable = I owe them
   description: { type: String },
   collateral: { type: String }, // Garov - what was left as collateral
+  items: [debtItemSchema], // Qarz berilgan mahsulotlar
   payments: [paymentSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });

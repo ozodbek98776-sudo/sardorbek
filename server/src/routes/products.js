@@ -373,6 +373,60 @@ router.delete('/cleanup-invalid', auth, authorize('admin'), async (req, res) => 
   }
 });
 
+// Mahsulot miqdorini kamaytirish - kassa uchun
+router.put('/:id/reduce-quantity', async (req, res) => {
+  try {
+    console.log(`Miqdor kamaytirish so'rovi keldi: ID=${req.params.id}, Body:`, req.body);
+
+    const { quantity } = req.body;
+
+    if (!quantity || quantity <= 0) {
+      console.log('Noto\'g\'ri miqdor:', quantity);
+      return res.status(400).json({ message: 'Noto\'g\'ri miqdor' });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      console.log('Tovar topilmadi:', req.params.id);
+      return res.status(404).json({ message: 'Tovar topilmadi' });
+    }
+
+    console.log(`Tovar topildi: ${product.name}, Hozirgi miqdor: ${product.quantity}, Kamaytirilishi kerak: ${quantity}`);
+
+    // Miqdorni tekshirish
+    if (product.quantity < quantity) {
+      console.log(`Yetarli miqdor yo'q: Mavjud=${product.quantity}, So'ralgan=${quantity}`);
+      return res.status(400).json({
+        message: `Yetarli miqdor yo'q. Mavjud: ${product.quantity}, So'ralgan: ${quantity}`,
+        availableQuantity: product.quantity,
+        requestedQuantity: quantity
+      });
+    }
+
+    // Miqdorni kamaytirish
+    const oldQuantity = product.quantity;
+    product.quantity -= quantity;
+    await product.save();
+
+    console.log(`✅ ${product.name} mahsuloti miqdori ${quantity} ta kamaytirildi. Eski: ${oldQuantity}, Yangi: ${product.quantity}`);
+
+    res.json({
+      message: 'Miqdor muvaffaqiyatli kamaytirildi',
+      product: {
+        id: product._id,
+        name: product.name,
+        code: product.code,
+        previousQuantity: oldQuantity,
+        newQuantity: product.quantity,
+        reducedBy: quantity
+      }
+    });
+  } catch (error) {
+    console.error('Miqdorni kamaytirish xatosi:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
