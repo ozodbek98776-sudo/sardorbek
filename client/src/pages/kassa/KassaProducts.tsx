@@ -1,37 +1,42 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Search, RefreshCw, Package } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
+import { useAlert } from '../../hooks/useAlert';
 
 export default function KassaProducts() {
+  const { showAlert, AlertComponent } = useAlert();
+  const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchProducts();
+    
+    // Kassa sahifasida beforeunload eventini vaqtincha o'chirish
+    const originalHandler = window.onbeforeunload;
+    window.onbeforeunload = null;
+    
     // Auto-refresh every 30 seconds to get latest data
     const interval = setInterval(fetchProducts, 30000);
     
-    // F5 tugmasi bosilganda refresh qilish
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'F5') {
-        event.preventDefault();
-        handleRefresh();
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyPress);
-    
     return () => {
+      window.onbeforeunload = originalHandler;
       clearInterval(interval);
-      window.removeEventListener('keydown', handleKeyPress);
     };
   }, []);
+
+  // Route o'zgarganda ma'lumotlarni yangilash
+  useEffect(() => {
+    fetchProducts();
+  }, [location.pathname]);
 
   useEffect(() => {
     // Filter products based on search term and warehouse
@@ -61,8 +66,15 @@ export default function KassaProducts() {
     try {
       setLoading(true);
       setError('');
+      
       // Kassa uchun alohida endpoint - token talab qilmaydi
       const res = await api.get('/products/kassa');
+      
+      if (!res.data || !Array.isArray(res.data)) {
+        console.error('Kassa: Noto\'g\'ri server javobi:', res.data);
+        setError('Server noto\'g\'ri javob berdi');
+        return;
+      }
       
       // Filter and clean product data - more strict filtering
       const cleanProducts = res.data.filter((product: Product) => {
@@ -90,28 +102,52 @@ export default function KassaProducts() {
       }));
       
       setProducts(cleanProducts);
-      console.log(`Kassa: Loaded ${cleanProducts.length} products`);
-      if (cleanProducts.length > 0) {
-        console.log('Sample product:', cleanProducts[0]);
+      console.log(`Kassa: ${res.data.length} ta tovardan ${cleanProducts.length} ta valid tovar yuklandi`);
+      
+      if (cleanProducts.length === 0 && res.data.length > 0) {
+        console.warn('Barcha tovarlar filtrlandi. Birinchi 3 ta tovar:', res.data.slice(0, 3));
       }
     } catch (err: any) {
-      console.error('Error fetching products:', err);
-      setError('Tovarlarni yuklashda xatolik yuz berdi');
+      console.error('Kassa: Tovarlarni yuklashda xatolik:', err);
+      
+      if (err.response?.status === 404) {
+        setError('Kassa endpoint topilmadi (404)');
+      } else if (err.response?.status >= 500) {
+        setError('Server xatosi (' + err.response.status + ')');
+      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+        setError('Serverga ulanishda xatolik');
+      } else {
+        setError('Tovarlarni yuklashda xatolik: ' + (err.response?.data?.message || err.message));
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRefresh = () => {
-    fetchProducts();
+  const handleRefresh = async () => {
+    console.log('Refresh tugmasi bosildi');
+    setIsRefreshing(true);
+    try {
+      console.log('Ma\'lumotlar yangilanmoqda...');
+      await fetchProducts();
+      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
+      showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
+    } catch (error) {
+      console.error('Refresh xatosi:', error);
+      showAlert('Ma\'lumotlarni yangilashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
+      {AlertComponent}
+      
       <div className="bg-white rounded-xl border border-surface-200 overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-surface-200">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-3 sm:p-4 border-b border-surface-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
             <div className="flex items-center gap-2">
               <Package className="w-5 h-5 text-brand-600" />
               <h2 className="text-lg font-semibold text-surface-900">Tovarlar ro'yxati</h2>
@@ -121,18 +157,18 @@ export default function KassaProducts() {
             </div>
             <button
               onClick={handleRefresh}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isRefreshing}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50 w-full sm:w-auto"
               title="Tovarlar ro'yxatini yangilash (F5)"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Yangilash
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
             </button>
           </div>
           
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
               <input
                 type="text"
@@ -145,7 +181,7 @@ export default function KassaProducts() {
             <select
               value={warehouseFilter}
               onChange={(e) => setWarehouseFilter(e.target.value)}
-              className="px-3 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 bg-white"
+              className="w-full sm:w-auto px-3 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 bg-white"
             >
               <option value="all">Barcha omborlar</option>
               <option value="main">Asosiy ombor</option>
@@ -160,8 +196,8 @@ export default function KassaProducts() {
           </div>
         )}
 
-        {/* Products Table */}
-        <div className="overflow-x-auto">
+        {/* Products Table - Desktop */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-surface-50">
               <tr>
@@ -249,10 +285,95 @@ export default function KassaProducts() {
           </table>
         </div>
 
+        {/* Products Cards - Mobile & Tablet */}
+        <div className="lg:hidden">
+          {loading && filteredProducts.length === 0 ? (
+            <div className="p-8 text-center text-surface-500">
+              <div className="flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Yuklanmoqda...
+              </div>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="p-8 text-center text-surface-500">
+              {searchTerm ? 'Qidiruv bo\'yicha tovar topilmadi' : 'Tovarlar mavjud emas'}
+            </div>
+          ) : (
+            <div className="divide-y divide-surface-100">
+              {filteredProducts.map(product => (
+                <div key={product._id} className="p-4 hover:bg-surface-50 transition-colors">
+                  <div className="flex flex-col space-y-3">
+                    {/* Product Name and Code */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-surface-900 text-base">
+                          {product.name || 'Noma\'lum tovar'}
+                        </h3>
+                        <span className="font-mono text-sm text-surface-600 bg-surface-100 px-2 py-1 rounded mt-1 inline-block">
+                          {product.code.length > 20 ? `${product.code.substring(0, 20)}...` : product.code}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          product.quantity > 10 
+                            ? 'bg-success-100 text-success-700' 
+                            : product.quantity > 0 
+                            ? 'bg-warning-100 text-warning-700' 
+                            : 'bg-danger-100 text-danger-700'
+                        }`}>
+                          {product.quantity > 10 ? 'Mavjud' : product.quantity > 0 ? 'Kam qoldi' : 'Tugagan'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-surface-500 block">Narx</span>
+                        <span className="font-semibold text-surface-900">
+                          {formatNumber(product.price)} so'm
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-surface-500 block">Miqdor</span>
+                        <span className={`font-medium ${
+                          product.quantity > 10 ? 'text-success-600' : 
+                          product.quantity > 0 ? 'text-warning-600' : 'text-danger-600'
+                        }`}>
+                          {product.quantity}
+                        </span>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <span className="text-surface-500 block">Ombor</span>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          product.isMainWarehouse 
+                            ? 'bg-brand-100 text-brand-700' 
+                            : 'bg-surface-100 text-surface-600'
+                        }`}>
+                          {typeof product.warehouse === 'object' && product.warehouse?.name 
+                            ? product.warehouse.name 
+                            : 'Asosiy ombor'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {product.description && (
+                      <div className="pt-2 border-t border-surface-100">
+                        <span className="text-xs text-surface-500">{product.description}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Footer */}
         {filteredProducts.length > 0 && (
-          <div className="p-4 bg-surface-50 border-t border-surface-200">
-            <div className="flex items-center justify-between text-sm text-surface-600">
+          <div className="p-3 sm:p-4 bg-surface-50 border-t border-surface-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-surface-600">
               <span>
                 Jami: {filteredProducts.length} ta tovar
                 {searchTerm && ` (${products.length} tadan filtrlangan)`}

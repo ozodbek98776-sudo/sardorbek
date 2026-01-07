@@ -104,21 +104,28 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       // Faqat kassa sahifalarida ishlaydi
       if (!window.location.pathname.startsWith('/kassa')) return;
       
-      // Alt+F4, Ctrl+W, Ctrl+T, F5, Ctrl+R va boshqa chiqish tugmalarini bloklash
+      // F5 va Ctrl+R ga to'liq ruxsat berish - sahifa refresh bo'lsin
+      if (event.key === 'F5' || (event.ctrlKey && (event.key === 'r' || event.key === 'R'))) {
+        // preventDefault qilmaymiz - sahifa to'liq yangilansin
+        return;
+      }
+      
+      // F12 ga ruxsat berish
+      if (event.key === 'F12') {
+        return;
+      }
+      
+      // Alt+F4, Ctrl+W, Ctrl+T va boshqa chiqish tugmalarini bloklash
       if (
         (event.altKey && event.key === 'F4') ||
         (event.ctrlKey && event.key === 'w') ||
         (event.ctrlKey && event.key === 'W') ||
         (event.ctrlKey && event.key === 't') ||
         (event.ctrlKey && event.key === 'T') ||
-        (event.ctrlKey && event.key === 'r') ||
-        (event.ctrlKey && event.key === 'R') ||
-        event.key === 'F5' ||
         (event.ctrlKey && event.shiftKey && event.key === 'I') ||
         (event.ctrlKey && event.shiftKey && event.key === 'J') ||
         (event.ctrlKey && event.key === 'u') ||
         (event.ctrlKey && event.key === 'U') ||
-        event.key === 'F12' ||
         (event.ctrlKey && event.key === 's') ||
         (event.ctrlKey && event.key === 'S') ||
         (event.ctrlKey && event.key === 'p') ||
@@ -143,11 +150,11 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     
     // Sahifa yopilishini bloklash - FAQAT KASSA SAHIFALARIDA
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Faqat kassa sahifalarida ishlaydi
+      // Kassa sahifalarida faqat navigation va tab yopishni bloklash
+      // F5 refresh ga to'liq ruxsat berish
       if (window.location.pathname.startsWith('/kassa')) {
-        event.preventDefault();
-        event.returnValue = '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
-        return '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
+        // Agar bu browser refresh (F5/Ctrl+R) bo'lsa, hech qanday bloklash yo'q
+        return undefined;
       }
     };
     

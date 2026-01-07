@@ -14,7 +14,11 @@ router.get('/kassa', async (req, res) => {
     if (status) query.status = status;
     if (type) query.type = type;
 
-    const debts = await Debt.find(query).populate('customer', 'name phone').sort({ createdAt: -1 });
+    const debts = await Debt.find(query)
+      .populate('customer', 'name phone')
+      .populate('user', 'name phone role')
+      .populate('items.product', 'name code price')
+      .sort({ createdAt: -1 });
     res.json(debts);
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -24,25 +28,27 @@ router.get('/kassa', async (req, res) => {
 // Kassa uchun yangi qarz qo'shish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
-    const { customer, amount, dueDate, description, collateral } = req.body;
+    const { customer, amount, paidAmount, dueDate, description, items } = req.body;
 
     const debtData = {
       type: 'receivable', // Mijoz bizga qarz
       customer,
       amount,
+      paidAmount: paidAmount || 0,
       dueDate,
       description,
-      collateral,
+      items: items || [],
       status: 'pending_approval' // Kassachi qo'shgan qarz admin tasdiqlashini kutadi
     };
 
     const debt = new Debt(debtData);
     await debt.save();
 
-    // Mijozning umumiy qarzini yangilamaydi - admin tasdiqlashini kutadi
-
     // Populate qilib qaytarish
-    await debt.populate('customer', 'name phone');
+    await debt.populate([
+      { path: 'customer', select: 'name phone' },
+      { path: 'items.product', select: 'name code price' }
+    ]);
 
     // Telegram ga xabar yuborish
     try {
@@ -50,9 +56,11 @@ router.post('/kassa', async (req, res) => {
         customerName: debt.customer.name,
         customerPhone: debt.customer.phone,
         amount: debt.amount,
+        paidAmount: debt.paidAmount,
+        remainingDebt: debt.amount - debt.paidAmount,
         dueDate: debt.dueDate,
         description: debt.description,
-        collateral: debt.collateral
+        items: debt.items
       });
     } catch (telegramError) {
       console.error('Telegram notification error:', telegramError);
@@ -262,7 +270,7 @@ router.post('/:id/approve', auth, authorize('admin'), async (req, res) => {
   try {
     const debt = await Debt.findById(req.params.id);
     if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
-    
+
     if (debt.status !== 'pending_approval') {
       return res.status(400).json({ message: 'Bu qarz allaqachon ko\'rib chiqilgan' });
     }
@@ -303,7 +311,7 @@ router.post('/:id/reject', auth, authorize('admin'), async (req, res) => {
     const { reason } = req.body;
     const debt = await Debt.findById(req.params.id);
     if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
-    
+
     if (debt.status !== 'pending_approval') {
       return res.status(400).json({ message: 'Bu qarz allaqachon ko\'rib chiqilgan' });
     }

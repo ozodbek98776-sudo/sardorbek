@@ -1,0 +1,459 @@
+import { CartItem, Customer } from '../types';
+import { formatNumber } from './format';
+
+export interface ReceiptData {
+  items: CartItem[];
+  total: number;
+  paymentMethod: 'cash' | 'card';
+  customer?: Customer | null;
+  receiptNumber?: string;
+  cashier?: string;
+  date?: Date;
+}
+
+// Chek ma'lumotlarini formatlash - HAQIQIY KASSA CHEKI KABI
+export const formatReceiptData = (data: ReceiptData): string => {
+  const date = data.date || new Date();
+  const receiptNumber = data.receiptNumber || `CHK-${Date.now()}`;
+  const cashier = data.cashier || 'Kassa';
+
+  let receipt = '';
+  
+  // Header - Professional kassa cheki kabi
+  receipt += '================================\n';
+  receipt += '       SARDOR FURNITURA         \n';
+  receipt += '================================\n';
+  receipt += '\n';
+  receipt += `CHK: ${receiptNumber}\n`;
+  receipt += `${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
+  receipt += `KASSIR: ${cashier}\n`;
+  
+  if (data.customer) {
+    receipt += `MIJOZ: ${data.customer.name}\n`;
+    receipt += `TEL: ${data.customer.phone}\n`;
+  }
+  
+  receipt += '--------------------------------\n';
+  
+  // Items - Oddiy va tushunarli
+  data.items.forEach((item, index) => {
+    receipt += `${index + 1}. ${item.name}\n`;
+    receipt += `    ${item.code}\n`;
+    receipt += `    ${item.cartQuantity} x ${formatNumber(item.price)}\n`;
+    receipt += `    = ${formatNumber(item.price * item.cartQuantity)} so'm\n`;
+    receipt += '\n';
+  });
+  
+  receipt += '--------------------------------\n';
+  
+  // Total - Katta va aniq
+  receipt += `JAMI:     ${formatNumber(data.total)} SO'M\n`;
+  receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : 'PLASTIK KARTA'}\n`;
+  
+  receipt += '================================\n';
+  receipt += '    XARIDINGIZ UCHUN RAHMAT!    \n';
+  receipt += '================================\n';
+  
+  return receipt;
+};
+
+// Chekni printerga yuborish - PRINT TUGAGANDAN KEYIN CALLBACK
+export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => void): Promise<boolean> => {
+  try {
+    const receiptText = formatReceiptData(data);
+    
+    // Yashirin iframe yaratish - hech qanday oyna ko'rinmaydi
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.visibility = 'hidden';
+    iframe.style.opacity = '0';
+    
+    document.body.appendChild(iframe);
+    
+    // Iframe'ga content yozish
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      throw new Error('Iframe document topilmadi');
+    }
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>KASSA CHEKI</title>
+          <meta charset="UTF-8">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Courier New', monospace;
+              font-size: 14px;
+              font-weight: bold;
+              line-height: 1.3;
+              color: #000;
+              background: white;
+              padding: 10px;
+            }
+            
+            .receipt-text {
+              white-space: pre-line;
+              font-family: inherit;
+              font-weight: bold;
+              word-break: break-word;
+            }
+            
+            /* Print uchun - JUDA SODDA */
+            @media print {
+              body {
+                background: white;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 5px;
+                margin: 0;
+              }
+              
+              .receipt-text {
+                width: 100%;
+                font-weight: bold;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-text">${receiptText}</div>
+          
+          <script>
+            // Print tugagandan keyin callback chaqirish
+            window.addEventListener('afterprint', function() {
+              // Parent window'ga xabar yuborish
+              if (window.parent && window.parent.printCompleted) {
+                window.parent.printCompleted();
+              }
+            });
+          </script>
+        </body>
+      </html>
+    `;
+    
+    // HTML yozish
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+    
+    // Global callback funksiyasini o'rnatish
+    if (onPrintComplete) {
+      (window as any).printCompleted = () => {
+        onPrintComplete();
+        // Iframe'ni o'chirish
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+        // Global funksiyani tozalash
+        delete (window as any).printCompleted;
+      };
+    }
+    
+    // Print qilish
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        
+        // Agar callback yo'q bo'lsa, oddiy tarzda iframe'ni o'chirish
+        if (!onPrintComplete) {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 2000);
+        }
+        
+      } catch (printError) {
+        console.error('Print xatosi:', printError);
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        throw printError;
+      }
+    }, 500);
+    
+    return true;
+  } catch (error) {
+    console.error('Chek chiqarishda xatolik:', error);
+    
+    // Fallback - faylni yuklab olish
+    try {
+      downloadReceiptAsPDF(data);
+      return false;
+    } catch (downloadError) {
+      console.error('Faylni yuklashda xatolik:', downloadError);
+      return false;
+    }
+  }
+};
+
+// Chekni PDF sifatida saqlash (ixtiyoriy)
+export const downloadReceiptAsPDF = (data: ReceiptData): void => {
+  const receiptText = formatReceiptData(data);
+  const blob = new Blob([receiptText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `chek-${data.receiptNumber || Date.now()}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  URL.revokeObjectURL(url);
+};
+
+// Thermal printer uchun ESC/POS komandalar (agar kerak bo'lsa)
+export const generateESCPOSCommands = (data: ReceiptData): Uint8Array => {
+  const receiptText = formatReceiptData(data);
+  
+  // ESC/POS komandalar
+  const ESC = 0x1B;
+  const GS = 0x1D;
+  
+  const commands: number[] = [];
+  
+  // Initialize printer
+  commands.push(ESC, 0x40);
+  
+  // Set character set to UTF-8
+  commands.push(ESC, 0x74, 0x06);
+  
+  // Center align
+  commands.push(ESC, 0x61, 0x01);
+  
+  // Add text
+  const textBytes = new TextEncoder().encode(receiptText);
+  commands.push(...Array.from(textBytes));
+  
+  // Cut paper
+  commands.push(GS, 0x56, 0x00);
+  
+  return new Uint8Array(commands);
+};
+
+// Printer holatini tekshirish
+export const checkPrinterStatus = async (): Promise<{
+  available: boolean;
+  printers: string[];
+  defaultPrinter?: string;
+}> => {
+  try {
+    // @ts-ignore - Navigator printing API
+    if (navigator.printing && navigator.printing.getPrinters) {
+      // @ts-ignore
+      const printers = await navigator.printing.getPrinters();
+      return {
+        available: printers.length > 0,
+        printers: printers.map((p: any) => p.name || p.id),
+        defaultPrinter: printers.find((p: any) => p.isDefault)?.name
+      };
+    }
+    
+    // Fallback - browser print mavjudligini tekshirish
+    return {
+      available: 'print' in window,
+      printers: ['Browser Default Printer'],
+      defaultPrinter: 'Browser Default Printer'
+    };
+  } catch (error) {
+    console.error('Printer holatini tekshirishda xatolik:', error);
+    return {
+      available: false,
+      printers: [],
+      defaultPrinter: undefined
+    };
+  }
+};
+
+// Printer test sahifasi chiqarish
+export const printTestPage = async (): Promise<boolean> => {
+  const testData: ReceiptData = {
+    items: [
+      {
+        _id: 'test-1',
+        name: 'Test mahsulot',
+        code: 'TEST001',
+        price: 10000,
+        cartQuantity: 1,
+        quantity: 100,
+        warehouse: 'test-warehouse'
+      } as CartItem
+    ],
+    total: 10000,
+    paymentMethod: 'cash',
+    receiptNumber: `TEST-${Date.now()}`,
+    cashier: 'Test Kassir',
+    date: new Date()
+  };
+  
+  return await printReceipt(testData);
+};
+
+// Printer sozlamalarini saqlash
+export const savePrinterSettings = (settings: {
+  preferredPrinter?: string;
+  paperSize: '80mm' | '58mm' | 'A4';
+  fontSize: 'small' | 'medium' | 'large';
+  autoPrint: boolean;
+}) => {
+  localStorage.setItem('printerSettings', JSON.stringify(settings));
+};
+
+// Printer sozlamalarini olish
+export const getPrinterSettings = () => {
+  const saved = localStorage.getItem('printerSettings');
+  if (saved) {
+    return JSON.parse(saved);
+  }
+  
+  // Default sozlamalar
+  return {
+    paperSize: '80mm',
+    fontSize: 'medium',
+    autoPrint: true
+  };
+};
+
+// Windows printer ro'yxatini olish (faqat ma'lumot uchun)
+export const getWindowsPrinters = (): string[] => {
+  // Bu browser orqali to'liq Windows printer ro'yxatini olish mumkin emas
+  // Lekin print dialog ochilganda barcha printerlar ko'rinadi
+  const commonPrinters = [
+    'Microsoft Print to PDF',
+    'Microsoft XPS Document Writer',
+    'Fax',
+    // Thermal printerlar
+    'POS-80',
+    'POS-58',
+    'Thermal Receipt Printer',
+    'EPSON TM-T20',
+    'EPSON TM-T82',
+    'Star TSP100',
+    // Oddiy printerlar
+    'HP LaserJet',
+    'Canon PIXMA',
+    'Epson L3150',
+    'Brother HL'
+  ];
+  
+  return commonPrinters;
+};
+
+// Print preview ochish
+export const openPrintPreview = (data: ReceiptData): void => {
+  const receiptText = formatReceiptData(data);
+  
+  const previewWindow = window.open('', '_blank', 'width=600,height=800,scrollbars=yes');
+  if (!previewWindow) {
+    alert('Popup blocker tomonidan bloklandi. Popup ruxsatini yoqing.');
+    return;
+  }
+  
+  previewWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Chek Preview - ${data.receiptNumber}</title>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+          }
+          .preview-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+          }
+          .receipt-preview {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            background: #fafafa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          }
+          .actions {
+            margin-top: 20px;
+            text-align: center;
+          }
+          .btn {
+            padding: 10px 20px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+          }
+          .btn-primary {
+            background: #007bff;
+            color: white;
+          }
+          .btn-secondary {
+            background: #6c757d;
+            color: white;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="preview-container">
+          <h3>📋 Chek Preview</h3>
+          <div class="receipt-preview">${receiptText}</div>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Print qilish</button>
+            <button class="btn btn-secondary" onclick="window.close()">❌ Yopish</button>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+  
+  previewWindow.document.close();
+  previewWindow.focus();
+};
+
+// Printer test sahifasi (Windows printer dialog bilan)
+export const printWindowsTestPage = async (): Promise<boolean> => {
+  const testData: ReceiptData = {
+    items: [
+      {
+        _id: 'test-1',
+        name: '🧪 PRINTER TEST',
+        code: 'TEST001',
+        price: 1000,
+        cartQuantity: 1,
+        quantity: 100,
+        warehouse: 'test'
+      } as CartItem
+    ],
+    total: 1000,
+    paymentMethod: 'cash',
+    receiptNumber: `WINDOWS-TEST-${Date.now()}`,
+    cashier: 'Windows Test',
+    date: new Date()
+  };
+  
+  return await printReceipt(testData);
+};

@@ -1,17 +1,53 @@
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Search, RefreshCw } from 'lucide-react';
 import { Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
+import { useAlert } from '../../hooks/useAlert';
 
 export default function KassaClients() {
+  const { showAlert, AlertComponent } = useAlert();
+  const location = useLocation();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [clientsSearchQuery, setClientsSearchQuery] = useState('');
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchCustomers();
+    fetchCustomers(true); // Dastlabki yuklash uchun loading ko'rsatish
+    
+    // Kassa sahifasida beforeunload eventini vaqtincha o'chirish
+    const originalHandler = window.onbeforeunload;
+    window.onbeforeunload = null;
+    
+    return () => {
+      window.onbeforeunload = originalHandler;
+    };
   }, []);
+
+  // Route o'zgarganda ma'lumotlarni yangilash
+  useEffect(() => {
+    fetchCustomers(true); // Route o'zgarganda ham loading ko'rsatish
+  }, [location.pathname]);
+
+  const handleRefresh = async () => {
+    console.log('Refresh tugmasi bosildi');
+    setIsRefreshing(true);
+    try {
+      console.log('Ma\'lumotlar yangilanmoqda...');
+      await fetchCustomers(false); // Loading ko'rsatmaslik
+      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
+      showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
+    } catch (error) {
+      console.error('Refresh xatosi:', error);
+      showAlert('Ma\'lumotlarni yangilashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Filter customers based on search query
   useEffect(() => {
@@ -26,17 +62,47 @@ export default function KassaClients() {
     }
   }, [customers, clientsSearchQuery]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
+      setError('');
+      console.log('Mijozlar yuklanmoqda...');
       const res = await api.get('/customers/kassa');
-      setCustomers(res.data);
-    } catch (err) {
+      
+      // Ma'lumotlarni tozalash va filtrlash
+      const cleanCustomers = res.data.filter((customer: Customer) => {
+        const hasValidName = customer.name && customer.name.trim().length > 0;
+        const hasValidPhone = customer.phone && customer.phone.trim().length > 0;
+        return hasValidName && hasValidPhone;
+      }).map((customer: Customer) => ({
+        ...customer,
+        name: customer.name.trim(),
+        phone: customer.phone.trim(),
+        totalPurchases: Number(customer.totalPurchases) || 0,
+        debt: Number(customer.debt) || 0
+      }));
+      
+      setCustomers(cleanCustomers);
+      console.log(`Kassa: ${cleanCustomers.length} ta mijoz yuklandi`);
+      if (cleanCustomers.length > 0) {
+        console.log('Sample customer:', cleanCustomers[0]);
+      }
+    } catch (err: any) {
       console.error('Error fetching customers:', err);
+      setError('Mijozlarni yuklashda xatolik yuz berdi');
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
   return (
     <div className="p-6">
+      {AlertComponent}
+      
       <div className="bg-white rounded-xl border border-surface-200 overflow-hidden">
         <div className="p-4 border-b border-surface-200">
           <div className="flex items-center gap-4">
@@ -50,10 +116,35 @@ export default function KassaClients() {
                 className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500"
               />
             </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}
+            </button>
           </div>
         </div>
         <div className="divide-y divide-surface-100">
-          {filteredCustomers.length === 0 ? (
+          {loading ? (
+            <div className="p-8 text-center text-surface-500">
+              <div className="flex items-center justify-center gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>Mijozlar yuklanmoqda...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-danger-500">
+              <p>{error}</p>
+              <button
+                onClick={handleRefresh}
+                className="mt-2 px-4 py-2 bg-danger-100 text-danger-700 rounded-lg hover:bg-danger-200 transition-colors"
+              >
+                Qayta urinish
+              </button>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
             <div className="p-8 text-center text-surface-500">
               {clientsSearchQuery ? 'Mijoz topilmadi' : 'Mijozlar ro\'yxati bo\'sh'}
             </div>

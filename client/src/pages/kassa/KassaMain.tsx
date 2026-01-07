@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
-  Package, Banknote, Delete, User, ChevronDown
+  Package, Banknote, Delete, User, ChevronDown, RefreshCw, Printer
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/receipt';
 
 interface SavedReceipt {
   id: string;
@@ -17,6 +19,7 @@ interface SavedReceipt {
 
 export default function KassaMain() {
   const { showAlert, AlertComponent } = useAlert();
+  const location = useLocation();
   
   // State
   const [products, setProducts] = useState<Product[]>([]);
@@ -34,12 +37,52 @@ export default function KassaMain() {
   // Yangi state - real-time qidiruv uchun
   const [codeSuggestions, setCodeSuggestions] = useState<Product[]>([]);
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [printerStatus, setPrinterStatus] = useState<{available: boolean; printers: string[]}>({
+    available: false,
+    printers: []
+  });
 
   useEffect(() => {
     fetchProducts();
     fetchCustomers();
     loadSavedReceipts();
+    checkPrinters(); // Printer holatini tekshirish
+    
+    // Kassa sahifasida beforeunload eventini vaqtincha o'chirish
+    const originalHandler = window.onbeforeunload;
+    window.onbeforeunload = null;
+    
+    // Cleanup da qaytarish
+    return () => {
+      window.onbeforeunload = originalHandler;
+    };
   }, []);
+
+  // Route o'zgarganda ma'lumotlarni yangilash
+  useEffect(() => {
+    fetchProducts();
+    fetchCustomers();
+  }, [location.pathname]);
+
+  const handleRefresh = async () => {
+    console.log('Refresh tugmasi bosildi');
+    setIsRefreshing(true);
+    try {
+      console.log('Ma\'lumotlar yangilanmoqda...');
+      await Promise.all([
+        fetchProducts(),
+        fetchCustomers()
+      ]);
+      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
+      showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
+    } catch (error) {
+      console.error('Refresh xatosi:', error);
+      showAlert('Ma\'lumotlarni yangilashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -174,6 +217,17 @@ export default function KassaMain() {
     if (saved) setSavedReceipts(JSON.parse(saved));
   };
 
+  // Printer holatini tekshirish
+  const checkPrinters = async () => {
+    try {
+      const status = await checkPrinterStatus();
+      setPrinterStatus(status);
+      console.log('Printer holati:', status);
+    } catch (error) {
+      console.error('Printer holatini tekshirishda xatolik:', error);
+    }
+  };
+
   const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
 
   const handleNumpadClick = (value: string) => {
@@ -250,7 +304,13 @@ export default function KassaMain() {
     setCart(prev => {
       const existing = prev.find(p => p._id === product._id);
       if (existing) {
-        return prev.map(p => p._id === product._id ? {...p, cartQuantity: p.cartQuantity + 1} : p);
+        // Agar mahsulot allaqachon savatchada bo'lsa, miqdorni tekshirish
+        const newQuantity = existing.cartQuantity + 1;
+        if (newQuantity > product.quantity) {
+          showAlert(`${product.name} uchun maksimal miqdor: ${product.quantity} ta`, 'Ogohlantirish', 'warning');
+          return prev; // O'zgartirishni bekor qilish
+        }
+        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity} : p);
       }
       return [...prev, {...product, cartQuantity: 1}];
     });
@@ -315,6 +375,7 @@ export default function KassaMain() {
   const handlePayment = async (method: 'cash' | 'card') => {
     if (cart.length === 0) return;
     
+    const receiptNumber = `CHK-${Date.now()}`;
     const saleData = {
       items: cart.map(item => ({
         product: item._id,
@@ -325,11 +386,80 @@ export default function KassaMain() {
       })),
       total,
       paymentMethod: method,
-      customer: selectedCustomer?._id
+      customer: selectedCustomer?._id,
+      receiptNumber
     };
 
     try {
-      await api.post('/receipts', saleData);
+      // 1. Chekni saqlash
+      await api.post('/receipts/kassa', saleData);
+      
+      // 2. Mahsulot miqdorini yangilash - har bir mahsulot uchun
+      console.log('To\'lov uchun mahsulot miqdorlarini yangilash boshlandi...');
+      const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
+      
+      for (const item of cart) {
+        try {
+          console.log(`${item.name} uchun miqdorni kamaytirish: ${item.cartQuantity} ta`);
+          const response = await api.put(`/products/${item._id}/reduce-quantity`, {
+            quantity: item.cartQuantity
+          });
+          console.log(`✅ ${item.name} muvaffaqiyatli yangilandi:`, response.data);
+          updateResults.push({ success: true, item: item.name, data: response.data });
+        } catch (quantityError: any) {
+          console.error(`❌ ${item.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
+          console.error('Xatolik tafsilotlari:', quantityError.response?.data);
+          
+          // Xatolik haqida foydalanuvchiga xabar berish
+          const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
+          showAlert(`${item.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
+          
+          updateResults.push({ success: false, item: item.name, error: errorMsg });
+        }
+      }
+      
+      console.log('To\'lov uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
+      
+      // Chek ma'lumotlarini tayyorlash
+      const receiptData: ReceiptData = {
+        items: cart,
+        total,
+        paymentMethod: method,
+        customer: selectedCustomer,
+        receiptNumber,
+        cashier: 'Kassa',
+        date: new Date()
+      };
+      
+      // Chekni chiqarish - print tugagandan keyin callback bilan
+      const printSuccess = await printReceipt(receiptData, () => {
+        // Print tugagandan keyin success xabari
+        const successCount = updateResults.filter(r => r.success).length;
+        const failCount = updateResults.filter(r => !r.success).length;
+        
+        if (failCount === 0) {
+          showAlert('To\'lov qabul qilindi, chek muvaffaqiyatli chiqarildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
+        } else {
+          showAlert(`To\'lov qabul qilindi, chek chiqarildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
+        }
+        
+        // Savat va boshqa ma'lumotlarni tozalash
+        setCart([]);
+        setShowPayment(false);
+        setSelectedCustomer(null);
+        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+        fetchProducts();
+      });
+      
+      if (!printSuccess) {
+        showAlert('To\'lov qabul qilindi, savdo saqlandi, chek faylga yuklandi', 'Ogohlantirish', 'warning');
+        // Print ishlamasa ham savat tozalanadi
+        setCart([]);
+        setShowPayment(false);
+        setSelectedCustomer(null);
+        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+        fetchProducts();
+      }
       
       // Telegram xabar yuborish (agar mijoz tanlangan bo'lsa)
       if (selectedCustomer) {
@@ -337,12 +467,6 @@ export default function KassaMain() {
         // Bu yerda telegram bot API orqali xabar yuboriladi
         console.log('Telegram message:', message);
       }
-      
-      showAlert('Chek muvaffaqiyatli saqlandi!', 'Muvaffaqiyat', 'success');
-      setCart([]);
-      setShowPayment(false);
-      setSelectedCustomer(null);
-      fetchProducts();
       
     } catch (err) {
       console.error('Error creating receipt:', err);
@@ -373,10 +497,21 @@ export default function KassaMain() {
       {AlertComponent}
       
       {/* Left - Cart Table */}
-      <div className="flex-1 flex flex-col p-3 sm:p-4 lg:p-6">
+      <div className="flex-1 flex flex-col p-2 sm:p-3 md:p-4 lg:p-6">
         {/* Cart Info */}
-        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <span className="text-sm text-surface-600">JAMI: {cart.length} ta mahsulot</span>
+        <div className="mb-3 sm:mb-4 flex flex-col xs:flex-row xs:items-center justify-between gap-2">
+          <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
+            <span className="text-xs sm:text-sm text-surface-600 font-medium">JAMI: {cart.length} ta mahsulot</span>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1 px-2 py-1 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50 text-xs w-fit"
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden xs:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
+              <span className="xs:hidden">{isRefreshing ? '...' : '↻'}</span>
+            </button>
+          </div>
           
           {/* Customer Select */}
           <div className="relative">
@@ -469,22 +604,22 @@ export default function KassaMain() {
           </div>
 
           {/* Table Body */}
-          <div className="flex-1 overflow-auto">
+          <div className={`flex-1 ${cart.length > 1 ? 'overflow-auto' : 'overflow-visible'}`}>
             {cart.length === 0 ? (
               // Savat bo'sh bo'lganda kod takliflari yoki bo'sh holat
               showCodeSuggestions && codeSuggestions.length > 0 ? (
-                <div className="p-3 sm:p-4">
+                <div className="p-3 sm:p-4 h-full">
                   <div className="text-center mb-3 sm:mb-4">
                     <p className="text-sm text-surface-500">
                       "{inputValue}" ni o'z ichiga olgan tovarlar
                       {codeSuggestions.length > 4 && (
                         <span className="block text-xs text-surface-400 mt-1">
-                          Jami {codeSuggestions.length} ta tovar (scroll qiling)
+                          Jami {codeSuggestions.length} ta tovar
                         </span>
                       )}
                     </p>
                   </div>
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                  <div className="space-y-2 h-full overflow-y-auto">
                     {codeSuggestions.map((product, index) => (
                       <button
                         key={product._id}
@@ -600,8 +735,16 @@ export default function KassaMain() {
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === '' || /^\d+$/.test(val)) {
+                              const newQuantity = val === '' ? 0 : parseInt(val);
+                              
+                              // Ombordagi miqdorni tekshirish
+                              if (newQuantity > item.quantity) {
+                                showAlert(`${item.name} uchun maksimal miqdor: ${item.quantity} ta`, 'Ogohlantirish', 'warning');
+                                return; // O'zgartirishni bekor qilish
+                              }
+                              
                               setCart(prev => prev.map(p => 
-                                p._id === item._id ? { ...p, cartQuantity: val === '' ? 0 : parseInt(val) } : p
+                                p._id === item._id ? { ...p, cartQuantity: newQuantity } : p
                               ));
                             }
                           }}
@@ -610,7 +753,11 @@ export default function KassaMain() {
                               removeFromCart(item._id);
                             }
                           }}
-                          className="w-16 h-9 text-center font-medium border border-surface-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                          className={`w-16 h-9 text-center font-medium border rounded-xl focus:outline-none focus:ring-2 ${
+                            item.cartQuantity > item.quantity 
+                              ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
+                              : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20'
+                          }`}
                         />
                       </div>
                       <div className="col-span-2 text-right">
@@ -655,8 +802,16 @@ export default function KassaMain() {
                             onChange={(e) => {
                               const val = e.target.value;
                               if (val === '' || /^\d+$/.test(val)) {
+                                const newQuantity = val === '' ? 0 : parseInt(val);
+                                
+                                // Ombordagi miqdorni tekshirish
+                                if (newQuantity > item.quantity) {
+                                  showAlert(`${item.name} uchun maksimal miqdor: ${item.quantity} ta`, 'Ogohlantirish', 'warning');
+                                  return; // O'zgartirishni bekor qilish
+                                }
+                                
                                 setCart(prev => prev.map(p => 
-                                  p._id === item._id ? { ...p, cartQuantity: val === '' ? 0 : parseInt(val) } : p
+                                  p._id === item._id ? { ...p, cartQuantity: newQuantity } : p
                                 ));
                               }
                             }}
@@ -665,7 +820,11 @@ export default function KassaMain() {
                                 removeFromCart(item._id);
                               }
                             }}
-                            className="w-16 h-8 text-center font-medium border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                            className={`w-16 h-8 text-center font-medium border rounded-lg focus:outline-none focus:ring-2 ${
+                              item.cartQuantity > item.quantity 
+                                ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
+                                : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20'
+                            }`}
                           />
                         </div>
                         
@@ -683,6 +842,100 @@ export default function KassaMain() {
             )}
           </div>
         </div>
+
+        {/* Kod takliflari - savat to'la bo'lganda alohida scroll */}
+        {showCodeSuggestions && codeSuggestions.length > 0 && cart.length > 0 && (
+          <div className="mt-4 bg-white border border-surface-200 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-3 border-b border-surface-100 bg-surface-50">
+              <p className="text-sm text-surface-600 text-center">
+                "{inputValue}" ni o'z ichiga olgan tovarlar ({codeSuggestions.length} ta)
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {codeSuggestions.map((product) => (
+                <button
+                  key={product._id}
+                  onClick={() => selectSuggestedProduct(product)}
+                  disabled={product.quantity === 0}
+                  className={`w-full flex items-center gap-3 p-3 hover:bg-surface-50 transition-colors text-left border-b border-surface-50 last:border-0 relative ${
+                    product.quantity === 0 ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {/* Tugagan tovar uchun overlay */}
+                  {product.quantity === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-red-50 bg-opacity-80 rounded">
+                      <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                        TUGAGAN
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    product.quantity === 0 ? 'bg-red-100' : 'bg-brand-100'
+                  }`}>
+                    <Package className={`w-5 h-5 ${
+                      product.quantity === 0 ? 'text-red-600' : 'text-brand-600'
+                    }`} />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium text-base truncate ${
+                      product.quantity === 0 ? 'text-red-700' : 'text-surface-900'
+                    }`}>
+                      {product.name}
+                    </p>
+                    <div className="flex items-center gap-2 text-sm mt-1">
+                      <span className={`font-mono px-2 py-1 rounded border ${
+                        product.quantity === 0 
+                          ? 'bg-red-100 border-red-300 text-red-700' 
+                          : 'bg-white border-surface-200'
+                      }`}>
+                        {/* Kod ichida qidirilgan qismni highlight qilish */}
+                        {inputValue && product.code.toLowerCase().includes(inputValue.toLowerCase()) ? (
+                          <>
+                            {product.code.split(new RegExp(`(${inputValue})`, 'gi')).map((part, partIndex) => 
+                              part.toLowerCase() === inputValue.toLowerCase() ? (
+                                <span key={partIndex} className="bg-yellow-200 text-yellow-800 font-bold">
+                                  {part}
+                                </span>
+                              ) : (
+                                <span key={partIndex}>{part}</span>
+                              )
+                            )}
+                          </>
+                        ) : (
+                          product.code
+                        )}
+                      </span>
+                      {product.quantity !== undefined && (
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          product.quantity > 10 ? 'bg-success-100 text-success-700' :
+                          product.quantity > 0 ? 'bg-warning-100 text-warning-700' :
+                          'bg-danger-100 text-danger-700'
+                        }`}>
+                          {product.quantity > 0 ? `${product.quantity} ta` : 'TUGAGAN'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="text-right flex-shrink-0">
+                    <p className={`font-semibold text-lg ${
+                      product.quantity === 0 ? 'text-red-600' : 'text-brand-600'
+                    }`}>
+                      {formatNumber(product.price)}
+                    </p>
+                    <p className={`text-sm ${
+                      product.quantity === 0 ? 'text-red-500' : 'text-surface-500'
+                    }`}>
+                      so'm
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-4">
@@ -703,6 +956,80 @@ export default function KassaMain() {
             <Save className="w-4 h-4" />
             <span className="sm:inline">Saqlash</span>
           </button>
+          {/* Chek chiqarish tugmasi - faqat savat to'la bo'lganda */}
+          {cart.length > 0 && (
+            <button 
+              onClick={async () => {
+                const receiptData: ReceiptData = {
+                  items: cart,
+                  total,
+                  paymentMethod: 'cash', // Default
+                  customer: selectedCustomer,
+                  receiptNumber: `PRINT-${Date.now()}`,
+                  cashier: 'Kassa',
+                  date: new Date()
+                };
+                
+                // 1. Mahsulot miqdorlarini kamaytirish - print qilishdan oldin
+                console.log('Print uchun mahsulot miqdorlarini yangilash boshlandi...');
+                const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
+                
+                for (const item of cart) {
+                  try {
+                    console.log(`${item.name} uchun miqdorni kamaytirish: ${item.cartQuantity} ta`);
+                    const response = await api.put(`/products/${item._id}/reduce-quantity`, {
+                      quantity: item.cartQuantity
+                    });
+                    console.log(`✅ ${item.name} muvaffaqiyatli yangilandi:`, response.data);
+                    updateResults.push({ success: true, item: item.name, data: response.data });
+                  } catch (quantityError: any) {
+                    console.error(`❌ ${item.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
+                    console.error('Xatolik tafsilotlari:', quantityError.response?.data);
+                    
+                    // Xatolik haqida foydalanuvchiga xabar berish
+                    const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
+                    showAlert(`${item.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
+                    
+                    updateResults.push({ success: false, item: item.name, error: errorMsg });
+                  }
+                }
+                
+                console.log('Print uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
+                
+                // 2. Chekni chiqarish
+                const printSuccess = await printReceipt(receiptData, () => {
+                  // Print tugagandan keyin success xabari
+                  const successCount = updateResults.filter(r => r.success).length;
+                  const failCount = updateResults.filter(r => !r.success).length;
+                  
+                  if (failCount === 0) {
+                    showAlert('Chek muvaffaqiyatli chiqarildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
+                  } else {
+                    showAlert(`Chek chiqarildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
+                  }
+                  
+                  // Savat va boshqa ma'lumotlarni tozalash
+                  setCart([]);
+                  setSelectedCustomer(null);
+                  // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+                  fetchProducts();
+                });
+                
+                if (!printSuccess) {
+                  showAlert('Chek faylga yuklandi', 'Ogohlantirish', 'warning');
+                  // Print ishlamasa ham savat tozalanadi va miqdorlar yangilanadi
+                  setCart([]);
+                  setSelectedCustomer(null);
+                  // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+                  fetchProducts();
+                }
+              }}
+              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              <span className="sm:inline">Chek chiqarish</span>
+            </button>
+          )}
           <button 
             onClick={() => setShowPayment(true)}
             disabled={cart.length === 0}
@@ -853,6 +1180,15 @@ export default function KassaMain() {
               <p className="text-2xl sm:text-3xl font-bold text-surface-900">
                 {formatNumber(total)} so'm
               </p>
+              <div className="flex items-center justify-center gap-1 mt-2 text-xs">
+                <Printer className={`w-3 h-3 ${printerStatus.available ? 'text-green-600' : 'text-red-600'}`} />
+                <span className={printerStatus.available ? 'text-green-600' : 'text-red-600'}>
+                  {printerStatus.available 
+                    ? `Printer tayyor (${printerStatus.printers.length} ta)` 
+                    : 'Printer topilmadi'
+                  }
+                </span>
+              </div>
             </div>
             <div className="space-y-3">
               <button 
@@ -861,6 +1197,7 @@ export default function KassaMain() {
               >
                 <Banknote className="w-5 h-5" />
                 Naqd pul
+                <Printer className="w-4 h-4 ml-1 opacity-75" />
               </button>
               <button 
                 onClick={() => handlePayment('card')} 
@@ -868,6 +1205,7 @@ export default function KassaMain() {
               >
                 <CreditCard className="w-5 h-5" />
                 Plastik karta
+                <Printer className="w-4 h-4 ml-1 opacity-75" />
               </button>
               <button 
                 onClick={() => setShowPayment(false)} 

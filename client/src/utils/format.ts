@@ -1,18 +1,18 @@
-// Format number with spaces as thousand separators (e.g., 1 000 000)
+// Format number with dots as thousand separators (e.g., 1.000.000)
 export const formatNumber = (num: number | string): string => {
   const n = typeof num === 'string' ? parseFloat(num) : num;
   if (isNaN(n)) return '0';
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-// Parse formatted number string back to number (removes spaces)
+// Parse formatted number string back to number (removes dots)
 export const parseNumber = (str: string): string => {
-  return str.replace(/\s/g, '');
+  return str.replace(/\./g, '');
 };
 
 // Format input value while typing (for controlled inputs)
 export const formatInputNumber = (value: string): string => {
-  const cleaned = value.replace(/\s/g, '');
+  const cleaned = value.replace(/\./g, '');
   if (cleaned === '' || cleaned === '-') return cleaned;
   const num = parseFloat(cleaned);
   if (isNaN(num)) return '';
