@@ -17,8 +17,7 @@ import {
   initSyncListeners,
   subscribeSyncStatus,
   triggerManualSync,
-  isOnline as checkOnline,
-  getSyncInfo
+  isOnline as checkOnline
 } from '../utils/syncService';
 import api from '../utils/api';
 

@@ -1,6 +1,8 @@
 import { Search, ChevronDown, Bell, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import DebtApprovalNotification from './DebtApprovalNotification';
 
 interface FilterOption {
   value: string;
@@ -20,6 +22,8 @@ interface HeaderProps {
 export default function Header({ title, showSearch, onSearch, actions, filterOptions, filterValue, onFilterChange }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const handleSearch = (value: string) => {
     setSearchQuery(value);
@@ -71,10 +75,14 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
           )}
 
           {/* Notifications */}
-          <button className="relative p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200">
-            <Bell className="w-4 h-4" />
-            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          {isAdmin ? (
+            <DebtApprovalNotification />
+          ) : (
+            <button className="relative p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200">
+              <Bell className="w-4 h-4" />
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
+            </button>
+          )}
 
           {/* Settings */}
           <button className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200">

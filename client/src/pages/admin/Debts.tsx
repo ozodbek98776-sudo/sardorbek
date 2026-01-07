@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
-import { formatNumber, formatInputNumber, parseNumber, formatPhone, displayPhone } from '../../utils/format';
+import { formatNumber, formatInputNumber, parseNumber, formatPhone } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { regions, regionNames } from '../../data/regions';
 import { useAuth } from '../../context/AuthContext';
@@ -14,11 +14,11 @@ import { useAuth } from '../../context/AuthContext';
 export default function Debts() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const { showConfirm, AlertComponent } = useAlert();
+  const { showConfirm, showAlert, AlertComponent } = useAlert();
   const [debts, setDebts] = useState<Debt[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [stats, setStats] = useState({
-    total: 0, pending: 0, today: 0, overdue: 0, paid: 0, blacklist: 0, totalAmount: 0
+    total: 0, approved: 0, today: 0, overdue: 0, paid: 0, blacklist: 0, totalAmount: 0, pendingApproval: 0
   });
   const [showModal, setShowModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -80,11 +80,16 @@ export default function Debts() {
         await api.put(`/debts/${editingDebt._id}`, data);
       } else {
         await api.post('/debts', data);
+        // Yangi qarz qo'shilganda xabar berish
+        showAlert('Qarz muvaffaqiyatli qo\'shildi va tasdiqlashni kutmoqda', 'Muvaffaqiyat', 'success');
       }
       fetchDebts();
       fetchStats();
       closeModal();
-    } catch (err) { console.error('Error saving debt:', err); }
+    } catch (err) { 
+      console.error('Error saving debt:', err);
+      showAlert('Qarz qo\'shishda xatolik yuz berdi', 'Xatolik', 'danger');
+    }
   };
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -113,6 +118,29 @@ export default function Debts() {
     } catch (err) { console.error('Error deleting debt:', err); }
   };
 
+  const handleApprove = async (id: string) => {
+    const confirmed = await showConfirm("Bu qarzni tasdiqlaysizmi? Tasdiqlangandan keyin mijozning umumiy qarziga qo'shiladi.", "Tasdiqlash");
+    if (!confirmed) return;
+    try {
+      await api.post(`/debts/${id}/approve`);
+      fetchDebts();
+      fetchStats();
+    } catch (err) { console.error('Error approving debt:', err); }
+  };
+
+  const handleReject = async (id: string) => {
+    const reason = prompt("Rad etish sababini kiriting (ixtiyoriy):");
+    if (reason === null) return;
+    
+    const confirmed = await showConfirm("Bu qarzni rad etasizmi? Rad etilgan qarz o'chiriladi.", "Rad etish");
+    if (!confirmed) return;
+    try {
+      await api.post(`/debts/${id}/reject`, { reason });
+      fetchDebts();
+      fetchStats();
+    } catch (err) { console.error('Error rejecting debt:', err); }
+  };
+
   const closeModal = () => {
     setShowModal(false);
     setEditingDebt(null);
@@ -123,14 +151,14 @@ export default function Debts() {
 
   const openEditModal = (debt: Debt) => {
     setEditingDebt(debt);
-    setDebtType(debt.type as 'receivable' | 'payable');
+    setDebtType(debt.type);
     setFormData({
       customer: debt.customer?._id || '',
-      creditorName: (debt as any).creditorName || '',
+      creditorName: debt.creditorName || '',
       amount: String(debt.amount),
       dueDate: debt.dueDate.split('T')[0],
       description: debt.description || '',
-      collateral: (debt as any).collateral || ''
+      collateral: debt.collateral || ''
     });
     setShowModal(true);
   };
@@ -152,7 +180,7 @@ export default function Debts() {
   };
 
   const filteredDebts = debts.filter(debt => {
-    const name = debt.customer?.name || (debt as any).creditorName || '';
+    const name = debt.customer?.name || debt.creditorName || '';
     const phone = debt.customer?.phone || '';
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          phone.includes(searchQuery);
@@ -172,7 +200,8 @@ export default function Debts() {
   });
 
   const statItems = [
-    { label: 'Kutilmoqda', value: stats.pending, icon: Clock, color: 'warning', filter: 'pending' },
+    { label: 'Tasdiqlash', value: stats.pendingApproval, icon: AlertTriangle, color: 'amber', filter: 'pending_approval' },
+    { label: 'Tasdiqlangan', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
     { label: "Bugun to'lanadigan", value: stats.today, icon: Calendar, color: 'brand', filter: 'today' },
     { label: "To'langan", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
     { label: "Muddati o'tgan", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
@@ -181,7 +210,7 @@ export default function Debts() {
 
   const getDebtorName = (debt: Debt) => {
     if (debt.customer?.name) return debt.customer.name;
-    return (debt as any).creditorName || 'Noma\'lum';
+    return debt.creditorName || 'Noma\'lum';
   };
 
   const getDebtorPhone = (debt: Debt) => {
@@ -235,7 +264,7 @@ export default function Debts() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
@@ -319,8 +348,8 @@ export default function Debts() {
                       </div>
                       {debtType === 'receivable' && (
                         <div className="col-span-2">
-                          {(debt as any).collateral ? (
-                            <span className="text-sm text-amber-600 font-medium">{(debt as any).collateral}</span>
+                          {debt.collateral ? (
+                            <span className="text-sm text-amber-600 font-medium">{debt.collateral}</span>
                           ) : (
                             <span className="text-sm text-surface-400">-</span>
                           )}
@@ -329,38 +358,65 @@ export default function Debts() {
                       <div className={debtType === 'receivable' ? 'col-span-1' : 'col-span-2'}>
                         <span className={`badge ${
                           debt.status === 'paid' ? 'badge-success' :
-                          debt.status === 'overdue' ? 'badge-danger' : 'badge-warning'
+                          debt.status === 'overdue' ? 'badge-danger' : 
+                          debt.status === 'pending_approval' ? 'badge-amber' : 
+                          debt.status === 'approved' ? 'badge-success' : 'badge-warning'
                         }`}>
                           {debt.status === 'paid' ? <CheckCircle2 className="w-3 h-3" /> :
                            debt.status === 'overdue' ? <AlertCircle className="w-3 h-3" /> :
+                           debt.status === 'pending_approval' ? <AlertTriangle className="w-3 h-3" /> :
+                           debt.status === 'approved' ? <CheckCircle2 className="w-3 h-3" /> :
                            <Clock className="w-3 h-3" />}
                           {debt.status === 'paid' ? "To'langan" :
-                           debt.status === 'overdue' ? "Muddati o'tgan" : 'Kutilmoqda'}
+                           debt.status === 'overdue' ? "Muddati o'tgan" : 
+                           debt.status === 'pending_approval' ? 'Tasdiqlash' : 
+                           debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
                         </span>
                       </div>
                       <div className="col-span-1 flex items-center justify-center gap-2">
-                        {debt.status !== 'paid' && (
-                          <button 
-                            onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                            className="btn-icon-sm hover:bg-success-100 hover:text-success-600"
-                            title="To'lov"
-                          >
-                            <DollarSign className="w-4 h-4" />
-                          </button>
+                        {debt.status === 'pending_approval' ? (
+                          <>
+                            <button 
+                              onClick={() => handleApprove(debt._id)} 
+                              className="btn-icon-sm hover:bg-green-100 hover:text-green-600"
+                              title="Tasdiqlash"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleReject(debt._id)} 
+                              className="btn-icon-sm hover:bg-red-100 hover:text-red-600"
+                              title="Rad etish"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {((debt.status as string) !== 'paid' && (debt.status as string) !== 'pending_approval') && (
+                              <button 
+                                onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
+                                className="btn-icon-sm hover:bg-success-100 hover:text-success-600"
+                                title="To'lov"
+                              >
+                                <DollarSign className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => openEditModal(debt)} 
+                              className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
+                              title="Tahrirlash"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(debt._id)} 
+                              className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
-                        <button 
-                          onClick={() => openEditModal(debt)} 
-                          className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
-                          title="Tahrirlash"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(debt._id)} 
-                          className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -385,10 +441,14 @@ export default function Debts() {
                           </div>
                           <span className={`badge ${
                             debt.status === 'paid' ? 'badge-success' :
-                            debt.status === 'overdue' ? 'badge-danger' : 'badge-warning'
+                            debt.status === 'overdue' ? 'badge-danger' : 
+                            debt.status === 'pending_approval' ? 'badge-amber' : 
+                            debt.status === 'approved' ? 'badge-success' : 'badge-warning'
                           }`}>
                             {debt.status === 'paid' ? "To'langan" :
-                             debt.status === 'overdue' ? "O'tgan" : 'Kutilmoqda'}
+                             debt.status === 'overdue' ? "O'tgan" : 
+                             debt.status === 'pending_approval' ? 'Tasdiqlash' : 
+                             debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -403,10 +463,10 @@ export default function Debts() {
                             </p>
                           </div>
                         </div>
-                        {debtType === 'receivable' && (debt as any).collateral && (
+                        {debtType === 'receivable' && debt.collateral && (
                           <div className="bg-amber-50 rounded-xl p-2 mb-3">
                             <p className="text-xs text-amber-600">
-                              <span className="font-medium">Zalog:</span> {(debt as any).collateral}
+                              <span className="font-medium">Zalog:</span> {debt.collateral}
                             </p>
                           </div>
                         )}
@@ -416,23 +476,44 @@ export default function Debts() {
                             {new Date(debt.dueDate).toLocaleDateString('uz-UZ')}
                           </div>
                           <div className="flex gap-2">
-                            {debt.status !== 'paid' && (
-                              <button 
-                                onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                className="btn-icon-sm bg-success-100 text-success-600"
-                              >
-                                <DollarSign className="w-4 h-4" />
-                              </button>
+                            {debt.status === 'pending_approval' ? (
+                              <>
+                                <button 
+                                  onClick={() => handleApprove(debt._id)} 
+                                  className="btn-icon-sm bg-green-100 text-green-600"
+                                  title="Tasdiqlash"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleReject(debt._id)} 
+                                  className="btn-icon-sm bg-red-100 text-red-600"
+                                  title="Rad etish"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {((debt.status as string) !== 'paid' && (debt.status as string) !== 'pending_approval') && (
+                                  <button 
+                                    onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
+                                    className="btn-icon-sm bg-success-100 text-success-600"
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => openEditModal(debt)} 
+                                  className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleDelete(debt._id)} className="btn-icon-sm text-danger-500">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
                             )}
-                            <button 
-                              onClick={() => openEditModal(debt)} 
-                              className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDelete(debt._id)} className="btn-icon-sm text-danger-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -482,6 +563,16 @@ export default function Debts() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Ogohlantirish xabari */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-amber-700">
+                    <p className="font-medium mb-1">Diqqat!</p>
+                    <p>Qo'shilgan qarz darhol mijozning umumiy qarziga qo'shilmaydi. Avval admin tomonidan tasdiqlanishi kerak.</p>
+                  </div>
+                </div>
+              </div>
               {debtType === 'receivable' ? (
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Mijoz</label>

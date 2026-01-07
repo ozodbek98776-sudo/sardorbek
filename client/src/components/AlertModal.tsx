@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 interface AlertModalProps {
   isOpen: boolean;

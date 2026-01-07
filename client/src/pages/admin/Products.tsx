@@ -273,7 +273,7 @@ export default function Products() {
 
   const stats = {
     total: products.length,
-    lowStock: products.filter(p => p.quantity <= (p.minStock || 5) && p.quantity > 0).length,
+    lowStock: products.filter(p => p.quantity <= (p.minStock || 100) && p.quantity > 0).length,
     outOfStock: products.filter(p => p.quantity === 0).length,
     totalValue: products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
   };
@@ -282,7 +282,7 @@ export default function Products() {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          p.code.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStock = stockFilter === 'all' || 
-                        (stockFilter === 'low' && p.quantity <= (p.minStock || 5) && p.quantity > 0) ||
+                        (stockFilter === 'low' && p.quantity <= (p.minStock || 100) && p.quantity > 0) ||
                         (stockFilter === 'out' && p.quantity === 0);
     return matchesSearch && matchesStock;
   });
@@ -397,7 +397,7 @@ export default function Products() {
                       <div className="col-span-1">
                         <span className={`font-semibold ${
                           product.quantity === 0 ? 'text-danger-600' :
-                          product.quantity <= (product.minStock || 5) ? 'text-warning-600' : 'text-success-600'
+                          product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
                         }`}>{product.quantity}</span>
                       </div>
                       <div className="col-span-2 flex items-center justify-center gap-2">
@@ -447,9 +447,9 @@ export default function Products() {
                             <p className="text-xs text-surface-500 mb-1">Optom narxi</p>
                             <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
                           </div>
-                          <div className={`rounded-xl p-3 ${product.quantity === 0 ? 'bg-danger-50' : product.quantity <= (product.minStock || 5) ? 'bg-warning-50' : 'bg-success-50'}`}>
+                          <div className={`rounded-xl p-3 ${product.quantity === 0 ? 'bg-danger-50' : product.quantity <= (product.minStock || 100) ? 'bg-warning-50' : 'bg-success-50'}`}>
                             <p className="text-xs text-surface-500 mb-1">Miqdori</p>
-                            <p className={`font-semibold ${product.quantity === 0 ? 'text-danger-600' : product.quantity <= (product.minStock || 5) ? 'text-warning-600' : 'text-success-600'}`}>{product.quantity}</p>
+                            <p className={`font-semibold ${product.quantity === 0 ? 'text-danger-600' : product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'}`}>{product.quantity}</p>
                           </div>
                         </div>
                       </div>

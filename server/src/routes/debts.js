@@ -2,59 +2,9 @@ const express = require('express');
 const Debt = require('../models/Debt');
 const Customer = require('../models/Customer');
 const { auth, authorize } = require('../middleware/auth');
+const telegramService = require('../services/telegramService');
 
 const router = express.Router();
-
-// Automatic cleanup function for overdue debts
-const cleanupOverdueDebts = async () => {
-  try {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-
-    // Find debts that are due today or overdue (including today)
-    const overdueDebts = await Debt.find({
-      dueDate: { $lte: today }, // Less than or equal to today
-      status: { $ne: 'paid' }
-    }).populate('customer', 'name phone');
-
-    console.log(`Found ${overdueDebts.length} overdue debts to cleanup (including today)`);
-
-    for (const debt of overdueDebts) {
-      // Update customer's total debt (subtract the remaining amount)
-      if (debt.customer && debt.type === 'receivable') {
-        const remainingAmount = debt.amount - debt.paidAmount;
-        if (remainingAmount > 0) {
-          await Customer.findByIdAndUpdate(debt.customer._id, {
-            $inc: { debt: -remainingAmount }
-          });
-          console.log(`Reduced customer ${debt.customer.name} debt by ${remainingAmount}`);
-        }
-      }
-
-      // Delete the debt
-      await Debt.findByIdAndDelete(debt._id);
-      console.log(`Deleted overdue debt: ${debt._id} for customer ${debt.customer?.name}`);
-    }
-
-    return overdueDebts.length;
-  } catch (error) {
-    console.error('Error cleaning up overdue debts:', error);
-    return 0;
-  }
-};
-
-// Manual cleanup endpoint (for testing)
-router.post('/cleanup-overdue', async (req, res) => {
-  try {
-    const deletedCount = await cleanupOverdueDebts();
-    res.json({
-      message: `${deletedCount} ta muddati o'tgan qarz o'chirildi`,
-      deletedCount
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
 
 // Kassa uchun qarzlarni olish (auth talab qilmaydi)
 router.get('/kassa', async (req, res) => {
@@ -64,11 +14,7 @@ router.get('/kassa', async (req, res) => {
     if (status) query.status = status;
     if (type) query.type = type;
 
-    // Sort by due date (ascending) - earliest due dates first
-    const debts = await Debt.find(query)
-      .populate('customer', 'name phone')
-      .sort({ dueDate: 1, createdAt: -1 }); // First by due date (earliest first), then by creation date (newest first)
-
+    const debts = await Debt.find(query).populate('customer', 'name phone').sort({ createdAt: -1 });
     res.json(debts);
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -78,153 +24,42 @@ router.get('/kassa', async (req, res) => {
 // Kassa uchun yangi qarz qo'shish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
-    const { customer, amount, paidAmount = 0, dueDate, description, collateral } = req.body;
+    const { customer, amount, dueDate, description, collateral } = req.body;
 
-    // Check if customer already has an existing debt
-    const existingDebt = await Debt.findOne({
+    const debtData = {
+      type: 'receivable', // Mijoz bizga qarz
       customer,
-      type: 'receivable',
-      status: { $ne: 'paid' }
-    });
+      amount,
+      dueDate,
+      description,
+      collateral,
+      status: 'pending_approval' // Kassachi qo'shgan qarz admin tasdiqlashini kutadi
+    };
 
-    if (existingDebt) {
-      // Update existing debt by adding new amount
-      const newTotalAmount = existingDebt.amount + amount;
-      const newPaidAmount = existingDebt.paidAmount + paidAmount;
-
-      // Combine descriptions
-      let combinedDescription = existingDebt.description || '';
-      if (description) {
-        combinedDescription += combinedDescription ? '\n\n--- Yangi qarz ---\n' + description : description;
-      }
-
-      // Update the existing debt
-      existingDebt.amount = newTotalAmount;
-      existingDebt.paidAmount = newPaidAmount;
-      existingDebt.description = combinedDescription;
-
-      // Update due date to the later one
-      if (new Date(dueDate) > new Date(existingDebt.dueDate)) {
-        existingDebt.dueDate = dueDate;
-      }
-
-      // Set status based on payment
-      if (newPaidAmount >= newTotalAmount) {
-        existingDebt.status = 'paid';
-      } else {
-        existingDebt.status = 'pending';
-      }
-
-      await existingDebt.save();
-
-      // Update customer's total debt (add only the remaining unpaid amount)
-      const newRemainingAmount = (amount - paidAmount);
-      if (newRemainingAmount > 0) {
-        await Customer.findByIdAndUpdate(customer, { $inc: { debt: newRemainingAmount } });
-      }
-
-      // Populate and return
-      await existingDebt.populate('customer', 'name phone');
-
-      res.status(200).json({
-        ...existingDebt.toObject(),
-        message: 'Mavjud qarzga qo\'shildi'
-      });
-    } else {
-      // Create new debt if no existing debt found
-      const debtData = {
-        type: 'receivable',
-        customer,
-        amount,
-        paidAmount,
-        dueDate,
-        description,
-        collateral
-      };
-
-      // Set status based on payment
-      if (paidAmount >= amount) {
-        debtData.status = 'paid';
-      }
-
-      const debt = new Debt(debtData);
-      await debt.save();
-
-      // Update customer's total debt (only unpaid amount)
-      const remainingAmount = amount - paidAmount;
-      if (remainingAmount > 0) {
-        await Customer.findByIdAndUpdate(customer, { $inc: { debt: remainingAmount } });
-      }
-
-      // Populate and return
-      await debt.populate('customer', 'name phone');
-
-      res.status(201).json({
-        ...debt.toObject(),
-        message: 'Yangi qarz yaratildi'
-      });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
-// Kassa uchun qarzni o'chirish (auth talab qilmaydi)
-router.delete('/kassa/:id', async (req, res) => {
-  try {
-    const debt = await Debt.findById(req.params.id);
-    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
-
-    // Mijozning qarzini kamaytirish (faqat to'lanmagan qism)
-    if (debt.type === 'receivable' && debt.customer) {
-      const remainingAmount = debt.amount - debt.paidAmount;
-      if (remainingAmount > 0) {
-        await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: -remainingAmount } });
-      }
-    }
-
-    await Debt.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Qarz o\'chirildi' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
-// Kassa uchun qarzni yangilash (auth talab qilmaydi)
-router.put('/kassa/:id', async (req, res) => {
-  try {
-    const { amount, paidAmount = 0, dueDate } = req.body;
-    const debt = await Debt.findById(req.params.id);
-    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
-
-    // Mijozning qarzini yangilash (faqat receivable type uchun)
-    if (debt.type === 'receivable' && debt.customer) {
-      const oldRemaining = debt.amount - debt.paidAmount;
-      const newRemaining = amount - paidAmount;
-      const diff = newRemaining - oldRemaining;
-      if (diff !== 0) {
-        await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: diff } });
-      }
-    }
-
-    // Qarz ma'lumotlarini yangilash
-    debt.amount = amount;
-    debt.paidAmount = paidAmount;
-    debt.dueDate = dueDate;
-
-    // Status ni yangilash
-    if (paidAmount >= amount) {
-      debt.status = 'paid';
-    } else {
-      debt.status = 'pending';
-    }
-
+    const debt = new Debt(debtData);
     await debt.save();
+
+    // Mijozning umumiy qarzini yangilamaydi - admin tasdiqlashini kutadi
 
     // Populate qilib qaytarish
     await debt.populate('customer', 'name phone');
 
-    res.json(debt);
+    // Telegram ga xabar yuborish
+    try {
+      await telegramService.sendDebtNotification({
+        customerName: debt.customer.name,
+        customerPhone: debt.customer.phone,
+        amount: debt.amount,
+        dueDate: debt.dueDate,
+        description: debt.description,
+        collateral: debt.collateral
+      });
+    } catch (telegramError) {
+      console.error('Telegram notification error:', telegramError);
+      // Telegram xatosi asosiy jarayonni to'xtatmasin
+    }
+
+    res.status(201).json(debt);
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
@@ -265,7 +100,8 @@ router.get('/stats', auth, async (req, res) => {
 
     const stats = {
       total: await Debt.countDocuments(typeFilter),
-      pending: await Debt.countDocuments({ ...typeFilter, status: 'pending' }),
+      approved: await Debt.countDocuments({ ...typeFilter, status: 'approved' }),
+      pendingApproval: await Debt.countDocuments({ ...typeFilter, status: 'pending_approval' }),
       today: await Debt.countDocuments({ ...typeFilter, status: { $ne: 'paid' }, dueDate: { $gte: today, $lt: new Date(today.getTime() + 86400000) } }),
       overdue: await Debt.countDocuments({ ...typeFilter, status: 'overdue' }),
       paid: await Debt.countDocuments({ ...typeFilter, status: 'paid' }),
@@ -291,6 +127,7 @@ router.post('/', auth, authorize('admin', 'cashier'), async (req, res) => {
       dueDate,
       description,
       collateral,
+      status: 'pending_approval', // Barcha qarzlar avval tasdiqlashdan o'tadi
       createdBy: req.user._id
     };
 
@@ -300,11 +137,33 @@ router.post('/', auth, authorize('admin', 'cashier'), async (req, res) => {
     } else {
       // Customer debt - they owe me
       debtData.customer = customer;
-      await Customer.findByIdAndUpdate(customer, { $inc: { debt: amount } });
+      // Mijozning umumiy qarziga qo'shilmaydi - faqat tasdiqlangandan keyin
     }
 
     const debt = new Debt(debtData);
     await debt.save();
+
+    // Populate customer ma'lumotlari
+    if (debt.customer) {
+      await debt.populate('customer', 'name phone');
+    }
+
+    // Telegram ga xabar yuborish (faqat receivable type uchun)
+    if (type !== 'payable' && debt.customer) {
+      try {
+        await telegramService.sendDebtNotification({
+          customerName: debt.customer.name,
+          customerPhone: debt.customer.phone,
+          amount: debt.amount,
+          dueDate: debt.dueDate,
+          description: debt.description,
+          collateral: debt.collateral
+        });
+      } catch (telegramError) {
+        console.error('Telegram notification error:', telegramError);
+        // Telegram xatosi asosiy jarayonni to'xtatmasin
+      }
+    }
 
     res.status(201).json(debt);
   } catch (error) {
@@ -330,6 +189,22 @@ router.post('/:id/payment', auth, authorize('admin', 'cashier'), async (req, res
     // Only update customer debt for receivable type
     if (debt.type === 'receivable' && debt.customer) {
       await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: -amount } });
+    }
+
+    // Populate customer ma'lumotlari
+    await debt.populate('customer', 'name phone');
+
+    // Telegram ga to'lov xabari
+    if (debt.customer) {
+      try {
+        await telegramService.sendPaymentNotification({
+          customerName: debt.customer.name,
+          amount: amount,
+          remainingDebt: debt.amount - debt.paidAmount
+        });
+      } catch (telegramError) {
+        console.error('Telegram notification error:', telegramError);
+      }
     }
 
     res.json(debt);
@@ -377,6 +252,77 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
     const debt = await Debt.findByIdAndDelete(req.params.id);
     if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
     res.json({ message: 'Qarz o\'chirildi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Qarzni tasdiqlash (faqat admin)
+router.post('/:id/approve', auth, authorize('admin'), async (req, res) => {
+  try {
+    const debt = await Debt.findById(req.params.id);
+    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
+    
+    if (debt.status !== 'pending_approval') {
+      return res.status(400).json({ message: 'Bu qarz allaqachon ko\'rib chiqilgan' });
+    }
+
+    // Qarzni tasdiqlash
+    debt.status = 'approved';
+    await debt.save();
+
+    // Mijozning umumiy qarziga qo'shish (faqat tasdiqlangandan keyin)
+    if (debt.type === 'receivable' && debt.customer) {
+      await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: debt.amount } });
+    }
+
+    await debt.populate('customer', 'name phone');
+
+    // Telegram ga tasdiqlash xabari
+    if (debt.customer) {
+      try {
+        await telegramService.sendDebtApprovalNotification({
+          customerName: debt.customer.name,
+          amount: debt.amount,
+          dueDate: debt.dueDate
+        });
+      } catch (telegramError) {
+        console.error('Telegram notification error:', telegramError);
+      }
+    }
+
+    res.json(debt);
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Qarzni rad etish (faqat admin)
+router.post('/:id/reject', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const debt = await Debt.findById(req.params.id);
+    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
+    
+    if (debt.status !== 'pending_approval') {
+      return res.status(400).json({ message: 'Bu qarz allaqachon ko\'rib chiqilgan' });
+    }
+
+    // Qarzni o'chirish (rad etish)
+    debt.description = `${debt.description || ''} [RAD ETILDI: ${reason || 'Sabab ko\'rsatilmagan'}]`;
+    await debt.deleteOne();
+
+    res.json({ message: 'Qarz rad etildi va o\'chirildi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Tasdiqlashni kutayotgan qarzlar soni (admin uchun notification)
+router.get('/pending-approvals/count', auth, authorize('admin'), async (req, res) => {
+  try {
+    const count = await Debt.countDocuments({ status: 'pending_approval' });
+    res.json({ count });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
