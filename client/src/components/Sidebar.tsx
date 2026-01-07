@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../utils/api';
 import { formatPhone } from '../utils/format';
+import PWAInstallButton from '../components/PWAInstallButton.tsx';
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -68,12 +69,15 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
             </div>
           </div>
         )}
-        <button 
-          onClick={() => setCollapsed?.(!collapsed)} 
-          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-200"
-        >
-          {collapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-1">
+          <PWAInstallButton variant="icon" />
+          <button 
+            onClick={() => setCollapsed?.(!collapsed)} 
+            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-200"
+          >
+            {collapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
       {/* Navigation */}

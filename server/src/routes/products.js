@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -38,17 +38,67 @@ const upload = multer({
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly } = req.query;
+    const { search, warehouse, mainOnly, kassaView } = req.query;
     const query = {};
-    
+
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } }
-      ];
+      // Agar qidiruv faqat raqamlardan iborat bo'lsa, kod bo'yicha qidirish
+      const isNumericSearch = /^\d+$/.test(search);
+
+      if (isNumericSearch) {
+        query.$or = [
+          { code: { $regex: `^${search}`, $options: 'i' } }, // Kod bilan boshlanadi (yuqori prioritet)
+          { code: { $regex: search, $options: 'i' } }, // Kod tarkibida bor
+          { name: { $regex: search, $options: 'i' } } // Nom ichida ham qidirish
+        ];
+      } else {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { code: { $regex: search, $options: 'i' } },
+          { code: search } // Aniq kod bo'yicha qidirish
+        ];
+      }
     }
     if (warehouse) query.warehouse = warehouse;
     if (mainOnly === 'true') query.isMainWarehouse = true;
+
+    // For kassa view, return all products with essential fields only
+    if (kassaView === 'true') {
+      const products = await Product.find(query)
+        .select('name code price quantity description warehouse isMainWarehouse')
+        .populate('warehouse', 'name')
+        .sort({ code: 1 }) // Kod bo'yicha saralash - tezroq qidirish uchun
+        .limit(search ? 50 : 1000); // Qidiruv bo'lsa 50 ta, aks holda 1000 ta
+
+      // Filter out products with invalid or missing data
+      const validProducts = products.filter(product => {
+        // Juda qisqa nomli tovarlarni o'chirish (1-2 harf)
+        const hasValidName = product.name &&
+          product.name.trim().length > 2 &&
+          product.name.trim() !== '';
+
+        // Juda uzun kodli tovarlarni o'chirish (30+ belgi)
+        const hasValidCode = product.code &&
+          product.code.trim() !== '' &&
+          product.code.trim().length < 30;
+
+        // Narx va miqdor mavjudligi
+        const hasValidData = product.price !== undefined &&
+          product.quantity !== undefined;
+
+        return hasValidName && hasValidCode && hasValidData;
+      });
+
+      console.log(`Kassa view: Found ${products.length} total products, ${validProducts.length} valid products`);
+      console.log(`Search query: "${search}", Results: ${validProducts.length}`);
+
+      // Debug: log first few products to see their structure
+      if (products.length > 0 && search) {
+        console.log('Sample search result:', JSON.stringify(validProducts[0], null, 2));
+      }
+
+      return res.json(validProducts);
+    }
 
     const products = await Product.find(query).populate('warehouse', 'name');
     res.json(products);
@@ -107,7 +157,7 @@ router.delete('/delete-image', auth, authorize('admin'), async (req, res) => {
   try {
     const { imagePath } = req.body;
     if (!imagePath) return res.status(400).json({ message: 'Rasm yo\'li ko\'rsatilmagan' });
-    
+
     const fullPath = path.join(__dirname, '../..', imagePath);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
@@ -131,7 +181,7 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
     const { warehouse, code, packageInfo, ...rest } = req.body;
-    
+
     // Auto-generate code if not provided
     let productCode = code;
     if (!productCode) {
@@ -145,13 +195,13 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       }
       productCode = String(nextNum);
     }
-    
+
     // Check if code already exists
     const existingProduct = await Product.findOne({ code: productCode });
     if (existingProduct) {
       return res.status(400).json({ message: `Kod "${productCode}" allaqachon mavjud` });
     }
-    
+
     // Check if warehouse is "Asosiy ombor"
     let isMainWarehouse = false;
     if (warehouse) {
@@ -160,21 +210,21 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
         isMainWarehouse = true;
       }
     }
-    
+
     // Prepare product data
-    const productData = { 
-      ...rest, 
+    const productData = {
+      ...rest,
       code: productCode,
       warehouse,
       isMainWarehouse,
-      createdBy: req.user._id 
+      createdBy: req.user._id
     };
-    
+
     // Add package information if provided
     if (packageInfo) {
       productData.packages = [packageInfo];
     }
-    
+
     const product = new Product(productData);
     await product.save();
     res.status(201).json(product);
@@ -186,7 +236,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
     const { warehouse, code, packageInfo, ...rest } = req.body;
-    
+
     // Check if code already exists (excluding current product)
     if (code) {
       const existingProduct = await Product.findOne({ code, _id: { $ne: req.params.id } });
@@ -194,7 +244,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
         return res.status(400).json({ message: `Kod "${code}" allaqachon mavjud` });
       }
     }
-    
+
     // Check if warehouse is "Asosiy ombor"
     let isMainWarehouse = false;
     if (warehouse) {
@@ -203,10 +253,10 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
         isMainWarehouse = true;
       }
     }
-    
+
     // Prepare update data
     const updateData = { ...rest, code, warehouse, isMainWarehouse };
-    
+
     // Add package information if provided
     if (packageInfo) {
       const product = await Product.findById(req.params.id);
@@ -214,14 +264,50 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
         updateData.packages = [...(product.packages || []), packageInfo];
       }
     }
-    
+
     const product = await Product.findByIdAndUpdate(
-      req.params.id, 
-      updateData, 
+      req.params.id,
+      updateData,
       { new: true }
     );
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
     res.json(product);
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Clean up invalid products (admin only)
+router.delete('/cleanup-invalid', auth, authorize('admin'), async (req, res) => {
+  try {
+    // Find products with invalid data
+    const allProducts = await Product.find({});
+    const invalidProducts = allProducts.filter(product => {
+      const hasInvalidName = !product.name ||
+        product.name.trim().length <= 2 ||
+        product.name.trim() === '';
+
+      const hasInvalidCode = !product.code ||
+        product.code.trim() === '' ||
+        product.code.trim().length > 30;
+
+      return hasInvalidName || hasInvalidCode;
+    });
+
+    console.log(`Found ${invalidProducts.length} invalid products to delete`);
+
+    // Delete invalid products
+    const deletePromises = invalidProducts.map(product =>
+      Product.findByIdAndDelete(product._id)
+    );
+
+    await Promise.all(deletePromises);
+
+    res.json({
+      message: `${invalidProducts.length} ta noto'g'ri tovar o'chirildi`,
+      deletedCount: invalidProducts.length,
+      deletedProducts: invalidProducts.map(p => ({ id: p._id, name: p.name, code: p.code }))
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }

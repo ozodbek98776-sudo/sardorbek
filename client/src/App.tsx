@@ -22,7 +22,6 @@ import KassaMain from './pages/kassa/KassaMain';
 import KassaClients from './pages/kassa/KassaClients';
 import KassaDebts from './pages/kassa/KassaDebts';
 import KassaProducts from './pages/kassa/KassaProducts';
-import KassaStaff from './pages/kassa/KassaStaff';
 import KassaLogin from './pages/KassaLogin';
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
@@ -103,21 +102,28 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       // Faqat kassa sahifalarida ishlaydi
       if (!window.location.pathname.startsWith('/kassa')) return;
       
-      // Alt+F4, Ctrl+W, Ctrl+T, F5, Ctrl+R va boshqa chiqish tugmalarini bloklash
+      // F5, Ctrl+R, F12 va Ctrl+Shift+I ni ruxsat berish
+      if (event.key === 'F5' || 
+          (event.ctrlKey && (event.key === 'r' || event.key === 'R')) ||
+          event.key === 'F12' ||
+          (event.ctrlKey && event.shiftKey && event.key === 'I')) {
+        // F12 va Ctrl+Shift+I uchun flag qo'ymaslik, faqat refresh uchun
+        if (event.key === 'F5' || (event.ctrlKey && (event.key === 'r' || event.key === 'R'))) {
+          sessionStorage.setItem('kassaRefreshing', 'true');
+        }
+        return;
+      }
+      
+      // Boshqa xavfli tugmalarni bloklash (F12 va Ctrl+Shift+I olib tashlandi)
       if (
         (event.altKey && event.key === 'F4') ||
         (event.ctrlKey && event.key === 'w') ||
         (event.ctrlKey && event.key === 'W') ||
         (event.ctrlKey && event.key === 't') ||
         (event.ctrlKey && event.key === 'T') ||
-        (event.ctrlKey && event.key === 'r') ||
-        (event.ctrlKey && event.key === 'R') ||
-        event.key === 'F5' ||
-        (event.ctrlKey && event.shiftKey && event.key === 'I') ||
         (event.ctrlKey && event.shiftKey && event.key === 'J') ||
         (event.ctrlKey && event.key === 'u') ||
         (event.ctrlKey && event.key === 'U') ||
-        event.key === 'F12' ||
         (event.ctrlKey && event.key === 's') ||
         (event.ctrlKey && event.key === 'S') ||
         (event.ctrlKey && event.key === 'p') ||
@@ -130,23 +136,36 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    // Context menu ni bloklash - FAQAT KASSA SAHIFALARIDA
+    // Context menu ni bloklash - FAQAT KASSA SAHIFALARIDA (Developer tools uchun ruxsat)
     const handleContextMenu = (event: MouseEvent) => {
       // Faqat kassa sahifalarida ishlaydi
       if (!window.location.pathname.startsWith('/kassa')) return;
       
+      // Developer tools uchun Ctrl+Shift+I yoki F12 bilan birga o'ng tugma ruxsat
+      if (event.ctrlKey || event.shiftKey) {
+        return; // Developer tools uchun ruxsat
+      }
+      
       event.preventDefault();
-      alert('⚠️ O\'ng tugma kassa tizimida taqiqlanadi!');
+      alert('⚠️ O\'ng tugma kassa tizimida taqiqlanadi! Developer tools uchun F12 yoki Ctrl+Shift+I ishlatng.');
       return false;
     };
     
-    // Sahifa yopilishini bloklash - FAQAT KASSA SAHIFALARIDA
+    // Sahifa yopilishini bloklash - FAQAT KASSA SAHIFALARIDA (refresh uchun emas)
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       // Faqat kassa sahifalarida ishlaydi
       if (window.location.pathname.startsWith('/kassa')) {
-        event.preventDefault();
-        event.returnValue = '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
-        return '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
+        // Refresh holatini aniqlash uchun sessionStorage ishlatamiz
+        const isRefresh = sessionStorage.getItem('kassaRefreshing') === 'true';
+        
+        if (!isRefresh) {
+          event.preventDefault();
+          event.returnValue = '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
+          return '⚠️ DIQQAT: Kassa tizimidan chiqish taqiqlanadi! Faqat admin ruxsati bilan chiqish mumkin.';
+        } else {
+          // Refresh tugagandan keyin flag ni tozalash
+          sessionStorage.removeItem('kassaRefreshing');
+        }
       }
     };
     
@@ -223,7 +242,6 @@ function App() {
               <Route path="clients" element={<KassaClients />} />
               <Route path="debts" element={<KassaDebts />} />
               <Route path="products" element={<KassaProducts />} />
-              <Route path="staff" element={<KassaStaff />} />
             </Route>
             
             {/* Admin Routes */}

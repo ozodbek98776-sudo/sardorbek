@@ -23,21 +23,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.get('/staff', auth, authorize('admin', 'cashier'), async (req, res) => {
-  try {
-    const { status } = req.query;
-    const query = { status: { $in: ['pending', 'approved', 'rejected'] } };
-    if (status && status !== 'all') query.status = status;
-
-    const receipts = await Receipt.find(query)
-      .populate('createdBy', 'name role')
-      .sort({ createdAt: -1 });
-    res.json(receipts);
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
 /**
  * Bulk sync endpoint for offline sales
  * Receives array of sales from offline POS

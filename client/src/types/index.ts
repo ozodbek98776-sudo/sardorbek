@@ -12,10 +12,12 @@ export interface Product {
   _id: string;
   code: string;
   name: string;
+  description?: string;
   costPrice?: number;
   price: number;
   quantity: number;
-  warehouse: string;
+  warehouse: string | { _id: string; name: string };
+  isMainWarehouse?: boolean;
   category?: string;
   image?: string;
   minStock?: number;
@@ -55,7 +57,17 @@ export interface Debt {
   dueDate: string;
   status: 'pending' | 'overdue' | 'paid' | 'blacklist';
   payments: Payment[];
+  items?: DebtItem[];
+  description?: string;
   createdAt: string;
+}
+
+export interface DebtItem {
+  product: Product;
+  name?: string;
+  code?: string;
+  quantity: number;
+  price: number;
 }
 
 export interface Payment {
