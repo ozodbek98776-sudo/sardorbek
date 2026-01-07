@@ -61,8 +61,8 @@ export default function KassaProducts() {
     try {
       setLoading(true);
       setError('');
-      // Fetch products optimized for kassa view
-      const res = await api.get('/products?kassaView=true');
+      // Kassa uchun alohida endpoint - token talab qilmaydi
+      const res = await api.get('/products/kassa');
       
       // Filter and clean product data - more strict filtering
       const cleanProducts = res.data.filter((product: Product) => {

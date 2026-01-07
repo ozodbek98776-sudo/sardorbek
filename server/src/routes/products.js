@@ -36,6 +36,66 @@ const upload = multer({
   }
 });
 
+// Kassa uchun alohida endpoint - token talab qilmaydi
+router.get('/kassa', async (req, res) => {
+  try {
+    const { search } = req.query;
+    const query = {};
+
+    if (search) {
+      // Agar qidiruv faqat raqamlardan iborat bo'lsa, kod bo'yicha qidirish
+      const isNumericSearch = /^\d+$/.test(search);
+
+      if (isNumericSearch) {
+        query.$or = [
+          { code: { $regex: `^${search}`, $options: 'i' } }, // Kod bilan boshlanadi (yuqori prioritet)
+          { code: { $regex: search, $options: 'i' } }, // Kod tarkibida bor
+          { name: { $regex: search, $options: 'i' } } // Nom ichida ham qidirish
+        ];
+      } else {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { code: { $regex: search, $options: 'i' } },
+          { code: search } // Aniq kod bo'yicha qidirish
+        ];
+      }
+    }
+
+    const products = await Product.find(query)
+      .select('name code price quantity description warehouse isMainWarehouse')
+      .populate('warehouse', 'name')
+      .sort({ code: 1 }) // Kod bo'yicha saralash - tezroq qidirish uchun
+      .limit(search ? 50 : 1000); // Qidiruv bo'lsa 50 ta, aks holda 1000 ta
+
+    // Filter out products with invalid or missing data
+    const validProducts = products.filter(product => {
+      // Juda qisqa nomli tovarlarni o'chirish (1-2 harf)
+      const hasValidName = product.name &&
+        product.name.trim().length > 2 &&
+        product.name.trim() !== '';
+
+      // Juda uzun kodli tovarlarni o'chirish (30+ belgi)
+      const hasValidCode = product.code &&
+        product.code.trim() !== '' &&
+        product.code.trim().length < 30;
+
+      // Narx va miqdor mavjudligi
+      const hasValidData = product.price !== undefined &&
+        product.quantity !== undefined;
+
+      return hasValidName && hasValidCode && hasValidData;
+    });
+
+    console.log(`Kassa endpoint: Found ${products.length} total products, ${validProducts.length} valid products`);
+    console.log(`Search query: "${search}", Results: ${validProducts.length}`);
+
+    res.json(validProducts);
+  } catch (error) {
+    console.error('Kassa products error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const { search, warehouse, mainOnly, kassaView } = req.query;

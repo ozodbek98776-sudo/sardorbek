@@ -43,8 +43,8 @@ export default function KassaMain() {
 
   const fetchProducts = async () => {
     try {
-      // Kassa uchun optimallashtirilgan endpoint - BARCHA tovarlarni olish
-      const res = await api.get('/products?kassaView=true');
+      // Kassa uchun alohida endpoint - token talab qilmaydi
+      const res = await api.get('/products/kassa');
       setProducts(res.data);
       console.log(`Kassa: ${res.data.length} ta tovar yuklandi`);
     } catch (err) {
@@ -81,7 +81,7 @@ export default function KassaMain() {
     // 2. Agar local da kam natija bo'lsa, server dan qo'shimcha olish (background da)
     if (localResults.length < 5 && partialCode.length >= 1) {
       try {
-        const res = await api.get(`/products?search=${encodeURIComponent(partialCode)}&kassaView=true`);
+        const res = await api.get(`/products/kassa?search=${encodeURIComponent(partialCode)}`);
         const serverResults = res.data || [];
         
         // Kod tarkibida ham qidirish - faqat boshida emas
@@ -137,7 +137,7 @@ export default function KassaMain() {
       }
       
       // Agar local da yo'q bo'lsa, server dan qidirish
-      const res = await api.get(`/products?search=${encodeURIComponent(code.trim())}&kassaView=true`);
+      const res = await api.get(`/products/kassa?search=${encodeURIComponent(code.trim())}`);
       if (res.data && res.data.length > 0) {
         const foundProduct = res.data.find((p: Product) => p.code === code.trim());
         if (foundProduct) {
@@ -274,7 +274,7 @@ export default function KassaMain() {
       // Agar local da kam natija bo'lsa, server dan qidirish
       if (localResults.length < 5 && query.length > 2) {
         try {
-          const res = await api.get(`/products?search=${encodeURIComponent(query)}&kassaView=true`);
+          const res = await api.get(`/products/kassa?search=${encodeURIComponent(query)}`);
           const serverResults = res.data || [];
           
           // Server natijalarini local cache bilan birlashtirish

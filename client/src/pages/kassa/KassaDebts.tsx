@@ -110,7 +110,7 @@ export default function KassaDebts() {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get('/products');
+      const res = await api.get('/products/kassa');
       setProducts(res.data);
     } catch (err) {
       console.error('Error fetching products:', err);
