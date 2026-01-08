@@ -4,6 +4,58 @@ const telegramService = require('../services/telegramService');
 
 const router = express.Router();
 
+// Telegram webhook - bot xabarlarini qabul qilish
+router.post('/webhook', async (req, res) => {
+  try {
+    const update = req.body;
+    console.log('Telegram webhook received:', JSON.stringify(update, null, 2));
+    
+    // Webhook'ni qayta ishlash
+    await telegramService.handleWebhook(update);
+    
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Telegram webhook error:', error);
+    res.status(200).json({ ok: true }); // Telegram har doim 200 kutadi
+  }
+});
+
+// Webhook o'rnatish
+router.post('/set-webhook', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({ message: 'Webhook URL ni kiriting' });
+    }
+
+    const result = await telegramService.setWebhook(webhookUrl);
+    
+    if (result && result.ok) {
+      res.json({ message: 'Webhook muvaffaqiyatli o\'rnatildi', result: result.result });
+    } else {
+      res.status(400).json({ message: 'Webhook o\'rnatishda xatolik', result });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Webhook ma'lumotlarini olish
+router.get('/webhook-info', auth, authorize('admin'), async (req, res) => {
+  try {
+    const result = await telegramService.getWebhookInfo();
+    
+    if (result && result.ok) {
+      res.json(result.result);
+    } else {
+      res.status(400).json({ message: 'Webhook ma\'lumotlarini olishda xatolik' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Telegram sozlamalarini olish
 router.get('/settings', auth, authorize('admin'), async (req, res) => {
   try {

@@ -38,12 +38,107 @@ router.post('/kassa', async (req, res) => {
       );
     }
 
-    // Mijoz statistikasini yangilash
+    // Mijoz statistikasini yangilash va Telegram chek yuborish
     if (customer) {
-      await Customer.findByIdAndUpdate(
-        customer,
-        { $inc: { totalPurchases: total } }
-      );
+      try {
+        // Mijoz ma'lumotlarini olish
+        const customerData = await Customer.findById(customer);
+        
+        if (customerData) {
+          // Statistikani yangilash
+          await Customer.findByIdAndUpdate(
+            customer,
+            { $inc: { totalPurchases: total } }
+          );
+
+          // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish
+          if (customerData.debt > 0) {
+            const paymentAmount = Math.min(total, customerData.debt); // Qarzdan ko'p ayrib bo'lmaydi
+            
+            // Mijozning umumiy qarzini kamaytirish
+            await Customer.findByIdAndUpdate(
+              customer,
+              { $inc: { debt: -paymentAmount } }
+            );
+
+            // Qarz to'lovlarini topish va yangilash
+            const debts = await require('../models/Debt').find({
+              customer: customer,
+              type: 'receivable',
+              status: 'approved',
+              $expr: { $lt: ['$paidAmount', '$amount'] } // To'liq to'lanmagan qarzlar
+            }).sort({ createdAt: 1 }); // Eng eski qarzdan boshlab
+
+            let remainingPayment = paymentAmount;
+            
+            for (const debt of debts) {
+              if (remainingPayment <= 0) break;
+              
+              const debtBalance = debt.amount - debt.paidAmount;
+              const paymentForThisDebt = Math.min(remainingPayment, debtBalance);
+              
+              // Qarzga to'lov qo'shish
+              debt.payments.push({
+                amount: paymentForThisDebt,
+                method: paymentMethod,
+                date: new Date(),
+                note: 'Xarid orqali avtomatik to\'lov'
+              });
+              
+              debt.paidAmount += paymentForThisDebt;
+              
+              if (debt.paidAmount >= debt.amount) {
+                debt.status = 'paid';
+              }
+              
+              await debt.save();
+              remainingPayment -= paymentForThisDebt;
+            }
+
+            console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
+
+            // Mijozga qarz to'lovi haqida Telegram xabari
+            if (customerData.telegramChatId) {
+              try {
+                // Yangilangan qarz miqdorini olish
+                const updatedCustomer = await Customer.findById(customer);
+                
+                await telegramService.sendDebtPaymentToCustomer({
+                  customer: customerData,
+                  amount: paymentAmount,
+                  remainingDebt: updatedCustomer.debt
+                });
+                
+                console.log(`Debt payment notification sent to ${customerData.name}`);
+              } catch (debtNotificationError) {
+                console.error('Debt payment notification error:', debtNotificationError);
+              }
+            }
+          }
+
+          // Telegram orqali chek yuborish (agar mijoz botga start bergan bo'lsa)
+          if (customerData.telegramChatId) {
+            console.log(`Sending receipt to customer ${customerData.name} via Telegram...`);
+            
+            // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
+            const updatedCustomer = await Customer.findById(customer);
+            
+            await telegramService.sendReceiptToCustomer({
+              customer: updatedCustomer,
+              items: items,
+              total: total,
+              paymentMethod: paymentMethod
+            });
+            
+            console.log(`Receipt sent to ${customerData.name} successfully`);
+          } else {
+            console.log(`Customer ${customerData.name} has no Telegram chat ID`);
+          }
+        }
+      } catch (telegramError) {
+        console.error('Customer processing error:', telegramError);
+        // Xatolik chek yaratishni to'xtatmasin
+      }
     }
 
     res.status(201).json(receipt);

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import { 
   Plus, AlertTriangle, X, DollarSign, Calendar, User, 
-  Clock, CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, Edit
+  CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, Edit
 } from 'lucide-react';
 import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
@@ -355,22 +355,19 @@ export default function Debts() {
                         </div>
                       )}
                       <div className={debtType === 'receivable' ? 'col-span-1' : 'col-span-2'}>
-                        <span className={`badge ${
-                          debt.status === 'paid' ? 'badge-success' :
-                          debt.status === 'overdue' ? 'badge-danger' : 
-                          debt.status === 'pending_approval' ? 'badge-amber' : 
-                          debt.status === 'approved' ? 'badge-success' : 'badge-warning'
-                        }`}>
-                          {debt.status === 'paid' ? <CheckCircle2 className="w-3 h-3" /> :
-                           debt.status === 'overdue' ? <AlertCircle className="w-3 h-3" /> :
-                           debt.status === 'pending_approval' ? <AlertTriangle className="w-3 h-3" /> :
-                           debt.status === 'approved' ? <CheckCircle2 className="w-3 h-3" /> :
-                           <Clock className="w-3 h-3" />}
-                          {debt.status === 'paid' ? "To'langan" :
-                           debt.status === 'overdue' ? "Muddati o'tgan" : 
-                           debt.status === 'pending_approval' ? 'Tasdiqlash' : 
-                           debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
-                        </span>
+                        <div className="flex justify-start">
+                          <span className={`badge ${
+                            debt.status === 'paid' ? 'badge-success' :
+                            debt.status === 'overdue' ? 'badge-danger' : 
+                            debt.status === 'pending_approval' ? 'badge-amber' : 
+                            debt.status === 'approved' ? 'badge-success' : 'badge-warning'
+                          }`}>
+                            {debt.status === 'paid' ? "To'langan" :
+                             debt.status === 'overdue' ? "Muddati o'tgan" : 
+                             debt.status === 'pending_approval' ? 'Tasdiqlash' : 
+                             debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
+                          </span>
+                        </div>
                       </div>
                       <div className="col-span-1 flex items-center justify-center gap-2">
                         {debt.status === 'pending_approval' ? (
@@ -434,21 +431,23 @@ export default function Debts() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-surface-900">{getDebtorName(debt)}</h4>
                             {getDebtorPhone(debt) && <p className="text-sm text-surface-500">{getDebtorPhone(debt)}</p>}
+                            <div className="mt-2">
+                              <span className={`badge ${
+                                debt.status === 'paid' ? 'badge-success' :
+                                debt.status === 'overdue' ? 'badge-danger' : 
+                                debt.status === 'pending_approval' ? 'badge-amber' : 
+                                debt.status === 'approved' ? 'badge-success' : 'badge-warning'
+                              }`}>
+                                {debt.status === 'paid' ? "To'langan" :
+                                 debt.status === 'overdue' ? "O'tgan" : 
+                                 debt.status === 'pending_approval' ? 'Tasdiqlash' : 
+                                 debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
+                              </span>
+                            </div>
                           </div>
-                          <span className={`badge ${
-                            debt.status === 'paid' ? 'badge-success' :
-                            debt.status === 'overdue' ? 'badge-danger' : 
-                            debt.status === 'pending_approval' ? 'badge-amber' : 
-                            debt.status === 'approved' ? 'badge-success' : 'badge-warning'
-                          }`}>
-                            {debt.status === 'paid' ? "To'langan" :
-                             debt.status === 'overdue' ? "O'tgan" : 
-                             debt.status === 'pending_approval' ? 'Tasdiqlash' : 
-                             debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
-                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div className="bg-surface-50 rounded-xl p-3">
