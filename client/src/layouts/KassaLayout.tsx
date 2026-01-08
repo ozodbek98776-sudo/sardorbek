@@ -2,11 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Calculator, Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
 import PWAInstallButton from '../components/PWAInstallButton.tsx';
+import api from '../utils/api';
+import { useAlert } from '../hooks/useAlert';
 
 export default function KassaLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sending, setSending] = useState<'arrived' | 'left' | null>(null);
+  const [uiMode, setUiMode] = useState<'idle' | 'arrived'>('idle');
+  const { showAlert, AlertComponent } = useAlert();
+  const [attendanceToday, setAttendanceToday] = useState<{ arrived: number; left: number }>({ arrived: 0, left: 0 });
+  const [todayKey, setTodayKey] = useState<string>('');
   
   // Navigate funksiyasini memoize qilish
   const navigateToLogin = useCallback(() => {
@@ -52,6 +59,81 @@ export default function KassaLayout() {
   };
   
   const userInfo = getUserInfo();
+
+  const getTodayString = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Attendance ma'lumotlarini yuklash
+  useEffect(() => {
+    const checkAndUpdateAttendance = () => {
+      const t = getTodayString();
+      setTodayKey(t);
+      const key = `attendance:kassa:${userInfo.username}:${t}`;
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : { arrived: 0, left: 0 };
+      setAttendanceToday(parsed);
+      setUiMode(parsed.arrived > 0 && parsed.left === 0 ? 'arrived' : 'idle');
+    };
+
+    checkAndUpdateAttendance();
+
+    const interval = setInterval(() => {
+      const currentDate = getTodayString();
+      if (currentDate !== todayKey) {
+        checkAndUpdateAttendance();
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [userInfo.username, todayKey]);
+
+  const handleAttendance = async (type: 'arrived' | 'left') => {
+    if (sending) return;
+    const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+    const current = attendanceToday;
+    
+    if ((type === 'arrived' && current.arrived >= 2) || (type === 'left' && current.left >= 2)) {
+      await showAlert('Bugun ushbu amal maksimal 2 marta bajarilishi mumkin', 'Ogohlantirish', 'warning');
+      return;
+    }
+    
+    try {
+      setSending(type);
+      await api.post('/telegram/attendance', { type });
+      await showAlert(
+        type === 'arrived' ? 'Keldingiz xabari yuborildi' : 'Ketdingiz xabari yuborildi',
+       'Muvaffaqiyatli',
+       'success'
+      );
+      if (type === 'arrived') {
+        const updated = { ...current, arrived: current.arrived + 1 };
+        localStorage.setItem(key, JSON.stringify(updated));
+        setAttendanceToday(updated);
+        if (updated.arrived > 0 && updated.left === 0) {
+          setUiMode('arrived');
+        }
+      } else {
+        const updated = { ...current, left: current.left + 1 };
+        localStorage.setItem(key, JSON.stringify(updated));
+        setAttendanceToday(updated);
+        handleLogout();
+        window.location.replace('/kassa-login');
+      }
+    } catch (err: any) {
+      await showAlert(
+        err?.response?.data?.message || 'Xabar yuborishda xatolik',
+        'Xatolik',
+        'danger'
+      );
+    } finally {
+      setSending(null);
+    }
+  };
 
   // CHIQISH FUNKSIYASI - AVTOMATIK
   const handleLogout = useCallback(() => {
@@ -192,6 +274,50 @@ export default function KassaLayout() {
           <Outlet />
         </div>
       </div>
+
+      {/* Keldim/Ketdim UI */}
+      {uiMode === 'idle' && (
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm" />
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="mx-auto max-w-md flex gap-4">
+              <button
+                onClick={() => handleAttendance('arrived')}
+                disabled={sending !== null || attendanceToday.arrived >= 2}
+                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {sending === 'arrived' ? 'Yuborilmoqda...' : 'Keldim'}
+              </button>
+              <button
+                onClick={() => handleAttendance('left')}
+                disabled={sending !== null || attendanceToday.left >= 2}
+                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-rose-600 text-white font-bold shadow-lg hover:bg-rose-700 disabled:opacity-60"
+              >
+                {sending === 'left' ? 'Yuborilmoqda...' : 'Ketdim'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {uiMode === 'arrived' && (
+        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
+          <button
+            onClick={() => handleAttendance('arrived')}
+            disabled={sending !== null || attendanceToday.arrived >= 2}
+            className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:bg-emerald-700 disabled:opacity-60 transition-all"
+          >
+            {sending === 'arrived' ? '...' : 'Keldim'}
+          </button>
+          <button
+            onClick={() => handleAttendance('left')}
+            disabled={sending !== null || attendanceToday.left >= 2}
+            className="px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold shadow-md hover:bg-rose-700 disabled:opacity-60 transition-all"
+          >
+            {sending === 'left' ? '...' : 'Ketdim'}
+          </button>
+        </div>
+      )}
+      {AlertComponent}
     </div>
   );
 }
