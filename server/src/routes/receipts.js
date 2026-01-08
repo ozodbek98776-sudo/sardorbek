@@ -62,6 +62,22 @@ router.post('/helper-receipt', auth, async (req, res) => {
       );
     }
 
+    // Kassirga bonus hisoblash va qo'shish
+    const kassir = await require('../models/User').findById(req.user._id);
+    if (kassir && kassir.bonusPercentage > 0) {
+      const bonusAmount = (totalAmount * kassir.bonusPercentage) / 100;
+
+      // Kassir statistikasini yangilash
+      await require('../models/User').findByIdAndUpdate(req.user._id, {
+        $inc: {
+          totalEarnings: totalAmount,
+          totalBonus: bonusAmount
+        }
+      });
+
+      console.log(`Kassir ${kassir.name} ga ${bonusAmount} so'm bonus qo'shildi (${kassir.bonusPercentage}% dan ${totalAmount} so'm)`);
+    }
+
     res.status(201).json({
       success: true,
       receipt: {
@@ -224,7 +240,7 @@ router.get('/helpers-stats', auth, authorize('admin'), async (req, res) => {
     // Barcha kassirlarni olish
     const helpers = await require('../models/User').find({
       role: { $in: ['cashier', 'helper'] }
-    }).select('name role');
+    }).select('name role bonusPercentage totalEarnings totalBonus');
 
     // Har bir kassir uchun statistika hisoblash
     const helpersWithStats = await Promise.all(
@@ -253,7 +269,10 @@ router.get('/helpers-stats', auth, authorize('admin'), async (req, res) => {
           name: helper.name,
           role: helper.role,
           receiptCount: stats.receiptCount,
-          totalAmount: stats.totalAmount
+          totalAmount: stats.totalAmount,
+          bonusPercentage: helper.bonusPercentage || 0,
+          totalEarnings: helper.totalEarnings || 0,
+          totalBonus: helper.totalBonus || 0
         };
       })
     );

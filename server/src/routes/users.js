@@ -39,7 +39,7 @@ router.get('/kassa', async (req, res) => {
 
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, password, role } = req.body;
+    const { name, phone, password, role, bonusPercentage } = req.body;
 
     const existingUser = await User.findOne({
       $or: [{ phone }, { email: phone }]
@@ -48,10 +48,29 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
     }
 
-    const user = new User({ name, phone, password, role, createdBy: req.user._id });
+    const userData = {
+      name,
+      phone,
+      password,
+      role,
+      createdBy: req.user._id
+    };
+
+    // Agar kassir bo'lsa va bonus foizi berilgan bo'lsa
+    if (role === 'cashier' && bonusPercentage !== undefined) {
+      userData.bonusPercentage = Math.max(0, Math.min(100, bonusPercentage)); // 0-100% orasida
+    }
+
+    const user = new User(userData);
     await user.save();
 
-    res.status(201).json({ _id: user._id, name: user.name, phone: user.phone, role: user.role });
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      bonusPercentage: user.bonusPercentage || 0
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
@@ -59,8 +78,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, role, password } = req.body;
-    const updateData = { name, phone, role };
+    const { name, phone, role, password, bonusPercentage } = req.body;
 
     const user = await User.findOne({ _id: req.params.id, createdBy: req.user._id });
     if (!user) return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
@@ -68,6 +86,14 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     user.name = name;
     user.phone = phone;
     user.role = role;
+
+    // Agar kassir bo'lsa va bonus foizi berilgan bo'lsa
+    if (role === 'cashier' && bonusPercentage !== undefined) {
+      user.bonusPercentage = Math.max(0, Math.min(100, bonusPercentage)); // 0-100% orasida
+    } else if (role !== 'cashier') {
+      user.bonusPercentage = 0; // Kassir bo'lmasa bonus yo'q
+    }
+
     if (password) {
       user.password = password;
     }

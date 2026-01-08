@@ -12,6 +12,9 @@ interface HelperStats {
   role: string;
   receiptCount: number;
   totalAmount: number;
+  bonusPercentage: number;
+  totalEarnings: number;
+  totalBonus: number;
 }
 
 interface HelperReceipt {
@@ -40,7 +43,7 @@ export default function Helpers() {
   const [loading, setLoading] = useState(true);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', phone: '', password: '', role: 'helper' as 'cashier' | 'helper'
+    name: '', phone: '', password: '', role: 'helper' as 'cashier' | 'helper', bonusPercentage: 0
   });
 
   useEffect(() => { 
@@ -95,7 +98,8 @@ export default function Helpers() {
         name: formData.name,
         phone: getRawPhone(formData.phone),
         role: formData.role,
-        ...(formData.password && { password: formData.password })
+        ...(formData.password && { password: formData.password }),
+        ...(formData.role === 'cashier' && { bonusPercentage: formData.bonusPercentage })
       };
       
       if (editingUser) {
@@ -141,7 +145,8 @@ export default function Helpers() {
       name: user.name,
       phone: displayPhone(user.phone),
       password: '',
-      role: user.role as 'cashier' | 'helper'
+      role: user.role as 'cashier' | 'helper',
+      bonusPercentage: (user as any).bonusPercentage || 0
     });
     setShowModal(true);
   };
@@ -149,7 +154,7 @@ export default function Helpers() {
   const closeModal = () => {
     setShowModal(false);
     setEditingUser(null);
-    setFormData({ name: '', phone: '', password: '', role: 'helper' });
+    setFormData({ name: '', phone: '', password: '', role: 'helper', bonusPercentage: 0 });
   };
 
   return (
@@ -315,6 +320,31 @@ export default function Helpers() {
                   </button>
                 </div>
               </div>
+              
+              {/* Bonus foizi - faqat kassir uchun */}
+              {formData.role === 'cashier' && (
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">
+                    Bonus foizi (%)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                    <input 
+                      type="number" 
+                      className="input pl-12" 
+                      placeholder="Masalan: 1 (1% bonus)" 
+                      value={formData.bonusPercentage}
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      onChange={e => setFormData({...formData, bonusPercentage: parseFloat(e.target.value) || 0})}
+                    />
+                  </div>
+                  <p className="text-xs text-surface-500 mt-1">
+                    Kassir har bir savdodan {formData.bonusPercentage}% bonus oladi
+                  </p>
+                </div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={closeModal} className="btn-secondary flex-1">Bekor qilish</button>
                 <button type="submit" className="btn-primary flex-1">Saqlash</button>
@@ -329,16 +359,66 @@ export default function Helpers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="overlay" onClick={() => setShowReceiptsModal(false)} />
           <div className="modal w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10">
-            <div className="flex items-center justify-between p-6 border-b border-surface-100">
-              <div>
-                <h3 className="text-lg font-semibold text-surface-900">{selectedHelper.name} - Cheklar</h3>
-                <p className="text-sm text-surface-500">
-                  Jami: {selectedHelper.receiptCount} ta chek, {formatNumber(selectedHelper.totalAmount)} so'm
-                </p>
+            <div className="p-6 border-b border-surface-100 bg-gradient-to-r from-brand-50 to-blue-50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                    {selectedHelper.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-surface-900">{selectedHelper.name}</h3>
+                    <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+                      selectedHelper.role === 'cashier' ? 'bg-success-100 text-success-700' : 'bg-brand-100 text-brand-700'
+                    }`}>
+                      {selectedHelper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setShowReceiptsModal(false)} className="btn-icon-sm hover:bg-white/50">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => setShowReceiptsModal(false)} className="btn-icon-sm">
-                <X className="w-5 h-5" />
-              </button>
+              
+              {/* Statistika kartlari */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                  <div className="flex items-center justify-center mb-2">
+                    <Receipt className="w-5 h-5 text-brand-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-surface-900">{selectedHelper.receiptCount}</p>
+                  <p className="text-xs text-surface-500">Cheklar</p>
+                </div>
+                
+                <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                  <div className="flex items-center justify-center mb-2">
+                    <DollarSign className="w-5 h-5 text-success-600" />
+                  </div>
+                  <p className="text-lg font-bold text-success-600">{formatNumber(selectedHelper.totalAmount)}</p>
+                  <p className="text-xs text-surface-500">Savdo</p>
+                </div>
+                
+                {selectedHelper.bonusPercentage > 0 && (
+                  <>
+                    <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                      <div className="flex items-center justify-center mb-2">
+                        <span className="text-orange-500 font-bold">%</span>
+                      </div>
+                      <p className="text-lg font-bold text-orange-600">{selectedHelper.bonusPercentage}%</p>
+                      <p className="text-xs text-surface-500">Bonus foizi</p>
+                    </div>
+                    
+                    <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                      <div className="flex items-center justify-center mb-2">
+                        <DollarSign className="w-5 h-5 text-green-600" />
+                      </div>
+                      <p className="text-lg font-bold text-green-600">
+                        {formatNumber((selectedHelper.totalAmount * selectedHelper.bonusPercentage) / 100)}
+                      </p>
+                      <p className="text-xs text-surface-500">Jami bonus</p>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             
             <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
@@ -352,46 +432,50 @@ export default function Helpers() {
                   <p className="text-surface-500">Cheklar topilmadi</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {selectedHelperReceipts.map(receipt => (
-                    <div key={receipt._id} className="bg-surface-50 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Receipt className="w-5 h-5 text-brand-600" />
-                          <span className="font-medium text-surface-900">
-                            Chek #{receipt._id.slice(-6)}
-                          </span>
+                    <div key={receipt._id} className="bg-white rounded-xl p-5 shadow-sm border border-surface-100 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
+                            <Receipt className="w-5 h-5 text-brand-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-surface-900">
+                              Chek #{receipt._id.slice(-6)}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-surface-500">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-surface-500">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-brand-600">
+                            {formatNumber(receipt.total)}
+                          </p>
+                          <p className="text-sm text-surface-500">so'm</p>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-sm font-medium text-surface-700 mb-2">Mahsulotlar:</h4>
-                          <div className="space-y-1">
-                            {receipt.items.map((item, index) => (
-                              <div key={index} className="flex justify-between text-sm">
-                                <span className="text-surface-600">
-                                  {item.name} x{item.quantity}
+                      <div className="border-t border-surface-100 pt-4">
+                        <h5 className="text-sm font-medium text-surface-700 mb-3">Mahsulotlar:</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {receipt.items.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center py-2 px-3 bg-surface-50 rounded-lg">
+                              <span className="text-sm text-surface-700 font-medium">
+                                {item.name}
+                              </span>
+                              <div className="text-right">
+                                <span className="text-sm text-surface-600">
+                                  {item.quantity} × {formatNumber(item.price)}
                                 </span>
-                                <span className="font-medium">
+                                <p className="text-sm font-semibold text-surface-900">
                                   {formatNumber(item.price * item.quantity)} so'm
-                                </span>
+                                </p>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-center">
-                          <div className="text-center">
-                            <p className="text-sm text-surface-500 mb-1">Jami summa</p>
-                            <p className="text-2xl font-bold text-brand-600">
-                              {formatNumber(receipt.total)} so'm
-                            </p>
-                          </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
