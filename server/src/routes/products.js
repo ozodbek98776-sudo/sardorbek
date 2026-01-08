@@ -96,6 +96,57 @@ router.get('/kassa', async (req, res) => {
   }
 });
 
+// Kassa uchun tovar qo'shish (auth talab qilmaydi)
+router.post('/kassa', async (req, res) => {
+  try {
+    const { code, name, costPrice, price, quantity } = req.body;
+
+    // Validatsiya
+    if (!code || !name || !price) {
+      return res.status(400).json({ message: 'Kod, nom va narx majburiy maydonlar' });
+    }
+
+    // Kod takrorlanishini tekshirish
+    const existingProduct = await Product.findOne({ code: code.trim() });
+    if (existingProduct) {
+      return res.status(400).json({ message: 'Bu kod bilan tovar allaqachon mavjud' });
+    }
+
+    // Asosiy omborni topish
+    let mainWarehouse = await Warehouse.findOne({ name: 'Asosiy ombor' });
+    if (!mainWarehouse) {
+      // Agar asosiy ombor yo'q bo'lsa, yaratish
+      mainWarehouse = new Warehouse({
+        name: 'Asosiy ombor',
+        address: 'Asosiy ombor manzili'
+      });
+      await mainWarehouse.save();
+    }
+
+    const productData = {
+      code: code.trim(),
+      name: name.trim(),
+      costPrice: parseFloat(costPrice) || 0,
+      price: parseFloat(price),
+      quantity: parseInt(quantity) || 0,
+      warehouse: mainWarehouse._id,
+      isMainWarehouse: true
+    };
+
+    const product = new Product(productData);
+    await product.save();
+
+    // Populate qilib qaytarish
+    await product.populate('warehouse', 'name');
+
+    console.log(`Kassa: Yangi tovar qo'shildi - ${product.name} (${product.code})`);
+    res.status(201).json(product);
+  } catch (error) {
+    console.error('Kassa add product error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const { search, warehouse, mainOnly, kassaView } = req.query;

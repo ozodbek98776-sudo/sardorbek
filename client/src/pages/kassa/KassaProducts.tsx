@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Package } from 'lucide-react';
+import { Search, RefreshCw, Package, Plus, X } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
@@ -16,6 +16,14 @@ export default function KassaProducts() {
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    code: '',
+    name: '',
+    costPrice: '',
+    price: '',
+    quantity: ''
+  });
 
   useEffect(() => {
     fetchProducts();
@@ -140,6 +148,54 @@ export default function KassaProducts() {
     }
   };
 
+  const handleAddProduct = async () => {
+    try {
+      // Validatsiya
+      if (!newProduct.code || !newProduct.name || !newProduct.price) {
+        showAlert('Kod, nom va narx majburiy maydonlar', 'Xatolik', 'warning');
+        return;
+      }
+
+      const productData = {
+        code: newProduct.code.trim(),
+        name: newProduct.name.trim(),
+        costPrice: parseFloat(newProduct.costPrice) || 0,
+        price: parseFloat(newProduct.price),
+        quantity: parseInt(newProduct.quantity) || 0
+      };
+
+      await api.post('/products/kassa', productData);
+      showAlert('Tovar muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
+      
+      // Formani tozalash
+      setNewProduct({
+        code: '',
+        name: '',
+        costPrice: '',
+        price: '',
+        quantity: ''
+      });
+      
+      setShowAddProductModal(false);
+      fetchProducts(); // Ro'yxatni yangilash
+    } catch (err: any) {
+      console.error('Error adding product:', err);
+      const errorMessage = err.response?.data?.message || 'Tovar qo\'shishda xatolik yuz berdi';
+      showAlert(errorMessage, 'Xatolik', 'danger');
+    }
+  };
+
+  const resetAddProductForm = () => {
+    setNewProduct({
+      code: '',
+      name: '',
+      costPrice: '',
+      price: '',
+      quantity: ''
+    });
+    setShowAddProductModal(false);
+  };
+
   return (
     <div className="p-3 sm:p-6">
       {AlertComponent}
@@ -155,15 +211,24 @@ export default function KassaProducts() {
                 {filteredProducts.length} ta tovar
               </span>
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50 w-full sm:w-auto"
-              title="Tovarlar ro'yxatini yangilash (F5)"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowAddProductModal(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                Tovar qo'shish
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50 w-full sm:w-auto"
+                title="Tovarlar ro'yxatini yangilash (F5)"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
+              </button>
+            </div>
           </div>
           
           {/* Search and Filters */}
@@ -385,6 +450,124 @@ export default function KassaProducts() {
           </div>
         )}
       </div>
+
+      {/* Tovar qo'shish modali */}
+      {showAddProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={resetAddProductForm} />
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-brand-50 to-blue-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Plus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-surface-900">Yangi tovar qo'shish</h3>
+                  <p className="text-sm text-surface-600">Tovar ma'lumotlarini kiriting</p>
+                </div>
+              </div>
+              <button
+                onClick={resetAddProductForm}
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Kod */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 mb-2">
+                    Tovar kodi *
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.code}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
+                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    placeholder="Masalan: TV001"
+                  />
+                </div>
+
+                {/* Nom */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 mb-2">
+                    Tovar nomi *
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    placeholder="Masalan: Samsung TV 55 dyuym"
+                  />
+                </div>
+
+                {/* Tan narxi */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 mb-2">
+                    Tan narxi
+                  </label>
+                  <input
+                    type="number"
+                    value={newProduct.costPrice}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, costPrice: e.target.value }))}
+                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Sotuv narxi */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 mb-2">
+                    Sotuv narxi *
+                  </label>
+                  <input
+                    type="number"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Miqdor */}
+                <div>
+                  <label className="block text-sm font-medium text-surface-700 mb-2">
+                    Miqdor
+                  </label>
+                  <input
+                    type="number"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
+              <button
+                onClick={resetAddProductForm}
+                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleAddProduct}
+                className="px-6 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-lg hover:from-brand-600 hover:to-brand-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                Tovar qo'shish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

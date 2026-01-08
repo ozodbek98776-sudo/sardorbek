@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Calculator, Users, FileText, Package, User, LogOut, Menu, X } from 'lucide-react';
+import { Calculator, Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
 import PWAInstallButton from '../components/PWAInstallButton.tsx';
 
 export default function KassaLayout() {
@@ -10,7 +10,7 @@ export default function KassaLayout() {
   
   // Navigate funksiyasini memoize qilish
   const navigateToLogin = useCallback(() => {
-    navigate('/kassa-login', { replace: true });
+    navigate('/login', { replace: true });
   }, [navigate]);
   
   // Qo'shimcha himoya choralari
@@ -53,30 +53,26 @@ export default function KassaLayout() {
   
   const userInfo = getUserInfo();
 
-  // CHIQISH FUNKSIYASI
+  // CHIQISH FUNKSIYASI - AVTOMATIK
   const handleLogout = useCallback(() => {
-    const confirmLogout = window.confirm('Kassa tizimidan chiqishni xohlaysizmi?');
-    if (confirmLogout) {
-      // Kassa login ma'lumotlarini o'chirish
-      localStorage.removeItem('kassaLoggedIn');
-      localStorage.removeItem('kassaToken');
-      
-      // Login sahifasiga yo'naltirish
-      navigateToLogin();
-    }
+    // Kassa login ma'lumotlarini o'chirish
+    localStorage.removeItem('kassaLoggedIn');
+    localStorage.removeItem('kassaToken');
+    
+    // Avtomatik login sahifasiga yo'naltirish
+    navigateToLogin();
   }, [navigateToLogin]);
 
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/kassa' || path === '/kassa/') return 'Kassa';
     if (path === '/kassa/clients') return 'Mijozlar';
-    if (path === '/kassa/debts') return 'Qarz daftarcha';
     if (path === '/kassa/products') return 'Tovarlar';
     return 'Kassa';
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 flex">
+    <div className="h-screen bg-surface-50 flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -132,34 +128,49 @@ export default function KassaLayout() {
           </div>
         </nav>
         
-        {/* User Info & Logout */}
-        <div className="p-4 border-t border-surface-200">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
-              <User className="w-4 h-4 text-brand-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-surface-900">{userInfo.username}</p>
-              <p className="text-xs text-success-600 font-medium">🟢 Faol sessiya</p>
+        {/* User Profile Section */}
+        <div className="p-3 border-t border-surface-200">
+          {/* Profile Card - Compact Design */}
+          <div className="bg-white rounded-2xl p-3 mb-3 border border-surface-200 shadow-sm">
+            <div className="flex items-center gap-3">
+              {/* Avatar - Smaller */}
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-500 rounded-2xl flex items-center justify-center shadow-sm">
+                <span className="text-sm font-bold text-white">
+                  {userInfo.username.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              
+              {/* User Info - Compact */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 truncate leading-tight">
+                  {userInfo.username === 'alisher' ? 'Namozov Alisher' : 
+                   userInfo.username === 'kassa1' ? 'Kassa Xodimi' : 
+                   userInfo.username === 'admin' ? 'Administrator' : 
+                   userInfo.username}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-tight">
+                  Kassir
+                </p>
+              </div>
             </div>
           </div>
           
-          {/* Chiqish tugmasi */}
+          {/* Logout Button - Smaller */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors text-sm"
+            className="w-full flex items-center gap-2 px-3 py-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors text-xs font-medium"
             title="Kassa tizimidan chiqish"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
             Chiqish
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-0">
+      <div className="flex-1 flex flex-col lg:ml-0 h-full">
         {/* Top Header */}
-        <header className="bg-white border-b border-surface-200 px-4 lg:px-6 h-14 lg:h-16 flex items-center justify-between">
+        <header className="bg-white border-b border-surface-200 px-4 lg:px-6 h-14 lg:h-16 flex items-center justify-between flex-shrink-0">
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -177,7 +188,7 @@ export default function KassaLayout() {
         </header>
         
         {/* Content Area */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-hidden">
           <Outlet />
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
-  Package, Banknote, Delete, User, ChevronDown, RefreshCw, Printer
+  Package, Banknote, Delete, RefreshCw, Printer
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -23,7 +23,7 @@ export default function KassaMain() {
   
   // State
   const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [showPayment, setShowPayment] = useState(false);
@@ -32,8 +32,6 @@ export default function KassaMain() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [savedReceipts, setSavedReceipts] = useState<SavedReceipt[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [showCustomerSelect, setShowCustomerSelect] = useState(false);
-  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   // Yangi state - real-time qidiruv uchun
   const [codeSuggestions, setCodeSuggestions] = useState<Product[]>([]);
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
@@ -42,6 +40,10 @@ export default function KassaMain() {
     available: false,
     printers: []
   });
+  // KOD/SON panel uchun yangi state
+  const [inputMode, setInputMode] = useState<'kod' | 'son'>('kod');
+  const [numberInput, setNumberInput] = useState('');
+  const [selectedProductForQuantity, setSelectedProductForQuantity] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -232,29 +234,130 @@ export default function KassaMain() {
 
   const handleNumpadClick = (value: string) => {
     if (value === 'C') {
-      setInputValue('');
-      setShowCodeSuggestions(false);
-      setCodeSuggestions([]);
-    }
-    else if (value === '⌫') {
-      const newValue = inputValue.slice(0, -1);
-      setInputValue(newValue);
-      // Darhol qidirish
-      if (newValue.length > 0) {
-        searchProductsByCode(newValue);
-      } else {
+      if (inputMode === 'kod') {
+        setInputValue('');
         setShowCodeSuggestions(false);
         setCodeSuggestions([]);
+      } else {
+        setNumberInput('1'); // 1 ga o'rnatish
+        // Agar mahsulot tanlangan bo'lsa, uni 1 ta qilish
+        if (selectedProductForQuantity) {
+          const existingInCart = cart.find(p => p._id === selectedProductForQuantity._id);
+          if (existingInCart) {
+            setCart(prev => prev.map(p => 
+              p._id === selectedProductForQuantity._id ? {...p, cartQuantity: 1} : p
+            ));
+          }
+        }
+      }
+    }
+    else if (value === '⌫') {
+      if (inputMode === 'kod') {
+        const newValue = inputValue.slice(0, -1);
+        setInputValue(newValue);
+        // Darhol qidirish
+        if (newValue.length > 0) {
+          searchProductsByCode(newValue);
+        } else {
+          setShowCodeSuggestions(false);
+          setCodeSuggestions([]);
+        }
+      } else {
+        const newValue = numberInput.slice(0, -1);
+        
+        // Agar yangi qiymat bo'sh bo'lsa yoki 0 ga teng bo'lsa, 1 ga o'rnatish
+        const finalValue = newValue === '' || parseInt(newValue) === 0 ? '1' : newValue;
+        setNumberInput(finalValue);
+        
+        // Real-time savatchani yangilash
+        if (selectedProductForQuantity) {
+          const quantity = parseInt(finalValue);
+          if (quantity > 0 && quantity <= selectedProductForQuantity.quantity) {
+            const existingInCart = cart.find(p => p._id === selectedProductForQuantity._id);
+            if (existingInCart) {
+              // Mavjud mahsulot miqdorini real-time yangilash
+              setCart(prev => prev.map(p => 
+                p._id === selectedProductForQuantity._id ? {...p, cartQuantity: quantity} : p
+              ));
+            }
+          }
+        }
       }
     }
     else if (value === '+') {
-      addProductByCode(inputValue);
+      if (inputMode === 'kod') {
+        addProductByCode(inputValue);
+      } else {
+        // SON rejimida + bosilganda - tanlangan mahsulotni savatchaga qo'shish yoki yangilash
+        if (selectedProductForQuantity && numberInput.trim()) {
+          const quantity = parseInt(numberInput);
+          if (!isNaN(quantity) && quantity > 0) {
+            // Miqdorni tekshirish
+            if (quantity > selectedProductForQuantity.quantity) {
+              showAlert(`${selectedProductForQuantity.name} uchun maksimal miqdor: ${selectedProductForQuantity.quantity} ta`, 'Ogohlantirish', 'warning');
+              return;
+            }
+            
+            // Savatchada mavjud mahsulotni yangilash yoki yangi qo'shish
+            const existingInCart = cart.find(p => p._id === selectedProductForQuantity._id);
+            if (existingInCart) {
+              // Mavjud mahsulot miqdorini yangilash
+              setCart(prev => prev.map(p => 
+                p._id === selectedProductForQuantity._id ? {...p, cartQuantity: quantity} : p
+              ));
+            } else {
+              // Yangi mahsulot qo'shish
+              addToCartWithQuantity(selectedProductForQuantity, quantity);
+            }
+            
+            // Holatni tozalash va KOD rejimiga qaytish
+            setSelectedProductForQuantity(null);
+            setNumberInput('');
+            setInputMode('kod');
+          }
+        } else if (!selectedProductForQuantity) {
+          showAlert('Mahsulot qo\'shing', 'Ogohlantirish', 'warning');
+        }
+      }
     }
     else {
-      const newValue = inputValue + value;
-      setInputValue(newValue);
-      // Darhol qidirish
-      searchProductsByCode(newValue);
+      if (inputMode === 'kod') {
+        const newValue = inputValue + value;
+        setInputValue(newValue);
+        // Darhol qidirish
+        searchProductsByCode(newValue);
+      } else {
+        // SON rejimida faqat raqamlar (nuqta yo'q, chunki miqdor butun son)
+        // Faqat mahsulot tanlangan bo'lsa raqam kiritish mumkin
+        if (selectedProductForQuantity && (/^[\d]$/.test(value) || value === '00')) {
+          const newValue = numberInput + value;
+          const quantity = parseInt(newValue);
+          
+          // Avval miqdorni tekshirish - agar oshib ketsa, raqam qo'shilmaydi
+          if (!isNaN(quantity) && quantity > selectedProductForQuantity.quantity) {
+            showAlert(`${selectedProductForQuantity.name} uchun maksimal miqdor: ${selectedProductForQuantity.quantity} ta`, 'Ogohlantirish', 'warning');
+            return; // Raqamni qo'shmaslik
+          }
+          
+          console.log('SON rejimida raqam kiritildi:', value, 'Yangi qiymat:', newValue);
+          setNumberInput(newValue);
+          
+          // Real-time savatchani yangilash
+          if (!isNaN(quantity) && quantity > 0) {
+            const existingInCart = cart.find(p => p._id === selectedProductForQuantity._id);
+            if (existingInCart) {
+              // Mavjud mahsulot miqdorini real-time yangilash
+              setCart(prev => prev.map(p => 
+                p._id === selectedProductForQuantity._id ? {...p, cartQuantity: quantity} : p
+              ));
+            }
+          }
+        } else if (!selectedProductForQuantity) {
+          // Mahsulot tanlanmagan bo'lsa, KOD rejimiga o'tish
+          setInputMode('kod');
+          showAlert('Mahsulot qo\'shing', 'Ogohlantirish', 'warning');
+        }
+      }
     }
   };
 
@@ -271,14 +374,11 @@ export default function KassaMain() {
         return;
       }
       
-      // Tovar topildi va mavjud - savatchaga qo'shish
+      // Tovar topildi - darhol 1 ta qo'shish
       addToCart(product);
       setInputValue('');
       setShowCodeSuggestions(false);
       setCodeSuggestions([]);
-      
-      // Muvaffaqiyat haqida xabar
-      showAlert(`${product.name} qo'shildi`, 'Muvaffaqiyat', 'success');
     } else {
       // Tovar topilmadi
       showAlert(`Kod "${code}" bo'yicha tovar topilmadi`, 'Xatolik', 'warning');
@@ -293,11 +393,36 @@ export default function KassaMain() {
       return;
     }
     
+    // Tovar tanlandi - darhol 1 ta qo'shish
     addToCart(product);
     setInputValue('');
     setShowCodeSuggestions(false);
     setCodeSuggestions([]);
-    showAlert(`${product.name} qo'shildi`, 'Muvaffaqiyat', 'success');
+  };
+
+  const editCartItemQuantity = (item: CartItem) => {
+    // Mahsulotni tanlash va SON rejimiga o'tish
+    setSelectedProductForQuantity(item);
+    setInputMode('son');
+    setNumberInput(item.cartQuantity.toString());
+  };
+
+  const addToCartWithQuantity = (product: Product, quantity: number) => {
+    setCart(prev => {
+      const existing = prev.find(p => p._id === product._id);
+      if (existing) {
+        // Agar mahsulot allaqachon savatchada bo'lsa, miqdorni qo'shish
+        const newQuantity = existing.cartQuantity + quantity;
+        if (newQuantity > product.quantity) {
+          showAlert(`${product.name} uchun maksimal miqdor: ${product.quantity} ta`, 'Ogohlantirish', 'warning');
+          return prev; // O'zgartirishni bekor qilish
+        }
+        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity} : p);
+      }
+      return [...prev, {...product, cartQuantity: quantity}];
+    });
+    setShowSearch(false);
+    setSearchQuery('');
   };
 
   const addToCart = (product: Product) => {
@@ -493,13 +618,13 @@ export default function KassaMain() {
   };
 
   return (
-    <div className="flex-1 flex flex-col xl:flex-row">
+    <div className="h-full flex flex-col lg:flex-row overflow-hidden">
       {AlertComponent}
       
       {/* Left - Cart Table */}
-      <div className="flex-1 flex flex-col p-2 sm:p-3 md:p-4 lg:p-6">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         {/* Cart Info */}
-        <div className="mb-3 sm:mb-4 flex flex-col xs:flex-row xs:items-center justify-between gap-2">
+        <div className="p-2 sm:p-3 lg:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border-b border-surface-200 flex-shrink-0">
           <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
             <span className="text-xs sm:text-sm text-surface-600 font-medium">JAMI: {cart.length} ta mahsulot</span>
             <button
@@ -512,104 +637,27 @@ export default function KassaMain() {
               <span className="xs:hidden">{isRefreshing ? '...' : '↻'}</span>
             </button>
           </div>
-          
-          {/* Customer Select */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCustomerSelect(!showCustomerSelect)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors w-full sm:w-auto ${
-                selectedCustomer 
-                  ? 'bg-brand-100 text-brand-700' 
-                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
-              }`}
-            >
-              <User className="w-4 h-4 flex-shrink-0" />
-              <span className="max-w-32 sm:max-w-40 truncate">
-                {selectedCustomer ? selectedCustomer.name : 'Oddiy mijoz'}
-              </span>
-              <ChevronDown className="w-4 h-4 flex-shrink-0" />
-            </button>
-            
-            {showCustomerSelect && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowCustomerSelect(false)} />
-                <div className="absolute right-0 sm:right-0 top-full mt-2 w-full sm:w-72 bg-white rounded-xl shadow-lg border border-surface-200 z-50 overflow-hidden max-h-80 sm:max-h-96">
-                  <div className="p-3 border-b border-surface-100">
-                    <input
-                      type="text"
-                      placeholder="Mijoz qidirish..."
-                      value={customerSearchQuery}
-                      onChange={e => setCustomerSearchQuery(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-surface-50 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-48 sm:max-h-64 overflow-auto">
-                    <button
-                      onClick={() => { setSelectedCustomer(null); setShowCustomerSelect(false); setCustomerSearchQuery(''); }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-50 transition-colors ${
-                        !selectedCustomer ? 'bg-brand-50' : ''
-                      }`}
-                    >
-                      <div className="w-8 h-8 bg-surface-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-surface-500" />
-                      </div>
-                      <span className="text-sm font-medium text-surface-700">Oddiy mijoz</span>
-                    </button>
-                    {customers
-                      .filter(c => 
-                        customerSearchQuery === '' ||
-                        c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-                        c.phone.includes(customerSearchQuery)
-                      )
-                      .map(customer => (
-                        <button
-                          key={customer._id}
-                          onClick={() => { setSelectedCustomer(customer); setShowCustomerSelect(false); setCustomerSearchQuery(''); }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-50 transition-colors ${
-                            selectedCustomer?._id === customer._id ? 'bg-brand-50' : ''
-                          }`}
-                        >
-                          <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-semibold text-brand-600">{customer.name.charAt(0)}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-surface-900 truncate">{customer.name}</p>
-                            <p className="text-xs text-surface-500 truncate">{customer.phone}</p>
-                          </div>
-                          {customer.debt > 0 && (
-                            <span className="text-xs text-danger-600 font-medium flex-shrink-0">
-                              {formatNumber(customer.debt)}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Table */}
-        <div className="flex-1 bg-white rounded-xl border border-surface-200 overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-0">
           {/* Table Header - Hidden on mobile */}
-          <div className="hidden md:grid grid-cols-12 gap-2 px-3 sm:px-4 py-3 bg-surface-50 border-b border-surface-200 text-xs font-semibold text-surface-500 uppercase">
-            <div className="col-span-1 sm:col-span-1">Kod</div>
-            <div className="col-span-4 sm:col-span-4">Mahsulot</div>
-            <div className="col-span-2 sm:col-span-2 text-center">Soni</div>
-            <div className="col-span-2 sm:col-span-2 text-right">Narx</div>
-            <div className="col-span-2 sm:col-span-2 text-right">Summa</div>
-            <div className="col-span-1 sm:col-span-1 text-center">Amallar</div>
+          <div className="hidden md:grid grid-cols-12 gap-2 px-3 sm:px-4 py-3 bg-surface-50 border-b border-surface-200 text-xs font-semibold text-surface-500 uppercase flex-shrink-0">
+            <div className="col-span-1">Kod</div>
+            <div className="col-span-4">Mahsulot</div>
+            <div className="col-span-2 text-center">Soni</div>
+            <div className="col-span-2 text-right">Narx</div>
+            <div className="col-span-2 text-right">Summa</div>
+            <div className="col-span-1 text-center">Amallar</div>
           </div>
 
           {/* Table Body */}
-          <div className={`flex-1 ${cart.length > 1 ? 'overflow-auto' : 'overflow-visible'}`}>
+          <div className="flex-1 overflow-auto min-h-0">
             {cart.length === 0 ? (
               // Savat bo'sh bo'lganda kod takliflari yoki bo'sh holat
               showCodeSuggestions && codeSuggestions.length > 0 ? (
-                <div className="p-3 sm:p-4 h-full">
-                  <div className="text-center mb-3 sm:mb-4">
+                <div className="p-2 sm:p-3 lg:p-4 h-full flex flex-col">
+                  <div className="text-center mb-2 sm:mb-3 flex-shrink-0">
                     <p className="text-sm text-surface-500">
                       "{inputValue}" ni o'z ichiga olgan tovarlar
                       {codeSuggestions.length > 4 && (
@@ -619,7 +667,7 @@ export default function KassaMain() {
                       )}
                     </p>
                   </div>
-                  <div className="space-y-2 h-full overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto space-y-1 sm:space-y-2 min-h-0">
                     {codeSuggestions.map((product, index) => (
                       <button
                         key={product._id}
@@ -706,12 +754,12 @@ export default function KassaMain() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center h-full text-surface-400 py-20">
+                <div className="flex items-center justify-center h-full text-surface-400 py-8 sm:py-12">
                   <div className="text-center">
-                    <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Savat bo'sh</p>
+                    <Package className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
+                    <p className="text-sm sm:text-base">Savat bo'sh</p>
                     {inputValue.length > 0 && (
-                      <p className="text-sm mt-2">Kod kiriting yoki qidiring</p>
+                      <p className="text-xs sm:text-sm mt-1 sm:mt-2">Kod kiriting yoki qidiring</p>
                     )}
                   </div>
                 </div>
@@ -732,6 +780,7 @@ export default function KassaMain() {
                         <input
                           type="text"
                           value={item.cartQuantity}
+                          onClick={() => editCartItemQuantity(item)}
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === '' || /^\d+$/.test(val)) {
@@ -753,10 +802,10 @@ export default function KassaMain() {
                               removeFromCart(item._id);
                             }
                           }}
-                          className={`w-16 h-9 text-center font-medium border rounded-xl focus:outline-none focus:ring-2 ${
+                          className={`w-16 h-9 text-center font-medium border rounded-xl focus:outline-none focus:ring-2 cursor-pointer ${
                             item.cartQuantity > item.quantity 
                               ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
-                              : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20'
+                              : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20 hover:bg-surface-50'
                           }`}
                         />
                       </div>
@@ -799,6 +848,7 @@ export default function KassaMain() {
                           <input
                             type="text"
                             value={item.cartQuantity}
+                            onClick={() => editCartItemQuantity(item)}
                             onChange={(e) => {
                               const val = e.target.value;
                               if (val === '' || /^\d+$/.test(val)) {
@@ -820,10 +870,10 @@ export default function KassaMain() {
                                 removeFromCart(item._id);
                               }
                             }}
-                            className={`w-16 h-8 text-center font-medium border rounded-lg focus:outline-none focus:ring-2 ${
+                            className={`w-16 h-8 text-center font-medium border rounded-lg focus:outline-none focus:ring-2 cursor-pointer ${
                               item.cartQuantity > item.quantity 
                                 ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
-                                : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20'
+                                : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20 hover:bg-surface-50'
                             }`}
                           />
                         </div>
@@ -938,23 +988,24 @@ export default function KassaMain() {
         )}
 
         {/* Bottom Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-4">
+        <div className="p-2 sm:p-3 lg:p-4 bg-white border-t border-surface-200 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={() => { 
               setShowSearch(true); 
               handleSearch(''); // Bo'sh qidiruv bilan boshlanadi
             }}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white border border-surface-200 rounded-xl text-surface-700 hover:bg-surface-50 transition-colors"
+            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1"
           >
-            <Search className="w-4 h-4" />
-            <span className="sm:inline">Qidirish</span>
+            <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden xs:inline sm:inline">Qidirish</span>
           </button>
           <button 
             onClick={saveReceipt}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white border border-surface-200 rounded-xl text-surface-700 hover:bg-surface-50 transition-colors"
+            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1"
           >
-            <Save className="w-4 h-4" />
-            <span className="sm:inline">Saqlash</span>
+            <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden xs:inline sm:inline">Saqlash</span>
           </button>
           {/* Chek chiqarish tugmasi - faqat savat to'la bo'lganda */}
           {cart.length > 0 && (
@@ -1024,86 +1075,199 @@ export default function KassaMain() {
                   fetchProducts();
                 }
               }}
-              className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+              className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-1"
             >
-              <Printer className="w-4 h-4" />
-              <span className="sm:inline">Chek chiqarish</span>
+              <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline sm:inline">Chek</span>
             </button>
           )}
-          <button 
-            onClick={() => setShowPayment(true)}
-            disabled={cart.length === 0}
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-success-500 text-white rounded-xl hover:bg-success-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span className="sm:inline">To'lov</span>
-          </button>
+          </div>
         </div>
       </div>
 
       {/* Right - Numpad & Total */}
-      <div className="w-full xl:w-72 2xl:w-80 bg-white border-t xl:border-t-0 xl:border-l border-surface-200 p-3 sm:p-4 lg:p-6 flex flex-col">
+      <div className="w-full lg:w-72 xl:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 p-2 sm:p-3 lg:p-4 flex flex-col flex-shrink-0">
         {/* Total */}
-        <div className="text-center xl:text-right mb-4 sm:mb-6">
-          <p className="text-2xl sm:text-3xl xl:text-4xl font-bold text-surface-900">
+        <div className="text-center xl:text-right mb-3 sm:mb-4">
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-surface-900">
             {formatNumber(total)} so'm
           </p>
         </div>
 
+        {/* Input maydoni ustidagi matn */}
+        <div className="text-center mb-2 bg-surface-50 rounded-lg py-3 px-4 min-h-[60px] flex flex-col items-center justify-center">
+          {inputMode === 'kod' ? (
+            inputValue ? (
+              <div className="text-lg font-mono text-surface-900">
+                Kod: <span className="font-bold text-brand-600">{inputValue}</span>
+              </div>
+            ) : (
+              <div className="text-sm text-surface-500">Mahsulot kodini kiriting</div>
+            )
+          ) : (
+            <div className="text-center w-full">
+              {selectedProductForQuantity && (
+                <div className="mb-2">
+                  <div className="text-sm font-medium text-surface-700">{selectedProductForQuantity.name}</div>
+                  <div className="text-xs text-surface-500">Mavjud: {selectedProductForQuantity.quantity} ta</div>
+                </div>
+              )}
+              
+              {/* SONI sarlavhasi */}
+              <div className="text-xs text-surface-500 mb-1 uppercase tracking-wider">SONI</div>
+              
+              {/* Raqam ko'rsatish */}
+              {numberInput ? (
+                <div className={`text-3xl font-bold rounded-lg py-2 px-4 border-2 inline-block min-w-[80px] ${
+                  selectedProductForQuantity && parseInt(numberInput) > selectedProductForQuantity.quantity
+                    ? 'bg-red-50 border-red-500 text-red-700 animate-pulse'
+                    : 'bg-white border-gray-200 text-gray-800'
+                }`}>
+                  {numberInput}
+                </div>
+              ) : (
+                <div className="text-lg text-surface-400 bg-white rounded-lg py-2 px-4 border-2 border-dashed border-gray-300 inline-block min-w-[80px]">
+                  {selectedProductForQuantity ? '0' : '—'}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Input */}
-        <div className="relative">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={e => {
-              const newValue = e.target.value;
-              setInputValue(newValue);
-              // Darhol qidirish
-              if (newValue.length > 0) {
-                searchProductsByCode(newValue);
-              } else {
+        <div className="relative mb-3 sm:mb-4">
+          {/* KOD/SON tugmalari */}
+          <div className="flex mb-2 sm:mb-3 bg-surface-100 rounded-lg p-1">
+            <button
+              onClick={() => {
+                setInputMode('kod');
+                setNumberInput('');
+              }}
+              className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                inputMode === 'kod' 
+                  ? 'bg-blue-500 text-white shadow-sm' 
+                  : 'text-surface-600 hover:text-surface-900'
+              }`}
+            >
+              KOD
+            </button>
+            <button
+              onClick={() => {
+                setInputMode('son');
+                setInputValue('');
                 setShowCodeSuggestions(false);
                 setCodeSuggestions([]);
-              }
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addProductByCode(inputValue);
-              } else if (e.key === 'Escape') {
-                setShowCodeSuggestions(false);
-                setCodeSuggestions([]);
-              }
-            }}
-            onFocus={() => {
-              if (inputValue.length > 0) {
-                searchProductsByCode(inputValue);
-              }
-            }}
-            placeholder="Kod kiriting..."
-            className="w-full px-3 sm:px-4 py-2 sm:py-3 text-center text-base sm:text-lg font-mono bg-surface-50 border border-surface-200 rounded-xl mb-3 sm:mb-4 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-          />
+              }}
+              className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-all ${
+                inputMode === 'son' 
+                  ? 'bg-gray-500 text-white shadow-sm' 
+                  : 'text-surface-600 hover:text-surface-900'
+              }`}
+            >
+              SON
+            </button>
+          </div>
+
+          {/* Input maydoni */}
+          {inputMode === 'kod' ? (
+            <input
+              type="text"
+              value={inputValue}
+              onChange={e => {
+                const newValue = e.target.value;
+                setInputValue(newValue);
+                // Darhol qidirish
+                if (newValue.length > 0) {
+                  searchProductsByCode(newValue);
+                } else {
+                  setShowCodeSuggestions(false);
+                  setCodeSuggestions([]);
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addProductByCode(inputValue);
+                } else if (e.key === 'Escape') {
+                  setShowCodeSuggestions(false);
+                  setCodeSuggestions([]);
+                }
+              }}
+              onFocus={() => {
+                if (inputValue.length > 0) {
+                  searchProductsByCode(inputValue);
+                }
+              }}
+              placeholder="Kod kiriting..."
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-center text-sm sm:text-base font-mono bg-surface-50 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            />
+          ) : (
+            <input
+              type="text"
+              value={numberInput}
+              onChange={e => {
+                const value = e.target.value;
+                // Faqat butun sonlar
+                if (/^\d*$/.test(value)) {
+                  setNumberInput(value);
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (selectedProductForQuantity && numberInput.trim()) {
+                    const quantity = parseInt(numberInput);
+                    if (!isNaN(quantity) && quantity > 0) {
+                      // Miqdorni tekshirish
+                      if (quantity > selectedProductForQuantity.quantity) {
+                        showAlert(`${selectedProductForQuantity.name} uchun maksimal miqdor: ${selectedProductForQuantity.quantity} ta`, 'Ogohlantirish', 'warning');
+                        return;
+                      }
+                      
+                      // Mahsulotni savatchaga qo'shish
+                      addToCartWithQuantity(selectedProductForQuantity, quantity);
+                      
+                      // Holatni tozalash va KOD rejimiga qaytish
+                      setSelectedProductForQuantity(null);
+                      setNumberInput('');
+                      setInputMode('kod');
+                      showAlert(`${selectedProductForQuantity.name} (${quantity} ta) savatchaga qo'shildi`, 'Muvaffaqiyat', 'success');
+                    }
+                  }
+                }
+              }}
+              placeholder="1"
+              disabled={!selectedProductForQuantity}
+              className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-center text-lg sm:text-xl font-bold rounded-lg focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                selectedProductForQuantity && numberInput && parseInt(numberInput) > selectedProductForQuantity.quantity
+                  ? 'bg-red-50 border-2 border-red-500 text-red-700 focus:border-red-500 focus:ring-red-500/20'
+                  : 'bg-surface-50 border border-surface-200 focus:border-gray-500 focus:ring-gray-500/20'
+              }`}
+            />
+          )}
         </div>
 
         {/* Numpad */}
-        <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+        <div className="grid grid-cols-4 gap-1 sm:gap-2 mb-3">
           {['7', '8', '9', 'C', '4', '5', '6', '⌫', '1', '2', '3', '+', '0', '00', '.'].map((key) => (
             <button
               key={key}
               onClick={() => handleNumpadClick(key)}
               className={`
-                flex items-center justify-center rounded-xl text-lg sm:text-xl font-semibold transition-all active:scale-95
-                ${key === 'C' ? 'bg-danger-500 text-white hover:bg-danger-600' : ''}
-                ${key === '⌫' ? 'bg-warning-500 text-white hover:bg-warning-600' : ''}
-                ${key === '+' ? 'bg-brand-500 text-white hover:bg-brand-600 row-span-2' : ''}
+                flex items-center justify-center rounded-lg text-base sm:text-lg font-semibold transition-all active:scale-95
+                ${key === 'C' ? 'bg-red-500 text-white hover:bg-red-600' : ''}
+                ${key === '⌫' ? 'bg-orange-500 text-white hover:bg-orange-600' : ''}
+                ${key === '+' ? `${inputMode === 'kod' ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'} text-white row-span-2` : ''}
                 ${!['C', '⌫', '+'].includes(key) ? 'bg-surface-100 text-surface-700 hover:bg-surface-200' : ''}
-                ${key === '+' ? 'h-full' : 'h-12 sm:h-14 xl:h-16'}
+                ${key === '+' ? 'h-full' : 'h-10 sm:h-12 lg:h-14'}
               `}
             >
-              {key === '⌫' ? <Delete className="w-5 h-5 sm:w-6 sm:h-6" /> : key}
+              {key === '⌫' ? <Delete className="w-4 h-4 sm:w-5 sm:h-5" /> : 
+               key === '+' ? (inputMode === 'kod' ? '+' : '✓') : key}
             </button>
           ))}
         </div>
+
       </div>
 
       {/* Search Modal */}

@@ -25,11 +25,87 @@ router.get('/kassa', async (req, res) => {
   }
 });
 
+// Kassa uchun qarz o'chirish (auth talab qilmaydi, lekin faqat pending_approval holatidagi qarzlar)
+router.delete('/kassa/:id', async (req, res) => {
+  try {
+    const debt = await Debt.findById(req.params.id);
+    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
+
+    // Faqat pending_approval holatidagi qarzlarni o'chirish mumkin
+    if (debt.status !== 'pending_approval') {
+      return res.status(400).json({ message: 'Faqat tasdiqlashni kutayotgan qarzlarni o\'chirish mumkin' });
+    }
+
+    await Debt.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Qarz o\'chirildi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Kassa uchun yangi qarz qo'shish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
     const { customer, amount, paidAmount, dueDate, description, items } = req.body;
 
+    // Mijozning mavjud pending_approval holatidagi qarzini tekshirish
+    const existingDebt = await Debt.findOne({
+      customer,
+      status: 'pending_approval',
+      type: 'receivable'
+    });
+
+    if (existingDebt) {
+      // Mavjud qarzga qo'shish
+      existingDebt.amount += amount;
+      existingDebt.paidAmount += (paidAmount || 0);
+
+      // Yangi mahsulotlarni qo'shish
+      if (items && items.length > 0) {
+        existingDebt.items = existingDebt.items || [];
+        existingDebt.items.push(...items);
+      }
+
+      // Izohni yangilash
+      if (description) {
+        existingDebt.description = existingDebt.description
+          ? `${existingDebt.description}; ${description}`
+          : description;
+      }
+
+      // Muddatni yangilash (yangi muddat uzoqroq bo'lsa)
+      if (new Date(dueDate) > new Date(existingDebt.dueDate)) {
+        existingDebt.dueDate = dueDate;
+      }
+
+      await existingDebt.save();
+
+      // Populate qilib qaytarish
+      await existingDebt.populate([
+        { path: 'customer', select: 'name phone' },
+        { path: 'items.product', select: 'name code price' }
+      ]);
+
+      // Telegram ga xabar yuborish
+      try {
+        await telegramService.sendDebtNotification({
+          customerName: existingDebt.customer.name,
+          customerPhone: existingDebt.customer.phone,
+          amount: amount, // Faqat qo'shilgan summa
+          paidAmount: paidAmount || 0,
+          remainingDebt: existingDebt.amount - existingDebt.paidAmount,
+          dueDate: existingDebt.dueDate,
+          description: `Qarzga qo'shildi: ${description || ''}`,
+          items: items || []
+        });
+      } catch (telegramError) {
+        console.error('Telegram notification error:', telegramError);
+      }
+
+      return res.status(200).json(existingDebt);
+    }
+
+    // Yangi qarz yaratish (agar mavjud qarz bo'lmasa)
     const debtData = {
       type: 'receivable', // Mijoz bizga qarz
       customer,

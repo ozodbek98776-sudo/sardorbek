@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, DollarSign, Clock, TrendingUp, AlertTriangle, X, RefreshCw, Package, Plus, Minus, Calendar } from 'lucide-react';
+import { Search, DollarSign, TrendingUp, X, RefreshCw, Package, Plus, Minus, Calendar, Eye, Trash2 } from 'lucide-react';
 import { Debt, Customer, Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -30,6 +30,9 @@ export default function KassaDebts() {
     dueDate: '',
     description: ''
   });
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
 
   useEffect(() => {
     fetchDebts();
@@ -102,6 +105,21 @@ export default function KassaDebts() {
 
   const selectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
+    
+    // Mijozning mavjud pending qarzini tekshirish
+    const existingDebt = debts.find(debt => 
+      debt.customer?._id === customer._id && 
+      debt.status === 'pending_approval'
+    );
+    
+    if (existingDebt) {
+      showAlert(
+        `${customer.name} mijozining ${formatNumber(existingDebt.amount - existingDebt.paidAmount)} so'm qolgan qarzi mavjud. Yangi qarz mavjud qarzga qo'shiladi.`, 
+        'Ma\'lumot', 
+        'info'
+      );
+    }
+    
     // Mijoz tanlanganda mijozlar ro'yxatini yashirish va qarz qo'shish formasi ko'rsatish
     console.log('Tanlangan mijoz:', customer.name);
   };
@@ -121,33 +139,19 @@ export default function KassaDebts() {
   };
 
   const addProduct = (product: Product) => {
-    // Omborda mavjudligini tekshirish
-    if (product.quantity <= 0) {
-      showAlert(`${product.name} omborda tugagan`, 'Ogohlantirish', 'warning');
-      return;
-    }
-
     const existingItem = debtItems.find(item => item.product._id === product._id);
     if (existingItem) {
-      // Ombordagi miqdordan ko'p qo'shishni oldini olish
-      if (existingItem.quantity >= product.quantity) {
-        showAlert(`${product.name} uchun maksimal miqdor: ${product.quantity}`, 'Ogohlantirish', 'warning');
-        return;
-      }
-      
       setDebtItems(prev => prev.map(item => 
         item.product._id === product._id 
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
-      showAlert(`${product.name} miqdori oshirildi`, 'Ma\'lumot', 'info');
     } else {
       setDebtItems(prev => [...prev, {
         product,
         quantity: 1,
         price: product.price
       }]);
-      showAlert(`${product.name} qo'shildi`, 'Muvaffaqiyat', 'success');
     }
     
     // Qidirish maydonini tozalash
@@ -161,13 +165,6 @@ export default function KassaDebts() {
       return;
     }
 
-    // Ombordagi miqdorni tekshirish
-    const debtItem = debtItems.find(item => item.product._id === productId);
-    if (debtItem && quantity > debtItem.product.quantity) {
-      showAlert(`${debtItem.product.name} uchun maksimal miqdor: ${debtItem.product.quantity}`, 'Ogohlantirish', 'warning');
-      return;
-    }
-
     setDebtItems(prev => prev.map(item => 
       item.product._id === productId 
         ? { ...item, quantity }
@@ -177,6 +174,42 @@ export default function KassaDebts() {
 
   const removeProduct = (productId: string) => {
     setDebtItems(prev => prev.filter(item => item.product._id !== productId));
+  };
+
+  const handleViewDebt = (debt: Debt) => {
+    setSelectedDebt(debt);
+    setShowViewModal(true);
+  };
+
+  const handleDeleteDebt = (debt: Debt) => {
+    setSelectedDebt(debt);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteDebt = async () => {
+    if (!selectedDebt) return;
+
+    try {
+      await api.delete(`/debts/kassa/${selectedDebt._id}`);
+      showAlert('Qarz muvaffaqiyatli o\'chirildi', 'Muvaffaqiyat', 'success');
+      setShowDeleteModal(false);
+      setSelectedDebt(null);
+      fetchDebts();
+    } catch (err: any) {
+      console.error('Error deleting debt:', err);
+      const errorMessage = err.response?.data?.message || 'Qarzni o\'chirishda xatolik yuz berdi';
+      showAlert(errorMessage, 'Xatolik', 'danger');
+    }
+  };
+
+  const closeViewModal = () => {
+    setShowViewModal(false);
+    setSelectedDebt(null);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedDebt(null);
   };
 
   const handleNewDebt = async () => {
@@ -203,47 +236,17 @@ export default function KassaDebts() {
       };
 
       // 1. Qarzni saqlash
-      await api.post('/debts/kassa', debtData);
+      const response = await api.post('/debts/kassa', debtData);
+      const isExistingDebt = response.status === 200; // 200 = updated existing, 201 = created new
       
-      // 2. Mahsulot miqdorlarini kamaytirish - har bir mahsulot uchun
-      console.log('Qarz uchun mahsulot miqdorlarini yangilash boshlandi...');
-      const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
-      
-      for (const item of debtItems) {
-        try {
-          console.log(`${item.product.name} uchun miqdorni kamaytirish: ${item.quantity} ta`);
-          const response = await api.put(`/products/${item.product._id}/reduce-quantity`, {
-            quantity: item.quantity
-          });
-          console.log(`✅ ${item.product.name} muvaffaqiyatli yangilandi:`, response.data);
-          updateResults.push({ success: true, item: item.product.name, data: response.data });
-        } catch (quantityError: any) {
-          console.error(`❌ ${item.product.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
-          console.error('Xatolik tafsilotlari:', quantityError.response?.data);
-          
-          // Xatolik haqida foydalanuvchiga xabar berish
-          const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
-          showAlert(`${item.product.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
-          
-          updateResults.push({ success: false, item: item.product.name, error: errorMsg });
-        }
-      }
-      
-      console.log('Qarz uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
-      
-      // Natija haqida xabar berish
-      const successCount = updateResults.filter(r => r.success).length;
-      const failCount = updateResults.filter(r => !r.success).length;
-      
-      if (failCount === 0) {
-        showAlert('Qarz muvaffaqiyatli qo\'shildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
-      } else {
-        showAlert(`Qarz qo'shildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
-      }
+      // Muvaffaqiyat xabari
+      const message = isExistingDebt 
+        ? 'Qarz mavjud qarzga muvaffaqiyatli qo\'shildi!'
+        : 'Yangi qarz muvaffaqiyatli yaratildi!';
+      showAlert(message, 'Muvaffaqiyat', 'success');
       
       resetModal();
       fetchDebts();
-      fetchProducts(); // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
       
     } catch (err) {
       console.error('Error creating debt:', err);
@@ -330,16 +333,16 @@ export default function KassaDebts() {
       </div>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-6">
         <div className="bg-white p-3 sm:p-4 rounded-xl border border-surface-200">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-warning-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-warning-600" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-100 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-surface-500 truncate">Tasdiqlash</p>
-              <p className="text-lg sm:text-xl font-bold text-surface-900">
-                {debts.filter(d => d.status === 'pending_approval').length}
+              <p className="text-xs sm:text-sm text-surface-500 truncate">Jami qarz</p>
+              <p className="text-lg sm:text-xl font-bold text-surface-900 truncate">
+                {formatNumber(debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0))}
               </p>
             </div>
           </div>
@@ -350,35 +353,9 @@ export default function KassaDebts() {
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-success-600" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-surface-500 truncate">To'langan</p>
+              <p className="text-xs sm:text-sm text-surface-500 truncate">Jami qarzlar soni</p>
               <p className="text-lg sm:text-xl font-bold text-surface-900">
-                {debts.filter(d => d.status === 'paid').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl border border-surface-200">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-danger-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-danger-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-surface-500 truncate">Muddati o'tgan</p>
-              <p className="text-lg sm:text-xl font-bold text-surface-900">
-                {debts.filter(d => d.status === 'overdue').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-3 sm:p-4 rounded-xl border border-surface-200 col-span-2 lg:col-span-1">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-surface-500 truncate">Jami qarz</p>
-              <p className="text-lg sm:text-xl font-bold text-surface-900 truncate">
-                {formatNumber(debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0))}
+                {debts.length}
               </p>
             </div>
           </div>
@@ -414,14 +391,6 @@ export default function KassaDebts() {
                   <p className="font-medium text-surface-900 truncate">{debt.customer?.name}</p>
                   <p className="text-sm text-surface-500">{debt.customer?.phone}</p>
                 </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${
-                  debt.status === 'paid' ? 'bg-success-100 text-success-700' :
-                  debt.status === 'overdue' ? 'bg-danger-100 text-danger-700' :
-                  'bg-warning-100 text-warning-700'
-                }`}>
-                  {debt.status === 'paid' ? 'To\'langan' :
-                   debt.status === 'overdue' ? 'Muddati o\'tgan' : 'Kutilmoqda'}
-                </span>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -436,9 +405,18 @@ export default function KassaDebts() {
                   <p className="text-surface-500 mb-1">Muddat</p>
                   <p className="text-surface-900">{new Date(debt.dueDate).toLocaleDateString()}</p>
                 </div>
-                <div className="flex justify-end">
-                  <button className="text-brand-600 hover:text-brand-700 text-sm font-medium">
-                    Ko'rish
+                <div className="flex justify-end gap-2">
+                  <button 
+                    onClick={() => handleViewDebt(debt)}
+                    className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteDebt(debt)}
+                    className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -455,7 +433,6 @@ export default function KassaDebts() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qarz</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qoldiq</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Muddat</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Holat</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Amallar</th>
               </tr>
             </thead>
@@ -491,19 +468,20 @@ export default function KassaDebts() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      debt.status === 'paid' ? 'bg-success-100 text-success-700' :
-                      debt.status === 'overdue' ? 'bg-danger-100 text-danger-700' :
-                      'bg-warning-100 text-warning-700'
-                    }`}>
-                      {debt.status === 'paid' ? 'To\'langan' :
-                       debt.status === 'overdue' ? 'Muddati o\'tgan' : 'Kutilmoqda'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="text-brand-600 hover:text-brand-700 text-sm font-medium">
-                      Ko'rish
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleViewDebt(debt)}
+                        className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteDebt(debt)}
+                        className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -582,43 +560,62 @@ export default function KassaDebts() {
                       </p>
                     </div>
                   ) : (
-                    filteredCustomers.map(customer => (
-                      <button
-                        key={customer._id}
-                        onClick={() => selectCustomer(customer)}
-                        className="w-full p-3 sm:p-4 hover:bg-gradient-to-r hover:from-brand-50 hover:to-blue-50 transition-all duration-200 text-left border-2 border-surface-200 hover:border-brand-300 rounded-xl group"
-                      >
-                        <div className="flex items-center gap-3 sm:gap-4">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow flex-shrink-0">
-                            <span className="text-sm sm:text-base lg:text-lg font-bold text-white">
-                              {customer.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-surface-900 text-sm sm:text-base lg:text-lg truncate">{customer.name}</p>
-                            <p className="text-surface-600 flex items-center gap-1 text-xs sm:text-sm">
-                              <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                              </svg>
-                              <span className="truncate">{customer.phone}</span>
-                            </p>
-                            {customer.email && (
-                              <p className="text-xs text-surface-500 flex items-center gap-1 mt-1">
-                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    filteredCustomers.map(customer => {
+                      const existingDebt = debts.find(debt => 
+                        debt.customer?._id === customer._id && 
+                        debt.status === 'pending_approval'
+                      );
+                      
+                      return (
+                        <button
+                          key={customer._id}
+                          onClick={() => selectCustomer(customer)}
+                          className="w-full p-3 sm:p-4 hover:bg-gradient-to-r hover:from-brand-50 hover:to-blue-50 transition-all duration-200 text-left border-2 border-surface-200 hover:border-brand-300 rounded-xl group"
+                        >
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow flex-shrink-0">
+                              <span className="text-sm sm:text-base lg:text-lg font-bold text-white">
+                                {customer.name.charAt(0)}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-surface-900 text-sm sm:text-base lg:text-lg truncate">{customer.name}</p>
+                                {existingDebt && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-700 flex-shrink-0">
+                                    Qarz mavjud
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-surface-600 flex items-center gap-1 text-xs sm:text-sm">
+                                <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
-                                <span className="truncate">{customer.email}</span>
+                                <span className="truncate">{customer.phone}</span>
                               </p>
-                            )}
+                              {existingDebt && (
+                                <p className="text-xs text-warning-600 font-medium mt-1">
+                                  Mavjud qarz: {formatNumber(existingDebt.amount - existingDebt.paidAmount)} so'm
+                                </p>
+                              )}
+                              {customer.email && (
+                                <p className="text-xs text-surface-500 flex items-center gap-1 mt-1">
+                                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="truncate">{customer.email}</span>
+                                </p>
+                              )}
+                            </div>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <svg className="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
                           </div>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                            <svg className="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </button>
-                    ))
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -710,12 +707,8 @@ export default function KassaDebts() {
                                 <span className="text-xs text-surface-500 bg-surface-100 px-2 py-0.5 rounded">
                                   {product.code}
                                 </span>
-                                <span className={`text-xs px-2 py-0.5 rounded ${
-                                  product.quantity > 0 
-                                    ? 'text-success-700 bg-success-100' 
-                                    : 'text-danger-700 bg-danger-100'
-                                }`}>
-                                  {product.quantity > 0 ? `${product.quantity} ta` : 'Tugagan'}
+                                <span className="text-xs text-surface-500">
+                                  Omborda: {product.quantity} ta
                                 </span>
                               </div>
                             </div>
@@ -984,6 +977,193 @@ export default function KassaDebts() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Debt Modal */}
+      {showViewModal && selectedDebt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={closeViewModal} />
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-brand-50 to-blue-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Eye className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-surface-900">Qarz ma'lumotlari</h3>
+                  <p className="text-sm text-surface-600">#{selectedDebt._id.slice(-6)}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeViewModal}
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Customer Info */}
+              <div className="bg-surface-50 p-4 rounded-xl">
+                <h4 className="font-semibold text-surface-900 mb-3">Mijoz ma'lumotlari</h4>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-brand-100 rounded-lg flex items-center justify-center">
+                    <span className="font-semibold text-brand-600 text-lg">
+                      {selectedDebt.customer?.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-surface-900">{selectedDebt.customer?.name}</p>
+                    <p className="text-surface-600">{selectedDebt.customer?.phone}</p>
+                    {selectedDebt.customer?.email && (
+                      <p className="text-sm text-surface-500">{selectedDebt.customer?.email}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Debt Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <p className="text-sm text-surface-500 mb-1">Qarz summasi</p>
+                  <p className="text-2xl font-bold text-surface-900">{formatNumber(selectedDebt.amount)} so'm</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <p className="text-sm text-surface-500 mb-1">To'langan</p>
+                  <p className="text-2xl font-bold text-success-600">{formatNumber(selectedDebt.paidAmount)} so'm</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <p className="text-sm text-surface-500 mb-1">Qoldiq</p>
+                  <p className="text-2xl font-bold text-danger-600">{formatNumber(selectedDebt.amount - selectedDebt.paidAmount)} so'm</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <p className="text-sm text-surface-500 mb-1">Muddat</p>
+                  <p className="text-lg font-semibold text-surface-900">{new Date(selectedDebt.dueDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedDebt.description && (
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <h4 className="font-semibold text-surface-900 mb-2">Izoh</h4>
+                  <p className="text-surface-700">{selectedDebt.description}</p>
+                </div>
+              )}
+
+              {/* Items */}
+              {selectedDebt.items && selectedDebt.items.length > 0 && (
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <h4 className="font-semibold text-surface-900 mb-3">Mahsulotlar</h4>
+                  <div className="space-y-2">
+                    {selectedDebt.items.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-surface-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-brand-100 rounded flex items-center justify-center">
+                            <Package className="w-4 h-4 text-brand-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-surface-900">{item.product?.name || 'Mahsulot'}</p>
+                            <p className="text-sm text-surface-500">Miqdor: {item.quantity}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-surface-900">{formatNumber(item.price * item.quantity)} so'm</p>
+                          <p className="text-sm text-surface-500">{formatNumber(item.price)} × {item.quantity}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="bg-surface-50 p-4 rounded-xl">
+                <p className="text-sm text-surface-500 mb-1">Yaratilgan</p>
+                <p className="font-semibold text-surface-900">{new Date(selectedDebt.createdAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
+              <button
+                onClick={closeViewModal}
+                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Debt Modal */}
+      {showDeleteModal && selectedDebt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={closeDeleteModal} />
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-danger-50 to-red-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-danger-500 to-danger-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Trash2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-surface-900">Qarzni o'chirish</h3>
+                  <p className="text-sm text-surface-600">Bu amalni bekor qilib bo'lmaydi</p>
+                </div>
+              </div>
+              <button
+                onClick={closeDeleteModal}
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              <div className="bg-danger-50 p-4 rounded-xl border border-danger-200 mb-4">
+                <p className="text-danger-800 font-medium mb-2">Diqqat!</p>
+                <p className="text-danger-700 text-sm">
+                  Siz <strong>{selectedDebt.customer?.name}</strong> mijozining <strong>{formatNumber(selectedDebt.amount)} so'm</strong> qarzini o'chirmoqchisiz. 
+                  Bu amal bekor qilinmaydi va barcha ma'lumotlar yo'qoladi.
+                </p>
+                <p className="text-danger-600 text-xs mt-2">
+                  <strong>Eslatma:</strong> Faqat tasdiqlashni kutayotgan qarzlarni o'chirish mumkin.
+                </p>
+              </div>
+
+              <div className="bg-surface-50 p-4 rounded-xl">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-surface-600">Qarz summasi:</span>
+                  <span className="font-semibold text-surface-900">{formatNumber(selectedDebt.amount)} so'm</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-2">
+                  <span className="text-surface-600">Qoldiq:</span>
+                  <span className="font-semibold text-danger-600">{formatNumber(selectedDebt.amount - selectedDebt.paidAmount)} so'm</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
+              <button
+                onClick={closeDeleteModal}
+                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={confirmDeleteDebt}
+                className="px-6 py-2 bg-gradient-to-r from-danger-500 to-danger-600 text-white rounded-lg hover:from-danger-600 hover:to-danger-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                O'chirish
+              </button>
             </div>
           </div>
         </div>
