@@ -62,7 +62,6 @@ export interface Debt {
   collateral?: string;
   payments: Payment[];
   items?: DebtItem[];
-  description?: string;
   createdAt: string;
 }
 

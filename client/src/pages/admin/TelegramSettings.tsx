@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { MessageCircle, Send, CheckCircle2, AlertCircle, Copy, RefreshCw, Link, Users } from 'lucide-react';
+import { MessageCircle, Send, CheckCircle2, Copy, RefreshCw, Link, Users } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
 
@@ -11,8 +11,8 @@ export default function TelegramSettings() {
     chatId: '',
     isEnabled: false
   });
-  const [botInfo, setBotInfo] = useState(null);
-  const [webhookInfo, setWebhookInfo] = useState(null);
+  const [botInfo, setBotInfo] = useState<any>(null);
+  const [webhookInfo, setWebhookInfo] = useState<any>(null);
   const [testMessage, setTestMessage] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [loading, setLoading] = useState(false);

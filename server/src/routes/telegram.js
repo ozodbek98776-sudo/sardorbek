@@ -20,6 +20,20 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
+// Xodim kelish/ketish xabari
+router.post('/attendance', auth, async (req, res) => {
+  try {
+    const { type } = req.body;
+    if (!['arrived', 'left'].includes(type)) {
+      return res.status(400).json({ message: 'Noto‘g‘ri tur: arrived yoki left bo‘lishi kerak' });
+    }
+    await telegramService.sendPresenceNotification(req.user, type);
+    res.json({ message: 'Xabar yuborildi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Webhook o'rnatish
 router.post('/set-webhook', auth, authorize('admin'), async (req, res) => {
   try {

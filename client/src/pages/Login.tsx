@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Eye, EyeOff, Phone, Lock, ArrowRight, Building2, Shield } from 'lucide-react';
+import { Eye, EyeOff, Phone, Lock, ArrowRight } from 'lucide-react';
 import { formatPhone, getRawPhone } from '../utils/format';
 import api from '../utils/api';
 
@@ -74,12 +74,6 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10">
         {/* Header */}
         <div className="text-center mb-6 animate-fade-up">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-xl shadow-blue-500/25 mb-4 relative">
-            <Building2 className="w-8 h-8 text-white" />
-            <div className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
-              <Shield className="w-2.5 h-2.5 text-white" />
-            </div>
-          </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">
             {t('login.title')}
           </h1>
