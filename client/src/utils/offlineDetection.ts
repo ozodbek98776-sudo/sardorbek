@@ -16,7 +16,7 @@ class OfflineDetectionService {
   };
 
   private listeners: ((status: ServerStatus) => void)[] = [];
-  private checkInterval: number | null = null;
+  private checkInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Listen to browser online/offline events

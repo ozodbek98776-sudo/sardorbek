@@ -299,6 +299,21 @@ ${paymentData.remainingDebt === 0 ? '✅ Qarz to\'liq to\'landi!' : ''}
     return new Intl.NumberFormat('uz-UZ').format(num);
   }
 
+  async sendPresenceNotification(user, type) {
+    const emoji = type === 'arrived' ? '🟢' : '🔴';
+    const verb = type === 'arrived' ? 'Ishga KELDI' : 'Ishdan KETDI';
+    const roleLabel = user.role === 'admin' ? 'Admin' : user.role === 'cashier' ? 'Kassir' : 'Yordamchi';
+    const message = `
+${emoji} <b>${verb}</b>
+
+👤 <b>Xodim:</b> ${user.name}
+🎭 <b>Rol:</b> ${roleLabel}
+📞 <b>Telefon:</b> ${user.phone || '-'}
+📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
+    `;
+    return this.sendMessage(message.trim());
+  }
+
   // Bot ma'lumotlarini olish
   async getBotInfo() {
     try {

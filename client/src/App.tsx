@@ -173,7 +173,7 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     };
     
     // Sahifa yopilishini bloklash - FAQAT KASSA SAHIFALARIDA
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    const handleBeforeUnload = () => {
       // Kassa sahifalarida faqat navigation va tab yopishni bloklash
       // F5 refresh ga to'liq ruxsat berish
       if (window.location.pathname.startsWith('/kassa')) {
