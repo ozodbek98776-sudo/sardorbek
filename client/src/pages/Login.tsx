@@ -43,7 +43,7 @@ export default function Login() {
           navigate('/admin');
           break;
         case 'cashier':
-          navigate('/cashier');
+          navigate('/kassa');
           break;
         case 'helper':
           navigate('/helper');

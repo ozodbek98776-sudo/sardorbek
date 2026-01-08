@@ -50,6 +50,7 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?
 // Kassa himoya komponenti - HECH QANDAY CHIQISH YO'LI YO'Q
 const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   React.useEffect(() => {
     // Body ga kassa himoya class qo'shish
@@ -59,14 +60,37 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       try {
         const loginData = localStorage.getItem('kassaLoggedIn');
         if (!loginData) {
-          navigate('/kassa-login', { replace: true });
-          return;
+          // Agar autentifikatsiyadan o'tgan foydalanuvchi kassir bo'lsa, to'g'ridan kassa paneliga kirish
+          if (user && user.role === 'cashier') {
+            const fallbackData = { 
+              loggedIn: true, 
+              user: 'kassa', 
+              username: user.name, 
+              timestamp: Date.now(),
+              locked: true
+            };
+            localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
+          } else {
+            navigate('/kassa-login', { replace: true });
+            return;
+          }
         }
         
-        const parsed = JSON.parse(loginData);
+        const parsed = JSON.parse(loginData as string);
         if (!parsed.loggedIn || parsed.user !== 'kassa') {
-          navigate('/kassa-login', { replace: true });
-          return;
+          if (user && user.role === 'cashier') {
+            const fallbackData = { 
+              loggedIn: true, 
+              user: 'kassa', 
+              username: user.name, 
+              timestamp: Date.now(),
+              locked: true
+            };
+            localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
+          } else {
+            navigate('/kassa-login', { replace: true });
+            return;
+          }
         }
         
         // Session ni doimiy yangilash - HECH QACHON EXPIRE BO'LMASIN
@@ -210,7 +234,7 @@ const RoleRedirect = () => {
   
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'admin') return <Navigate to="/admin" />;
-  if (user.role === 'cashier') return <Navigate to="/cashier" />;
+  if (user.role === 'cashier') return <Navigate to="/kassa" />;
   return <Navigate to="/helper" />;
 };
 
