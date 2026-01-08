@@ -617,6 +617,62 @@ export default function KassaMain() {
     showAlert('Chek saqlandi!', 'Muvaffaqiyat', 'success');
   };
 
+  // Kassir cheki chiqarish - to'lovsiz
+  const handleHelperReceipt = async () => {
+    if (cart.length === 0) {
+      showAlert("Savat bo'sh", 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    try {
+      // 1. Kassir chekini bazaga saqlash
+      const receiptData = {
+        items: cart.map(item => ({
+          productId: item._id,
+          name: item.name,
+          code: item.code,
+          price: item.price,
+          quantity: item.cartQuantity
+        }))
+      };
+
+      const response = await api.post('/receipts/helper-receipt', receiptData);
+      
+      if (response.data.success) {
+        // 2. Chekni print qilish
+        const printReceiptData: ReceiptData = {
+          items: cart,
+          total,
+          paymentMethod: 'cash', // Default
+          customer: selectedCustomer,
+          receiptNumber: `HELPER-${Date.now()}`,
+          cashier: 'Kassir',
+          date: new Date()
+        };
+        
+        const printSuccess = await printReceipt(printReceiptData, () => {
+          showAlert('Chek muvaffaqiyatli chiqarildi!', 'Muvaffaqiyat', 'success');
+          setCart([]);
+          setSelectedCustomer(null);
+          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+          fetchProducts();
+        });
+        
+        if (!printSuccess) {
+          showAlert('Chek bazaga saqlandi, faylga yuklandi', 'Ogohlantirish', 'warning');
+          setCart([]);
+          setSelectedCustomer(null);
+          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+          fetchProducts();
+        }
+      }
+    } catch (error: any) {
+      console.error('Helper receipt error:', error);
+      const errorMsg = error.response?.data?.message || 'Chek chiqarishda xatolik';
+      showAlert(errorMsg, 'Xatolik', 'danger');
+    }
+  };
+
   return (
     <div className="h-full flex flex-col lg:flex-row overflow-hidden">
       {AlertComponent}
@@ -1007,78 +1063,14 @@ export default function KassaMain() {
             <Save className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="hidden xs:inline sm:inline">Saqlash</span>
           </button>
-          {/* Chek chiqarish tugmasi - faqat savat to'la bo'lganda */}
+          {/* Chek chiqarish tugmasi - oldingi kabi */}
           {cart.length > 0 && (
             <button 
-              onClick={async () => {
-                const receiptData: ReceiptData = {
-                  items: cart,
-                  total,
-                  paymentMethod: 'cash', // Default
-                  customer: selectedCustomer,
-                  receiptNumber: `PRINT-${Date.now()}`,
-                  cashier: 'Kassa',
-                  date: new Date()
-                };
-                
-                // 1. Mahsulot miqdorlarini kamaytirish - print qilishdan oldin
-                console.log('Print uchun mahsulot miqdorlarini yangilash boshlandi...');
-                const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
-                
-                for (const item of cart) {
-                  try {
-                    console.log(`${item.name} uchun miqdorni kamaytirish: ${item.cartQuantity} ta`);
-                    const response = await api.put(`/products/${item._id}/reduce-quantity`, {
-                      quantity: item.cartQuantity
-                    });
-                    console.log(`✅ ${item.name} muvaffaqiyatli yangilandi:`, response.data);
-                    updateResults.push({ success: true, item: item.name, data: response.data });
-                  } catch (quantityError: any) {
-                    console.error(`❌ ${item.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
-                    console.error('Xatolik tafsilotlari:', quantityError.response?.data);
-                    
-                    // Xatolik haqida foydalanuvchiga xabar berish
-                    const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
-                    showAlert(`${item.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
-                    
-                    updateResults.push({ success: false, item: item.name, error: errorMsg });
-                  }
-                }
-                
-                console.log('Print uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
-                
-                // 2. Chekni chiqarish
-                const printSuccess = await printReceipt(receiptData, () => {
-                  // Print tugagandan keyin success xabari
-                  const successCount = updateResults.filter(r => r.success).length;
-                  const failCount = updateResults.filter(r => !r.success).length;
-                  
-                  if (failCount === 0) {
-                    showAlert('Chek muvaffaqiyatli chiqarildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
-                  } else {
-                    showAlert(`Chek chiqarildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
-                  }
-                  
-                  // Savat va boshqa ma'lumotlarni tozalash
-                  setCart([]);
-                  setSelectedCustomer(null);
-                  // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-                  fetchProducts();
-                });
-                
-                if (!printSuccess) {
-                  showAlert('Chek faylga yuklandi', 'Ogohlantirish', 'warning');
-                  // Print ishlamasa ham savat tozalanadi va miqdorlar yangilanadi
-                  setCart([]);
-                  setSelectedCustomer(null);
-                  // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-                  fetchProducts();
-                }
-              }}
+              onClick={handleHelperReceipt}
               className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-1"
             >
               <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden xs:inline sm:inline">Chek</span>
+              <span className="hidden xs:inline sm:inline">Chek chiqarish</span>
             </button>
           )}
           </div>

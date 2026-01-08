@@ -7,6 +7,77 @@ const telegramService = require('../services/telegramService');
 
 const router = express.Router();
 
+// Kassir cheklari uchun yangi endpoint - to'lovsiz chek yaratish
+router.post('/helper-receipt', auth, async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    // Faqat kassir va admin ruxsat etiladi
+    if (!['cashier', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Ruxsat etilmagan' });
+    }
+
+    // Mahsulot miqdorlarini tekshirish
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(400).json({ message: `Mahsulot topilmadi: ${item.name}` });
+      }
+      if (product.quantity < item.quantity) {
+        return res.status(400).json({
+          message: `Yetarli mahsulot yo'q: ${item.name}. Mavjud: ${product.quantity}, Kerak: ${item.quantity}`
+        });
+      }
+    }
+
+    // Jami summani hisoblash
+    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    // Chek yaratish
+    const receipt = new Receipt({
+      items: items.map(item => ({
+        product: item.productId,
+        name: item.name,
+        code: item.code || '',
+        price: item.price,
+        quantity: item.quantity
+      })),
+      total: totalAmount,
+      paymentMethod: 'cash', // Default
+      status: 'completed',
+      isReturn: false,
+      createdBy: req.user._id,
+      helperId: req.user._id, // Chekni chiqargan kassir
+      isPaid: false, // To'lov yo'q
+      receiptType: 'helper_receipt' // Kassir cheki
+    });
+
+    await receipt.save();
+
+    // Mahsulot miqdorlarini kamaytirish
+    for (const item of items) {
+      await Product.findByIdAndUpdate(
+        item.productId,
+        { $inc: { quantity: -item.quantity } }
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      receipt: {
+        _id: receipt._id,
+        items: receipt.items,
+        total: receipt.total,
+        helperId: receipt.helperId,
+        createdAt: receipt.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Helper receipt creation error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Kassa uchun chek yaratish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
@@ -43,7 +114,7 @@ router.post('/kassa', async (req, res) => {
       try {
         // Mijoz ma'lumotlarini olish
         const customerData = await Customer.findById(customer);
-        
+
         if (customerData) {
           // Statistikani yangilash
           await Customer.findByIdAndUpdate(
@@ -54,7 +125,7 @@ router.post('/kassa', async (req, res) => {
           // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish
           if (customerData.debt > 0) {
             const paymentAmount = Math.min(total, customerData.debt); // Qarzdan ko'p ayrib bo'lmaydi
-            
+
             // Mijozning umumiy qarzini kamaytirish
             await Customer.findByIdAndUpdate(
               customer,
@@ -70,13 +141,13 @@ router.post('/kassa', async (req, res) => {
             }).sort({ createdAt: 1 }); // Eng eski qarzdan boshlab
 
             let remainingPayment = paymentAmount;
-            
+
             for (const debt of debts) {
               if (remainingPayment <= 0) break;
-              
+
               const debtBalance = debt.amount - debt.paidAmount;
               const paymentForThisDebt = Math.min(remainingPayment, debtBalance);
-              
+
               // Qarzga to'lov qo'shish
               debt.payments.push({
                 amount: paymentForThisDebt,
@@ -84,13 +155,13 @@ router.post('/kassa', async (req, res) => {
                 date: new Date(),
                 note: 'Xarid orqali avtomatik to\'lov'
               });
-              
+
               debt.paidAmount += paymentForThisDebt;
-              
+
               if (debt.paidAmount >= debt.amount) {
                 debt.status = 'paid';
               }
-              
+
               await debt.save();
               remainingPayment -= paymentForThisDebt;
             }
@@ -102,13 +173,13 @@ router.post('/kassa', async (req, res) => {
               try {
                 // Yangilangan qarz miqdorini olish
                 const updatedCustomer = await Customer.findById(customer);
-                
+
                 await telegramService.sendDebtPaymentToCustomer({
                   customer: customerData,
                   amount: paymentAmount,
                   remainingDebt: updatedCustomer.debt
                 });
-                
+
                 console.log(`Debt payment notification sent to ${customerData.name}`);
               } catch (debtNotificationError) {
                 console.error('Debt payment notification error:', debtNotificationError);
@@ -119,17 +190,17 @@ router.post('/kassa', async (req, res) => {
           // Telegram orqali chek yuborish (agar mijoz botga start bergan bo'lsa)
           if (customerData.telegramChatId) {
             console.log(`Sending receipt to customer ${customerData.name} via Telegram...`);
-            
+
             // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
             const updatedCustomer = await Customer.findById(customer);
-            
+
             await telegramService.sendReceiptToCustomer({
               customer: updatedCustomer,
               items: items,
               total: total,
               paymentMethod: paymentMethod
             });
-            
+
             console.log(`Receipt sent to ${customerData.name} successfully`);
           } else {
             console.log(`Customer ${customerData.name} has no Telegram chat ID`);
@@ -143,6 +214,85 @@ router.post('/kassa', async (req, res) => {
 
     res.status(201).json(receipt);
   } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Kassirlar ro'yxati va ularning cheklari statistikasi
+router.get('/helpers-stats', auth, authorize('admin'), async (req, res) => {
+  try {
+    // Barcha kassirlarni olish
+    const helpers = await require('../models/User').find({
+      role: { $in: ['cashier', 'helper'] }
+    }).select('name role');
+
+    // Har bir kassir uchun statistika hisoblash
+    const helpersWithStats = await Promise.all(
+      helpers.map(async (helper) => {
+        // Kassir chiqargan cheklar soni va jami summa
+        const receiptsStats = await Receipt.aggregate([
+          {
+            $match: {
+              helperId: helper._id,
+              receiptType: 'helper_receipt'
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              receiptCount: { $sum: 1 },
+              totalAmount: { $sum: '$total' }
+            }
+          }
+        ]);
+
+        const stats = receiptsStats[0] || { receiptCount: 0, totalAmount: 0 };
+
+        return {
+          _id: helper._id,
+          name: helper.name,
+          role: helper.role,
+          receiptCount: stats.receiptCount,
+          totalAmount: stats.totalAmount
+        };
+      })
+    );
+
+    res.json(helpersWithStats);
+  } catch (error) {
+    console.error('Helpers stats error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Muayyan kassirning barcha cheklari
+router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { helperId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const receipts = await Receipt.find({
+      helperId: helperId,
+      receiptType: 'helper_receipt'
+    })
+      .populate('helperId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Receipt.countDocuments({
+      helperId: helperId,
+      receiptType: 'helper_receipt'
+    });
+
+    res.json({
+      receipts,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    console.error('Helper receipts error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

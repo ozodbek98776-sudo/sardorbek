@@ -1,22 +1,52 @@
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Plus, UserPlus, X, Shield, ShoppingCart, Trash2, Phone, Lock, User, Edit } from 'lucide-react';
+import { Plus, UserPlus, X, Shield, ShoppingCart, Trash2, Phone, Lock, User, Edit, Receipt, Eye, Calendar, DollarSign } from 'lucide-react';
 import { User as UserType } from '../../types';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
-import { formatPhone, getRawPhone, displayPhone } from '../../utils/format';
+import { formatPhone, getRawPhone, displayPhone, formatNumber } from '../../utils/format';
+
+interface HelperStats {
+  _id: string;
+  name: string;
+  role: string;
+  receiptCount: number;
+  totalAmount: number;
+}
+
+interface HelperReceipt {
+  _id: string;
+  items: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  total: number;
+  createdAt: string;
+  helperId: {
+    name: string;
+  };
+}
 
 export default function Helpers() {
-  const { showConfirm, AlertComponent } = useAlert();
+  const { showConfirm, showAlert, AlertComponent } = useAlert();
   const [helpers, setHelpers] = useState<UserType[]>([]);
+  const [helpersStats, setHelpersStats] = useState<HelperStats[]>([]);
+  const [selectedHelperReceipts, setSelectedHelperReceipts] = useState<HelperReceipt[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showReceiptsModal, setShowReceiptsModal] = useState(false);
+  const [selectedHelper, setSelectedHelper] = useState<HelperStats | null>(null);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '', phone: '', password: '', role: 'helper' as 'cashier' | 'helper'
   });
 
-  useEffect(() => { fetchHelpers(); }, []);
+  useEffect(() => { 
+    fetchHelpers();
+    fetchHelpersStats();
+  }, []);
 
   const fetchHelpers = async () => {
     try {
@@ -24,6 +54,33 @@ export default function Helpers() {
       setHelpers(res.data);
     } catch (err) { console.error('Error fetching helpers:', err); }
     finally { setLoading(false); }
+  };
+
+  const fetchHelpersStats = async () => {
+    try {
+      const res = await api.get('/receipts/helpers-stats');
+      setHelpersStats(res.data);
+    } catch (err) { 
+      console.error('Error fetching helpers stats:', err); 
+    }
+  };
+
+  const fetchHelperReceipts = async (helperId: string) => {
+    setReceiptsLoading(true);
+    try {
+      const res = await api.get(`/receipts/helper/${helperId}/receipts`);
+      setSelectedHelperReceipts(res.data.receipts);
+    } catch (err) { 
+      console.error('Error fetching helper receipts:', err); 
+    } finally {
+      setReceiptsLoading(false);
+    }
+  };
+
+  const openReceiptsModal = (helper: HelperStats) => {
+    setSelectedHelper(helper);
+    setShowReceiptsModal(true);
+    fetchHelperReceipts(helper._id);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,19 +104,35 @@ export default function Helpers() {
         await api.post('/users', { ...data, password: formData.password });
       }
       fetchHelpers();
+      fetchHelpersStats(); // Statistikani yangilash
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Xatolik yuz berdi');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = await showConfirm("Yordamchini o'chirishni tasdiqlaysizmi?", "O'chirish");
+  const handleDelete = async (helper: HelperStats) => {
+    const confirmed = await showConfirm(
+      `"${helper.name}" yordamchisini o'chirishni tasdiqlaysizmi?`, 
+      "Yordamchini o'chirish"
+    );
     if (!confirmed) return;
+    
     try {
-      await api.delete(`/users/${id}`);
-      fetchHelpers();
-    } catch (err) { console.error('Error deleting helper:', err); }
+      console.log('O\'chirish uchun helper ID:', helper._id);
+      const response = await api.delete(`/users/${helper._id}`);
+      console.log('O\'chirish javobi:', response.data);
+      
+      // Ma'lumotlarni yangilash
+      await fetchHelpers();
+      await fetchHelpersStats();
+      
+      showAlert('Yordamchi muvaffaqiyatli o\'chirildi', 'Muvaffaqiyat', 'success');
+    } catch (err: any) { 
+      console.error('Error deleting helper:', err);
+      console.error('Error response:', err.response?.data);
+      showAlert(`Yordamchini o'chirishda xatolik: ${err.response?.data?.message || err.message}`, 'Xatolik', 'danger');
+    }
   };
 
   const openEditModal = (user: UserType) => {
@@ -109,33 +182,64 @@ export default function Helpers() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {helpers.map(helper => (
-              <div key={helper._id} className="card-hover">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                    {helper.name.charAt(0).toUpperCase()}
+          <div className="space-y-6">
+            {/* Kassirlar statistikasi */}
+            <h2 className="text-lg font-semibold text-surface-900 mb-4">Kassirlar statistikasi</h2>
+            {helpersStats.length === 0 ? (
+              <p className="text-surface-500 text-center py-8">Hali cheklar chiqarilmagan</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {helpersStats.map(helper => (
+                  <div key={helper._id} className="bg-white rounded-xl p-4 hover:bg-surface-50 transition-colors shadow-sm border border-surface-200 relative">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold">
+                        {helper.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-surface-900">{helper.name}</h3>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          helper.role === 'cashier' ? 'bg-success-100 text-success-700' : 'bg-brand-100 text-brand-700'
+                        }`}>
+                          {helper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
+                        </span>
+                      </div>
+                      {/* Tahrirlash, ko'rish va o'chirish tugmalari */}
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Helper ma'lumotlarini topish
+                            const helperUser = helpers.find(h => h.name === helper.name);
+                            if (helperUser) openEditModal(helperUser);
+                          }}
+                          className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openReceiptsModal(helper);
+                          }}
+                          className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(helper);
+                          }}
+                          className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-surface-900 truncate">{helper.name}</h3>
-                    <p className="text-sm text-surface-500 truncate">{displayPhone(helper.phone)}</p>
-                  </div>
-                  <button onClick={() => openEditModal(helper)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDelete(helper._id)} className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <span className={`badge ${helper.role === 'cashier' ? 'badge-success' : 'badge-primary'}`}>
-                  {helper.role === 'cashier' ? (
-                    <><ShoppingCart className="w-3 h-3" /> Kassir</>
-                  ) : (
-                    <><Shield className="w-3 h-3" /> Yordamchi</>
-                  )}
-                </span>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -216,6 +320,85 @@ export default function Helpers() {
                 <button type="submit" className="btn-primary flex-1">Saqlash</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Kassir cheklari modali */}
+      {showReceiptsModal && selectedHelper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowReceiptsModal(false)} />
+          <div className="modal w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10">
+            <div className="flex items-center justify-between p-6 border-b border-surface-100">
+              <div>
+                <h3 className="text-lg font-semibold text-surface-900">{selectedHelper.name} - Cheklar</h3>
+                <p className="text-sm text-surface-500">
+                  Jami: {selectedHelper.receiptCount} ta chek, {formatNumber(selectedHelper.totalAmount)} so'm
+                </p>
+              </div>
+              <button onClick={() => setShowReceiptsModal(false)} className="btn-icon-sm">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+              {receiptsLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="spinner text-brand-600 w-8 h-8" />
+                </div>
+              ) : selectedHelperReceipts.length === 0 ? (
+                <div className="text-center py-20">
+                  <Receipt className="w-12 h-12 mx-auto mb-4 text-surface-400" />
+                  <p className="text-surface-500">Cheklar topilmadi</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selectedHelperReceipts.map(receipt => (
+                    <div key={receipt._id} className="bg-surface-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Receipt className="w-5 h-5 text-brand-600" />
+                          <span className="font-medium text-surface-900">
+                            Chek #{receipt._id.slice(-6)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-surface-500">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-surface-700 mb-2">Mahsulotlar:</h4>
+                          <div className="space-y-1">
+                            {receipt.items.map((item, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <span className="text-surface-600">
+                                  {item.name} x{item.quantity}
+                                </span>
+                                <span className="font-medium">
+                                  {formatNumber(item.price * item.quantity)} so'm
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <p className="text-sm text-surface-500 mb-1">Jami summa</p>
+                            <p className="text-2xl font-bold text-brand-600">
+                              {formatNumber(receipt.total)} so'm
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

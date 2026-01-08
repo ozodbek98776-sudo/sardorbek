@@ -83,10 +83,35 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
 
 router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const user = await User.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });
-    if (!user) return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
-    res.json({ message: 'Foydalanuvchi o\'chirildi' });
+    console.log('Delete request for user ID:', req.params.id);
+    console.log('Requested by user:', req.user._id);
+
+    // Avval foydalanuvchini topish
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      console.log('User not found in database');
+      return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
+    }
+
+    console.log('Found user:', user.name, 'createdBy:', user.createdBy);
+
+    // Agar admin bo'lsa, har qanday foydalanuvchini o'chirishi mumkin
+    // Aks holda faqat o'zi yaratgan foydalanuvchilarni o'chirishi mumkin
+    if (req.user.role === 'admin') {
+      await User.findByIdAndDelete(req.params.id);
+      console.log('User deleted successfully');
+      res.json({ message: 'Foydalanuvchi o\'chirildi' });
+    } else {
+      const userToDelete = await User.findOne({ _id: req.params.id, createdBy: req.user._id });
+      if (!userToDelete) {
+        console.log('User not created by current user');
+        return res.status(404).json({ message: 'Foydalanuvchi topilmadi yoki sizda ruxsat yo\'q' });
+      }
+      await User.findByIdAndDelete(req.params.id);
+      res.json({ message: 'Foydalanuvchi o\'chirildi' });
+    }
   } catch (error) {
+    console.error('Delete error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
