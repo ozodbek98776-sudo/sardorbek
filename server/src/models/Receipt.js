@@ -26,6 +26,10 @@ const receiptSchema = new mongoose.Schema({
   helperId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Chekni chiqargan kassir
   isPaid: { type: Boolean, default: false }, // To'lov holati
   receiptType: { type: String, enum: ['sale', 'helper_receipt'], default: 'sale' }, // Chek turi
+  // To'lov ma'lumotlari
+  paidAmount: { type: Number, default: 0 }, // To'langan summa
+  remainingAmount: { type: Number, default: 0 }, // Qoldiq summa
+  receiptNumber: { type: String }, // Chek raqami
   metadata: {
     offlineId: { type: String, index: true },
     syncedAt: { type: Date }
