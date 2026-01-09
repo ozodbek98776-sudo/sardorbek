@@ -4,6 +4,11 @@ const Customer = require('../models/Customer');
 const { auth, authorize } = require('../middleware/auth');
 const telegramService = require('../services/telegramService');
 
+// Format number function
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('uz-UZ').format(num);
+};
+
 const router = express.Router();
 
 // Kassa uchun qarzlarni olish (auth talab qilmaydi) - faqat tasdiqlangan qarzlar
@@ -66,20 +71,51 @@ router.post('/kassa', async (req, res) => {
 
     console.log(`Qarz qo'shish so'rovi: mijoz=${customer}, summa=${amount}, to'langan=${paidAmount}`);
 
+    // Mijozning mavjud qarzini tekshirish
+    const existingCustomer = await Customer.findById(customer);
+    if (!existingCustomer) {
+      return res.status(404).json({ message: 'Mijoz topilmadi' });
+    }
+
+    // Mijozning mavjud qarzlarini tekshirish
+    const existingDebts = await Debt.find({
+      customer: customer,
+      status: { $in: ['approved', 'pending_approval'] }
+    });
+
+    let finalAmount = amount;
+    let finalDescription = description || `Xarid qoldig'i - ${new Date().toLocaleDateString('uz-UZ')}`;
+
+    // Agar mijozning mavjud qarzi bo'lsa, ustiga qo'shish
+    if (existingDebts.length > 0) {
+      const totalExistingDebt = existingDebts.reduce((sum, debt) => sum + (debt.amount - debt.paidAmount), 0);
+      console.log(`Mijozning mavjud qarzi: ${totalExistingDebt} so'm`);
+
+      // Yangi qarzni mavjud qarzga qo'shish
+      finalAmount = amount; // Yangi qarz alohida yaratiladi
+      finalDescription = `${finalDescription} (Jami qarz: ${formatNumber(totalExistingDebt + amount)} so'm)`;
+    }
+
     // Yangi qarz yaratish
     const debtData = {
       type: 'receivable', // Mijoz bizga qarz
       customer,
-      amount,
+      amount: finalAmount,
       paidAmount: paidAmount || 0,
-      dueDate,
-      description: description ? `[${new Date().toLocaleDateString('uz-UZ')}] ${description}` : '',
+      dueDate: dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 kun keyin
+      description: finalDescription,
       items: items || [],
-      status: 'pending_approval' // Kassachi qo'shgan qarz admin tasdiqlashini kutadi
+      status: 'approved' // Kassa qarzlari darhol tasdiqlangan
     };
 
     const debt = new Debt(debtData);
     await debt.save();
+
+    // Mijozning umumiy qarzini yangilash
+    const remainingAmount = finalAmount - (paidAmount || 0);
+    await Customer.findByIdAndUpdate(customer, {
+      $inc: { debt: remainingAmount }
+    });
 
     // Populate qilib qaytarish
     await debt.populate([
@@ -87,10 +123,11 @@ router.post('/kassa', async (req, res) => {
       { path: 'items.product', select: 'name code price' }
     ]);
 
-    console.log(`Yangi qarz yaratildi: ${debt.customer.name} - ${debt.amount} so'm`);
+    console.log(`Yangi qarz yaratildi: ${debt.customer.name} - ${debt.amount} so'm (Jami qarz: ${existingCustomer.debt + remainingAmount} so'm)`);
 
     // Telegram ga xabar yuborish
     try {
+      const telegramService = require('../services/telegramService');
       await telegramService.sendDebtNotification({
         customerName: debt.customer.name,
         customerPhone: debt.customer.phone,

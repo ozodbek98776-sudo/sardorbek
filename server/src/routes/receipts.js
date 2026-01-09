@@ -225,7 +225,7 @@ router.post('/kassa-atomic', async (req, res) => {
 // Kassa uchun chek yaratish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
-    const { items, total, paymentMethod, customer } = req.body;
+    const { items, total, paymentMethod, customer, receiptNumber, paidAmount, remainingAmount } = req.body;
 
     const receiptData = {
       items: items.map(item => ({
@@ -239,7 +239,11 @@ router.post('/kassa', async (req, res) => {
       total,
       paymentMethod,
       customer: customer || null,
+      receiptNumber: receiptNumber || `CHK-${Date.now()}`,
+      paidAmount: paidAmount || total,
+      remainingAmount: remainingAmount || 0,
       status: 'completed',
+      isPaid: (paidAmount || total) >= total,
       createdAt: new Date()
     };
 
@@ -269,7 +273,7 @@ router.post('/kassa', async (req, res) => {
 
           // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish
           if (customerData.debt > 0) {
-            const paymentAmount = Math.min(total, customerData.debt); // Qarzdan ko'p ayrib bo'lmaydi
+            const paymentAmount = Math.min(paidAmount || total, customerData.debt); // Qarzdan ko'p ayrib bo'lmaydi
 
             // Mijozning umumiy qarzini kamaytirish
             await Customer.findByIdAndUpdate(
@@ -343,6 +347,8 @@ router.post('/kassa', async (req, res) => {
               customer: updatedCustomer,
               items: items,
               total: total,
+              paidAmount: paidAmount || total,
+              remainingAmount: remainingAmount || 0,
               paymentMethod: paymentMethod
             });
 
