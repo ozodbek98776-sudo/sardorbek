@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Eye, EyeOff, Phone, Lock, ArrowRight } from 'lucide-react';
@@ -187,17 +187,7 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-600 text-sm">
-              Hisobingiz yo'qmi?{' '}
-              <Link 
-                to="/register" 
-                className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
-              >
-                Ro'yxatdan o'tish
-              </Link>
-            </p>
-            
-            <div className="mt-3 p-2.5 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-xs text-blue-700 font-medium mb-1">Kassa xodimi uchun:</p>
               <button
                 onClick={() => navigate('/kassa-login')}

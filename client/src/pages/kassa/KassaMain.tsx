@@ -2,13 +2,131 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
-  Package, Banknote, Delete, RefreshCw, Printer
+  Package, Banknote, Delete, RefreshCw, Printer, X
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/receipt';
+
+// Payment Breakdown Form komponenti
+interface PaymentBreakdownFormProps {
+  item: CartItem;
+  onSave: (cash: number, click: number, card: number) => void;
+  onCancel: () => void;
+}
+
+const PaymentBreakdownForm = ({ item, onSave, onCancel }: PaymentBreakdownFormProps) => {
+  const [cash, setCash] = useState(item.paymentBreakdown?.cash || 0);
+  const [click, setClick] = useState(item.paymentBreakdown?.click || 0);
+  const [card, setCard] = useState(item.paymentBreakdown?.card || 0);
+  
+  const itemTotal = item.price * item.cartQuantity;
+  const breakdownTotal = cash + click + card;
+  const remaining = itemTotal - breakdownTotal;
+  
+  const handleSave = () => {
+    if (Math.abs(remaining) > 1) {
+      return; // Xatolik bo'ladi, lekin button disabled bo'ladi
+    }
+    onSave(cash, click, card);
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-surface-700 mb-2">
+            Naqd pul
+          </label>
+          <input
+            type="text"
+            value={formatInputNumber(cash.toString())}
+            onChange={(e) => {
+              const cleaned = parseNumber(e.target.value);
+              const val = cleaned === '' ? 0 : parseFloat(cleaned) || 0;
+              setCash(val);
+            }}
+            className="w-full px-4 py-3 text-lg font-semibold border-2 border-success-200 rounded-xl focus:outline-none focus:border-success-500 focus:ring-4 focus:ring-success-500/10 bg-success-50"
+            placeholder="0"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-surface-700 mb-2">
+            Click
+          </label>
+          <input
+            type="text"
+            value={formatInputNumber(click.toString())}
+            onChange={(e) => {
+              const cleaned = parseNumber(e.target.value);
+              const val = cleaned === '' ? 0 : parseFloat(cleaned) || 0;
+              setClick(val);
+            }}
+            className="w-full px-4 py-3 text-lg font-semibold border-2 border-purple-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 bg-purple-50"
+            placeholder="0"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-surface-700 mb-2">
+            Plastik karta
+          </label>
+          <input
+            type="text"
+            value={formatInputNumber(card.toString())}
+            onChange={(e) => {
+              const cleaned = parseNumber(e.target.value);
+              const val = cleaned === '' ? 0 : parseFloat(cleaned) || 0;
+              setCard(val);
+            }}
+            className="w-full px-4 py-3 text-lg font-semibold border-2 border-brand-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 bg-brand-50"
+            placeholder="0"
+          />
+        </div>
+      </div>
+      
+      <div className="bg-surface-50 rounded-lg p-4 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-surface-600">Jami to'lov:</span>
+          <span className="font-semibold text-surface-900">{formatNumber(breakdownTotal)} so'm</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-surface-600">Tovar summasi:</span>
+          <span className="font-semibold text-surface-900">{formatNumber(itemTotal)} so'm</span>
+        </div>
+        <div className={`flex justify-between text-sm font-semibold pt-2 border-t border-surface-200 ${
+          Math.abs(remaining) <= 1 ? 'text-success-600' : 'text-danger-600'
+        }`}>
+          <span>Qoldiq:</span>
+          <span>{formatNumber(remaining)} so'm</span>
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          className="flex-1 py-3 text-surface-600 hover:text-surface-900 transition-colors rounded-xl border border-surface-200 hover:bg-surface-50"
+        >
+          Bekor qilish
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={Math.abs(remaining) > 1}
+          className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${
+            Math.abs(remaining) > 1
+              ? 'bg-surface-300 text-surface-500 cursor-not-allowed'
+              : 'bg-brand-500 hover:bg-brand-600 text-white'
+          }`}
+        >
+          Saqlash
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface SavedReceipt {
   id: string;
@@ -44,6 +162,9 @@ export default function KassaMain() {
   const [inputMode, setInputMode] = useState<'kod' | 'son'>('kod');
   const [numberInput, setNumberInput] = useState('');
   const [selectedProductForQuantity, setSelectedProductForQuantity] = useState<Product | null>(null);
+  // To'lov turlari uchun state
+  const [showPaymentBreakdown, setShowPaymentBreakdown] = useState(false);
+  const [selectedItemForPayment, setSelectedItemForPayment] = useState<CartItem | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -497,8 +618,50 @@ export default function KassaMain() {
     }
   };
 
-  const handlePayment = async (method: 'cash' | 'card') => {
+  // Har bir tovar uchun to'lov turlarini tanlash
+  const handleItemPaymentBreakdown = (item: CartItem) => {
+    setSelectedItemForPayment(item);
+    setShowPaymentBreakdown(true);
+  };
+
+  // To'lov turlarini saqlash
+  const saveItemPaymentBreakdown = (cash: number, click: number, card: number) => {
+    if (!selectedItemForPayment) return;
+    
+    const itemTotal = selectedItemForPayment.price * selectedItemForPayment.cartQuantity;
+    const breakdownTotal = cash + click + card;
+    
+    if (Math.abs(breakdownTotal - itemTotal) > 1) { // 1 so'm farqga ruxsat berish
+      showAlert(`To'lov summasi mos kelmaydi. Jami: ${formatNumber(itemTotal)} so'm, Kiritilgan: ${formatNumber(breakdownTotal)} so'm`, 'Xatolik', 'danger');
+      return;
+    }
+    
+    setCart(prev => prev.map(p => 
+      p._id === selectedItemForPayment._id 
+        ? { ...p, paymentBreakdown: { cash, click, card } }
+        : p
+    ));
+    
+    setShowPaymentBreakdown(false);
+    setSelectedItemForPayment(null);
+  };
+
+  const handlePayment = async (method: 'cash' | 'card' | 'click') => {
     if (cart.length === 0) return;
+    
+    // Har bir tovar uchun to'lov turlarini tekshirish
+    const itemsWithoutBreakdown = cart.filter(item => !item.paymentBreakdown);
+    if (itemsWithoutBreakdown.length > 0) {
+      showAlert('Barcha tovarlar uchun to\'lov turlarini belgilang', 'Ogohlantirish', 'warning');
+      return;
+    }
+    
+    // To'lov summalarini hisoblash
+    const totalCash = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
+    const totalClick = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
+    const totalCard = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
+    const totalPaid = totalCash + totalClick + totalCard;
+    const remainingAmount = total - totalPaid;
     
     const receiptNumber = `CHK-${Date.now()}`;
     const saleData = {
@@ -507,7 +670,8 @@ export default function KassaMain() {
         name: item.name,
         code: item.code,
         price: item.price,
-        quantity: item.cartQuantity
+        quantity: item.cartQuantity,
+        paymentBreakdown: item.paymentBreakdown || { cash: 0, click: 0, card: 0 }
       })),
       total,
       paymentMethod: method,
@@ -519,7 +683,26 @@ export default function KassaMain() {
       // 1. Chekni saqlash
       await api.post('/receipts/kassa', saleData);
       
-      // 2. Mahsulot miqdorini yangilash - har bir mahsulot uchun
+      // 2. Agar qoldiq summa bo'lsa va mijoz tanlangan bo'lsa, qarz yaratish
+      if (remainingAmount > 0 && selectedCustomer) {
+        try {
+          const debtData = {
+            customer: selectedCustomer._id,
+            amount: remainingAmount,
+            description: `Xarid qoldig'i - Chek: ${receiptNumber}`,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 kun keyin
+            type: 'receivable'
+          };
+          
+          await api.post('/debts', debtData);
+          showAlert(`${formatNumber(remainingAmount)} so'm qoldiq qarz daftariga qo'shildi`, 'Ma\'lumot', 'info');
+        } catch (debtError) {
+          console.error('Qarz yaratishda xatolik:', debtError);
+          showAlert('Qarz yaratishda xatolik yuz berdi', 'Ogohlantirish', 'warning');
+        }
+      }
+      
+      // 3. Mahsulot miqdorini yangilash - har bir mahsulot uchun
       console.log('To\'lov uchun mahsulot miqdorlarini yangilash boshlandi...');
       const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
       
@@ -562,10 +745,15 @@ export default function KassaMain() {
         const successCount = updateResults.filter(r => r.success).length;
         const failCount = updateResults.filter(r => !r.success).length;
         
+        let message = 'To\'lov qabul qilindi, chek muvaffaqiyatli chiqarildi';
+        if (remainingAmount > 0 && selectedCustomer) {
+          message += ` va ${formatNumber(remainingAmount)} so'm qarz daftariga qo'shildi`;
+        }
+        
         if (failCount === 0) {
-          showAlert('To\'lov qabul qilindi, chek muvaffaqiyatli chiqarildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
+          showAlert(message + ', mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
         } else {
-          showAlert(`To\'lov qabul qilindi, chek chiqarildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
+          showAlert(`${message}. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
         }
         
         // Savat va boshqa ma'lumotlarni tozalash
@@ -577,7 +765,11 @@ export default function KassaMain() {
       });
       
       if (!printSuccess) {
-        showAlert('To\'lov qabul qilindi, savdo saqlandi, chek faylga yuklandi', 'Ogohlantirish', 'warning');
+        let message = 'To\'lov qabul qilindi, savdo saqlandi, chek faylga yuklandi';
+        if (remainingAmount > 0 && selectedCustomer) {
+          message += ` va ${formatNumber(remainingAmount)} so'm qarz daftariga qo'shildi`;
+        }
+        showAlert(message, 'Ogohlantirish', 'warning');
         // Print ishlamasa ham savat tozalanadi
         setCart([]);
         setShowPayment(false);
@@ -872,8 +1064,39 @@ export default function KassaMain() {
                         <span className="text-sm font-semibold text-surface-900">
                           {formatNumber(item.price * item.cartQuantity)}
                         </span>
+                        {/* To'lov turlari ko'rsatish */}
+                        {item.paymentBreakdown && (
+                          <div className="text-xs text-surface-500 mt-1 space-y-0.5">
+                            {item.paymentBreakdown.cash > 0 && (
+                              <div>Naqt: {formatNumber(item.paymentBreakdown.cash)}</div>
+                            )}
+                            {item.paymentBreakdown.click > 0 && (
+                              <div>Click: {formatNumber(item.paymentBreakdown.click)}</div>
+                            )}
+                            {item.paymentBreakdown.card > 0 && (
+                              <div>Karta: {formatNumber(item.paymentBreakdown.card)}</div>
+                            )}
+                          </div>
+                        )}
+                        {!item.paymentBreakdown && (
+                          <button
+                            onClick={() => handleItemPaymentBreakdown(item)}
+                            className="text-xs text-brand-600 hover:text-brand-700 mt-1 underline"
+                          >
+                            To'lov turini tanlang
+                          </button>
+                        )}
                       </div>
-                      <div className="col-span-1 flex justify-center">
+                      <div className="col-span-1 flex justify-center gap-1">
+                        {item.paymentBreakdown && (
+                          <button
+                            onClick={() => handleItemPaymentBreakdown(item)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-brand-500 hover:bg-brand-50 transition-colors"
+                            title="To'lov turini o'zgartirish"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => removeFromCart(item._id)}
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-danger-500 hover:bg-danger-50 transition-colors"
@@ -939,6 +1162,28 @@ export default function KassaMain() {
                           <p className="font-semibold text-surface-900">
                             {formatNumber(item.price * item.cartQuantity)} so'm
                           </p>
+                          {/* To'lov turlari ko'rsatish */}
+                          {item.paymentBreakdown && (
+                            <div className="text-xs text-surface-500 mt-1 space-y-0.5">
+                              {item.paymentBreakdown.cash > 0 && (
+                                <div>Naqt: {formatNumber(item.paymentBreakdown.cash)}</div>
+                              )}
+                              {item.paymentBreakdown.click > 0 && (
+                                <div>Click: {formatNumber(item.paymentBreakdown.click)}</div>
+                              )}
+                              {item.paymentBreakdown.card > 0 && (
+                                <div>Karta: {formatNumber(item.paymentBreakdown.card)}</div>
+                              )}
+                            </div>
+                          )}
+                          {!item.paymentBreakdown && (
+                            <button
+                              onClick={() => handleItemPaymentBreakdown(item)}
+                              className="text-xs text-brand-600 hover:text-brand-700 mt-1 underline"
+                            >
+                              To'lov turini tanlang
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1045,20 +1290,20 @@ export default function KassaMain() {
 
         {/* Bottom Actions */}
         <div className="p-2 sm:p-3 lg:p-4 bg-white border-t border-surface-200 flex-shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button 
             onClick={() => { 
               setShowSearch(true); 
               handleSearch(''); // Bo'sh qidiruv bilan boshlanadi
             }}
-            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1"
+            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1 min-w-[100px]"
           >
             <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="hidden xs:inline sm:inline">Qidirish</span>
           </button>
           <button 
             onClick={saveReceipt}
-            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1"
+            className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-surface-200 rounded-lg text-surface-700 hover:bg-surface-50 transition-colors flex-1 min-w-[100px]"
           >
             <Save className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="hidden xs:inline sm:inline">Saqlash</span>
@@ -1067,10 +1312,28 @@ export default function KassaMain() {
           {cart.length > 0 && (
             <button 
               onClick={handleHelperReceipt}
-              className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-1"
+              className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex-1 min-w-[100px]"
             >
               <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="hidden xs:inline sm:inline">Chek chiqarish</span>
+            </button>
+          )}
+          {/* To'lov tugmasi */}
+          {cart.length > 0 && (
+            <button 
+              onClick={() => {
+                // Barcha tovarlar uchun to'lov turlarini tekshirish
+                const itemsWithoutBreakdown = cart.filter(item => !item.paymentBreakdown);
+                if (itemsWithoutBreakdown.length > 0) {
+                  showAlert('Barcha tovarlar uchun to\'lov turlarini belgilang', 'Ogohlantirish', 'warning');
+                  return;
+                }
+                setShowPayment(true);
+              }}
+              className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-success-500 text-white rounded-lg hover:bg-success-600 transition-colors flex-1 min-w-[100px] font-semibold"
+            >
+              <Banknote className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline sm:inline">To'lov</span>
             </button>
           )}
           </div>
@@ -1356,6 +1619,14 @@ export default function KassaMain() {
                 <Printer className="w-4 h-4 ml-1 opacity-75" />
               </button>
               <button 
+                onClick={() => handlePayment('click')} 
+                className="w-full flex items-center justify-center gap-2 py-3 sm:py-4 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-colors"
+              >
+                <CreditCard className="w-5 h-5" />
+                Click
+                <Printer className="w-4 h-4 ml-1 opacity-75" />
+              </button>
+              <button 
                 onClick={() => handlePayment('card')} 
                 className="w-full flex items-center justify-center gap-2 py-3 sm:py-4 bg-brand-500 text-white rounded-xl font-semibold hover:bg-brand-600 transition-colors"
               >
@@ -1370,6 +1641,37 @@ export default function KassaMain() {
                 Bekor qilish
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Breakdown Modal - Har bir tovar uchun to'lov turlarini tanlash */}
+      {showPaymentBreakdown && selectedItemForPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={() => {
+            setShowPaymentBreakdown(false);
+            setSelectedItemForPayment(null);
+          }} />
+          <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
+            <div className="mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-surface-900 mb-2">To'lov turlarini tanlang</h3>
+              <div className="bg-surface-50 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-surface-700 mb-1">{selectedItemForPayment.name}</p>
+                <p className="text-xs text-surface-500 font-mono mb-2">Kod: {selectedItemForPayment.code}</p>
+                <p className="text-lg font-bold text-surface-900">
+                  Jami: {formatNumber(selectedItemForPayment.price * selectedItemForPayment.cartQuantity)} so'm
+                </p>
+              </div>
+            </div>
+            
+            <PaymentBreakdownForm
+              item={selectedItemForPayment}
+              onSave={saveItemPaymentBreakdown}
+              onCancel={() => {
+                setShowPaymentBreakdown(false);
+                setSelectedItemForPayment(null);
+              }}
+            />
           </div>
         </div>
       )}

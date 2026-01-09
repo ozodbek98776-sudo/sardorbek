@@ -37,6 +37,7 @@ export default function Kassa() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerSelect, setShowCustomerSelect] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [paidAmount, setPaidAmount] = useState<number>(0);
 
   useEffect(() => {
     fetchProducts();
@@ -174,6 +175,9 @@ export default function Kassa() {
   const handlePayment = async (method: 'cash' | 'card') => {
     if (cart.length === 0) return;
     
+    // Qoldiq summani hisoblash
+    const remainingAmount = total - paidAmount;
+    
     const saleData = {
       items: cart.map(item => ({
         product: item._id,
@@ -203,7 +207,27 @@ export default function Kassa() {
           // Success - mark as synced and delete local copy
           await markSalesAsSynced([offlineSale.id]);
           await deleteSyncedSales([offlineSale.id]);
-          showAlert(isReturnMode ? 'Qaytarish muvaffaqiyatli!' : 'Chek saqlandi!', 'Muvaffaqiyat', 'success');
+          
+          // Agar qoldiq summa bo'lsa va mijoz tanlangan bo'lsa, qarz yaratish
+          if (remainingAmount > 0 && selectedCustomer && !isReturnMode) {
+            try {
+              const debtData = {
+                customer: selectedCustomer._id,
+                amount: remainingAmount,
+                description: `Xarid qoldig'i - Admin kassa`,
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 kun keyin
+                type: 'receivable'
+              };
+              
+              await api.post('/debts', debtData);
+              showAlert(`${isReturnMode ? 'Qaytarish' : 'Chek saqlandi'}! ${formatNumber(remainingAmount)} so'm qoldiq qarz daftariga qo'shildi`, 'Muvaffaqiyat', 'success');
+            } catch (debtError) {
+              console.error('Qarz yaratishda xatolik:', debtError);
+              showAlert(`${isReturnMode ? 'Qaytarish' : 'Chek saqlandi'}! Qarz yaratishda xatolik yuz berdi`, 'Ogohlantirish', 'warning');
+            }
+          } else {
+            showAlert(isReturnMode ? 'Qaytarish muvaffaqiyatli!' : 'Chek saqlandi!', 'Muvaffaqiyat', 'success');
+          }
         } catch (serverErr) {
           // Server failed - sale is saved locally, will sync later
           console.log('Server sync failed, sale saved offline');
@@ -218,6 +242,7 @@ export default function Kassa() {
       setCart([]);
       setShowPayment(false);
       setIsReturnMode(false);
+      setPaidAmount(0);
       setSelectedCustomer(null);
       fetchProducts();
       
@@ -520,7 +545,10 @@ export default function Kassa() {
               Saqlash
             </button>
             <button 
-              onClick={() => setShowPayment(true)}
+              onClick={() => {
+                setShowPayment(true);
+                setPaidAmount(total);
+              }}
               disabled={cart.length === 0}
               className="flex items-center gap-2 px-5 py-2.5 bg-success-500 text-white rounded-xl hover:bg-success-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -639,6 +667,30 @@ export default function Kassa() {
               </p>
               {isReturnMode && (
                 <p className="text-sm text-warning-600 mt-2">Bu summa mijozga qaytariladi</p>
+              )}
+              
+              {/* To'langan summa input */}
+              {!isReturnMode && (
+                <div className="mt-4 space-y-2">
+                  <label className="block text-sm font-medium text-surface-700">To'langan summa</label>
+                  <input
+                    type="number"
+                    value={paidAmount || ''}
+                    onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                  {paidAmount > 0 && paidAmount < total && (
+                    <p className="text-sm text-warning-600">
+                      Qoldiq: {formatNumber(total - paidAmount)} so'm (qarz daftariga qo'shiladi)
+                    </p>
+                  )}
+                  {paidAmount > total && (
+                    <p className="text-sm text-success-600">
+                      Qaytim: {formatNumber(paidAmount - total)} so'm
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             <div className="space-y-3">

@@ -4,7 +4,7 @@ import { formatNumber } from './format';
 export interface ReceiptData {
   items: CartItem[];
   total: number;
-  paymentMethod: 'cash' | 'card';
+  paymentMethod: 'cash' | 'card' | 'click';
   customer?: Customer | null;
   receiptNumber?: string;
   cashier?: string;
@@ -48,7 +48,17 @@ export const formatReceiptData = (data: ReceiptData): string => {
   
   // Total - Katta va aniq
   receipt += `JAMI:     ${formatNumber(data.total)} SO'M\n`;
-  receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : 'PLASTIK KARTA'}\n`;
+  
+  // To'lov turlari bo'yicha breakdown
+  const totalCash = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
+  const totalClick = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
+  const totalCard = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
+  
+  if (totalCash > 0) receipt += `NAQT:     ${formatNumber(totalCash)} SO'M\n`;
+  if (totalClick > 0) receipt += `CLICK:    ${formatNumber(totalClick)} SO'M\n`;
+  if (totalCard > 0) receipt += `KARTA:    ${formatNumber(totalCard)} SO'M\n`;
+  
+  receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : data.paymentMethod === 'click' ? 'CLICK' : 'PLASTIK KARTA'}\n`;
   
   receipt += '================================\n';
   receipt += '    XARIDINGIZ UCHUN RAHMAT!    \n';

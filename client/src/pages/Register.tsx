@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { Eye, EyeOff, Phone, Lock, ArrowRight, Building2, Shield, User } from 'lucide-react';
 import { formatPhone, getRawPhone } from '../utils/format';
@@ -230,18 +230,6 @@ export default function Register() {
               )}
             </button>
           </form>
-
-          <div className="mt-8 text-center">
-            <p className="text-slate-600">
-              Allaqachon hisobingiz bormi?{' '}
-              <Link 
-                to="/login" 
-                className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
-              >
-                Kirish
-              </Link>
-            </p>
-          </div>
         </div>
       </div>
     </div>

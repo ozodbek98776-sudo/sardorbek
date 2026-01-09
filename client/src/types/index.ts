@@ -25,13 +25,18 @@ export interface Product {
 
 export interface CartItem extends Product {
   cartQuantity: number;
+  paymentBreakdown?: {
+    cash: number;    // Naqt pul miqdori
+    click: number;   // Click miqdori
+    card: number;    // Karta miqdori
+  };
 }
 
 export interface Receipt {
   _id: string;
   items: CartItem[];
   total: number;
-  paymentMethod: 'cash' | 'card';
+  paymentMethod: 'cash' | 'card' | 'click';
   cashier: User;
   customer?: Customer;
   status: 'pending' | 'approved' | 'rejected';

@@ -39,7 +39,9 @@ export default function Products() {
     printer: '',
     copies: 1,
     size: 'card',
-    layout: 'standard'
+    layout: 'standard',
+    customWidth: '',
+    customHeight: ''
   });
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -341,8 +343,13 @@ export default function Products() {
     if (!selectedProduct) return;
     
     try {
+      // Maxsus o'lchamni tekshirish
+      const hasCustomSize = printSettings.customWidth && printSettings.customHeight;
+      const customWidth = hasCustomSize ? `${printSettings.customWidth}mm` : null;
+      const customHeight = hasCustomSize ? `${printSettings.customHeight}mm` : null;
+      
       // Generate QR code as high-quality data URL
-      const qrSize = printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 130 : 220;
+      const qrSize = printSettings.size === 'card' ? 52 : printSettings.size === 'thermal' ? 102 : 122;
       const qrDataUrl = await generateQRCodeDataURL(selectedProduct, qrSize);
       
       // Create print-ready HTML with single page layout
@@ -354,7 +361,7 @@ export default function Products() {
           <title>Label - ${selectedProduct.name}</title>
           <style>
             @page {
-              size: ${printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 45mm'};
+              size: ${hasCustomSize ? `${customWidth} ${customHeight}` : (printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 45mm')};
               margin: 0;
             }
             * {
@@ -381,8 +388,8 @@ export default function Products() {
               border: 2px solid #333;
               padding: ${printSettings.size === 'card' ? '1mm' : printSettings.size === 'thermal' ? '6px' : '12px'};
               background: white;
-              width: ${printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : '120mm'};
-              height: ${printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '39mm' : '90mm'};
+              width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '120mm' : '120mm')};
+              height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '39mm' : printSettings.size === 'A4' ? '60mm' : printSettings.size === 'A5' ? '90mm' : '90mm')};
               display: flex;
               align-items: center;
               gap: 1px;
@@ -431,12 +438,17 @@ export default function Products() {
               align-items: center;
               justify-content: center;
               max-width: 42%;
+              width: 42%;
               height: 100%;
               padding-left: 1px;
+              overflow: hidden;
+              box-sizing: border-box;
             }
             .qr-code-img {
-              width: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
-              height: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
+              width: ${printSettings.size === 'card' ? '52px' : printSettings.size === 'thermal' ? '102px' : '122px'};
+              height: ${printSettings.size === 'card' ? '52px' : printSettings.size === 'thermal' ? '102px' : '122px'};
+              max-width: 100%;
+              max-height: 100%;
               border: 1px solid #e0e0e0;
               border-radius: 2px;
               background: white;
@@ -469,11 +481,25 @@ export default function Products() {
               }
               .label-container {
                 page-break-inside: avoid !important;
+                width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '85mm' : printSettings.size === 'A5' ? '130mm' : '130mm')} !important;
+                height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '45mm' : printSettings.size === 'A4' ? '65mm' : printSettings.size === 'A5' ? '100mm' : '100mm')} !important;
+                padding: ${printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '15px'} !important;
+              }
+              .qr-code-section {
+                max-width: 42% !important;
+                width: 42% !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
               }
               .qr-code-img {
                 -webkit-print-color-adjust: exact !important;
                 color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                width: ${printSettings.size === 'card' ? '62px' : printSettings.size === 'thermal' ? '122px' : '152px'} !important;
+                height: ${printSettings.size === 'card' ? '62px' : printSettings.size === 'thermal' ? '122px' : '152px'} !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
               }
             }
           </style>
@@ -947,24 +973,54 @@ export default function Products() {
                     onChange={e => setPrintSettings({...printSettings, copies: parseInt(e.target.value) || 1})}
                   />
                 </div>
+
+                <div className="border-t border-surface-200 pt-4">
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Maxsus o'lcham (ixtiyoriy)</label>
+                  <p className="text-xs text-surface-500 mb-3">Agar maxsus o'lcham belgilasangiz, u qog'oz o'lchamidan ustun bo'ladi</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-surface-600 mb-1 block">Eni (mm)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className="input"
+                        placeholder="Masalan: 50"
+                        value={printSettings.customWidth}
+                        onChange={e => setPrintSettings({...printSettings, customWidth: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-surface-600 mb-1 block">Bo'yi (mm)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className="input"
+                        placeholder="Masalan: 25"
+                        value={printSettings.customHeight}
+                        onChange={e => setPrintSettings({...printSettings, customHeight: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Preview Panel */}
               <div className="bg-surface-50 rounded-xl p-4">
                 <h4 className="text-sm font-medium text-surface-700 mb-3">Ko'rinish</h4>
-                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center min-h-[420px]">
+                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center items-start min-h-[420px]">
                   <div 
                     className="bg-white border border-gray-200 shadow-lg rounded-xl"
                     style={{
-                      width: printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '50mm' : printSettings.size === 'A5' ? '148mm' : '130mm',
-                      height: printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '45mm' : printSettings.size === 'A5' ? '120mm' : '100mm',
-                      fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '10px' : '12px',
-                      transform: printSettings.size === 'card' ? 'scale(5)' : printSettings.size === 'thermal' ? 'scale(2.4)' : 'scale(2.0)',
+                      width: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customWidth}mm` : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '140mm' : '120mm'),
+                      height: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customHeight}mm` : (printSettings.size === 'card' ? '17mm' : printSettings.size === 'thermal' ? '42mm' : printSettings.size === 'A4' ? '60mm' : printSettings.size === 'A5' ? '115mm' : '92mm'),
+                      fontSize: printSettings.size === 'card' ? '5px' : printSettings.size === 'thermal' ? '9px' : '11px',
+                      transform: printSettings.size === 'card' ? 'scale(4.2)' : printSettings.size === 'thermal' ? 'scale(2.1)' : 'scale(1.8)',
                       transformOrigin: 'center center',
                       overflow: 'hidden',
-                      padding: printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '14px',
+                      padding: printSettings.size === 'card' ? '1.2mm' : printSettings.size === 'thermal' ? '7px' : '12px',
                       borderRadius: '8px',
-                      background: '#ffffff'
+                      background: '#ffffff',
+                      marginTop: '80px'
                     }}
                   >
                     {/* Main content - horizontal layout */}
@@ -974,9 +1030,9 @@ export default function Products() {
                         <div 
                           className="font-bold text-black"
                           style={{
-                          fontSize: printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px',
+                          fontSize: printSettings.size === 'card' ? '9px' : printSettings.size === 'thermal' ? '18px' : '24px',
                           lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
+                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
                             fontWeight: '700',
                             color: '#1a1a1a',
                             overflow: 'hidden',
@@ -992,9 +1048,9 @@ export default function Products() {
                         <div 
                           className="text-gray-600"
                           style={{
-                            fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
+                            fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '12px' : '16px',
                             lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
+                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
                             fontWeight: '500',
                             color: '#666'
                           }}
@@ -1006,7 +1062,7 @@ export default function Products() {
                         <div 
                           className="font-bold"
                           style={{
-                            fontSize: printSettings.size === 'card' ? '12px' : printSettings.size === 'thermal' ? '20px' : '24px',
+                            fontSize: printSettings.size === 'card' ? '10px' : printSettings.size === 'thermal' ? '18px' : '22px',
                             lineHeight: '1.0',
                             marginBottom: printSettings.size === 'card' ? '0px' : '1px',
                             fontWeight: '800',
@@ -1034,12 +1090,28 @@ export default function Products() {
                       </div>
 
                       {/* Right side - QR Code */}
-                      <div className="flex-shrink-0 flex items-center justify-center" style={{maxWidth: '40%', height: '100%', paddingLeft: '8px', borderLeft: '1px solid #e5e7eb'}}>
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{
+                        maxWidth: '38%', 
+                        width: '38%',
+                        height: '100%', 
+                        paddingLeft: '6px', 
+                        borderLeft: '1px solid #e5e7eb',
+                        overflow: 'hidden',
+                        boxSizing: 'border-box'
+                      }}>
                         <div style={{
                           border: '1px solid #e2e8f0',
-                          borderRadius: '6px',
+                          borderRadius: '4px',
                           background: '#ffffff',
-                          padding: '4px'
+                          padding: '3px',
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxSizing: 'border-box',
+                          maxWidth: '100%',
+                          maxHeight: '100%'
                         }}>
                           <QRCodeSVG
                             value={JSON.stringify({
@@ -1048,9 +1120,16 @@ export default function Products() {
                               name: selectedProduct.name,
                               price: selectedProduct.price
                             })}
-                            size={printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 140 : 220}
+                            size={printSettings.size === 'card' ? 73 : printSettings.size === 'thermal' ? 123 : 143}
                             level="H"
                             includeMargin={false}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain'
+                            }}
                           />
                         </div>
                       </div>

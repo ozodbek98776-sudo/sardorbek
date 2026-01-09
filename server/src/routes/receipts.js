@@ -105,7 +105,8 @@ router.post('/kassa', async (req, res) => {
         name: item.name,
         code: item.code,
         price: item.price,
-        quantity: item.quantity
+        quantity: item.quantity,
+        paymentBreakdown: item.paymentBreakdown || { cash: 0, click: 0, card: 0 }
       })),
       total,
       paymentMethod,

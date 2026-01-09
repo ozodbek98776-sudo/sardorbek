@@ -34,6 +34,34 @@ router.post('/attendance', auth, async (req, res) => {
   }
 });
 
+// Kassa uchun kelish/ketish xabari (token talab qilmaydi)
+router.post('/attendance/kassa', async (req, res) => {
+  try {
+    const { type, username } = req.body;
+    if (!['arrived', 'left'].includes(type)) {
+      return res.status(400).json({ message: 'Noto‘g‘ri tur: arrived yoki left bo‘lishi kerak' });
+    }
+    if (!username) {
+      return res.status(400).json({ message: 'Username talab qilinadi' });
+    }
+    
+    // Kassa uchun alohida xabar yuborish
+    const emoji = type === 'arrived' ? '🟢' : '🔴';
+    const verb = type === 'arrived' ? 'Ishga KELDI' : 'Ishdan KETDI';
+    const message = `
+${emoji} <b>${verb}</b>
+
+👤 <b>Xodim:</b> ${username}
+🎭 <b>Rol:</b> Kassir
+📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
+    `;
+    await telegramService.sendMessage(message.trim());
+    res.json({ message: 'Xabar yuborildi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Webhook o'rnatish
 router.post('/set-webhook', auth, authorize('admin'), async (req, res) => {
   try {

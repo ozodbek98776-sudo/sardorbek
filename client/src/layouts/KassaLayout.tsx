@@ -94,33 +94,40 @@ export default function KassaLayout() {
 
   const handleAttendance = async (type: 'arrived' | 'left') => {
     if (sending) return;
-    const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
-    const current = attendanceToday;
-    
-    if ((type === 'arrived' && current.arrived >= 2) || (type === 'left' && current.left >= 2)) {
-      await showAlert('Bugun ushbu amal maksimal 2 marta bajarilishi mumkin', 'Ogohlantirish', 'warning');
-      return;
-    }
+    // TEST REJIMI: Bir marta bosish cheklovi o'chirilgan
+    // const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+    // const current = attendanceToday;
+    // if ((type === 'arrived' && current.arrived >= 2) || (type === 'left' && current.left >= 2)) {
+    //   await showAlert('Bugun ushbu amal maksimal 2 marta bajarilishi mumkin', 'Ogohlantirish', 'warning');
+    //   return;
+    // }
     
     try {
       setSending(type);
-      await api.post('/telegram/attendance', { type });
+      await api.post('/telegram/attendance/kassa', { type, username: userInfo.username });
       await showAlert(
         type === 'arrived' ? 'Keldingiz xabari yuborildi' : 'Ketdingiz xabari yuborildi',
        'Muvaffaqiyatli',
        'success'
       );
       if (type === 'arrived') {
-        const updated = { ...current, arrived: current.arrived + 1 };
-        localStorage.setItem(key, JSON.stringify(updated));
-        setAttendanceToday(updated);
-        if (updated.arrived > 0 && updated.left === 0) {
-          setUiMode('arrived');
-        }
+        // TEST REJIMI: localStorage'ga saqlash o'chirilgan
+        // const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+        // const current = attendanceToday;
+        // const updated = { ...current, arrived: current.arrived + 1 };
+        // localStorage.setItem(key, JSON.stringify(updated));
+        // setAttendanceToday(updated);
+        // if (updated.arrived > 0 && updated.left === 0) {
+        //   setUiMode('arrived');
+        // }
+        setUiMode('arrived');
       } else {
-        const updated = { ...current, left: current.left + 1 };
-        localStorage.setItem(key, JSON.stringify(updated));
-        setAttendanceToday(updated);
+        // TEST REJIMI: localStorage'ga saqlash o'chirilgan
+        // const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+        // const current = attendanceToday;
+        // const updated = { ...current, left: current.left + 1 };
+        // localStorage.setItem(key, JSON.stringify(updated));
+        // setAttendanceToday(updated);
         handleLogout();
         window.location.replace('/kassa-login');
       }
@@ -283,14 +290,14 @@ export default function KassaLayout() {
             <div className="mx-auto max-w-md flex gap-4">
               <button
                 onClick={() => handleAttendance('arrived')}
-                disabled={sending !== null || attendanceToday.arrived >= 2}
+                disabled={sending !== null}
                 className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg hover:bg-emerald-700 disabled:opacity-60"
               >
                 {sending === 'arrived' ? 'Yuborilmoqda...' : 'Keldim'}
               </button>
               <button
                 onClick={() => handleAttendance('left')}
-                disabled={sending !== null || attendanceToday.left >= 2}
+                disabled={sending !== null}
                 className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-rose-600 text-white font-bold shadow-lg hover:bg-rose-700 disabled:opacity-60"
               >
                 {sending === 'left' ? 'Yuborilmoqda...' : 'Ketdim'}
@@ -303,14 +310,14 @@ export default function KassaLayout() {
         <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
           <button
             onClick={() => handleAttendance('arrived')}
-            disabled={sending !== null || attendanceToday.arrived >= 2}
+            disabled={sending !== null}
             className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:bg-emerald-700 disabled:opacity-60 transition-all"
           >
             {sending === 'arrived' ? '...' : 'Keldim'}
           </button>
           <button
             onClick={() => handleAttendance('left')}
-            disabled={sending !== null || attendanceToday.left >= 2}
+            disabled={sending !== null}
             className="px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold shadow-md hover:bg-rose-700 disabled:opacity-60 transition-all"
           >
             {sending === 'left' ? '...' : 'Ketdim'}
