@@ -67,12 +67,12 @@ export const formatReceiptData = (data: ReceiptData): string => {
   return receipt;
 };
 
-// Chekni printerga yuborish - PRINT TUGAGANDAN KEYIN CALLBACK
-export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => void): Promise<boolean> => {
+// X Printer uchun maxsus chek chiqarish funksiyasi
+export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () => void): Promise<boolean> => {
   try {
     const receiptText = formatReceiptData(data);
     
-    // Yashirin iframe yaratish - hech qanday oyna ko'rinmaydi
+    // X Printer uchun maxsus iframe yaratish
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
     iframe.style.left = '-9999px';
@@ -90,11 +90,12 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
       throw new Error('Iframe document topilmadi');
     }
     
+    // X Printer uchun optimallashtirilgan HTML
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>KASSA CHEKI</title>
+          <title>X PRINTER CHEK</title>
           <meta charset="UTF-8">
           <style>
             * {
@@ -105,34 +106,46 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
             
             body {
               font-family: 'Courier New', monospace;
-              font-size: 14px;
+              font-size: 12px;
               font-weight: bold;
-              line-height: 1.3;
+              line-height: 1.2;
               color: #000;
               background: white;
-              padding: 10px;
+              padding: 0;
+              margin: 0;
             }
             
             .receipt-text {
               white-space: pre-line;
-              font-family: inherit;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
               font-weight: bold;
               word-break: break-word;
+              padding: 5px;
             }
             
-            /* Print uchun - JUDA SODDA */
+            /* X Printer uchun maxsus print sozlamalari */
             @media print {
+              @page {
+                size: 80mm auto;
+                margin: 0;
+                padding: 0;
+              }
+              
               body {
                 background: white;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: bold;
-                padding: 5px;
+                padding: 0;
                 margin: 0;
+                width: 80mm;
               }
               
               .receipt-text {
                 width: 100%;
                 font-weight: bold;
+                font-size: 11px;
+                padding: 2mm;
               }
             }
           </style>
@@ -141,12 +154,20 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
           <div class="receipt-text">${receiptText}</div>
           
           <script>
-            // Print tugagandan keyin callback chaqirish
+            // X Printer uchun print tugagandan keyin callback
             window.addEventListener('afterprint', function() {
-              // Parent window'ga xabar yuborish
-              if (window.parent && window.parent.printCompleted) {
-                window.parent.printCompleted();
+              console.log('X Printer: Print tugadi');
+              if (window.parent && window.parent.xPrinterCompleted) {
+                window.parent.xPrinterCompleted();
               }
+            });
+            
+            // X Printer uchun avtomatik print
+            window.addEventListener('load', function() {
+              setTimeout(function() {
+                console.log('X Printer: Print boshlanmoqda...');
+                window.print();
+              }, 300);
             });
           </script>
         </body>
@@ -158,9 +179,10 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
     iframeDoc.write(htmlContent);
     iframeDoc.close();
     
-    // Global callback funksiyasini o'rnatish
+    // X Printer uchun global callback funksiyasini o'rnatish
     if (onPrintComplete) {
-      (window as any).printCompleted = () => {
+      (window as any).xPrinterCompleted = () => {
+        console.log('X Printer: Callback chaqirildi');
         onPrintComplete();
         // Iframe'ni o'chirish
         setTimeout(() => {
@@ -169,37 +191,24 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
           }
         }, 1000);
         // Global funksiyani tozalash
-        delete (window as any).printCompleted;
+        delete (window as any).xPrinterCompleted;
       };
     }
     
-    // Print qilish
-    setTimeout(() => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        
-        // Agar callback yo'q bo'lsa, oddiy tarzda iframe'ni o'chirish
-        if (!onPrintComplete) {
-          setTimeout(() => {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe);
-            }
-          }, 2000);
-        }
-        
-      } catch (printError) {
-        console.error('Print xatosi:', printError);
+    // Agar callback yo'q bo'lsa, oddiy tarzda iframe'ni o'chirish
+    if (!onPrintComplete) {
+      setTimeout(() => {
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe);
         }
-        throw printError;
-      }
-    }, 500);
+      }, 3000);
+    }
     
+    console.log('X Printer: Chek tayyorlandi va yuborildi');
     return true;
+    
   } catch (error) {
-    console.error('Chek chiqarishda xatolik:', error);
+    console.error('X Printer xatosi:', error);
     
     // Fallback - faylni yuklab olish
     try {
@@ -210,6 +219,12 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
       return false;
     }
   }
+};
+
+// Chekni printerga yuborish - X PRINTER BILAN ISHLASH
+export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => void): Promise<boolean> => {
+  // X Printer funksiyasini chaqirish
+  return await printToXPrinter(data, onPrintComplete);
 };
 
 // Chekni PDF sifatida saqlash (ixtiyoriy)
@@ -257,62 +272,78 @@ export const generateESCPOSCommands = (data: ReceiptData): Uint8Array => {
   return new Uint8Array(commands);
 };
 
-// Printer holatini tekshirish
+// X Printer holatini tekshirish
 export const checkPrinterStatus = async (): Promise<{
   available: boolean;
   printers: string[];
   defaultPrinter?: string;
+  xPrinterFound?: boolean;
 }> => {
   try {
     // @ts-ignore - Navigator printing API
     if (navigator.printing && navigator.printing.getPrinters) {
       // @ts-ignore
       const printers = await navigator.printing.getPrinters();
+      const printerNames = printers.map((p: any) => p.name || p.id);
+      
+      // X Printer mavjudligini tekshirish
+      const xPrinterFound = printerNames.some((name: string) => 
+        name.toLowerCase().includes('x printer') || 
+        name.toLowerCase().includes('xprinter') ||
+        name.toLowerCase().includes('x-printer')
+      );
+      
       return {
         available: printers.length > 0,
-        printers: printers.map((p: any) => p.name || p.id),
-        defaultPrinter: printers.find((p: any) => p.isDefault)?.name
+        printers: printerNames,
+        defaultPrinter: printers.find((p: any) => p.isDefault)?.name,
+        xPrinterFound
       };
     }
     
     // Fallback - browser print mavjudligini tekshirish
     return {
       available: 'print' in window,
-      printers: ['Browser Default Printer'],
-      defaultPrinter: 'Browser Default Printer'
+      printers: ['Browser Default Printer', 'X Printer (Auto-detect)'],
+      defaultPrinter: 'X Printer (Auto-detect)',
+      xPrinterFound: true // Optimistik yondashuv
     };
   } catch (error) {
     console.error('Printer holatini tekshirishda xatolik:', error);
     return {
       available: false,
       printers: [],
-      defaultPrinter: undefined
+      defaultPrinter: undefined,
+      xPrinterFound: false
     };
   }
 };
 
-// Printer test sahifasi chiqarish
-export const printTestPage = async (): Promise<boolean> => {
+// X Printer test sahifasi chiqarish
+export const printXPrinterTestPage = async (): Promise<boolean> => {
   const testData: ReceiptData = {
     items: [
       {
-        _id: 'test-1',
-        name: 'Test mahsulot',
-        code: 'TEST001',
-        price: 10000,
+        _id: 'test-x-1',
+        name: '🖨️ X PRINTER TEST',
+        code: 'XTEST001',
+        price: 5000,
         cartQuantity: 1,
         quantity: 100,
-        warehouse: 'test-warehouse'
+        warehouse: 'test-x'
       } as CartItem
     ],
-    total: 10000,
+    total: 5000,
     paymentMethod: 'cash',
-    receiptNumber: `TEST-${Date.now()}`,
-    cashier: 'Test Kassir',
+    receiptNumber: `X-PRINTER-TEST-${Date.now()}`,
+    cashier: 'X Printer Test',
     date: new Date()
   };
   
-  return await printReceipt(testData);
+  console.log('X Printer test sahifasi chiqarilmoqda...');
+  return await printToXPrinter(testData, () => {
+    console.log('X Printer test tugadi!');
+  });
 };
 
 // Printer sozlamalarini saqlash

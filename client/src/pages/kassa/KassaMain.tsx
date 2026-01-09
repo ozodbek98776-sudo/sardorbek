@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
-  Package, Banknote, Delete, RefreshCw, Printer
+  Package, Banknote, Delete, RefreshCw, Printer,
+  DollarSign, Smartphone
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -183,9 +184,10 @@ export default function KassaMain() {
   const [codeSuggestions, setCodeSuggestions] = useState<Product[]>([]);
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [printerStatus, setPrinterStatus] = useState<{available: boolean; printers: string[]}>({
+  const [printerStatus, setPrinterStatus] = useState<{available: boolean; printers: string[]; xPrinterFound?: boolean}>({
     available: false,
-    printers: []
+    printers: [],
+    xPrinterFound: false
   });
   // KOD/SON panel uchun yangi state
   const [inputMode, setInputMode] = useState<'kod' | 'son'>('kod');
@@ -766,151 +768,6 @@ export default function KassaMain() {
     setSelectedItemForPayment(null);
   };
 
-  const handlePayment = async (method: 'cash' | 'card' | 'click') => {
-    if (cart.length === 0) return;
-    
-    // To'lov summalarini hisoblash - paymentBreakdown bo'lmagan tovarlar uchun 0 deb hisoblash
-    const totalCash = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
-    const totalClick = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
-    const totalCard = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
-    const totalPaid = totalCash + totalClick + totalCard;
-    const remainingAmount = total - totalPaid;
-    
-    const receiptNumber = `CHK-${Date.now()}`;
-    const saleData = {
-      items: cart.map(item => ({
-        product: item._id,
-        name: item.name,
-        code: item.code,
-        price: item.price,
-        quantity: item.cartQuantity,
-        paymentBreakdown: item.paymentBreakdown || { cash: 0, click: 0, card: 0 }
-      })),
-      total,
-      paymentMethod: method,
-      customer: selectedCustomer?._id,
-      receiptNumber,
-      paidAmount: totalPaid,
-      remainingAmount: remainingAmount
-    };
-
-    try {
-      // 1. Chekni saqlash
-      await api.post('/receipts/kassa', saleData);
-      
-      // 2. Agar qoldiq summa bo'lsa va mijoz tanlangan bo'lsa, qarz yaratish
-      if (remainingAmount > 0 && selectedCustomer) {
-        try {
-          const debtData = {
-            customer: selectedCustomer._id,
-            amount: remainingAmount,
-            paidAmount: 0, // Qoldiq qarz uchun to'lov yo'q
-            description: `Xarid qoldig'i - Chek: ${receiptNumber}`,
-            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 kun keyin
-            items: cart.map(item => ({
-              product: item._id,
-              quantity: item.cartQuantity,
-              price: item.price
-            }))
-          };
-          
-          await api.post('/debts/kassa', debtData);
-          showAlert(`${formatNumber(remainingAmount)} so'm qoldiq qarz daftariga qo'shildi`, 'Ma\'lumot', 'info');
-        } catch (debtError) {
-          console.error('Qarz yaratishda xatolik:', debtError);
-          showAlert('Qarz yaratishda xatolik yuz berdi', 'Ogohlantirish', 'warning');
-        }
-      }
-      
-      // 3. Mahsulot miqdorini yangilash - har bir mahsulot uchun
-      console.log('To\'lov uchun mahsulot miqdorlarini yangilash boshlandi...');
-      const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
-      
-      for (const item of cart) {
-        try {
-          console.log(`${item.name} uchun miqdorni kamaytirish: ${item.cartQuantity} ta`);
-          const response = await api.put(`/products/${item._id}/reduce-quantity`, {
-            quantity: item.cartQuantity
-          });
-          console.log(`✅ ${item.name} muvaffaqiyatli yangilandi:`, response.data);
-          updateResults.push({ success: true, item: item.name, data: response.data });
-        } catch (quantityError: any) {
-          console.error(`❌ ${item.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
-          console.error('Xatolik tafsilotlari:', quantityError.response?.data);
-          
-          // Xatolik haqida foydalanuvchiga xabar berish
-          const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
-          showAlert(`${item.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
-          
-          updateResults.push({ success: false, item: item.name, error: errorMsg });
-        }
-      }
-      
-      console.log('To\'lov uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
-      
-      // 4. Chek ma'lumotlarini tayyorlash va chiqarish
-      const receiptData: ReceiptData = {
-        items: cart,
-        total,
-        paymentMethod: method,
-        customer: selectedCustomer,
-        receiptNumber,
-        cashier: 'Kassa',
-        date: new Date()
-      };
-      
-      // 5. Chekni chiqarish - print tugagandan keyin callback bilan
-      const printSuccess = await printReceipt(receiptData, () => {
-        // Print tugagandan keyin success xabari
-        const successCount = updateResults.filter(r => r.success).length;
-        const failCount = updateResults.filter(r => !r.success).length;
-        
-        let message = 'To\'lov qabul qilindi, chek muvaffaqiyatli chiqarildi';
-        if (remainingAmount > 0 && selectedCustomer) {
-          message += ` va ${formatNumber(remainingAmount)} so'm qarz daftariga qo'shildi`;
-        }
-        
-        if (failCount === 0) {
-          showAlert(message + ', mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
-        } else {
-          showAlert(`${message}. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
-        }
-        
-        // Savat va boshqa ma'lumotlarni tozalash
-        setCart([]);
-        setShowPayment(false);
-        setSelectedCustomer(null);
-        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-        fetchProducts();
-      });
-      
-      if (!printSuccess) {
-        let message = 'To\'lov qabul qilindi, savdo saqlandi, chek faylga yuklandi';
-        if (remainingAmount > 0 && selectedCustomer) {
-          message += ` va ${formatNumber(remainingAmount)} so'm qarz daftariga qo'shildi`;
-        }
-        showAlert(message, 'Ogohlantirish', 'warning');
-        // Print ishlamasa ham savat tozalanadi
-        setCart([]);
-        setShowPayment(false);
-        setSelectedCustomer(null);
-        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-        fetchProducts();
-      }
-      
-      // 6. Telegram xabar yuborish (agar mijoz tanlangan bo'lsa)
-      if (selectedCustomer) {
-        const message = `🛒 Yangi xarid:\n👤 Mijoz: ${selectedCustomer.name}\n💰 Summa: ${formatNumber(total)} so'm\n📦 Mahsulotlar: ${cart.length} ta\n⏰ Vaqt: ${new Date().toLocaleString()}`;
-        // Bu yerda telegram bot API orqali xabar yuboriladi
-        console.log('Telegram message:', message);
-      }
-      
-    } catch (err) {
-      console.error('Error creating receipt:', err);
-      showAlert('Xatolik yuz berdi', 'Xatolik', 'danger');
-    }
-  };
-
   const saveReceipt = () => {
     if (cart.length === 0) { 
       showAlert("Chek bo'sh", 'Ogohlantirish', 'warning'); 
@@ -927,62 +784,6 @@ export default function KassaMain() {
     localStorage.setItem('savedReceipts', JSON.stringify(updated));
     setCart([]);
     showAlert('Chek saqlandi!', 'Muvaffaqiyat', 'success');
-  };
-
-  // Kassir cheki chiqarish - to'lovsiz
-  const handleHelperReceipt = async () => {
-    if (cart.length === 0) {
-      showAlert("Savat bo'sh", 'Ogohlantirish', 'warning');
-      return;
-    }
-
-    try {
-      // 1. Kassir chekini bazaga saqlash
-      const receiptData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          name: item.name,
-          code: item.code,
-          price: item.price,
-          quantity: item.cartQuantity
-        }))
-      };
-
-      const response = await api.post('/receipts/helper-receipt', receiptData);
-      
-      if (response.data.success) {
-        // 2. Chekni print qilish
-        const printReceiptData: ReceiptData = {
-          items: cart,
-          total,
-          paymentMethod: 'cash', // Default
-          customer: selectedCustomer,
-          receiptNumber: `HELPER-${Date.now()}`,
-          cashier: 'Kassir',
-          date: new Date()
-        };
-        
-        const printSuccess = await printReceipt(printReceiptData, () => {
-          showAlert('Chek muvaffaqiyatli chiqarildi!', 'Muvaffaqiyat', 'success');
-          setCart([]);
-          setSelectedCustomer(null);
-          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-          fetchProducts();
-        });
-        
-        if (!printSuccess) {
-          showAlert('Chek bazaga saqlandi, faylga yuklandi', 'Ogohlantirish', 'warning');
-          setCart([]);
-          setSelectedCustomer(null);
-          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-          fetchProducts();
-        }
-      }
-    } catch (error: any) {
-      console.error('Helper receipt error:', error);
-      const errorMsg = error.response?.data?.message || 'Chek chiqarishda xatolik';
-      showAlert(errorMsg, 'Xatolik', 'danger');
-    }
   };
 
   return (
@@ -1240,13 +1041,22 @@ export default function KassaMain() {
                         {item.paymentBreakdown && (
                           <div className="mt-1 text-xs text-surface-600 space-y-0.5">
                             {item.paymentBreakdown.cash > 0 && (
-                              <div>💵 {formatNumber(item.paymentBreakdown.cash)}</div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3 text-green-600" />
+                                {formatNumber(item.paymentBreakdown.cash)}
+                              </div>
                             )}
                             {item.paymentBreakdown.click > 0 && (
-                              <div>🟣 {formatNumber(item.paymentBreakdown.click)}</div>
+                              <div className="flex items-center gap-1">
+                                <Smartphone className="w-3 h-3 text-purple-600" />
+                                {formatNumber(item.paymentBreakdown.click)}
+                              </div>
                             )}
                             {item.paymentBreakdown.card > 0 && (
-                              <div>💳 {formatNumber(item.paymentBreakdown.card)}</div>
+                              <div className="flex items-center gap-1">
+                                <CreditCard className="w-3 h-3 text-blue-600" />
+                                {formatNumber(item.paymentBreakdown.card)}
+                              </div>
                             )}
                           </div>
                         )}
@@ -1359,13 +1169,22 @@ export default function KassaMain() {
                           {item.paymentBreakdown && (
                             <div className="mt-1 text-xs text-surface-600 space-y-0.5">
                               {item.paymentBreakdown.cash > 0 && (
-                                <div>💵 {formatNumber(item.paymentBreakdown.cash)}</div>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3 text-green-600" />
+                                  {formatNumber(item.paymentBreakdown.cash)}
+                                </div>
                               )}
                               {item.paymentBreakdown.click > 0 && (
-                                <div>🟣 {formatNumber(item.paymentBreakdown.click)}</div>
+                                <div className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3 text-purple-600" />
+                                  {formatNumber(item.paymentBreakdown.click)}
+                                </div>
                               )}
                               {item.paymentBreakdown.card > 0 && (
-                                <div>💳 {formatNumber(item.paymentBreakdown.card)}</div>
+                                <div className="flex items-center gap-1">
+                                  <CreditCard className="w-3 h-3 text-blue-600" />
+                                  {formatNumber(item.paymentBreakdown.card)}
+                                </div>
                               )}
                             </div>
                           )}
@@ -1864,16 +1683,25 @@ export default function KassaMain() {
                 </p>
                 
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-surface-600">💵 Naqd pul:</span>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-surface-600">
+                      <DollarSign className="w-4 h-4 text-green-600" />
+                      <span>Naqd pul:</span>
+                    </div>
                     <span className="font-semibold">{formatNumber(paymentAmounts.cash)} so'm</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-surface-600">🟣 Click:</span>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-surface-600">
+                      <Smartphone className="w-4 h-4 text-purple-600" />
+                      <span>Click:</span>
+                    </div>
                     <span className="font-semibold">{formatNumber(paymentAmounts.click)} so'm</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-surface-600">💳 Plastik karta:</span>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-surface-600">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
+                      <span>Plastik karta:</span>
+                    </div>
                     <span className="font-semibold">{formatNumber(paymentAmounts.card)} so'm</span>
                   </div>
                   <div className="border-t border-surface-200 pt-2 flex justify-between">
@@ -1917,10 +1745,12 @@ export default function KassaMain() {
               )}
               
               <div className="flex items-center justify-center gap-1 text-xs">
-                <Printer className={`w-3 h-3 ${printerStatus.available ? 'text-green-600' : 'text-red-600'}`} />
-                <span className={printerStatus.available ? 'text-green-600' : 'text-red-600'}>
-                  {printerStatus.available 
-                    ? `Printer tayyor (${printerStatus.printers.length} ta)` 
+                <Printer className={`w-3 h-3 ${printerStatus.xPrinterFound ? 'text-green-600' : printerStatus.available ? 'text-yellow-600' : 'text-red-600'}`} />
+                <span className={printerStatus.xPrinterFound ? 'text-green-600' : printerStatus.available ? 'text-yellow-600' : 'text-red-600'}>
+                  {printerStatus.xPrinterFound 
+                    ? 'X Printer tayyor' 
+                    : printerStatus.available 
+                    ? `Printer mavjud (${printerStatus.printers.length} ta)` 
                     : 'Printer topilmadi'
                   }
                 </span>
@@ -2016,16 +1846,6 @@ export default function KassaMain() {
               >
                 <Printer className="w-5 h-5" />
                 Chek chiqarish (to'lovsiz)
-              </button>
-              
-              {/* Savdoni yakunlash tugmasi - to'lov bilan */}
-              <button 
-                onClick={() => handlePayment('cash')} 
-                className="w-full flex items-center justify-center gap-2 py-3 sm:py-4 bg-success-500 hover:bg-success-600 text-white rounded-xl font-semibold transition-colors"
-              >
-                <Banknote className="w-5 h-5" />
-                Savdoni yakunlash
-                <Printer className="w-4 h-4 ml-1 opacity-75" />
               </button>
               
               {paidAmount < total && !selectedCustomer && (
