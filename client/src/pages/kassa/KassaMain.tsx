@@ -165,6 +165,70 @@ export default function KassaMain() {
   // To'lov turlari uchun state
   const [showPaymentBreakdown, setShowPaymentBreakdown] = useState(false);
   const [selectedItemForPayment, setSelectedItemForPayment] = useState<CartItem | null>(null);
+  
+  // Pricing tier edit uchun state
+  const [showPricingEdit, setShowPricingEdit] = useState(false);
+  const [selectedItemForPricing, setSelectedItemForPricing] = useState<CartItem | null>(null);
+  const [customMarkupPercent, setCustomMarkupPercent] = useState<number>(15);
+
+  // Miqdorga qarab narx hisoblash funksiyasi
+  const calculateDynamicPrice = (product: Product, quantity: number): number => {
+    const basePrice = product.price; // Base price (cost price)
+    let markupPercent = 15; // Default 15%
+    
+    // Pricing tier aniqlash
+    if (quantity >= 100) {
+      markupPercent = 11; // 100+ dona uchun 11%
+    } else if (quantity >= 10) {
+      markupPercent = 13; // 10-99 dona uchun 13%
+    } else {
+      markupPercent = 15; // 1-9 dona uchun 15%
+    }
+    
+    // Narxni hisoblash
+    const finalPrice = basePrice * (1 + markupPercent / 100);
+    return Math.round(finalPrice); // Yaxlitlash
+  };
+
+  // Pricing tier ma'lumotini olish
+  const getPricingTier = (quantity: number, customMarkup?: number) => {
+    if (customMarkup !== undefined) {
+      return { name: 'Maxsus', markupPercent: customMarkup, discount: customMarkup < 15, custom: true };
+    }
+    
+    if (quantity >= 100) {
+      return { name: '100+ dona', markupPercent: 11, discount: true, custom: false };
+    } else if (quantity >= 10) {
+      return { name: '10-99 dona', markupPercent: 13, discount: true, custom: false };
+    } else {
+      return { name: '1-9 dona', markupPercent: 15, discount: false, custom: false };
+    }
+  };
+
+  // Pricing edit funksiyalari
+  const handleItemPricingEdit = (item: CartItem) => {
+    setSelectedItemForPricing(item);
+    const currentTier = getPricingTier(item.cartQuantity);
+    setCustomMarkupPercent(currentTier.markupPercent);
+    setShowPricingEdit(true);
+  };
+
+  const saveCustomPricing = () => {
+    if (!selectedItemForPricing) return;
+    
+    const basePrice = selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15; // Approximate base price
+    const newPrice = Math.round(basePrice * (1 + customMarkupPercent / 100));
+    
+    setCart(prev => prev.map(p => 
+      p._id === selectedItemForPricing._id 
+        ? { ...p, price: newPrice, customMarkup: customMarkupPercent }
+        : p
+    ));
+    
+    setShowPricingEdit(false);
+    setSelectedItemForPricing(null);
+    showAlert(`Narx yangilandi: ${customMarkupPercent}% qo'shimcha`, 'Muvaffaqiyat', 'success');
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -538,9 +602,13 @@ export default function KassaMain() {
           showAlert(`${product.name} uchun maksimal miqdor: ${product.quantity} ta`, 'Ogohlantirish', 'warning');
           return prev; // O'zgartirishni bekor qilish
         }
-        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity} : p);
+        // Dynamic pricing bilan narxni yangilash
+        const dynamicPrice = calculateDynamicPrice(product, newQuantity);
+        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity, price: dynamicPrice} : p);
       }
-      return [...prev, {...product, cartQuantity: quantity}];
+      // Yangi mahsulot uchun dynamic pricing
+      const dynamicPrice = calculateDynamicPrice(product, quantity);
+      return [...prev, {...product, cartQuantity: quantity, price: dynamicPrice}];
     });
     setShowSearch(false);
     setSearchQuery('');
@@ -556,9 +624,13 @@ export default function KassaMain() {
           showAlert(`${product.name} uchun maksimal miqdor: ${product.quantity} ta`, 'Ogohlantirish', 'warning');
           return prev; // O'zgartirishni bekor qilish
         }
-        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity} : p);
+        // Dynamic pricing bilan narxni yangilash
+        const dynamicPrice = calculateDynamicPrice(product, newQuantity);
+        return prev.map(p => p._id === product._id ? {...p, cartQuantity: newQuantity, price: dynamicPrice} : p);
       }
-      return [...prev, {...product, cartQuantity: 1}];
+      // Yangi mahsulot uchun dynamic pricing (1 dona)
+      const dynamicPrice = calculateDynamicPrice(product, 1);
+      return [...prev, {...product, cartQuantity: 1, price: dynamicPrice}];
     });
     setShowSearch(false);
     setSearchQuery('');
@@ -1040,8 +1112,11 @@ export default function KassaMain() {
                                 return; // O'zgartirishni bekor qilish
                               }
                               
+                              // Dynamic pricing bilan narxni yangilash
+                              const dynamicPrice = calculateDynamicPrice(item, newQuantity);
+                              
                               setCart(prev => prev.map(p => 
-                                p._id === item._id ? { ...p, cartQuantity: newQuantity } : p
+                                p._id === item._id ? { ...p, cartQuantity: newQuantity, price: dynamicPrice } : p
                               ));
                             }
                           }}
@@ -1058,7 +1133,25 @@ export default function KassaMain() {
                         />
                       </div>
                       <div className="col-span-2 text-right">
-                        <span className="text-sm text-surface-900">{formatNumber(item.price)}</span>
+                        <div className="space-y-1">
+                          <span className="text-sm text-surface-900">{formatNumber(item.price)}</span>
+                          {/* Pricing tier ma'lumoti */}
+                          {(() => {
+                            const tier = getPricingTier(item.cartQuantity, item.customMarkup);
+                            return (
+                              <div 
+                                onClick={() => handleItemPricingEdit(item)}
+                                className={`text-xs px-2 py-0.5 rounded-full inline-block cursor-pointer hover:opacity-80 transition-opacity ${
+                                  tier.custom ? 'bg-purple-100 text-purple-700' :
+                                  tier.discount ? 'bg-success-100 text-success-700' : 'bg-surface-100 text-surface-600'
+                                }`}
+                                title="Foizni o'zgartirish uchun bosing"
+                              >
+                                {tier.name} ({tier.markupPercent}%)
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
                       <div className="col-span-2 text-right">
                         <span className="text-sm font-semibold text-surface-900">
@@ -1139,8 +1232,11 @@ export default function KassaMain() {
                                   return; // O'zgartirishni bekor qilish
                                 }
                                 
+                                // Dynamic pricing bilan narxni yangilash
+                                const dynamicPrice = calculateDynamicPrice(item, newQuantity);
+                                
                                 setCart(prev => prev.map(p => 
-                                  p._id === item._id ? { ...p, cartQuantity: newQuantity } : p
+                                  p._id === item._id ? { ...p, cartQuantity: newQuantity, price: dynamicPrice } : p
                                 ));
                               }
                             }}
@@ -1158,10 +1254,28 @@ export default function KassaMain() {
                         </div>
                         
                         <div className="text-right">
-                          <p className="text-sm text-surface-600">{formatNumber(item.price)} so'm</p>
-                          <p className="font-semibold text-surface-900">
-                            {formatNumber(item.price * item.cartQuantity)} so'm
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-sm text-surface-600">{formatNumber(item.price)} so'm</p>
+                            {/* Pricing tier ma'lumoti */}
+                            {(() => {
+                              const tier = getPricingTier(item.cartQuantity, item.customMarkup);
+                              return (
+                                <div 
+                                  onClick={() => handleItemPricingEdit(item)}
+                                  className={`text-xs px-2 py-0.5 rounded-full inline-block cursor-pointer hover:opacity-80 transition-opacity ${
+                                    tier.custom ? 'bg-purple-100 text-purple-700' :
+                                    tier.discount ? 'bg-success-100 text-success-700' : 'bg-surface-100 text-surface-600'
+                                  }`}
+                                  title="Foizni o'zgartirish uchun bosing"
+                                >
+                                  {tier.name} ({tier.markupPercent}%)
+                                </div>
+                              );
+                            })()}
+                            <p className="font-semibold text-surface-900">
+                              {formatNumber(item.price * item.cartQuantity)} so'm
+                            </p>
+                          </div>
                           {/* To'lov turlari ko'rsatish */}
                           {item.paymentBreakdown && (
                             <div className="text-xs text-surface-500 mt-1 space-y-0.5">
@@ -1672,6 +1786,99 @@ export default function KassaMain() {
                 setSelectedItemForPayment(null);
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Pricing Edit Modal - Foizni o'zgartirish */}
+      {showPricingEdit && selectedItemForPricing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={() => {
+            setShowPricingEdit(false);
+            setSelectedItemForPricing(null);
+          }} />
+          <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
+            <div className="mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-surface-900 mb-2">Foizni o'zgartirish</h3>
+              <div className="bg-surface-50 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-surface-700 mb-1">{selectedItemForPricing.name}</p>
+                <p className="text-xs text-surface-500 font-mono mb-2">Kod: {selectedItemForPricing.code}</p>
+                <p className="text-sm text-surface-600">
+                  Miqdor: {selectedItemForPricing.cartQuantity} ta
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-surface-700 mb-2">
+                  Qo'shimcha foiz (%)
+                </label>
+                <input
+                  type="number"
+                  value={customMarkupPercent}
+                  onChange={(e) => setCustomMarkupPercent(Number(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  placeholder="15"
+                />
+              </div>
+              
+              {/* Tezkor foiz tugmalari */}
+              <div className="grid grid-cols-4 gap-2">
+                {[5, 10, 15, 20].map(percent => (
+                  <button
+                    key={percent}
+                    onClick={() => setCustomMarkupPercent(percent)}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      customMarkupPercent === percent
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-surface-100 text-surface-700 hover:bg-surface-200'
+                    }`}
+                  >
+                    {percent}%
+                  </button>
+                ))}
+              </div>
+              
+              {/* Narx ko'rsatish */}
+              {selectedItemForPricing && (
+                <div className="bg-brand-50 rounded-lg p-3">
+                  <div className="flex justify-between items-center text-sm mb-1">
+                    <span className="text-surface-600">Yangi narx (1 ta):</span>
+                    <span className="font-semibold text-brand-600">
+                      {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)))} so'm
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-surface-600">Jami summa:</span>
+                    <span className="font-bold text-brand-700">
+                      {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)) * selectedItemForPricing.cartQuantity)} so'm
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPricingEdit(false);
+                  setSelectedItemForPricing(null);
+                }}
+                className="flex-1 py-3 px-4 bg-surface-100 text-surface-700 rounded-xl font-medium hover:bg-surface-200 transition-colors"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={saveCustomPricing}
+                className="flex-1 py-3 px-4 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 transition-colors"
+              >
+                Saqlash
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -263,7 +263,7 @@ export default function Debts() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
@@ -272,9 +272,9 @@ export default function Debts() {
                 statusFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
               }`}
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-4">
                 <div className={`stat-icon bg-${stat.color}-50`}>
-                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
                 </div>
               </div>
               <p className="stat-value">{stat.value}</p>

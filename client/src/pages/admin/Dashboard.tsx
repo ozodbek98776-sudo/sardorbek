@@ -145,13 +145,13 @@ export default function Dashboard() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1,2,3,4].map(i => (
-              <div key={i} className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 shadow-md border border-slate-200/50">
+              <div key={i} className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-md border border-slate-200/50">
                 <div className="animate-pulse">
-                  <div className="w-10 h-10 bg-slate-200 rounded-xl mb-3" />
-                  <div className="h-3 bg-slate-200 rounded mb-2 w-3/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                  <div className="w-12 h-12 bg-slate-200 rounded-xl mb-4" />
+                  <div className="h-4 bg-slate-200 rounded mb-3 w-3/4" />
+                  <div className="h-5 bg-slate-200 rounded w-1/2" />
                 </div>
               </div>
             ))}
@@ -159,16 +159,16 @@ export default function Dashboard() {
         ) : (
           <>
             {/* Main Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {mainStats.map((stat, i) => (
-                <div key={i} className="group relative bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-md border border-slate-200/50 hover:shadow-lg hover:border-slate-300/50 transition-all duration-300 hover:-translate-y-1">
+                <div key={i} className="group relative bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-md border border-slate-200/50 hover:shadow-lg hover:border-slate-300/50 transition-all duration-300 hover:-translate-y-1">
                   {/* Background Gradient */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`} />
                   
                   <div className="relative z-10">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-sm`}>
-                        <stat.icon className={`w-5 h-5 ${stat.textColor}`} />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-sm`}>
+                        <stat.icon className={`w-6 h-6 ${stat.textColor}`} />
                       </div>
                       {stat.trend && (
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
@@ -179,12 +179,12 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xl lg:text-2xl font-bold text-slate-900 leading-none">
+                    <div className="space-y-2">
+                      <p className="text-2xl lg:text-3xl font-bold text-slate-900 leading-none">
                         {stat.value}
-                        {stat.suffix && <span className="text-sm font-normal text-slate-500 ml-1">{stat.suffix}</span>}
+                        {stat.suffix && <span className="text-base font-normal text-slate-500 ml-1">{stat.suffix}</span>}
                       </p>
-                      <p className="text-slate-600 font-medium text-sm">{t(stat.label)}</p>
+                      <p className="text-slate-600 font-medium text-base">{t(stat.label)}</p>
                     </div>
                   </div>
                 </div>

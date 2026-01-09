@@ -30,6 +30,7 @@ export interface CartItem extends Product {
     click: number;   // Click miqdori
     card: number;    // Karta miqdori
   };
+  customMarkup?: number; // Qo'lda belgilangan foiz
 }
 
 export interface Receipt {
