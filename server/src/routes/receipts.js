@@ -94,6 +94,134 @@ router.post('/helper-receipt', auth, async (req, res) => {
   }
 });
 
+// Atomic transaction endpoint - print va database o'zgarishlarini birgalikda amalga oshirish
+router.post('/kassa-atomic', async (req, res) => {
+  try {
+    const { items, total, paymentMethod, customer, receiptNumber, printSuccess } = req.body;
+
+    // Print muvaffaqiyatsiz bo'lsa, transaction bekor qilinadi
+    if (!printSuccess) {
+      return res.status(400).json({
+        success: false,
+        message: 'Print muvaffaqiyatsiz - transaction bekor qilindi'
+      });
+    }
+
+    // Mahsulot miqdorlarini tekshirish
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Mahsulot topilmadi: ${item.name}`
+        });
+      }
+      if (product.quantity < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Yetarli mahsulot yo'q: ${item.name}. Mavjud: ${product.quantity}, Kerak: ${item.quantity}`
+        });
+      }
+    }
+
+    // Atomic transaction boshlanishi
+    const receiptData = {
+      items: items.map(item => ({
+        product: item.product,
+        name: item.name,
+        code: item.code,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      total,
+      paymentMethod,
+      customer: customer || null,
+      receiptNumber: receiptNumber || `CHK-${Date.now()}`,
+      status: 'completed',
+      isPaid: true,
+      printStatus: 'printed', // Print muvaffaqiyatli
+      createdAt: new Date()
+    };
+
+    const receipt = new Receipt(receiptData);
+    await receipt.save();
+
+    // Mahsulot miqdorlarini yangilash
+    for (const item of items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { quantity: -item.quantity } }
+      );
+    }
+
+    // Mijoz statistikasini yangilash
+    if (customer) {
+      try {
+        const customerData = await Customer.findById(customer);
+
+        if (customerData) {
+          // Statistikani yangilash
+          await Customer.findByIdAndUpdate(
+            customer,
+            { $inc: { totalPurchases: total } }
+          );
+
+          // Qarz to'lovi logikasi (agar kerak bo'lsa)
+          if (customerData.debt > 0) {
+            const paymentAmount = Math.min(total, customerData.debt);
+
+            await Customer.findByIdAndUpdate(
+              customer,
+              { $inc: { debt: -paymentAmount } }
+            );
+
+            console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
+          }
+
+          // Telegram xabari yuborish
+          if (customerData.telegramChatId) {
+            try {
+              const updatedCustomer = await Customer.findById(customer);
+
+              await telegramService.sendReceiptToCustomer({
+                customer: updatedCustomer,
+                items: items,
+                total: total,
+                paymentMethod: paymentMethod
+              });
+
+              console.log(`Receipt sent to ${customerData.name} successfully`);
+            } catch (telegramError) {
+              console.error('Telegram notification error:', telegramError);
+            }
+          }
+        }
+      } catch (customerError) {
+        console.error('Customer processing error:', customerError);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      receipt: {
+        _id: receipt._id,
+        receiptNumber: receipt.receiptNumber,
+        total: receipt.total,
+        items: receipt.items,
+        createdAt: receipt.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Atomic transaction error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Atomic transaction xatosi',
+      error: error.message
+    });
+  }
+});
+
 // Kassa uchun chek yaratish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {

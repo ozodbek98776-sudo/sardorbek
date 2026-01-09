@@ -1,53 +1,71 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Package, Plus, X } from 'lucide-react';
-import { Product } from '../../types';
+import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus } from 'lucide-react';
+import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
+
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 
 export default function KassaProducts() {
-  const { showAlert, AlertComponent } = useAlert();
+  const { showAlert, showConfirm, AlertComponent } = useAlert();
   const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
+  const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [warehouseFilter, setWarehouseFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    code: '',
-    name: '',
-    costPrice: '',
-    price: '',
-    quantity: ''
+  const [showModal, setShowModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    code: '', name: '', costPrice: '', wholesalePrice: '', quantity: ''
   });
+  const [packageData, setPackageData] = useState({
+    packageCount: '', unitsPerPackage: '', totalCost: ''
+  });
+  const [images, setImages] = useState<string[]>([]);
+  const [codeError, setCodeError] = useState('');
+  const [showPackageInput, setShowPackageInput] = useState(false);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
+  const [quantityInput, setQuantityInput] = useState('');
+  const [printSettings, setPrintSettings] = useState({
+    printer: '',
+    copies: 1,
+    size: 'card',
+    layout: 'standard'
+  });
+  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchProducts();
-    
-    // Kassa sahifasida beforeunload eventini vaqtincha o'chirish
-    const originalHandler = window.onbeforeunload;
-    window.onbeforeunload = null;
-    
-    // Auto-refresh every 30 seconds to get latest data
-    const interval = setInterval(fetchProducts, 30000);
-    
-    return () => {
-      window.onbeforeunload = originalHandler;
-      clearInterval(interval);
-    };
+    fetchMainWarehouse();
   }, []);
+
+  useEffect(() => {
+    if (mainWarehouse) {
+      fetchProducts();
+    }
+  }, [mainWarehouse]);
 
   // Route o'zgarganda ma'lumotlarni yangilash
   useEffect(() => {
-    fetchProducts();
+    if (mainWarehouse) {
+      fetchProducts();
+    }
   }, [location.pathname]);
 
   useEffect(() => {
-    // Filter products based on search term and warehouse
+    // Filter products based on search term and stock
     let filtered = products;
     
     if (searchTerm.trim() !== '') {
@@ -57,88 +75,51 @@ export default function KassaProducts() {
       );
     }
     
-    if (warehouseFilter !== 'all') {
-      if (warehouseFilter === 'main') {
-        filtered = filtered.filter(product => product.isMainWarehouse);
-      } else {
-        filtered = filtered.filter(product => 
-          typeof product.warehouse === 'object' && product.warehouse._id === warehouseFilter
-        );
+    if (stockFilter !== 'all') {
+      if (stockFilter === 'low') {
+        filtered = filtered.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0);
+      } else if (stockFilter === 'out') {
+        filtered = filtered.filter(p => p.quantity === 0);
       }
     }
     
     setFilteredProducts(filtered);
-  }, [products, searchTerm, warehouseFilter]);
+  }, [products, searchTerm, stockFilter]);
+
+  const fetchMainWarehouse = async () => {
+    try {
+      const res = await api.get('/warehouses');
+      const main = res.data.find((w: Warehouse) => w.name === 'Asosiy ombor');
+      if (main) {
+        setMainWarehouse(main);
+      } else {
+        const newMain = await api.post('/warehouses', { name: 'Asosiy ombor', address: '' });
+        setMainWarehouse(newMain.data);
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+      setLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      setError('');
       
-      // Kassa uchun alohida endpoint - token talab qilmaydi
-      const res = await api.get('/products/kassa');
-      
-      if (!res.data || !Array.isArray(res.data)) {
-        console.error('Kassa: Noto\'g\'ri server javobi:', res.data);
-        setError('Server noto\'g\'ri javob berdi');
-        return;
-      }
-      
-      // Filter and clean product data - more strict filtering
-      const cleanProducts = res.data.filter((product: Product) => {
-        // Juda qisqa nomli tovarlarni o'chirish (2 harfdan kam)
-        const hasValidName = product.name && 
-          product.name.trim().length > 2 && 
-          product.name.trim() !== '';
-        
-        // Juda uzun kodli tovarlarni o'chirish (25+ belgi)
-        const hasValidCode = product.code && 
-          product.code.trim() !== '' && 
-          product.code.trim().length < 25;
-        
-        // Narx va miqdor mavjudligi
-        const hasValidData = product.price !== undefined && 
-          product.quantity !== undefined;
-        
-        return hasValidName && hasValidCode && hasValidData;
-      }).map((product: Product) => ({
-        ...product,
-        name: product.name.trim(),
-        code: product.code.trim(),
-        price: Number(product.price) || 0,
-        quantity: Number(product.quantity) || 0
-      }));
-      
-      setProducts(cleanProducts);
-      console.log(`Kassa: ${res.data.length} ta tovardan ${cleanProducts.length} ta valid tovar yuklandi`);
-      
-      if (cleanProducts.length === 0 && res.data.length > 0) {
-        console.warn('Barcha tovarlar filtrlandi. Birinchi 3 ta tovar:', res.data.slice(0, 3));
-      }
+      const res = await api.get('/products?mainOnly=true');
+      setProducts(res.data);
     } catch (err: any) {
-      console.error('Kassa: Tovarlarni yuklashda xatolik:', err);
-      
-      if (err.response?.status === 404) {
-        setError('Kassa endpoint topilmadi (404)');
-      } else if (err.response?.status >= 500) {
-        setError('Server xatosi (' + err.response.status + ')');
-      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-        setError('Serverga ulanishda xatolik');
-      } else {
-        setError('Tovarlarni yuklashda xatolik: ' + (err.response?.data?.message || err.message));
-      }
+      console.error('Error fetching products:', err);
+      showAlert('Tovarlarni yuklashda xatolik yuz berdi', 'Xatolik', 'danger');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRefresh = async () => {
-    console.log('Refresh tugmasi bosildi');
     setIsRefreshing(true);
     try {
-      console.log('Ma\'lumotlar yangilanmoqda...');
       await fetchProducts();
-      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
       showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
     } catch (error) {
       console.error('Refresh xatosi:', error);
@@ -148,422 +129,1076 @@ export default function KassaProducts() {
     }
   };
 
-  const handleAddProduct = async () => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const remainingSlots = 8 - images.length;
+    if (remainingSlots <= 0) {
+      showAlert('Maksimum 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+    const formData = new FormData();
+    filesToUpload.forEach(file => formData.append('images', file));
+
+    setUploading(true);
     try {
-      // Validatsiya
-      if (!newProduct.code || !newProduct.name || !newProduct.price) {
-        showAlert('Kod, nom va narx majburiy maydonlar', 'Xatolik', 'warning');
-        return;
-      }
-
-      const productData = {
-        code: newProduct.code.trim(),
-        name: newProduct.name.trim(),
-        costPrice: parseFloat(newProduct.costPrice) || 0,
-        price: parseFloat(newProduct.price),
-        quantity: parseInt(newProduct.quantity) || 0
-      };
-
-      await api.post('/products/kassa', productData);
-      showAlert('Tovar muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
-      
-      // Formani tozalash
-      setNewProduct({
-        code: '',
-        name: '',
-        costPrice: '',
-        price: '',
-        quantity: ''
+      const res = await api.post('/products/upload-images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
-      setShowAddProductModal(false);
-      fetchProducts(); // Ro'yxatni yangilash
-    } catch (err: any) {
-      console.error('Error adding product:', err);
-      const errorMessage = err.response?.data?.message || 'Tovar qo\'shishda xatolik yuz berdi';
-      showAlert(errorMessage, 'Xatolik', 'danger');
+      setImages([...images, ...res.data.images]);
+    } catch (err) {
+      console.error('Error uploading images:', err);
+      showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const resetAddProductForm = () => {
-    setNewProduct({
-      code: '',
-      name: '',
-      costPrice: '',
-      price: '',
-      quantity: ''
-    });
-    setShowAddProductModal(false);
+  const removeImage = async (imagePath: string) => {
+    try {
+      await api.delete('/products/delete-image', { data: { imagePath } });
+      setImages(images.filter(img => img !== imagePath));
+    } catch (err) {
+      console.error('Error deleting image:', err);
+    }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (codeError) {
+      showAlert(codeError, 'Xatolik', 'danger');
+      return;
+    }
+    
+    let finalQuantity = Number(formData.quantity);
+    let finalCostPrice = Number(formData.costPrice);
+    let packageInfo = null;
+    
+    // If package data is provided, calculate totals
+    if (showPackageInput && packageData.packageCount && packageData.unitsPerPackage) {
+      const totalUnits = Number(packageData.packageCount) * Number(packageData.unitsPerPackage);
+      
+      finalQuantity = editingProduct ? Number(formData.quantity) + totalUnits : totalUnits;
+      
+      packageInfo = {
+        packageCount: Number(packageData.packageCount),
+        unitsPerPackage: Number(packageData.unitsPerPackage),
+        totalUnits: totalUnits
+      };
+    }
+    
+    try {
+      const data = {
+        code: formData.code,
+        name: formData.name,
+        costPrice: finalCostPrice,
+        price: Number(formData.wholesalePrice),
+        quantity: finalQuantity,
+        warehouse: mainWarehouse?._id,
+        images,
+        packageInfo
+      };
+      if (editingProduct) {
+        await api.put(`/products/${editingProduct._id}`, data);
+      } else {
+        await api.post('/products', data);
+      }
+      fetchProducts();
+      closeModal();
+    } catch (err: any) {
+      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await showConfirm("Tovarni o'chirishni tasdiqlaysizmi?", "O'chirish");
+    if (!confirmed) return;
+    try {
+      await api.delete(`/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      code: product.code,
+      name: product.name,
+      costPrice: String((product as any).costPrice || 0),
+      wholesalePrice: String(product.price),
+      quantity: String(product.quantity)
+    });
+    setImages((product as any).images || []);
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setCodeError('');
+    setShowPackageInput(false);
+    setShowModal(true);
+  };
+
+  const openQRModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQRModal(true);
+  };
+
+  const openPrintModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowPrintModal(true);
+    loadAvailablePrinters();
+  };
+
+  const loadAvailablePrinters = async () => {
+    try {
+      const myPrinters = [
+        'EPSON L132 Series (Copy 1)',
+        'EPSON L132 Series'
+      ];
+      
+      setAvailablePrinters(myPrinters);
+      
+      setPrintSettings(prev => ({
+        ...prev,
+        printer: myPrinters[0]
+      }));
+      
+    } catch (error) {
+      console.error('Error loading printers:', error);
+      setAvailablePrinters(['EPSON L132 Series']);
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingProduct(null);
+    setFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setImages([]);
+    setCodeError('');
+    setShowPackageInput(false);
+  };
+
+  const openQuantityModal = (mode: 'add' | 'subtract') => {
+    setQuantityMode(mode);
+    setQuantityInput('');
+    setShowQuantityModal(true);
+  };
+
+  const applyQuantityChange = () => {
+    const change = Number(quantityInput) || 0;
+    if (change <= 0) return;
+    
+    const currentQty = Number(formData.quantity) || 0;
+    let newQty = quantityMode === 'add' ? currentQty + change : currentQty - change;
+    if (newQty < 0) newQty = 0;
+    
+    setFormData({ ...formData, quantity: String(newQty) });
+    setShowQuantityModal(false);
+    setQuantityInput('');
+  };
+
+  const openAddModal = async () => {
+    try {
+      const res = await api.get('/products/next-code');
+      setFormData({ code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    } catch (err) {
+      console.error('Error getting next code:', err);
+    }
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setImages([]);
+    setCodeError('');
+    setShowPackageInput(false);
+    setShowModal(true);
+  };
+
+  const checkCodeExists = async (code: string) => {
+    if (!code) return;
+    try {
+      const excludeId = editingProduct?._id || '';
+      const res = await api.get(`/products/check-code/${code}${excludeId ? `?excludeId=${excludeId}` : ''}`);
+      if (res.data.exists) {
+        setCodeError(`Kod "${code}" allaqachon mavjud`);
+      } else {
+        setCodeError('');
+      }
+    } catch (err) {
+      console.error('Error checking code:', err);
+    }
+  };
+
+  const downloadQR = () => {
+    if (!selectedProduct) return;
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = document.createElement('img');
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
+    try {
+      const qrData = JSON.stringify({
+        id: product._id,
+        code: product.code,
+        name: product.name,
+        price: product.price
+      });
+      
+      const qrDataURL = await QRCode.toDataURL(qrData, {
+        width: size * 10,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H',
+        type: 'image/png'
+      });
+      
+      return qrDataURL;
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return '';
+    }
+  };
+  
+  const handlePrint = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      const qrSize = printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 130 : 220;
+      const qrDataUrl = await generateQRCodeDataURL(selectedProduct, qrSize);
+      
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Label - ${selectedProduct.name}</title>
+          <style>
+            @page {
+              size: ${printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 45mm'};
+              margin: 0;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            html, body {
+              width: 100%;
+              height: 100%;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              background: white;
+              overflow: hidden;
+            }
+            .page-container {
+              width: 100%;
+              height: 100vh;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              page-break-after: avoid;
+            }
+            .label-container {
+              border: 2px solid #333;
+              padding: ${printSettings.size === 'card' ? '1mm' : printSettings.size === 'thermal' ? '6px' : '12px'};
+              background: white;
+              width: ${printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : '120mm'};
+              height: ${printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '39mm' : '90mm'};
+              display: flex;
+              align-items: center;
+              gap: 1px;
+              overflow: hidden;
+              border-radius: 2px;
+              page-break-inside: avoid;
+            }
+            .product-info {
+              flex: 1;
+              max-width: 60%;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              height: 100%;
+            }
+            .product-name {
+              font-size: ${printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px'};
+              font-weight: 700;
+              color: #1a1a1a;
+              line-height: 1.0;
+              margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
+              word-wrap: break-word;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              display: -webkit-box;
+              -webkit-line-clamp: ${printSettings.size === 'card' ? '2' : '3'};
+              -webkit-box-orient: vertical;
+            }
+            .product-code {
+              font-size: ${printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px'};
+              color: #666;
+              line-height: 1.0;
+              margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
+              font-weight: 500;
+            }
+            .product-price {
+              font-size: ${printSettings.size === 'card' ? '12px' : printSettings.size === 'thermal' ? '20px' : '24px'};
+              font-weight: 800;
+              color: #d32f2f;
+              line-height: 1.0;
+              margin-bottom: ${printSettings.size === 'card' ? '0px' : '1px'};
+            }
+            .qr-code-section {
+              flex-shrink: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              max-width: 42%;
+              height: 100%;
+              padding-left: 1px;
+            }
+            .qr-code-img {
+              width: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
+              height: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
+              border: 1px solid #e0e0e0;
+              border-radius: 2px;
+              background: white;
+              object-fit: contain;
+              image-rendering: -webkit-optimize-contrast;
+              image-rendering: crisp-edges;
+              image-rendering: pixelated;
+            }
+            .additional-info {
+              margin: 0;
+              font-size: ${printSettings.size === 'card' ? '4px' : printSettings.size === 'thermal' ? '10px' : '12px'};
+              color: #888;
+              line-height: 1.0;
+              font-weight: 400;
+            }
+            ${printSettings.layout === 'minimal' ? '.additional-info { display: none; }' : ''}
+            
+            @media print {
+              html, body {
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              .page-container {
+                height: 100vh !important;
+                page-break-after: avoid !important;
+              }
+              .label-container {
+                page-break-inside: avoid !important;
+              }
+              .qr-code-img {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page-container">
+            <div class="label-container">
+              <div class="product-info">
+                <div class="product-name">${selectedProduct.name}</div>
+                <div class="product-code">Kod: ${selectedProduct.code}</div>
+                <div class="product-price">${formatNumber(selectedProduct.price)} so'm</div>
+                
+                ${printSettings.layout === 'standard' ? `
+                  <div class="additional-info">
+                    Miqdor: ${selectedProduct.quantity} | ${new Date().toLocaleDateString('uz-UZ')}
+                  </div>
+                ` : ''}
+              </div>
+              
+              <div class="qr-code-section">
+                <img src="${qrDataUrl}" alt="QR Code" class="qr-code-img" />
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      
+      const printWindow = window.open('', '_blank', 'width=1024,height=768');
+      
+      if (!printWindow) {
+        alert('Popup blocker tomonidan to\'sib qo\'yildi. Popup\'larni yoqing.');
+        return;
+      }
+      
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          
+          setTimeout(() => {
+            printWindow.close();
+          }, 1000);
+        }, 500);
+      };
+      
+      setShowPrintModal(false);
+      
+    } catch (error) {
+      console.error('Error generating print content:', error);
+      alert('Chop uchun tayyorlashda xatolik yuz berdi');
+    }
+  };
+
+  const stats = {
+    total: products.length,
+    lowStock: products.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
+    outOfStock: products.filter(p => p.quantity === 0).length,
+    totalValue: products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
+  };
+
+  const getProductImage = (product: any) => {
+    if (product.images && product.images.length > 0) {
+      return `${API_URL}${product.images[0]}`;
+    }
+    return null;
+  };
+
+  const statItems = [
+    { label: 'Jami tovarlar', value: stats.total, icon: Package, color: 'brand', filter: 'all' },
+    { label: 'Kam qolgan', value: stats.lowStock, icon: AlertTriangle, color: 'warning', filter: 'low' },
+    { label: 'Tugagan', value: stats.outOfStock, icon: X, color: 'danger', filter: 'out' },
+    { label: 'Jami qiymat', value: `${formatNumber(stats.totalValue)} so'm`, icon: DollarSign, color: 'success', filter: null },
+  ];
+
   return (
-    <div className="p-3 sm:p-6">
+    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
       {AlertComponent}
       
-      <div className="bg-white rounded-xl border border-surface-200 overflow-hidden">
-        {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-surface-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-brand-600" />
-              <h2 className="text-lg font-semibold text-surface-900">Tovarlar ro'yxati</h2>
-              <span className="px-2 py-1 bg-brand-100 text-brand-700 text-xs font-medium rounded-full">
-                {filteredProducts.length} ta tovar
-              </span>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => setShowAddProductModal(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Tovar qo'shish
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50 w-full sm:w-auto"
-                title="Tovarlar ro'yxatini yangilash (F5)"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
-              </button>
-            </div>
+      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-brand-600" />
+            <h2 className="text-lg font-semibold text-surface-900">Tovarlar (Asosiy ombor)</h2>
           </div>
-          
-          {/* Search and Filters */}
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-              <input
-                type="text"
-                placeholder="Tovar nomi yoki kodi bo'yicha qidirish..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-              />
-            </div>
-            <select
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 bg-white"
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button onClick={openAddModal} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Yangi tovar</span>
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50"
+              title="Tovarlar ro'yxatini yangilash (F5)"
             >
-              <option value="all">Barcha omborlar</option>
-              <option value="main">Asosiy ombor</option>
-            </select>
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="p-4 bg-red-50 border-b border-red-200">
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Products Table - Desktop */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-surface-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Kod</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Nomi</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Ombor</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Narx (so'm)</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Miqdor</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Holat</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100">
-              {loading && filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-surface-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Yuklanmoqda...
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-surface-500">
-                    {searchTerm ? 'Qidiruv bo\'yicha tovar topilmadi' : 'Tovarlar mavjud emas'}
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map(product => (
-                  <tr key={product._id} className="hover:bg-surface-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-sm text-surface-600 bg-surface-100 px-2 py-1 rounded">
-                        {product.code.length > 15 ? `${product.code.substring(0, 15)}...` : product.code}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-surface-900">
-                          {product.name || 'Noma\'lum tovar'}
-                        </span>
-                        {product.description && (
-                          <span className="text-xs text-surface-500 mt-1">{product.description}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        product.isMainWarehouse 
-                          ? 'bg-brand-100 text-brand-700' 
-                          : 'bg-surface-100 text-surface-600'
-                      }`}>
-                        {typeof product.warehouse === 'object' && product.warehouse?.name 
-                          ? product.warehouse.name 
-                          : 'Asosiy ombor'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-surface-900">
-                        {formatNumber(product.price)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`font-medium ${
-                        product.quantity > 10 ? 'text-success-600' : 
-                        product.quantity > 0 ? 'text-warning-600' : 'text-danger-600'
-                      }`}>
-                        {product.quantity}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        product.quantity > 10 
-                          ? 'bg-success-100 text-success-700' 
-                          : product.quantity > 0 
-                          ? 'bg-warning-100 text-warning-700' 
-                          : 'bg-danger-100 text-danger-700'
-                      }`}>
-                        {product.quantity > 10 ? 'Mavjud' : product.quantity > 0 ? 'Kam qoldi' : 'Tugagan'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Products Cards - Mobile & Tablet */}
-        <div className="lg:hidden">
-          {loading && filteredProducts.length === 0 ? (
-            <div className="p-8 text-center text-surface-500">
-              <div className="flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Yuklanmoqda...
+        <div className="grid grid-cols-4 gap-4">
+          {statItems.map((stat, i) => (
+            <div 
+              key={i} 
+              onClick={() => stat.filter && setStockFilter(stat.filter)}
+              className={`stat-card ${stat.filter ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${
+                stockFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className={`stat-icon bg-${stat.color}-50`}>
+                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+                </div>
               </div>
+              <p className="stat-value">{stat.value}</p>
+              <p className="stat-label">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+          <input
+            type="text"
+            placeholder="Tovar nomi yoki kodi bo'yicha qidirish..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          />
+        </div>
+
+        <div className="card p-0 overflow-hidden">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="spinner text-brand-600 w-8 h-8 mb-4" />
+              <p className="text-surface-500">Yuklanmoqda...</p>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="p-8 text-center text-surface-500">
-              {searchTerm ? 'Qidiruv bo\'yicha tovar topilmadi' : 'Tovarlar mavjud emas'}
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
+                <Package className="w-8 h-8 text-surface-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-surface-900 mb-2">Tovarlar topilmadi</h3>
+              <p className="text-surface-500 text-center max-w-md mb-6">
+                {searchTerm ? 'Qidiruv bo\'yicha tovarlar topilmadi' : 'Birinchi tovarni qo\'shing'}
+              </p>
+              <button onClick={openAddModal} className="btn-primary">Tovar qo'shish</button>
             </div>
           ) : (
-            <div className="divide-y divide-surface-100">
-              {filteredProducts.map(product => (
-                <div key={product._id} className="p-4 hover:bg-surface-50 transition-colors">
-                  <div className="flex flex-col space-y-3">
-                    {/* Product Name and Code */}
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-surface-900 text-base">
-                          {product.name || 'Noma\'lum tovar'}
-                        </h3>
-                        <span className="font-mono text-sm text-surface-600 bg-surface-100 px-2 py-1 rounded mt-1 inline-block">
-                          {product.code.length > 20 ? `${product.code.substring(0, 20)}...` : product.code}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          product.quantity > 10 
-                            ? 'bg-success-100 text-success-700' 
-                            : product.quantity > 0 
-                            ? 'bg-warning-100 text-warning-700' 
-                            : 'bg-danger-100 text-danger-700'
-                        }`}>
-                          {product.quantity > 10 ? 'Mavjud' : product.quantity > 0 ? 'Kam qoldi' : 'Tugagan'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Product Details */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-surface-500 block">Narx</span>
-                        <span className="font-semibold text-surface-900">
-                          {formatNumber(product.price)} so'm
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-surface-500 block">Miqdor</span>
-                        <span className={`font-medium ${
-                          product.quantity > 10 ? 'text-success-600' : 
-                          product.quantity > 0 ? 'text-warning-600' : 'text-danger-600'
-                        }`}>
-                          {product.quantity}
-                        </span>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <span className="text-surface-500 block">Ombor</span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          product.isMainWarehouse 
-                            ? 'bg-brand-100 text-brand-700' 
-                            : 'bg-surface-100 text-surface-600'
-                        }`}>
-                          {typeof product.warehouse === 'object' && product.warehouse?.name 
-                            ? product.warehouse.name 
-                            : 'Asosiy ombor'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {product.description && (
-                      <div className="pt-2 border-t border-surface-100">
-                        <span className="text-xs text-surface-500">{product.description}</span>
-                      </div>
-                    )}
+            <>
+              <div className="hidden lg:block">
+                <div className="table-header">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-4">
+                    <span className="table-header-cell col-span-1">Rasm</span>
+                    <span className="table-header-cell col-span-2">Kod</span>
+                    <span className="table-header-cell col-span-2">Nomi</span>
+                    <span className="table-header-cell col-span-2">Tan narxi</span>
+                    <span className="table-header-cell col-span-2">Optom narxi</span>
+                    <span className="table-header-cell col-span-1">Miqdori</span>
+                    <span className="table-header-cell col-span-2 text-center">Amallar</span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="divide-y divide-surface-100">
+                  {filteredProducts.map(product => (
+                    <div key={product._id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-surface-50 transition-colors">
+                      <div className="col-span-1">
+                        {getProductImage(product) ? (
+                          <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
+                            <Image className="w-5 h-5 text-surface-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-2">
+                        <span className="font-mono text-sm bg-surface-100 px-2 py-1 rounded-lg">{product.code}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-medium text-surface-900">{product.name}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
+                        <p className="text-sm text-surface-500">so'm</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
+                        <p className="text-sm text-surface-500">so'm</p>
+                      </div>
+                      <div className="col-span-1">
+                        <span className={`font-semibold ${
+                          product.quantity === 0 ? 'text-danger-600' :
+                          product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
+                        }`}>{product.quantity}</span>
+                      </div>
+                      <div className="col-span-2 flex items-center justify-center gap-2">
+                        <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => openPrintModal(product)} className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600" title="Print">
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => openEditModal(product)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(product._id)} className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:hidden divide-y divide-surface-100">
+                {filteredProducts.map(product => (
+                  <div key={product._id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      {getProductImage(product) ? (
+                        <img src={getProductImage(product)!} alt={product.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Package className="w-6 h-6 text-brand-600" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-medium text-surface-900 truncate">{product.name}</h4>
+                            <p className="text-sm text-surface-500">Kod: {product.code}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button onClick={() => openQRModal(product)} className="btn-icon-sm"><QrCode className="w-4 h-4" /></button>
+                            <button onClick={() => openPrintModal(product)} className="btn-icon-sm text-blue-600"><Printer className="w-4 h-4" /></button>
+                            <button onClick={() => openEditModal(product)} className="btn-icon-sm"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => handleDelete(product._id)} className="btn-icon-sm text-danger-500"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="bg-surface-50 rounded-xl p-3">
+                            <p className="text-xs text-surface-500 mb-1">Tan narxi</p>
+                            <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
+                          </div>
+                          <div className="bg-surface-50 rounded-xl p-3">
+                            <p className="text-xs text-surface-500 mb-1">Optom narxi</p>
+                            <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
+                          </div>
+                          <div className={`rounded-xl p-3 ${product.quantity === 0 ? 'bg-danger-50' : product.quantity <= (product.minStock || 100) ? 'bg-warning-50' : 'bg-success-50'}`}>
+                            <p className="text-xs text-surface-500 mb-1">Miqdori</p>
+                            <p className={`font-semibold ${
+                              product.quantity === 0 ? 'text-danger-600' :
+                              product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
+                            }`}>{product.quantity}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
-
-        {/* Footer */}
-        {filteredProducts.length > 0 && (
-          <div className="p-3 sm:p-4 bg-surface-50 border-t border-surface-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-surface-600">
-              <span>
-                Jami: {filteredProducts.length} ta tovar
-                {searchTerm && ` (${products.length} tadan filtrlangan)`}
-              </span>
-              <span className="text-xs">
-                Oxirgi yangilanish: {new Date().toLocaleTimeString('uz-UZ')}
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Tovar qo'shish modali */}
-      {showAddProductModal && (
+      {/* Add/Edit Product Modal */}
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40" onClick={resetAddProductForm} />
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-brand-50 to-blue-50 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center shadow-lg">
-                  <Plus className="w-5 h-5 text-white" />
+          <div className="overlay" onClick={closeModal} />
+          <div className="modal w-full max-w-lg p-6 relative z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-surface-900">{editingProduct ? 'Tovarni tahrirlash' : 'Yangi tovar'}</h3>
+              <button onClick={closeModal} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Image Upload */}
+              <div>
+                <label className="text-sm font-medium text-surface-700 mb-2 block">Rasmlar (max 8)</label>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="relative aspect-square">
+                      <img src={`${API_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(img)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-danger-500 text-white rounded-full flex items-center justify-center"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {images.length < 8 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="aspect-square border-2 border-dashed border-surface-300 rounded-lg flex flex-col items-center justify-center hover:border-brand-500 hover:bg-brand-50 transition-colors"
+                    >
+                      {uploading ? (
+                        <div className="spinner w-5 h-5 text-brand-600" />
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-surface-400 mb-1" />
+                          <span className="text-xs text-surface-500">Yuklash</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Kod</label>
+                  <input 
+                    type="text" 
+                    className={`input ${codeError ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20' : ''}`}
+                    placeholder="1" 
+                    value={formData.code} 
+                    onChange={e => setFormData({...formData, code: e.target.value})}
+                    onBlur={e => checkCodeExists(e.target.value)}
+                    required 
+                  />
+                  {codeError && <p className="text-sm text-danger-600 mt-1">{codeError}</p>}
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-surface-900">Yangi tovar qo'shish</h3>
-                  <p className="text-sm text-surface-600">Tovar ma'lumotlarini kiriting</p>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Miqdori</label>
+                  {editingProduct ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 px-4 py-3 bg-surface-100 rounded-xl text-center font-semibold text-surface-900">
+                        {formatNumber(formData.quantity || 0)}
+                      </div>
+                      <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon bg-success-100 text-success-600 hover:bg-success-200">
+                        <Plus className="w-5 h-5" />
+                      </button>
+                      <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon bg-danger-100 text-danger-600 hover:bg-danger-200">
+                        <Minus className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.quantity)} onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} required />
+                  )}
                 </div>
               </div>
-              <button
-                onClick={resetAddProductForm}
-                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
-              >
-                <X className="w-5 h-5" />
+              <div>
+                <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
+                <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Tan narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.costPrice)} onChange={e => setFormData({...formData, costPrice: parseNumber(e.target.value)})} required />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Optom narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.wholesalePrice)} onChange={e => setFormData({...formData, wholesalePrice: parseNumber(e.target.value)})} required />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={closeModal} className="btn-secondary flex-1">Bekor qilish</button>
+                <button type="submit" className="btn-primary flex-1" disabled={!!codeError}>Saqlash</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* QR Modal */}
+      {showQRModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowQRModal(false)} />
+          <div className="modal w-full max-w-sm p-6 relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-surface-900">QR Kod</h3>
+              <button onClick={() => setShowQRModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-4 rounded-xl border border-surface-200 mb-4">
+                <QRCodeSVG
+                  id="qr-code-svg"
+                  value={JSON.stringify({
+                    id: selectedProduct._id,
+                    code: selectedProduct.code,
+                    name: selectedProduct.name,
+                    price: selectedProduct.price
+                  })}
+                  size={200}
+                  level="H"
+                  includeMargin
+                />
+              </div>
+              <div className="text-center mb-4">
+                <p className="font-semibold text-surface-900">{selectedProduct.name}</p>
+                <p className="text-sm text-surface-500">Kod: {selectedProduct.code}</p>
+                <p className="text-sm text-surface-500">Tan narxi: {formatNumber((selectedProduct as any).costPrice || 0)} so'm</p>
+                <p className="text-sm text-surface-500">Optom: {formatNumber(selectedProduct.price)} so'm</p>
+              </div>
+              <button onClick={downloadQR} className="btn-primary w-full">
+                <Download className="w-4 h-4" />
+                Yuklab olish
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Kod */}
+      {/* Print Modal */}
+      {showPrintModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowPrintModal(false)} />
+          <div className="modal w-full max-w-4xl p-6 relative z-10 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-surface-900">Print sozlamalari</h3>
+              <button onClick={() => setShowPrintModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Settings Panel */}
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-2">
-                    Tovar kodi *
-                  </label>
-                  <input
-                    type="text"
-                    value={newProduct.code}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
-                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                    placeholder="Masalan: TV001"
-                  />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Printer tanlash</label>
+                  <select 
+                    className="input"
+                    value={printSettings.printer}
+                    onChange={e => setPrintSettings({...printSettings, printer: e.target.value})}
+                  >
+                    <option value="">Printer tanlang</option>
+                    {availablePrinters.map(printer => (
+                      <option key={printer} value={printer}>{printer}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-surface-500 mt-1">
+                    Print tugmasini bosganda Windows print dialog ochiladi va barcha mavjud printerlarni ko'rsatadi
+                  </p>
                 </div>
 
-                {/* Nom */}
                 <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-2">
-                    Tovar nomi *
-                  </label>
-                  <input
-                    type="text"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                    placeholder="Masalan: Samsung TV 55 dyuym"
-                  />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Qog'oz o'lchami</label>
+                  <select 
+                    className="input"
+                    value={printSettings.size}
+                    onChange={e => setPrintSettings({...printSettings, size: e.target.value})}
+                  >
+                    <option value="card">Kichik yorliq (50×25mm)</option>
+                    <option value="A4">A4 (210×297mm)</option>
+                    <option value="A5">A5 (148×210mm)</option>
+                    <option value="thermal">Thermal (80×120mm)</option>
+                  </select>
                 </div>
 
-                {/* Tan narxi */}
                 <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-2">
-                    Tan narxi
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.costPrice}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, costPrice: e.target.value }))}
-                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                    placeholder="0"
-                  />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Shablon</label>
+                  <select 
+                    className="input"
+                    value={printSettings.layout}
+                    onChange={e => setPrintSettings({...printSettings, layout: e.target.value})}
+                  >
+                    <option value="standard">Standart (barcha ma'lumotlar)</option>
+                    <option value="minimal">Minimal (faqat asosiy ma'lumotlar)</option>
+                  </select>
                 </div>
 
-                {/* Sotuv narxi */}
                 <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-2">
-                    Sotuv narxi *
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                    placeholder="0"
-                  />
-                </div>
-
-                {/* Miqdor */}
-                <div>
-                  <label className="block text-sm font-medium text-surface-700 mb-2">
-                    Miqdor
-                  </label>
-                  <input
-                    type="number"
-                    value={newProduct.quantity}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, quantity: e.target.value }))}
-                    className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                    placeholder="0"
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Nusxalar soni</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="10"
+                    className="input"
+                    value={printSettings.copies}
+                    onChange={e => setPrintSettings({...printSettings, copies: parseInt(e.target.value) || 1})}
                   />
                 </div>
               </div>
+
+              {/* Preview Panel */}
+              <div className="bg-surface-50 rounded-xl p-4">
+                <h4 className="text-sm font-medium text-surface-700 mb-3">Ko'rinish</h4>
+                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center min-h-[420px]">
+                  <div 
+                    className="bg-white border border-gray-200 shadow-lg rounded-xl"
+                    style={{
+                      width: printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '50mm' : printSettings.size === 'A5' ? '148mm' : '130mm',
+                      height: printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '45mm' : printSettings.size === 'A5' ? '120mm' : '100mm',
+                      fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '10px' : '12px',
+                      transform: printSettings.size === 'card' ? 'scale(5)' : printSettings.size === 'thermal' ? 'scale(2.4)' : 'scale(2.0)',
+                      transformOrigin: 'center center',
+                      overflow: 'hidden',
+                      padding: printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '14px',
+                      borderRadius: '8px',
+                      background: '#ffffff'
+                    }}
+                  >
+                    <div className="flex items-center h-full" style={{gap: printSettings.size === 'card' ? '2px' : '6px'}}>
+                      <div className="flex-1 flex flex-col justify-center h-full" style={{maxWidth: '58%', paddingRight: '6px'}}>
+                        <div 
+                          className="font-bold text-black"
+                          style={{
+                          fontSize: printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px',
+                          lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
+                            fontWeight: '700',
+                            color: '#1a1a1a',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: printSettings.size === 'card' ? 2 : 3,
+                            WebkitBoxOrient: 'vertical'
+                          }}
+                        >
+                          {selectedProduct.name}
+                        </div>
+                        
+                        <div 
+                          className="text-gray-600"
+                          style={{
+                            fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
+                            fontWeight: '500',
+                            color: '#666'
+                          }}
+                        >
+                          Kod: {selectedProduct.code}
+                        </div>
+
+                        <div 
+                          className="font-bold"
+                          style={{
+                            fontSize: printSettings.size === 'card' ? '12px' : printSettings.size === 'thermal' ? '20px' : '24px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
+                            fontWeight: '800',
+                            color: '#d32f2f'
+                          }}
+                        >
+                          {formatNumber(selectedProduct.price)} so'm
+                        </div>
+
+                        {printSettings.layout === 'standard' && (
+                          <div 
+                            className="text-gray-500" 
+                            style={{
+                              fontSize: printSettings.size === 'card' ? '4px' : printSettings.size === 'thermal' ? '10px' : '12px',
+                              lineHeight: '1.0',
+                              margin: 0,
+                              color: '#888',
+                              fontWeight: '400'
+                            }}
+                          >
+                            Miqdor: {selectedProduct.quantity} | {new Date().toLocaleDateString('uz-UZ')}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{maxWidth: '40%', height: '100%', paddingLeft: '8px', borderLeft: '1px solid #e5e7eb'}}>
+                        <div style={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '6px',
+                          background: '#ffffff',
+                          padding: '4px'
+                        }}>
+                          <QRCodeSVG
+                            value={JSON.stringify({
+                              id: selectedProduct._id,
+                              code: selectedProduct.code,
+                              name: selectedProduct.name,
+                              price: selectedProduct.price
+                            })}
+                            size={printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 140 : 220}
+                            level="H"
+                            includeMargin={false}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {printSettings.copies > 1 && (
+                  <p className="text-xs text-surface-500 mt-2 text-center">
+                    {printSettings.copies} nusxa chop etiladi
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
-              <button
-                onClick={resetAddProductForm}
-                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+            <div className="flex gap-3 pt-6">
+              <button 
+                type="button" 
+                onClick={() => setShowPrintModal(false)} 
+                className="btn-secondary flex-1"
               >
                 Bekor qilish
               </button>
-              <button
-                onClick={handleAddProduct}
-                className="px-6 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-lg hover:from-brand-600 hover:to-brand-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              <button 
+                type="button" 
+                onClick={handlePrint} 
+                className="btn-primary flex-1"
+                disabled={!printSettings.printer}
               >
-                Tovar qo'shish
+                <Printer className="w-4 h-4" />
+                Print
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quantity Adjustment Modal */}
+      {showQuantityModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowQuantityModal(false)} />
+          <div className="modal w-full max-w-sm p-6 relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-surface-900">
+                {quantityMode === 'add' ? "Miqdor qo'shish" : "Miqdor ayirish"}
+              </h3>
+              <button onClick={() => setShowQuantityModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className={`rounded-xl p-4 mb-6 ${quantityMode === 'add' ? 'bg-success-50' : 'bg-danger-50'}`}>
+              <p className="text-sm text-surface-600 mb-1">Hozirgi miqdor</p>
+              <p className={`text-2xl font-bold ${quantityMode === 'add' ? 'text-success-600' : 'text-danger-600'}`}>
+                {formatNumber(formData.quantity || 0)} dona
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-surface-700 mb-2 block">
+                  {quantityMode === 'add' ? "Qo'shiladigan miqdor" : "Ayiriladigan miqdor"}
+                </label>
+                <input 
+                  type="text" 
+                  className="input text-center text-lg font-semibold" 
+                  placeholder="0" 
+                  value={formatInputNumber(quantityInput)}
+                  onChange={e => setQuantityInput(parseNumber(e.target.value))}
+                  autoFocus
+                />
+              </div>
+
+              {quantityInput && Number(quantityInput) > 0 && (
+                <div className="bg-surface-50 rounded-xl p-4">
+                  <p className="text-sm text-surface-600 mb-1">Yangi miqdor</p>
+                  <p className="text-xl font-bold text-surface-900">
+                    {formatNumber(
+                      quantityMode === 'add' 
+                        ? (Number(formData.quantity) || 0) + Number(quantityInput)
+                        : Math.max(0, (Number(formData.quantity) || 0) - Number(quantityInput))
+                    )} dona
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowQuantityModal(false)} className="btn-secondary flex-1">
+                  Bekor qilish
+                </button>
+                <button 
+                  type="button" 
+                  onClick={applyQuantityChange} 
+                  className={`flex-1 ${quantityMode === 'add' ? 'btn-success' : 'btn-danger'}`}
+                  disabled={!quantityInput || Number(quantityInput) <= 0}
+                >
+                  {quantityMode === 'add' ? "Qo'shish" : "Ayirish"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

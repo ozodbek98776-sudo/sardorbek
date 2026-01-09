@@ -6,6 +6,11 @@ class TelegramService {
     this.botToken = process.env.TELEGRAM_BOT_TOKEN;
     this.chatId = process.env.TELEGRAM_CHAT_ID;
     this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
+
+    // Qarzlar uchun alohida bot
+    this.debtBotToken = process.env.TELEGRAM_DEBT_BOT_TOKEN;
+    this.debtChatId = process.env.TELEGRAM_DEBT_CHAT_ID;
+    this.debtBaseUrl = `https://api.telegram.org/bot${this.debtBotToken}`;
   }
 
   // Webhook orqali kelgan xabarlarni qayta ishlash
@@ -69,7 +74,7 @@ Masalan: +998901234567
 
       // Mijozni topish
       const customer = await Customer.findOne({ phone: formattedPhone });
-      
+
       if (customer) {
         // Telegram chat ID ni yangilash
         customer.telegramChatId = chatId.toString();
@@ -130,8 +135,8 @@ Muammolar bo'lsa do'kon bilan bog'laning.
     }
 
     // Mijozning qarzini tekshirish
-    const debtInfo = receiptData.customer.debt > 0 ? 
-      `\n💳 <b>Qarz holati:</b> ${this.formatNumber(receiptData.customer.debt)} so'm qarz mavjud` : 
+    const debtInfo = receiptData.customer.debt > 0 ?
+      `\n💳 <b>Qarz holati:</b> ${this.formatNumber(receiptData.customer.debt)} so'm qarz mavjud` :
       '\n✅ <b>Qarz holati:</b> Qarz yo\'q';
 
     const message = `
@@ -142,9 +147,9 @@ Muammolar bo'lsa do'kon bilan bog'laning.
 👤 <b>Mijoz:</b> ${receiptData.customer.name}
 
 📦 <b>Xarid qilingan mahsulotlar:</b>
-${receiptData.items.map(item => 
-  `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
-).join('\n')}
+${receiptData.items.map(item =>
+      `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
+    ).join('\n')}
 
 💰 <b>Jami summa:</b> ${this.formatNumber(receiptData.total)} so'm
 💳 <b>To'lov turi:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul' : 'Plastik karta'}${debtInfo}
@@ -204,6 +209,31 @@ ${paymentData.remainingDebt === 0 ? '✅ Qarzingiz to\'liq to\'landi!' : ''}
     }
   }
 
+  // Qarzlar uchun alohida xabar yuborish
+  async sendDebtMessage(message, chatId = null) {
+    if (!this.debtBotToken) {
+      console.log('Telegram debt bot token not configured');
+      return;
+    }
+
+    const targetChatId = chatId || this.debtChatId;
+    if (!targetChatId) {
+      console.log('Telegram debt chat ID not configured');
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${this.debtBaseUrl}/sendMessage`, {
+        chat_id: targetChatId,
+        text: message,
+        parse_mode: 'HTML'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Telegram debt bot send message error:', error.response?.data || error.message);
+    }
+  }
+
   // Sotув cheki yuborish
   async sendSaleReceipt(saleData) {
     const message = `
@@ -215,9 +245,9 @@ ${paymentData.remainingDebt === 0 ? '✅ Qarzingiz to\'liq to\'landi!' : ''}
 📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
 
 📦 <b>Mahsulotlar:</b>
-${saleData.items.map(item => 
-  `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
-).join('\n')}
+${saleData.items.map(item =>
+      `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
+    ).join('\n')}
 
 ${saleData.customer ? `👤 <b>Mijoz:</b> ${saleData.customer.name} (${saleData.customer.phone})` : ''}
 ${saleData.discount > 0 ? `🎯 <b>Chegirma:</b> ${this.formatNumber(saleData.discount)} so'm` : ''}
@@ -234,14 +264,13 @@ ${saleData.discount > 0 ? `🎯 <b>Chegirma:</b> ${this.formatNumber(saleData.di
 👤 <b>Mijoz:</b> ${debtData.customerName}
 📞 <b>Telefon:</b> ${debtData.customerPhone}
 💰 <b>Qarz summasi:</b> ${this.formatNumber(debtData.amount)} so'm
+${debtData.paidAmount > 0 ? `💵 <b>To'langan:</b> ${this.formatNumber(debtData.paidAmount)} so'm` : ''}
+${debtData.remainingDebt ? `💸 <b>Qarz qoldi:</b> ${this.formatNumber(debtData.remainingDebt)} so'm` : ''}
 📅 <b>Muddat:</b> ${new Date(debtData.dueDate).toLocaleDateString('uz-UZ')}
-📝 <b>Izoh:</b> ${debtData.description || 'Yo\'q'}
 ${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
-
-⏳ <b>Holat:</b> Admin tasdiqlashini kutmoqda
     `;
 
-    return this.sendMessage(message.trim());
+    return this.sendDebtMessage(message.trim());
   }
 
   // Qarz tasdiqlanganda xabar
@@ -256,7 +285,7 @@ ${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
 ✅ Admin tomonidan tasdiqlandi va mijozning umumiy qarziga qo'shildi.
     `;
 
-    return this.sendMessage(message.trim());
+    return this.sendDebtMessage(message.trim());
   }
 
   // Kam qolgan mahsulotlar haqida xabar
@@ -268,9 +297,9 @@ ${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
 
 📦 Quyidagi mahsulotlar 50 tadan kam qoldi:
 
-${products.map(product => 
-  `• <b>${product.name}</b> - ${product.quantity} ta qoldi`
-).join('\n')}
+${products.map(product =>
+      `• <b>${product.name}</b> - ${product.quantity} ta qoldi`
+    ).join('\n')}
 
 🔄 Mahsulotlarni to'ldirish kerak!
     `;
@@ -291,7 +320,7 @@ ${products.map(product =>
 ${paymentData.remainingDebt === 0 ? '✅ Qarz to\'liq to\'landi!' : ''}
     `;
 
-    return this.sendMessage(message.trim());
+    return this.sendDebtMessage(message.trim());
   }
 
   // Raqamni formatlash
