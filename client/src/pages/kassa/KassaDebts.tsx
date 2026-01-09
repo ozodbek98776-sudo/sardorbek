@@ -33,6 +33,13 @@ export default function KassaDebts() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
 
   useEffect(() => {
     fetchDebts();
@@ -55,6 +62,45 @@ export default function KassaDebts() {
     fetchCustomers();
     fetchProducts();
   }, [location.pathname]);
+
+  const handleNewCustomer = async () => {
+    if (!newCustomerForm.name.trim() || !newCustomerForm.phone.trim()) {
+      showAlert('Mijoz ismi va telefon raqami majburiy', 'Xatolik', 'warning');
+      return;
+    }
+
+    try {
+      const response = await api.post('/customers/kassa', {
+        name: newCustomerForm.name.trim(),
+        phone: newCustomerForm.phone.trim(),
+        email: newCustomerForm.email.trim(),
+        address: newCustomerForm.address.trim()
+      });
+
+      if (response.data.success) {
+        showAlert('Mijoz muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
+        
+        // Mijozlar ro'yxatini yangilash
+        fetchCustomers();
+        
+        // Yangi mijozni avtomatik tanlash
+        setSelectedCustomer(response.data.customer);
+        
+        // Formani tozalash va modalni yopish
+        setNewCustomerForm({ name: '', phone: '', email: '', address: '' });
+        setShowNewCustomerModal(false);
+      }
+    } catch (err: any) {
+      console.error('Error creating customer:', err);
+      const errorMessage = err.response?.data?.message || 'Mijoz qo\'shishda xatolik yuz berdi';
+      showAlert(errorMessage, 'Xatolik', 'danger');
+    }
+  };
+
+  const resetNewCustomerForm = () => {
+    setNewCustomerForm({ name: '', phone: '', email: '', address: '' });
+    setShowNewCustomerModal(false);
+  };
 
   const handleRefresh = async () => {
     console.log('Refresh tugmasi bosildi');
@@ -106,15 +152,15 @@ export default function KassaDebts() {
   const selectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     
-    // Mijozning mavjud pending qarzini tekshirish
-    const existingDebt = debts.find(debt => 
+    // Mijozning mavjud tasdiqlangan qarzini tekshirish
+    const existingApprovedDebt = debts.find(debt => 
       debt.customer?._id === customer._id && 
-      debt.status === 'pending_approval'
+      debt.status === 'approved'
     );
     
-    if (existingDebt) {
+    if (existingApprovedDebt) {
       showAlert(
-        `${customer.name} mijozining ${formatNumber(existingDebt.amount - existingDebt.paidAmount)} so'm qolgan qarzi mavjud. Yangi qarz mavjud qarzga qo'shiladi.`, 
+        `${customer.name} mijozining ${formatNumber(existingApprovedDebt.amount - existingApprovedDebt.paidAmount)} so'm tasdiqlangan qarzi mavjud. Yangi qarz to'g'ridan-to'g'ri mavjud qarzga qo'shiladi.`, 
         'Ma\'lumot', 
         'info'
       );
@@ -131,10 +177,17 @@ export default function KassaDebts() {
     setCustomerSearchQuery('');
     setProductSearchQuery('');
     setShowProductSearch(false);
+    setShowNewCustomerModal(false);
     setNewDebtForm({
       paidAmount: '',
       dueDate: '',
       description: ''
+    });
+    setNewCustomerForm({
+      name: '',
+      phone: '',
+      email: '',
+      address: ''
     });
   };
 
@@ -222,6 +275,16 @@ export default function KassaDebts() {
       const totalAmount = debtItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const paidAmount = parseFloat(parseNumber(newDebtForm.paidAmount)) || 0;
 
+      // To'langan summa jami summadan ko'p bo'lsa ogohlantirish
+      if (paidAmount > totalAmount) {
+        showAlert(
+          `To'langan summa (${formatNumber(paidAmount)} so'm) jami summadan (${formatNumber(totalAmount)} so'm) ko'p bo'lishi mumkin emas!`, 
+          'Xatolik', 
+          'danger'
+        );
+        return;
+      }
+
       const debtData = {
         customer: selectedCustomer._id,
         amount: totalAmount,
@@ -241,8 +304,8 @@ export default function KassaDebts() {
       
       // Muvaffaqiyat xabari
       const message = isExistingDebt 
-        ? 'Qarz mavjud qarzga muvaffaqiyatli qo\'shildi!'
-        : 'Yangi qarz muvaffaqiyatli yaratildi!';
+        ? 'Qarz mavjud qarzga muvaffaqiyatli qo\'shildi! Bitta qarz sifatida ko\'rinadi.'
+        : 'Yangi qarz yaratildi va admin tasdiqlashini kutmoqda.';
       showAlert(message, 'Muvaffaqiyat', 'success');
       
       resetModal();
@@ -409,12 +472,14 @@ export default function KassaDebts() {
                   <button 
                     onClick={() => handleViewDebt(debt)}
                     className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                    title="Qarz ma'lumotlarini ko'rish"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleDeleteDebt(debt)}
                     className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                    title="Qarzni o'chirish"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -472,12 +537,14 @@ export default function KassaDebts() {
                       <button 
                         onClick={() => handleViewDebt(debt)}
                         className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                        title="Qarz ma'lumotlarini ko'rish"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDeleteDebt(debt)}
                         className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                        title="Qarzni o'chirish"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -523,26 +590,38 @@ export default function KassaDebts() {
               <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto min-h-0">
                 {/* Search */}
                 <div className="relative mb-3 sm:mb-4 lg:mb-6">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="w-4 h-4 sm:w-5 sm:h-5 text-surface-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Mijoz ismi yoki telefon raqami bilan qidiring..."
-                    value={customerSearchQuery}
-                    onChange={e => setCustomerSearchQuery(e.target.value)}
-                    className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 text-sm bg-white border-2 border-surface-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
-                  />
-                  {customerSearchQuery && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                      <button
-                        onClick={() => setCustomerSearchQuery('')}
-                        className="w-5 h-5 flex items-center justify-center text-surface-400 hover:text-surface-600 rounded-full hover:bg-surface-100"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                  <div className="flex gap-2 sm:gap-3">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 sm:w-5 sm:h-5 text-surface-400" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Mijoz ismi yoki telefon raqami bilan qidiring..."
+                        value={customerSearchQuery}
+                        onChange={e => setCustomerSearchQuery(e.target.value)}
+                        className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 text-sm bg-white border-2 border-surface-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+                      />
+                      {customerSearchQuery && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          <button
+                            onClick={() => setCustomerSearchQuery('')}
+                            className="w-5 h-5 flex items-center justify-center text-surface-400 hover:text-surface-600 rounded-full hover:bg-surface-100"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                    <button
+                      onClick={() => setShowNewCustomerModal(true)}
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-success-500 text-white rounded-xl hover:bg-success-600 transition-colors flex-shrink-0"
+                      title="Yangi mijoz qo'shish"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Yangi mijoz</span>
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Customers List */}
@@ -787,8 +866,19 @@ export default function KassaDebts() {
                     </div>
                     <div className="flex justify-between border-t border-surface-200 pt-2">
                       <span className="text-surface-600 text-xs sm:text-sm">Qarz qoldi:</span>
-                      <span className="font-bold text-danger-600 text-sm sm:text-base">{formatNumber(remainingDebt)} so'm</span>
+                      <span className={`font-bold text-sm sm:text-base ${
+                        remainingDebt < 0 ? 'text-danger-600' : 'text-danger-600'
+                      }`}>
+                        {remainingDebt < 0 ? '-' : ''}{formatNumber(Math.abs(remainingDebt))} so'm
+                      </span>
                     </div>
+                    {remainingDebt < 0 && (
+                      <div className="bg-danger-50 border border-danger-200 rounded-lg p-2 mt-2">
+                        <p className="text-danger-700 text-xs font-medium">
+                          ⚠️ To'langan summa jami summadan ko'p! Qarz minus bo'ldi.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* To'lov ma'lumotlari */}
@@ -807,17 +897,42 @@ export default function KassaDebts() {
                           value={newDebtForm.paidAmount}
                           onChange={e => {
                             const formatted = formatInputNumber(e.target.value);
+                            const numericValue = parseFloat(parseNumber(formatted)) || 0;
+                            
+                            // Agar jami summadan ko'p bo'lsa, ogohlantirish berish va kiritishni cheklash
+                            if (numericValue > totalAmount && totalAmount > 0) {
+                              showAlert(
+                                `To'langan summa jami summadan (${formatNumber(totalAmount)} so'm) ko'p bo'lishi mumkin emas!`, 
+                                'Ogohlantirish', 
+                                'warning'
+                              );
+                              return; // Kiritishni to'xtatish
+                            }
+                            
                             setNewDebtForm(prev => ({ ...prev, paidAmount: formatted }));
                           }}
-                          className="w-full pl-3 sm:pl-4 pr-12 sm:pr-16 py-3 sm:py-4 text-base sm:text-lg font-semibold border-2 border-surface-200 rounded-xl focus:outline-none focus:border-success-500 focus:ring-4 focus:ring-success-500/10 transition-all bg-gradient-to-r from-white to-success-50"
+                          className={`w-full pl-3 sm:pl-4 pr-12 sm:pr-16 py-3 sm:py-4 text-base sm:text-lg font-semibold border-2 rounded-xl focus:outline-none focus:ring-4 transition-all ${
+                            remainingDebt < 0 
+                              ? 'border-danger-500 bg-gradient-to-r from-danger-50 to-red-50 focus:border-danger-500 focus:ring-danger-500/10' 
+                              : paidAmount < totalAmount && paidAmount > 0
+                              ? 'border-orange-400 bg-gradient-to-r from-yellow-100 to-orange-100 focus:border-orange-400 focus:ring-orange-400/10'
+                              : 'border-surface-200 bg-gradient-to-r from-white to-success-50 focus:border-success-500 focus:ring-success-500/10'
+                          }`}
                         />
                         <div className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center pointer-events-none">
                           <span className="text-surface-500 font-medium text-xs sm:text-sm">so'm</span>
                         </div>
                       </div>
                       {newDebtForm.paidAmount && (
-                        <div className="mt-2 text-xs sm:text-sm text-success-600 font-medium">
+                        <div className={`mt-2 text-xs sm:text-sm font-medium ${
+                          remainingDebt < 0 ? 'text-danger-600' : 'text-success-600'
+                        }`}>
                           {newDebtForm.paidAmount} so'm
+                          {remainingDebt < 0 && (
+                            <span className="block text-danger-600 font-bold mt-1">
+                              ⚠️ Jami summadan ko'p!
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1133,9 +1248,11 @@ export default function KassaDebts() {
                   Siz <strong>{selectedDebt.customer?.name}</strong> mijozining <strong>{formatNumber(selectedDebt.amount)} so'm</strong> qarzini o'chirmoqchisiz. 
                   Bu amal bekor qilinmaydi va barcha ma'lumotlar yo'qoladi.
                 </p>
-                <p className="text-danger-600 text-xs mt-2">
-                  <strong>Eslatma:</strong> Faqat tasdiqlashni kutayotgan qarzlarni o'chirish mumkin.
-                </p>
+                {selectedDebt.status === 'approved' && (
+                  <p className="text-danger-600 text-xs mt-2">
+                    <strong>Eslatma:</strong> Bu tasdiqlangan qarz. O'chirilganda mijozning umumiy qarzidan ham ayriladi.
+                  </p>
+                )}
               </div>
 
               <div className="bg-surface-50 p-4 rounded-xl">
@@ -1163,6 +1280,105 @@ export default function KassaDebts() {
                 className="px-6 py-2 bg-gradient-to-r from-danger-500 to-danger-600 text-white rounded-lg hover:from-danger-600 hover:to-danger-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Customer Modal */}
+      {showNewCustomerModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={resetNewCustomerForm} />
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-success-50 to-green-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-success-500 to-success-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Plus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-surface-900">Yangi mijoz qo'shish</h3>
+                  <p className="text-sm text-surface-600">Mijoz ma'lumotlarini kiriting</p>
+                </div>
+              </div>
+              <button
+                onClick={resetNewCustomerForm}
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-surface-700 mb-2">
+                  Mijoz ismi *
+                </label>
+                <input
+                  type="text"
+                  value={newCustomerForm.name}
+                  onChange={e => setNewCustomerForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
+                  placeholder="Mijoz ismini kiriting"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-surface-700 mb-2">
+                  Telefon raqami *
+                </label>
+                <input
+                  type="tel"
+                  value={newCustomerForm.phone}
+                  onChange={e => setNewCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
+                  placeholder="+998 90 123 45 67"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-surface-700 mb-2">
+                  Email (ixtiyoriy)
+                </label>
+                <input
+                  type="email"
+                  value={newCustomerForm.email}
+                  onChange={e => setNewCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
+                  placeholder="mijoz@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-surface-700 mb-2">
+                  Manzil (ixtiyoriy)
+                </label>
+                <textarea
+                  value={newCustomerForm.address}
+                  onChange={e => setNewCustomerForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20 resize-none"
+                  rows={3}
+                  placeholder="Mijoz manzilini kiriting"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
+              <button
+                onClick={resetNewCustomerForm}
+                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleNewCustomer}
+                disabled={!newCustomerForm.name.trim() || !newCustomerForm.phone.trim()}
+                className="px-6 py-2 bg-gradient-to-r from-success-500 to-success-600 text-white rounded-lg hover:from-success-600 hover:to-success-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Mijoz qo'shish
               </button>
             </div>
           </div>

@@ -11,7 +11,7 @@ export interface ReceiptData {
   date?: Date;
 }
 
-// Chek ma'lumotlarini formatlash - HAQIQIY KASSA CHEKI KABI
+// Chek ma'lumotlarini formatlash - SODDA VA ANIQ
 export const formatReceiptData = (data: ReceiptData): string => {
   const date = data.date || new Date();
   const receiptNumber = data.receiptNumber || `CHK-${Date.now()}`;
@@ -19,46 +19,75 @@ export const formatReceiptData = (data: ReceiptData): string => {
 
   let receipt = '';
   
-  // Header - Professional kassa cheki kabi
-  receipt += '================================\n';
-  receipt += '       SARDOR FURNITURA         \n';
-  receipt += '================================\n';
+  // Header - Sodda va aniq
+  receipt += '╔══════════════════════════════════╗\n';
+  receipt += '║         SARDOR FURNITURA         ║\n';
+  receipt += '║       Mebel va aksessuarlar      ║\n';
+  receipt += '╚══════════════════════════════════╝\n';
   receipt += '\n';
-  receipt += `CHK: ${receiptNumber}\n`;
-  receipt += `${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
-  receipt += `KASSIR: ${cashier}\n`;
+  
+  // Chek ma'lumotlari - Strukturali
+  receipt += '┌─ CHEK MA\'LUMOTLARI ─────────────┐\n';
+  receipt += `│ Raqam: ${receiptNumber.padEnd(21)} │\n`;
+  receipt += `│ Sana:  ${date.toLocaleDateString('uz-UZ').padEnd(21)} │\n`;
+  receipt += `│ Vaqt:  ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }).padEnd(21)} │\n`;
+  receipt += `│ Kassir: ${cashier.padEnd(20)} │\n`;
   
   if (data.customer) {
-    receipt += `MIJOZ: ${data.customer.name}\n`;
-    receipt += `TEL: ${data.customer.phone}\n`;
+    receipt += `│ Mijoz: ${data.customer.name.substring(0, 20).padEnd(20)} │\n`;
+    receipt += `│ Tel:   ${data.customer.phone.padEnd(20)} │\n`;
   }
   
-  receipt += '--------------------------------\n';
+  receipt += '└─────────────────────────────────┘\n';
+  receipt += '\n';
   
-  // Items - Oddiy va tushunarli
+  // Mahsulotlar ro'yxati - Jadval ko'rinishida
+  receipt += '┌─ XARID QILINGAN MAHSULOTLAR ────┐\n';
+  receipt += '│                                 │\n';
+  
   data.items.forEach((item, index) => {
-    receipt += `${index + 1}. ${item.name}\n`;
-    receipt += `    ${item.code}\n`;
-    receipt += `    ${item.cartQuantity} x ${formatNumber(item.price)}\n`;
-    receipt += `    = ${formatNumber(item.price * item.cartQuantity)} so'm\n`;
-    receipt += '\n';
+    // Mahsulot nomi (maksimal 28 belgi)
+    const itemName = item.name.length > 28 ? item.name.substring(0, 25) + '...' : item.name;
+    receipt += `│ ${(index + 1).toString().padStart(2)}. ${itemName.padEnd(28)} │\n`;
+    
+    // Kod va miqdor
+    receipt += `│     Kod: ${item.code.padEnd(19)} │\n`;
+    
+    // Narx va hisoblash
+    const priceText = `${item.cartQuantity} x ${formatNumber(item.price)}`;
+    const totalText = `${formatNumber(item.price * item.cartQuantity)} so'm`;
+    receipt += `│     ${priceText.padEnd(25)} │\n`;
+    receipt += `│     = ${totalText.padEnd(23)} │\n`;
+    receipt += '│                                 │\n';
   });
   
-  receipt += '--------------------------------\n';
+  receipt += '└─────────────────────────────────┘\n';
+  receipt += '\n';
   
-  // Total - Katta va aniq
-  receipt += `JAMI:     ${formatNumber(data.total)} SO'M\n`;
-  receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : 'PLASTIK KARTA'}\n`;
+  // Jami hisob - Katta va aniq
+  receipt += '╔═══════════════════════════════════╗\n';
+  receipt += '║              HISOB                ║\n';
+  receipt += '╠═══════════════════════════════════╣\n';
+  receipt += `║ Mahsulotlar soni: ${data.items.length.toString().padStart(11)} ta ║\n`;
+  receipt += `║ JAMI SUMMA:      ${formatNumber(data.total).padStart(12)} so'm ║\n`;
+  receipt += `║ TO'LOV TURI:     ${(data.paymentMethod === 'cash' ? 'NAQD PUL' : 'PLASTIK').padStart(12)} ║\n`;
+  receipt += '╚═══════════════════════════════════╝\n';
+  receipt += '\n';
   
-  receipt += '================================\n';
-  receipt += '    XARIDINGIZ UCHUN RAHMAT!    \n';
-  receipt += '================================\n';
+  // Footer - Faqat rahmat
+  receipt += '┌─────────────────────────────────┐\n';
+  receipt += '│     XARIDINGIZ UCHUN RAHMAT!     │\n';
+  receipt += '└─────────────────────────────────┘\n';
   
   return receipt;
 };
 
-// Chekni printerga yuborish - PRINT TUGAGANDAN KEYIN CALLBACK
-export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => void): Promise<boolean> => {
+// Print modal oyna yuborish - PRINT TUGAGANDAN KEYIN CALLBACK
+export const printReceipt = async (
+  data: ReceiptData, 
+  onPrintComplete?: () => void,
+  onPrintCancel?: () => void
+): Promise<boolean> => {
   try {
     const receiptText = formatReceiptData(data);
     
@@ -84,7 +113,7 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
       <!DOCTYPE html>
       <html>
         <head>
-          <title>KASSA CHEKI</title>
+          <title>SARDOR FURNITURA - KASSA CHEKI</title>
           <meta charset="UTF-8">
           <style>
             * {
@@ -94,35 +123,57 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
             }
             
             body {
-              font-family: 'Courier New', monospace;
-              font-size: 14px;
-              font-weight: bold;
-              line-height: 1.3;
-              color: #000;
-              background: white;
-              padding: 10px;
+              font-family: 'Courier New', 'Consolas', monospace;
+              font-size: 13px;
+              font-weight: 600;
+              line-height: 1.2;
+              color: #1a1a1a;
+              background: #ffffff;
+              padding: 15px;
+              max-width: 400px;
+              margin: 0 auto;
             }
             
             .receipt-text {
               white-space: pre-line;
               font-family: inherit;
-              font-weight: bold;
+              font-weight: 600;
               word-break: break-word;
+              letter-spacing: 0.3px;
+              text-align: left;
             }
             
-            /* Print uchun - JUDA SODDA */
+            /* Print uchun - Professional va chiroyli */
             @media print {
+              @page {
+                size: 80mm auto;
+                margin: 2mm;
+              }
+              
               body {
                 background: white;
-                font-size: 12px;
-                font-weight: bold;
-                padding: 5px;
+                font-size: 11px;
+                font-weight: 700;
+                padding: 3mm;
                 margin: 0;
+                color: #000;
+                max-width: none;
+                width: 100%;
               }
               
               .receipt-text {
                 width: 100%;
-                font-weight: bold;
+                font-weight: 700;
+                letter-spacing: 0.2px;
+                line-height: 1.1;
+              }
+            }
+            
+            /* Mobil uchun */
+            @media screen and (max-width: 480px) {
+              body {
+                font-size: 12px;
+                padding: 10px;
               }
             }
           </style>
@@ -131,12 +182,43 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
           <div class="receipt-text">${receiptText}</div>
           
           <script>
+            let printStarted = false;
+            let printCompleted = false;
+            
+            // Print boshlanishini kuzatish
+            window.addEventListener('beforeprint', function() {
+              console.log('Print dialog ochildi');
+              printStarted = true;
+              printCompleted = false;
+            });
+            
             // Print tugagandan keyin callback chaqirish
             window.addEventListener('afterprint', function() {
-              // Parent window'ga xabar yuborish
-              if (window.parent && window.parent.printCompleted) {
-                window.parent.printCompleted();
+              console.log('Print dialog yopildi, printStarted:', printStarted);
+              
+              // Faqat print haqiqatan boshlanganida callback chaqirish
+              if (printStarted && !printCompleted) {
+                printCompleted = true;
+                console.log('Print muvaffaqiyatli tugadi, callback chaqirilmoqda');
+                
+                // Parent window'ga xabar yuborish
+                if (window.parent && window.parent.printCompleted) {
+                  window.parent.printCompleted();
+                }
+              } else {
+                console.log('Print bekor qilindi yoki allaqachon tugagan');
+                // Print bekor qilinganda callback chaqirilmasin
+                if (window.parent && window.parent.printCancelled) {
+                  window.parent.printCancelled();
+                }
               }
+            });
+            
+            // Avtomatik print (ixtiyoriy)
+            window.addEventListener('load', function() {
+              setTimeout(function() {
+                window.focus();
+              }, 100);
             });
           </script>
         </body>
@@ -149,9 +231,11 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
     iframeDoc.close();
     
     // Global callback funksiyasini o'rnatish
-    if (onPrintComplete) {
+    if (onPrintComplete || onPrintCancel) {
       (window as any).printCompleted = () => {
-        onPrintComplete();
+        if (onPrintComplete) {
+          onPrintComplete();
+        }
         // Iframe'ni o'chirish
         setTimeout(() => {
           if (document.body.contains(iframe)) {
@@ -160,6 +244,22 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
         }, 1000);
         // Global funksiyani tozalash
         delete (window as any).printCompleted;
+        delete (window as any).printCancelled;
+      };
+      
+      (window as any).printCancelled = () => {
+        if (onPrintCancel) {
+          onPrintCancel();
+        }
+        // Iframe'ni o'chirish
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+        // Global funksiyani tozalash
+        delete (window as any).printCompleted;
+        delete (window as any).printCancelled;
       };
     }
     
@@ -170,7 +270,7 @@ export const printReceipt = async (data: ReceiptData, onPrintComplete?: () => vo
         iframe.contentWindow?.print();
         
         // Agar callback yo'q bo'lsa, oddiy tarzda iframe'ni o'chirish
-        if (!onPrintComplete) {
+        if (!onPrintComplete && !onPrintCancel) {
           setTimeout(() => {
             if (document.body.contains(iframe)) {
               document.body.removeChild(iframe);
@@ -355,11 +455,11 @@ export const getWindowsPrinters = (): string[] => {
   return commonPrinters;
 };
 
-// Print preview ochish
+// Print preview ochish - Zamonaviy dizayn
 export const openPrintPreview = (data: ReceiptData): void => {
   const receiptText = formatReceiptData(data);
   
-  const previewWindow = window.open('', '_blank', 'width=600,height=800,scrollbars=yes');
+  const previewWindow = window.open('', '_blank', 'width=700,height=900,scrollbars=yes,resizable=yes');
   if (!previewWindow) {
     alert('Popup blocker tomonidan bloklandi. Popup ruxsatini yoqing.');
     return;
@@ -371,61 +471,233 @@ export const openPrintPreview = (data: ReceiptData): void => {
       <head>
         <title>Chek Preview - ${data.receiptNumber}</title>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f5f5f5;
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           }
+          
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+          }
+          
           .preview-container {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
             margin: 0 auto;
+            overflow: hidden;
+            animation: slideUp 0.3s ease-out;
           }
-          .receipt-preview {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            white-space: pre-wrap;
-            background: #fafafa;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+          
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
-          .actions {
-            margin-top: 20px;
+          
+          .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 25px;
             text-align: center;
           }
-          .btn {
-            padding: 10px 20px;
-            margin: 0 5px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+          
+          .header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+          }
+          
+          .header p {
+            opacity: 0.9;
             font-size: 14px;
           }
+          
+          .receipt-preview {
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.3;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 25px;
+            border: none;
+            font-weight: 600;
+            color: #2c3e50;
+            max-height: 500px;
+            overflow-y: auto;
+          }
+          
+          .actions {
+            padding: 25px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+          }
+          
+          .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            justify-content: center;
+          }
+          
+          .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+          }
+          
+          .btn:active {
+            transform: translateY(0);
+          }
+          
           .btn-primary {
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
           }
+          
           .btn-secondary {
-            background: #6c757d;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
+          }
+          
+          .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+          }
+          
+          .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+          }
+          
+          .stat {
+            text-align: center;
+          }
+          
+          .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+          }
+          
+          .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
+          }
+          
+          /* Mobil uchun */
+          @media (max-width: 600px) {
+            body {
+              padding: 10px;
+            }
+            
+            .preview-container {
+              border-radius: 15px;
+            }
+            
+            .header {
+              padding: 20px;
+            }
+            
+            .header h2 {
+              font-size: 20px;
+            }
+            
+            .receipt-preview {
+              padding: 20px;
+              font-size: 12px;
+            }
+            
+            .actions {
+              padding: 20px;
+              flex-direction: column;
+            }
+            
+            .btn {
+              width: 100%;
+            }
           }
         </style>
       </head>
       <body>
         <div class="preview-container">
-          <h3>📋 Chek Preview</h3>
+          <div class="header">
+            <h2>Chek Preview</h2>
+            <p>Chek raqami: ${data.receiptNumber}</p>
+          </div>
+          
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-value">${data.items.length}</div>
+              <div class="stat-label">Mahsulotlar</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${formatNumber(data.total)}</div>
+              <div class="stat-label">Jami summa</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${data.paymentMethod === 'cash' ? 'NAQD' : 'KARTA'}</div>
+              <div class="stat-label">To'lov turi</div>
+            </div>
+          </div>
+          
           <div class="receipt-preview">${receiptText}</div>
+          
           <div class="actions">
-            <button class="btn btn-primary" onclick="window.print()">🖨️ Print qilish</button>
-            <button class="btn btn-secondary" onclick="window.close()">❌ Yopish</button>
+            <button class="btn btn-primary" onclick="window.print()">
+              Print qilish
+            </button>
+            <button class="btn btn-success" onclick="downloadReceipt()">
+              Saqlash
+            </button>
+            <button class="btn btn-secondary" onclick="window.close()">
+              Yopish
+            </button>
           </div>
         </div>
+        
+        <script>
+          function downloadReceipt() {
+            const receiptText = \`${receiptText}\`;
+            const blob = new Blob([receiptText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'chek-${data.receiptNumber || Date.now()}.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            URL.revokeObjectURL(url);
+          }
+        </script>
       </body>
     </html>
   `);

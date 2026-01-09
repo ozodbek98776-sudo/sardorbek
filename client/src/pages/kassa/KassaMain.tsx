@@ -23,7 +23,7 @@ export default function KassaMain() {
   
   // State
   const [products, setProducts] = useState<Product[]>([]);
-  const [, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [showPayment, setShowPayment] = useState(false);
@@ -32,6 +32,8 @@ export default function KassaMain() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [savedReceipts, setSavedReceipts] = useState<SavedReceipt[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   // Yangi state - real-time qidiruv uchun
   const [codeSuggestions, setCodeSuggestions] = useState<Product[]>([]);
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
@@ -497,6 +499,7 @@ export default function KassaMain() {
     }
   };
 
+  // ATOMIC TRANSACTION bilan to'lov - Print va Cancel mantiqini to'liq amalga oshirish
   const handlePayment = async (method: 'cash' | 'card') => {
     if (cart.length === 0) return;
     
@@ -515,87 +518,398 @@ export default function KassaMain() {
       receiptNumber
     };
 
+    // Chek ma'lumotlarini tayyorlash
+    const receiptData: ReceiptData = {
+      items: cart,
+      total,
+      paymentMethod: method,
+      customer: selectedCustomer,
+      receiptNumber,
+      cashier: 'Kassa',
+      date: new Date()
+    };
+
     try {
-      // 1. Chekni saqlash
-      await api.post('/receipts/kassa', saleData);
+      // 1️⃣ PRINT BOSHLASH - Avval print qilish
+      console.log('🖨️ Print jarayoni boshlanmoqda...');
       
-      // 2. Mahsulot miqdorini yangilash - har bir mahsulot uchun
-      console.log('To\'lov uchun mahsulot miqdorlarini yangilash boshlandi...');
-      const updateResults: Array<{success: boolean; item: string; data?: any; error?: string}> = [];
-      
-      for (const item of cart) {
-        try {
-          console.log(`${item.name} uchun miqdorni kamaytirish: ${item.cartQuantity} ta`);
-          const response = await api.put(`/products/${item._id}/reduce-quantity`, {
-            quantity: item.cartQuantity
-          });
-          console.log(`✅ ${item.name} muvaffaqiyatli yangilandi:`, response.data);
-          updateResults.push({ success: true, item: item.name, data: response.data });
-        } catch (quantityError: any) {
-          console.error(`❌ ${item.name} mahsuloti miqdorini kamaytirish xatosi:`, quantityError);
-          console.error('Xatolik tafsilotlari:', quantityError.response?.data);
+      // Print preview modal ochish va foydalanuvchi tanlovini kutish
+      const printConfirmed = await new Promise<boolean>((resolve) => {
+        // Print modal yaratish
+        const printModal = document.createElement('div');
+        printModal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md';
+        printModal.innerHTML = `
+          <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all animate-pulse-once">
+            <!-- Header with animated icon -->
+            <div class="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-8 text-center overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
+              <div class="relative z-10">
+                <div class="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-white/30 animate-bounce-slow">
+                  <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-2 drop-shadow-lg">Chek chiqarish</h3>
+                <p class="text-white/90 text-sm drop-shadow">Chekni printerga yuborish uchun "Print" tugmasini bosing</p>
+              </div>
+              <!-- Decorative elements -->
+              <div class="absolute top-4 right-4 w-8 h-8 bg-white/20 rounded-full animate-pulse"></div>
+              <div class="absolute bottom-4 left-4 w-6 h-6 bg-white/10 rounded-full animate-pulse delay-300"></div>
+            </div>
+            
+            <div class="p-6 bg-gradient-to-b from-gray-50 to-white">
+              <!-- Amount display with icons -->
+              <div class="bg-gradient-to-r from-indigo-50 via-blue-50 to-purple-50 rounded-2xl p-6 mb-6 border-2 border-indigo-100 shadow-inner">
+                <div class="text-center">
+                  <div class="flex items-center justify-center gap-2 mb-2">
+                    <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                    </svg>
+                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Jami summa</span>
+                  </div>
+                  <p class="text-4xl font-bold text-gray-800 mb-3">${formatNumber(total)} <span class="text-lg text-gray-500">so'm</span></p>
+                  <div class="flex items-center justify-center gap-4 text-sm text-gray-600">
+                    <div class="flex items-center gap-1">
+                      <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                      <span>${cart.length} ta mahsulot</span>
+                    </div>
+                    <div class="w-1 h-1 bg-gray-400 rounded-full"></div>
+                    <div class="flex items-center gap-1">
+                      ${method === 'cash' ? 
+                        '<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M7 15h2c0 1.08 1.37 2 3 2s3-.92 3-2c0-1.1-1.04-1.5-3.24-2.03C9.64 12.44 7 11.78 7 9c0-1.79 1.47-3.31 3.5-3.82V3h3v2.18C15.53 5.69 17 7.21 17 9h-2c0-1.08-1.37-2-3-2s-3 .92-3 2c0 1.1 1.04 1.5 3.24 2.03C14.36 11.56 17 12.22 17 15c0 1.79-1.47 3.31-3.5 3.82V21h-3v-2.18C8.47 18.31 7 16.79 7 15z"/></svg><span>Naqd pul</span>' : 
+                        '<svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg><span>Plastik karta</span>'
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Action buttons with enhanced design -->
+              <div class="flex gap-4">
+                <button id="cancelPrint" class="flex-1 group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-2xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-xl border border-gray-300">
+                  <div class="absolute inset-0 bg-gradient-to-r from-red-500/0 to-red-500/0 group-hover:from-red-500/10 group-hover:to-red-500/5 transition-all duration-300"></div>
+                  <svg class="w-5 h-5 text-red-500 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                  <span class="relative z-10">Cancel</span>
+                </button>
+                <button id="confirmPrint" class="flex-1 group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 text-white rounded-2xl font-bold hover:from-blue-600 hover:via-indigo-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-2xl">
+                  <div class="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <svg class="w-5 h-5 relative z-10 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                  </svg>
+                  <span class="relative z-10">Print</span>
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                </button>
+              </div>
+              
+              <!-- Footer info -->
+              <div class="mt-4 text-center">
+                <p class="text-xs text-gray-500 flex items-center justify-center gap-1">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  Chek printerga yuboriladi va ma'lumotlar saqlanadi
+                </p>
+              </div>
+            </div>
+          </div>
           
-          // Xatolik haqida foydalanuvchiga xabar berish
-          const errorMsg = quantityError.response?.data?.message || 'Noma\'lum xatolik';
-          showAlert(`${item.name}: ${errorMsg}`, 'Ogohlantirish', 'warning');
+          <style>
+            @keyframes bounce-slow {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-10px); }
+            }
+            @keyframes pulse-once {
+              0% { transform: scale(0.95); opacity: 0; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .animate-bounce-slow {
+              animation: bounce-slow 2s infinite;
+            }
+            .animate-pulse-once {
+              animation: pulse-once 0.3s ease-out;
+            }
+          </style>
+        `;
+        
+        document.body.appendChild(printModal);
+        
+        // Event listenerlar
+        const cancelBtn = printModal.querySelector('#cancelPrint');
+        const printBtn = printModal.querySelector('#confirmPrint');
+        
+        cancelBtn?.addEventListener('click', () => {
+          document.body.removeChild(printModal);
+          resolve(false); // Cancel bosildi - hech narsa qilmaslik
+        });
+        
+        printBtn?.addEventListener('click', async () => {
+          document.body.removeChild(printModal);
           
-          updateResults.push({ success: false, item: item.name, error: errorMsg });
-        }
+          // Haqiqiy print jarayoni
+          try {
+            const printSuccess = await printReceipt(receiptData);
+            resolve(printSuccess); // Print natijasi
+          } catch (printError) {
+            console.error('Print xatosi:', printError);
+            resolve(false); // Print muvaffaqiyatsiz
+          }
+        });
+      });
+
+      // 2️⃣ PRINT NATIJASINI TEKSHIRISH
+      if (!printConfirmed) {
+        // ❌ CANCEL BOSILDI yoki PRINT MUVAFFAQIYATSIZ
+        console.log('❌ Print bekor qilindi yoki muvaffaqiyatsiz');
+        
+        // CANCEL bosilganda hech qanday modal chiqarmaslik va hech narsa o'zgartirmaslik
+        setShowPayment(false);
+        return; // Funksiyadan chiqish - hech narsa o'zgartirilmaydi
       }
+
+      // 3️⃣ PRINT MUVAFFAQIYATLI - ATOMIC TRANSACTION BOSHLASH
+      console.log('✅ Print muvaffaqiyatli, atomic transaction boshlanmoqda...');
       
-      console.log('To\'lov uchun mahsulot miqdorlarini yangilash tugadi. Natijalar:', updateResults);
-      
-      // Chek ma'lumotlarini tayyorlash
-      const receiptData: ReceiptData = {
-        items: cart,
-        total,
-        paymentMethod: method,
-        customer: selectedCustomer,
-        receiptNumber,
-        cashier: 'Kassa',
-        date: new Date()
+      // Atomic transaction bilan backend'ga yuborish
+      const transactionData = {
+        ...saleData,
+        printSuccess: true // Print muvaffaqiyatli ekanligini bildirish
       };
       
-      // Chekni chiqarish - print tugagandan keyin callback bilan
-      const printSuccess = await printReceipt(receiptData, () => {
-        // Print tugagandan keyin success xabari
-        const successCount = updateResults.filter(r => r.success).length;
-        const failCount = updateResults.filter(r => !r.success).length;
+      const response = await api.post('/receipts/kassa-atomic', transactionData);
+      
+      if (response.data.success) {
+        // 4️⃣ TRANSACTION MUVAFFAQIYATLI
+        console.log('✅ Atomic transaction muvaffaqiyatli tugadi');
         
-        if (failCount === 0) {
-          showAlert('To\'lov qabul qilindi, chek muvaffaqiyatli chiqarildi va mahsulot miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
-        } else {
-          showAlert(`To\'lov qabul qilindi, chek chiqarildi. ${successCount} ta mahsulot yangilandi, ${failCount} ta xatolik`, 'Ogohlantirish', 'warning');
-        }
+        // Success modal ko'rsatish
+        const successModal = document.createElement('div');
+        successModal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md';
+        successModal.innerHTML = `
+          <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all animate-success">
+            <!-- Success header with animated checkmark -->
+            <div class="relative bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 p-8 text-center overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
+              <div class="relative z-10">
+                <div class="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-white/30 animate-checkmark">
+                  <svg class="w-12 h-12 text-white animate-draw-check" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-2 drop-shadow-lg">Muvaffaqiyatli!</h3>
+                <p class="text-white/90 text-sm drop-shadow">Barcha amallar muvaffaqiyatli bajarildi</p>
+              </div>
+              <!-- Celebration particles -->
+              <div class="absolute top-4 right-4 w-2 h-2 bg-yellow-300 rounded-full animate-ping"></div>
+              <div class="absolute top-8 right-8 w-1 h-1 bg-white rounded-full animate-ping delay-100"></div>
+              <div class="absolute bottom-4 left-4 w-2 h-2 bg-yellow-300 rounded-full animate-ping delay-200"></div>
+            </div>
+            
+            <div class="p-6 bg-gradient-to-b from-green-50 to-white">
+              <!-- Success steps -->
+              <div class="space-y-4 mb-6">
+                <div class="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-green-100">
+                  <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-semibold text-gray-800">Chek yaratildi va saqlandi</p>
+                    <p class="text-xs text-gray-500">Ma'lumotlar bazaga saqlandi</p>
+                  </div>
+                  <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                </div>
+                
+                <div class="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-green-100">
+                  <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,14H13V16H11V14M11,8H13V12H11V8Z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-semibold text-gray-800">Mahsulot miqdorlari yangilandi</p>
+                    <p class="text-xs text-gray-500">Ombor ma'lumotlari yangilandi</p>
+                  </div>
+                  <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                </div>
+                
+                <div class="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-green-100">
+                  <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-semibold text-gray-800">Chek printerga yuborildi</p>
+                    <p class="text-xs text-gray-500">Print jarayoni tugallandi</p>
+                  </div>
+                  <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <!-- Action button -->
+              <button id="closeSuccess" class="w-full group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-600 text-white rounded-2xl font-bold hover:from-green-600 hover:via-emerald-600 hover:to-teal-700 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-2xl">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <svg class="w-5 h-5 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                </svg>
+                <span class="relative z-10">Ajoyib!</span>
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              </button>
+            </div>
+          </div>
+          
+          <style>
+            @keyframes checkmark {
+              0% { transform: scale(0) rotate(0deg); }
+              50% { transform: scale(1.2) rotate(180deg); }
+              100% { transform: scale(1) rotate(360deg); }
+            }
+            @keyframes draw-check {
+              0% { stroke-dasharray: 0 50; }
+              100% { stroke-dasharray: 50 0; }
+            }
+            @keyframes success {
+              0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+              100% { transform: scale(1) translateY(0); opacity: 1; }
+            }
+            .animate-checkmark {
+              animation: checkmark 0.6s ease-out;
+            }
+            .animate-draw-check {
+              stroke-dasharray: 50;
+              animation: draw-check 0.8s ease-out 0.3s both;
+            }
+            .animate-success {
+              animation: success 0.4s ease-out;
+            }
+          </style>
+        `;
         
-        // Savat va boshqa ma'lumotlarni tozalash
+        document.body.appendChild(successModal);
+        
+        successModal.querySelector('#closeSuccess')?.addEventListener('click', () => {
+          document.body.removeChild(successModal);
+        });
+        
+        // Savat va ma'lumotlarni tozalash
         setCart([]);
         setShowPayment(false);
         setSelectedCustomer(null);
-        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
+        
+        // Mahsulotlar ro'yxatini yangilash
         fetchProducts();
+        
+        showAlert('To\'lov muvaffaqiyatli yakunlandi!', 'Muvaffaqiyat', 'success');
+      }
+      
+    } catch (err: any) {
+      // 5️⃣ XATOLIK - ROLLBACK
+      console.error('❌ Atomic transaction xatosi:', err);
+      
+      // Error modal ko'rsatish
+      const errorModal = document.createElement('div');
+      errorModal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md';
+      errorModal.innerHTML = `
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all animate-error-shake">
+          <!-- Error header with animated warning -->
+          <div class="relative bg-gradient-to-br from-red-400 via-pink-500 to-rose-600 p-8 text-center overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
+            <div class="relative z-10">
+              <div class="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-white/30 animate-warning-pulse">
+                <svg class="w-12 h-12 text-white animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                </svg>
+              </div>
+              <h3 class="text-2xl font-bold text-white mb-2 drop-shadow-lg">Xatolik yuz berdi</h3>
+              <p class="text-white/90 text-sm drop-shadow">Jarayon davomida muammo yuzaga keldi</p>
+            </div>
+            <!-- Warning particles -->
+            <div class="absolute top-4 right-4 w-2 h-2 bg-yellow-300 rounded-full animate-ping"></div>
+            <div class="absolute bottom-4 left-4 w-1 h-1 bg-white rounded-full animate-ping delay-300"></div>
+          </div>
+          
+          <div class="p-6 bg-gradient-to-b from-red-50 to-white">
+            <!-- Error details -->
+            <div class="space-y-4 mb-6">
+              <div class="flex items-start gap-3 p-4 bg-white rounded-xl shadow-sm border border-red-100">
+                <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v4z"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-gray-800 mb-1">Xatolik tafsiloti:</p>
+                  <p class="text-sm text-gray-600">${err.response?.data?.message || 'Transaction xatosi'}</p>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-gray-800">Barcha o'zgarishlar bekor qilindi</p>
+                  <p class="text-xs text-gray-500">Ma'lumotlar xavfsizligi ta'minlandi</p>
+                </div>
+                <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                </svg>
+              </div>
+            </div>
+            
+            <!-- Action button -->
+            <button id="closeError" class="w-full group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-red-500 via-pink-500 to-rose-600 text-white rounded-2xl font-bold hover:from-red-600 hover:via-pink-600 hover:to-rose-700 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-2xl">
+              <div class="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <svg class="w-5 h-5 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <span class="relative z-10">Tushunarli</span>
+              <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            </button>
+          </div>
+        </div>
+        
+        <style>
+          @keyframes warning-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+          }
+          @keyframes error-shake {
+            0% { transform: translateX(0) scale(0.95); opacity: 0; }
+            25% { transform: translateX(-5px) scale(1); opacity: 1; }
+            50% { transform: translateX(5px) scale(1); }
+            75% { transform: translateX(-3px) scale(1); }
+            100% { transform: translateX(0) scale(1); }
+          }
+          .animate-warning-pulse {
+            animation: warning-pulse 1.5s infinite;
+          }
+          .animate-error-shake {
+            animation: error-shake 0.5s ease-out;
+          }
+        </style>
+      `;
+      
+      document.body.appendChild(errorModal);
+      
+      errorModal.querySelector('#closeError')?.addEventListener('click', () => {
+        document.body.removeChild(errorModal);
       });
       
-      if (!printSuccess) {
-        showAlert('To\'lov qabul qilindi, savdo saqlandi, chek faylga yuklandi', 'Ogohlantirish', 'warning');
-        // Print ishlamasa ham savat tozalanadi
-        setCart([]);
-        setShowPayment(false);
-        setSelectedCustomer(null);
-        // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-        fetchProducts();
-      }
-      
-      // Telegram xabar yuborish (agar mijoz tanlangan bo'lsa)
-      if (selectedCustomer) {
-        const message = `🛒 Yangi xarid:\n👤 Mijoz: ${selectedCustomer.name}\n💰 Summa: ${formatNumber(total)} so'm\n📦 Mahsulotlar: ${cart.length} ta\n⏰ Vaqt: ${new Date().toLocaleString()}`;
-        // Bu yerda telegram bot API orqali xabar yuboriladi
-        console.log('Telegram message:', message);
-      }
-      
-    } catch (err) {
-      console.error('Error creating receipt:', err);
-      showAlert('Xatolik yuz berdi', 'Xatolik', 'danger');
+      showAlert('Transaction xatosi - barcha o\'zgarishlar bekor qilindi', 'Xatolik', 'danger');
     }
   };
 
@@ -625,7 +939,151 @@ export default function KassaMain() {
     }
 
     try {
-      // 1. Kassir chekini bazaga saqlash
+      // Print preview modal ochish va foydalanuvchi tanlovini kutish
+      const printConfirmed = await new Promise<boolean>((resolve) => {
+        // Print modal yaratish
+        const printModal = document.createElement('div');
+        printModal.className = 'fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md';
+        printModal.innerHTML = `
+          <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all animate-pulse-once">
+            <!-- Header with animated icon -->
+            <div class="relative bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-600 p-8 text-center overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent"></div>
+              <div class="relative z-10">
+                <div class="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl border-4 border-white/30 animate-bounce-slow">
+                  <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-2 drop-shadow-lg">Kassir cheki chiqarish</h3>
+                <p class="text-white/90 text-sm drop-shadow">Chekni printerga yuborish uchun "Print" tugmasini bosing</p>
+              </div>
+              <!-- Decorative elements -->
+              <div class="absolute top-4 right-4 w-8 h-8 bg-white/20 rounded-full animate-pulse"></div>
+              <div class="absolute bottom-4 left-4 w-6 h-6 bg-white/10 rounded-full animate-pulse delay-300"></div>
+            </div>
+            
+            <div class="p-6 bg-gradient-to-b from-purple-50 to-white">
+              <!-- Amount display with icons -->
+              <div class="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 rounded-2xl p-6 mb-6 border-2 border-purple-100 shadow-inner">
+                <div class="text-center">
+                  <div class="flex items-center justify-center gap-2 mb-2">
+                    <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Kassir cheki</span>
+                  </div>
+                  <p class="text-4xl font-bold text-gray-800 mb-3">${formatNumber(total)} <span class="text-lg text-gray-500">so'm</span></p>
+                  <div class="flex items-center justify-center gap-4 text-sm text-gray-600">
+                    <div class="flex items-center gap-1">
+                      <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                      <span>${cart.length} ta mahsulot</span>
+                    </div>
+                    <div class="w-1 h-1 bg-gray-400 rounded-full"></div>
+                    <div class="flex items-center gap-1">
+                      <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2M21 9V7L15 1H5C3.89 1 3 1.89 3 3V19A2 2 0 0 0 5 21H11V19H5V3H13V9H21Z"/>
+                      </svg>
+                      <span>Kassir cheki</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Action buttons with enhanced design -->
+              <div class="flex gap-4">
+                <button id="cancelHelperPrint" class="flex-1 group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-2xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-xl border border-gray-300">
+                  <div class="absolute inset-0 bg-gradient-to-r from-red-500/0 to-red-500/0 group-hover:from-red-500/10 group-hover:to-red-500/5 transition-all duration-300"></div>
+                  <svg class="w-5 h-5 text-red-500 relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                  </svg>
+                  <span class="relative z-10">Cancel</span>
+                </button>
+                <button id="confirmHelperPrint" class="flex-1 group relative overflow-hidden py-4 px-6 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-600 text-white rounded-2xl font-bold hover:from-purple-600 hover:via-indigo-600 hover:to-blue-700 transition-all duration-300 flex items-center justify-center gap-3 hover:scale-105 shadow-lg hover:shadow-2xl">
+                  <div class="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <svg class="w-5 h-5 relative z-10 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                  </svg>
+                  <span class="relative z-10">Print</span>
+                  <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                </button>
+              </div>
+              
+              <!-- Footer info -->
+              <div class="mt-4 text-center">
+                <p class="text-xs text-gray-500 flex items-center justify-center gap-1">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  Kassir cheki printerga yuboriladi
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <style>
+            @keyframes bounce-slow {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-10px); }
+            }
+            @keyframes pulse-once {
+              0% { transform: scale(0.95); opacity: 0; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .animate-bounce-slow {
+              animation: bounce-slow 2s infinite;
+            }
+            .animate-pulse-once {
+              animation: pulse-once 0.3s ease-out;
+            }
+          </style>
+        `;
+        
+        document.body.appendChild(printModal);
+        
+        // Event listenerlar
+        const cancelBtn = printModal.querySelector('#cancelHelperPrint');
+        const printBtn = printModal.querySelector('#confirmHelperPrint');
+        
+        cancelBtn?.addEventListener('click', () => {
+          document.body.removeChild(printModal);
+          resolve(false); // Cancel bosildi - hech narsa qilmaslik
+        });
+        
+        printBtn?.addEventListener('click', async () => {
+          document.body.removeChild(printModal);
+          
+          // Haqiqiy print jarayoni
+          const printReceiptData: ReceiptData = {
+            items: cart,
+            total,
+            paymentMethod: 'cash', // Default
+            customer: selectedCustomer,
+            receiptNumber: `HELPER-${Date.now()}`,
+            cashier: 'Kassir',
+            date: new Date()
+          };
+          
+          try {
+            const printSuccess = await printReceipt(printReceiptData);
+            resolve(printSuccess); // Print natijasi
+          } catch (printError) {
+            console.error('Print xatosi:', printError);
+            resolve(false); // Print muvaffaqiyatsiz
+          }
+        });
+      });
+
+      // Print natijasini tekshirish
+      if (!printConfirmed) {
+        // Cancel bosildi yoki print muvaffaqiyatsiz
+        console.log('❌ Kassir cheki print bekor qilindi');
+        return; // Hech narsa o'zgartirilmaydi
+      }
+
+      // Print muvaffaqiyatli - bazaga saqlash
       const receiptData = {
         items: cart.map(item => ({
           productId: item._id,
@@ -639,32 +1097,11 @@ export default function KassaMain() {
       const response = await api.post('/receipts/helper-receipt', receiptData);
       
       if (response.data.success) {
-        // 2. Chekni print qilish
-        const printReceiptData: ReceiptData = {
-          items: cart,
-          total,
-          paymentMethod: 'cash', // Default
-          customer: selectedCustomer,
-          receiptNumber: `HELPER-${Date.now()}`,
-          cashier: 'Kassir',
-          date: new Date()
-        };
-        
-        const printSuccess = await printReceipt(printReceiptData, () => {
-          showAlert('Chek muvaffaqiyatli chiqarildi!', 'Muvaffaqiyat', 'success');
-          setCart([]);
-          setSelectedCustomer(null);
-          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-          fetchProducts();
-        });
-        
-        if (!printSuccess) {
-          showAlert('Chek bazaga saqlandi, faylga yuklandi', 'Ogohlantirish', 'warning');
-          setCart([]);
-          setSelectedCustomer(null);
-          // Mahsulotlar ro'yxatini yangilash - miqdorlar o'zgargan
-          fetchProducts();
-        }
+        showAlert('Kassir cheki muvaffaqiyatli chiqarildi!', 'Muvaffaqiyat', 'success');
+        setCart([]);
+        setSelectedCustomer(null);
+        // Mahsulotlar ro'yxatini yangilash
+        fetchProducts();
       }
     } catch (error: any) {
       console.error('Helper receipt error:', error);
@@ -1353,7 +1790,7 @@ export default function KassaMain() {
               >
                 <Banknote className="w-5 h-5" />
                 Naqd pul
-                <Printer className="w-4 h-4 ml-1 opacity-75" />
+                <span className="text-xs opacity-75">(Print bilan)</span>
               </button>
               <button 
                 onClick={() => handlePayment('card')} 
@@ -1361,7 +1798,7 @@ export default function KassaMain() {
               >
                 <CreditCard className="w-5 h-5" />
                 Plastik karta
-                <Printer className="w-4 h-4 ml-1 opacity-75" />
+                <span className="text-xs opacity-75">(Print bilan)</span>
               </button>
               <button 
                 onClick={() => setShowPayment(false)} 
@@ -1374,4 +1811,5 @@ export default function KassaMain() {
         </div>
       )}
     </div>
-  );}
+  );
+}
