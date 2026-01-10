@@ -4,7 +4,7 @@ const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const { auth, authorize } = require('../middleware/auth');
 const telegramService = require('../services/telegramService');
-const { getPOSBot } = require('../telegram.bot'); // POS Bot import qilish
+// const { getPOSBot } = require('../telegram.bot'); // POS Bot import qilish - vaqtincha o'chirildi
 
 const router = express.Router();
 
@@ -184,8 +184,10 @@ router.post('/kassa-atomic', async (req, res) => {
             try {
               const updatedCustomer = await Customer.findById(customer);
 
-              // Faqat POS Bot orqali yuborish
+              // Faqat POS Bot orqali yuborish - vaqtincha o'chirildi
+              /*
               const posBot = getPOSBot();
+              /*
               if (posBot) {
                 await posBot.sendReceiptToCustomer({
                   customer: updatedCustomer,
@@ -198,6 +200,7 @@ router.post('/kassa-atomic', async (req, res) => {
               } else {
                 console.log(`❌ Atomic: POS Bot mavjud emas`);
               }
+              */
             } catch (telegramError) {
               console.error('❌ Atomic POS Bot xatosi:', telegramError);
             }
@@ -362,7 +365,8 @@ router.post('/kassa', async (req, res) => {
             // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
             const updatedCustomer = await Customer.findById(customer);
 
-            // Faqat POS Bot orqali yuborish
+            // Faqat POS Bot orqali yuborish - vaqtincha o'chirildi
+            /*
             try {
               const posBot = getPOSBot();
               if (posBot) {
@@ -382,6 +386,7 @@ router.post('/kassa', async (req, res) => {
             } catch (posBotError) {
               console.error('❌ POS Bot chek yuborishda xatolik:', posBotError);
             }
+            */
           } else {
             console.log(`❌ Mijoz ${customerData.name} da telegram ID yo'q`);
           }
