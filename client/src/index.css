@@ -527,6 +527,231 @@
 }
 
 /* ============================================
+   🛒 PROFESSIONAL CART ITEM DESIGN
+   ============================================ */
+
+/* Modern Cart Item Container */
+.pro-cart-item {
+  @apply bg-white rounded-2xl p-4 border border-gray-100 shadow-sm;
+  @apply transition-all duration-300;
+  @apply hover:shadow-md hover:border-gray-200;
+  @apply flex items-center justify-between gap-4;
+  min-height: 80px;
+}
+
+.pro-cart-item:hover {
+  transform: translateY(-1px);
+}
+
+/* Cart Item Left Section */
+.pro-cart-left {
+  @apply flex items-center gap-4 flex-1;
+}
+
+.pro-item-number {
+  @apply w-8 h-8 rounded-full bg-gray-100 text-gray-600 text-sm font-medium;
+  @apply flex items-center justify-center flex-shrink-0;
+}
+
+.pro-item-details {
+  @apply flex-1 min-w-0;
+}
+
+.pro-item-name {
+  @apply text-base font-semibold text-gray-900 truncate;
+  @apply mb-1;
+}
+
+.pro-item-meta {
+  @apply flex items-center gap-3 text-sm text-gray-500;
+}
+
+/* Cart Item Center Section - Quantity Controls */
+.pro-quantity-section {
+  @apply flex items-center gap-3 flex-shrink-0;
+}
+
+.pro-quantity-controls {
+  @apply flex items-center bg-gray-50 rounded-xl border border-gray-200;
+  @apply transition-all duration-200;
+}
+
+.pro-quantity-controls:hover {
+  @apply border-gray-300 bg-gray-100;
+}
+
+.pro-quantity-btn {
+  @apply w-10 h-10 flex items-center justify-center text-gray-600;
+  @apply hover:text-gray-900 hover:bg-white rounded-lg;
+  @apply transition-all duration-200 font-medium;
+  @apply active:scale-95;
+}
+
+.pro-quantity-btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.pro-quantity-display {
+  @apply px-4 py-2 text-center font-semibold text-gray-900 min-w-[3rem];
+  @apply bg-white border-x border-gray-200;
+}
+
+/* Pricing Tier Badge */
+.pro-tier-badge {
+  @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  @apply cursor-pointer transition-all duration-200;
+  @apply hover:scale-105 active:scale-95;
+}
+
+.pro-tier-normal {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+.pro-tier-discount {
+  @apply bg-emerald-100 text-emerald-700 hover:bg-emerald-200;
+}
+
+.pro-tier-custom {
+  @apply bg-purple-100 text-purple-700 hover:bg-purple-200;
+}
+
+/* Cart Item Right Section - Price & Actions */
+.pro-cart-right {
+  @apply flex flex-col items-end gap-2 flex-shrink-0;
+}
+
+.pro-price-section {
+  @apply text-right;
+}
+
+.pro-price-calculation {
+  @apply flex items-center gap-1 text-sm text-gray-500 justify-end;
+}
+
+.pro-price-total {
+  @apply text-lg font-bold text-gray-900 flex items-baseline gap-1;
+}
+
+.pro-price-currency {
+  @apply text-sm font-medium text-gray-600;
+}
+
+/* Payment Breakdown Section */
+.pro-payment-breakdown {
+  @apply mt-3 pt-3 border-t border-gray-100;
+}
+
+.pro-payment-item {
+  @apply inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium;
+  @apply mr-2 mb-1;
+}
+
+.pro-payment-cash {
+  @apply bg-green-50 text-green-700 border border-green-200;
+}
+
+.pro-payment-click {
+  @apply bg-purple-50 text-purple-700 border border-purple-200;
+}
+
+.pro-payment-card {
+  @apply bg-blue-50 text-blue-700 border border-blue-200;
+}
+
+.pro-payment-partner {
+  @apply bg-orange-50 text-orange-700 border border-orange-200;
+}
+
+.pro-payment-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.pro-payment-cash .pro-payment-dot {
+  @apply bg-green-500;
+}
+
+.pro-payment-click .pro-payment-dot {
+  @apply bg-purple-500;
+}
+
+.pro-payment-card .pro-payment-dot {
+  @apply bg-blue-500;
+}
+
+.pro-payment-partner .pro-payment-dot {
+  @apply bg-orange-500;
+}
+
+.pro-payment-text {
+  @apply font-semibold;
+}
+
+.pro-payment-setup-btn {
+  @apply flex items-center gap-2 px-3 py-2 text-sm text-blue-600;
+  @apply hover:text-blue-700 hover:bg-blue-50 rounded-lg;
+  @apply transition-all duration-200 font-medium;
+}
+
+/* Delete Button */
+.pro-delete-btn {
+  @apply w-8 h-8 flex items-center justify-center text-red-500;
+  @apply hover:text-red-700 hover:bg-red-50 rounded-lg;
+  @apply transition-all duration-200;
+  @apply active:scale-95;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .pro-cart-item {
+    @apply flex-col items-stretch gap-3 p-3;
+  }
+  
+  .pro-cart-left {
+    @apply gap-3;
+  }
+  
+  .pro-quantity-section {
+    @apply justify-center;
+  }
+  
+  .pro-cart-right {
+    @apply flex-row items-center justify-between;
+  }
+  
+  .pro-price-section {
+    @apply text-left;
+  }
+}
+
+/* ============================================
+   🛒 CART SUMMARY DESIGN
+   ============================================ */
+
+.pro-cart-summary {
+  @apply bg-white rounded-2xl p-6 border border-gray-100 shadow-sm;
+  @apply sticky bottom-0 z-10;
+}
+
+.pro-cart-total {
+  @apply flex items-center justify-between mb-4;
+}
+
+.pro-total-label {
+  @apply text-lg font-semibold text-gray-700;
+}
+
+.pro-total-amount {
+  @apply text-2xl font-bold text-gray-900;
+}
+
+.pro-checkout-btn {
+  @apply w-full bg-blue-600 text-white py-4 rounded-xl font-semibold;
+  @apply hover:bg-blue-700 active:bg-blue-800;
+  @apply transition-all duration-200;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* ============================================
    🔒 KASSA HIMOYA TIZIMI - CHIQISH TAQIQLANADI
    ============================================ */
 
