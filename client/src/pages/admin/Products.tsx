@@ -211,7 +211,8 @@ export default function Products() {
       // Sizning haqiqiy printerlaringiz
       const myPrinters = [
         'EPSON L132 Series (Copy 1)',
-        'EPSON L132 Series'
+        'EPSON L132 Series',
+        'X printer'
       ];
       
       setAvailablePrinters(myPrinters);
@@ -224,7 +225,7 @@ export default function Products() {
       
     } catch (error) {
       console.error('Error loading printers:', error);
-      setAvailablePrinters(['EPSON L132 Series']);
+      setAvailablePrinters(['EPSON L132 Series', 'X printer']);
     }
   };
 
@@ -389,33 +390,36 @@ export default function Products() {
               padding: ${printSettings.size === 'card' ? '1mm' : printSettings.size === 'thermal' ? '6px' : '12px'};
               background: white;
               width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '120mm' : '120mm')};
-              height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '39mm' : printSettings.size === 'A4' ? '60mm' : printSettings.size === 'A5' ? '90mm' : '90mm')};
+              height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '60mm' : printSettings.size === 'A4' ? '100mm' : printSettings.size === 'A5' ? '140mm' : '140mm')};
               display: flex;
-              align-items: center;
-              gap: 1px;
+              flex-direction: column;
+              justify-content: space-between;
+              gap: 2px;
               overflow: hidden;
               border-radius: 2px;
               page-break-inside: avoid;
             }
             .product-info {
               flex: 1;
-              max-width: 60%;
+              width: 100%;
               display: flex;
               flex-direction: column;
               justify-content: center;
-              height: 100%;
+              align-items: center;
+              text-align: center;
+              height: auto;
             }
             .product-name {
-              font-size: ${printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px'};
-              font-weight: 700;
+              font-size: ${printSettings.size === 'card' ? '8px' : printSettings.size === 'thermal' ? '16px' : '20px'};
+              font-weight: 600;
               color: #1a1a1a;
-              line-height: 1.0;
+              line-height: 1.1;
               margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
               word-wrap: break-word;
               overflow: hidden;
               text-overflow: ellipsis;
               display: -webkit-box;
-              -webkit-line-clamp: ${printSettings.size === 'card' ? '2' : '3'};
+              -webkit-line-clamp: ${printSettings.size === 'card' ? '1' : '2'};
               -webkit-box-orient: vertical;
             }
             .product-code {
@@ -508,9 +512,9 @@ export default function Products() {
           <div class="page-container">
             <div class="label-container">
               <div class="product-info">
-                <div class="product-name">${selectedProduct.name}</div>
-                <div class="product-code">Kod: ${selectedProduct.code}</div>
                 <div class="product-price">${formatNumber(selectedProduct.price)} so'm</div>
+                <div class="product-code">Kod: ${selectedProduct.code}</div>
+                <div class="product-name">${selectedProduct.name}</div>
                 
                 ${printSettings.layout === 'standard' ? `
                   <div class="additional-info">
@@ -951,18 +955,6 @@ export default function Products() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Shablon</label>
-                  <select 
-                    className="input"
-                    value={printSettings.layout}
-                    onChange={e => setPrintSettings({...printSettings, layout: e.target.value})}
-                  >
-                    <option value="standard">Standart (barcha ma'lumotlar)</option>
-                    <option value="minimal">Minimal (faqat asosiy ma'lumotlar)</option>
-                  </select>
-                </div>
-
-                <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Nusxalar soni</label>
                   <input 
                     type="number" 
@@ -1027,24 +1019,20 @@ export default function Products() {
                     <div className="flex items-center h-full" style={{gap: printSettings.size === 'card' ? '2px' : '6px'}}>
                       {/* Left side - Product info */}
                       <div className="flex-1 flex flex-col justify-center h-full" style={{maxWidth: '58%', paddingRight: '6px'}}>
+                        {/* Price */}
                         <div 
-                          className="font-bold text-black"
+                          className="font-bold"
                           style={{
-                          fontSize: printSettings.size === 'card' ? '9px' : printSettings.size === 'thermal' ? '18px' : '24px',
-                          lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
-                            fontWeight: '700',
-                            color: '#1a1a1a',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: printSettings.size === 'card' ? 2 : 3,
-                            WebkitBoxOrient: 'vertical'
+                            fontSize: printSettings.size === 'card' ? '10px' : printSettings.size === 'thermal' ? '18px' : '22px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
+                            fontWeight: '800',
+                            color: '#d32f2f'
                           }}
                         >
-                          {selectedProduct.name}
+                          {formatNumber(selectedProduct.price)} so'm
                         </div>
-                        
+
                         <div 
                           className="text-gray-600"
                           style={{
@@ -1058,18 +1046,22 @@ export default function Products() {
                           Kod: {selectedProduct.code}
                         </div>
 
-                        {/* Price */}
                         <div 
-                          className="font-bold"
+                          className="font-bold text-black"
                           style={{
-                            fontSize: printSettings.size === 'card' ? '10px' : printSettings.size === 'thermal' ? '18px' : '22px',
-                            lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
-                            fontWeight: '800',
-                            color: '#d32f2f'
+                          fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
+                          lineHeight: '1.1',
+                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
+                            fontWeight: '600',
+                            color: '#1a1a1a',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: printSettings.size === 'card' ? 1 : 2,
+                            WebkitBoxOrient: 'vertical'
                           }}
                         >
-                          {formatNumber(selectedProduct.price)} so'm
+                          {selectedProduct.name}
                         </div>
 
                         {/* Additional info only in standard layout */}
@@ -1234,3 +1226,278 @@ export default function Products() {
     </div>
   );
 }
+  const fetchMainWarehouse = async () => {
+    try {
+      const res = await api.get('/warehouses');
+      const main = res.data.find((w: Warehouse) => w.name === 'Asosiy ombor');
+      if (main) {
+        setMainWarehouse(main);
+      } else {
+        const newMain = await api.post('/warehouses', { name: 'Asosiy ombor', address: '' });
+        setMainWarehouse(newMain.data);
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+      setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await api.get('/products?mainOnly=true');
+      setProducts(res.data);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const remainingSlots = 8 - images.length;
+    if (remainingSlots <= 0) {
+      showAlert('Maksimum 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+    const formData = new FormData();
+    filesToUpload.forEach(file => formData.append('images', file));
+
+    setUploading(true);
+    try {
+      const res = await api.post('/products/upload-images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setImages([...images, ...res.data.images]);
+    } catch (err) {
+      console.error('Error uploading images:', err);
+      showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = async (imagePath: string) => {
+    try {
+      await api.delete('/products/delete-image', { data: { imagePath } });
+      setImages(images.filter(img => img !== imagePath));
+    } catch (err) {
+      console.error('Error deleting image:', err);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (codeError) {
+      showAlert(codeError, 'Xatolik', 'danger');
+      return;
+    }
+    
+    let finalQuantity = Number(formData.quantity);
+    let finalCostPrice = Number(formData.costPrice);
+    let packageInfo = null;
+    
+    if (showPackageInput && packageData.packageCount && packageData.unitsPerPackage) {
+      const totalUnits = Number(packageData.packageCount) * Number(packageData.unitsPerPackage);
+      finalQuantity = editingProduct ? Number(formData.quantity) + totalUnits : totalUnits;
+      packageInfo = {
+        packageCount: Number(packageData.packageCount),
+        unitsPerPackage: Number(packageData.unitsPerPackage),
+        totalUnits: totalUnits
+      };
+    }
+    
+    try {
+      const data = {
+        code: formData.code,
+        name: formData.name,
+        costPrice: finalCostPrice,
+        price: Number(formData.wholesalePrice),
+        quantity: finalQuantity,
+        warehouse: mainWarehouse?._id,
+        images,
+        packageInfo
+      };
+      if (editingProduct) {
+        await api.put(`/products/${editingProduct._id}`, data);
+      } else {
+        await api.post('/products', data);
+      }
+      fetchProducts();
+      closeModal();
+    } catch (err: any) {
+      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await showConfirm("Tovarni o'chirishni tasdiqlaysizmi?", "O'chirish");
+    if (!confirmed) return;
+    try {
+      await api.delete(`/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      console.error('Error deleting product:', err);
+    }
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setFormData({
+      code: product.code,
+      name: product.name,
+      costPrice: String((product as any).costPrice || 0),
+      wholesalePrice: String(product.price),
+      quantity: String(product.quantity)
+    });
+    setImages((product as any).images || []);
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setCodeError('');
+    setShowPackageInput(false);
+    setShowModal(true);
+  };
+
+  const openQRModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQRModal(true);
+  };
+
+  const openPrintModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowPrintModal(true);
+    loadAvailablePrinters();
+  };
+
+  const loadAvailablePrinters = async () => {
+    try {
+      const myPrinters = [
+        'EPSON L132 Series (Copy 1)',
+        'EPSON L132 Series',
+        'X printer'
+      ];
+      
+      setAvailablePrinters(myPrinters);
+      setPrintSettings(prev => ({
+        ...prev,
+        printer: myPrinters[0]
+      }));
+      
+    } catch (error) {
+      console.error('Error loading printers:', error);
+      setAvailablePrinters(['EPSON L132 Series', 'X printer']);
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingProduct(null);
+    setFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setImages([]);
+    setCodeError('');
+    setShowPackageInput(false);
+  };
+
+  const openQuantityModal = (mode: 'add' | 'subtract') => {
+    setQuantityMode(mode);
+    setQuantityInput('');
+    setShowQuantityModal(true);
+  };
+
+  const applyQuantityChange = () => {
+    const change = Number(quantityInput) || 0;
+    if (change <= 0) return;
+    
+    const currentQty = Number(formData.quantity) || 0;
+    let newQty = quantityMode === 'add' ? currentQty + change : currentQty - change;
+    if (newQty < 0) newQty = 0;
+    
+    setFormData({ ...formData, quantity: String(newQty) });
+    setShowQuantityModal(false);
+    setQuantityInput('');
+  };
+
+  const openAddModal = async () => {
+    try {
+      const res = await api.get('/products/next-code');
+      setFormData({ code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    } catch (err) {
+      console.error('Error getting next code:', err);
+    }
+    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setImages([]);
+    setCodeError('');
+    setShowPackageInput(false);
+    setShowModal(true);
+  };
+
+  const checkCodeExists = async (code: string) => {
+    if (!code) return;
+    try {
+      const excludeId = editingProduct?._id || '';
+      const res = await api.get(`/products/check-code/${code}${excludeId ? `?excludeId=${excludeId}` : ''}`);
+      if (res.data.exists) {
+        setCodeError(`Kod "${code}" allaqachon mavjud`);
+      } else {
+        setCodeError('');
+      }
+    } catch (err) {
+      console.error('Error checking code:', err);
+    }
+  };
+
+  const downloadQR = () => {
+    if (!selectedProduct) return;
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = document.createElement('img');
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
+    try {
+      const qrData = JSON.stringify({
+        id: product._id,
+        code: product.code,
+        name: product.name,
+        price: product.price
+      });
+      
+      const qrDataURL = await QRCode.toDataURL(qrData, {
+        width: size * 10,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'H',
+        type: 'image/png'
+      });
+      
+      return qrDataURL;
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return '';
+    }
+  };
