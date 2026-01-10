@@ -26,9 +26,10 @@ export interface Product {
 export interface CartItem extends Product {
   cartQuantity: number;
   paymentBreakdown?: {
-    cash: number;    // Naqt pul miqdori
-    click: number;   // Click miqdori
-    card: number;    // Karta miqdori
+    cash: number;     // Naqt pul miqdori
+    click: number;    // Click miqdori
+    card: number;     // Karta miqdori
+    partner?: number; // Hamkor to'lovi miqdori
   };
   customMarkup?: number; // Qo'lda belgilangan foiz
 }
