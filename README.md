@@ -12,6 +12,23 @@ Zamonaviy furnetura biznes boshqaruv tizimi: kassa, ombor, mijozlar, qarzlar va 
 - 💳 **Qarz daftarcha** - Qarzlarni kuzatish
 - 📋 **Buyurtmalar** - Marketplace buyurtmalari
 - 👷 **Yordamchilar** - Xodimlarni boshqarish
+- 🤖 **Telegram Bot** - Avtomatik chek va qarz xabarlari
+
+## Yangi Funksiya: Avtomatik Qarz Yaratish
+
+### To'lov Modal Oynasida Qoldiq Qarz
+Agar to'lov turi tanlash modal oynasida mahsulot narxini to'liq kiritilmasa:
+- ✅ Qoldiq summa avtomatik qarz sifatida yaratiladi
+- 📱 Telegram botga darhol xabar yuboriladi
+- 💳 Mijozning umumiy qarziga qo'shiladi
+- 📝 Batafsil ma'lumot bilan saqlash
+
+### Ishlash tartibi:
+1. **To'lov turini tanlash** - Naqd, Click, Karta
+2. **Qoldiq hisoblash** - Agar kam pul kiritilsa
+3. **Qarz yaratish** - Avtomatik qarz daftariga qo'shish
+4. **Bot xabari** - Mijozga va adminga xabar
+5. **Chek chiqarish** - Qarz ma'lumoti bilan
 
 ## Rollar
 
@@ -39,6 +56,7 @@ npm run dev
 - **Frontend:** React, TypeScript, Tailwind CSS, Recharts
 - **Backend:** Node.js, Express, MongoDB, JWT
 - **QR Scanner:** html5-qrcode
+- **Telegram Bot:** node-telegram-bot-api
 
 ## Loyiha tuzilishi
 
@@ -56,6 +74,7 @@ universal-uz/
 │   └── src/
 │       ├── middleware/
 │       ├── models/
-│       └── routes/
+│       ├── routes/
+│       └── services/
 └── .env             # Sozlamalar
 ```

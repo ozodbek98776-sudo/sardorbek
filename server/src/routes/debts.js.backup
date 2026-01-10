@@ -163,6 +163,36 @@ router.post('/kassa', async (req, res) => {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
+await debt.populate([
+  { path: 'customer', select: 'name phone' },
+  { path: 'items.product', select: 'name code price' }
+]);
+
+console.log(`Yangi qarz yaratildi: ${debt.customer.name} - ${debt.amount} so'm (Jami qarz: ${existingCustomer.debt + remainingAmount} so'm)`);
+
+// Telegram ga xabar yuborish
+try {
+  const telegramService = require('../services/telegramService');
+  await telegramService.sendDebtNotification({
+    customerName: debt.customer.name,
+    customerPhone: debt.customer.phone,
+    amount: debt.amount,
+    paidAmount: debt.paidAmount,
+    remainingDebt: debt.amount - debt.paidAmount,
+    dueDate: debt.dueDate,
+    description: debt.description,
+    items: debt.items
+      console.log('✅ Telegram xabari yuborildi');
+  } catch (telegramError) {
+    console.error('❌ Telegram notification error:', telegramError);
+  }
+
+  res.status(201).json(debt);
+} catch (error) {
+  console.error('Qarz qo\'shishda xatolik:', error);
+  res.status(500).json({ message: 'Server xatosi', error: error.message });
+}
+});
 
 // Mijozning qarzlar tarixini olish
 router.get('/customer/:customerId', async (req, res) => {

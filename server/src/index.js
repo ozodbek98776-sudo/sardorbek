@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 
+// Telegram Bot import qilish
+const { createPOSBot } = require('./telegram.bot');
+
 const authRoutes = require('./routes/auth');
 const kassaAuthRoutes = require('./routes/kassaAuth');
 const productRoutes = require('./routes/products');
@@ -47,6 +50,18 @@ app.use('/api/telegram', telegramRoutes);
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal_uz')
   .then(async () => {
     console.log('MongoDB connected');
+
+    // Telegram Bot ishga tushirish
+    try {
+      const posBot = createPOSBot();
+      if (posBot) {
+        await posBot.getBotInfo(); // Bot ma'lumotlarini ko'rsatish
+        console.log('✅ POS Telegram Bot muvaffaqiyatli ishga tushdi');
+      }
+    } catch (botError) {
+      console.error('❌ Telegram Bot ishga tushirishda xatolik:', botError);
+    }
+
     // Drop old indexes to fix unique constraint issues
     try {
       const collection = mongoose.connection.collection('users');

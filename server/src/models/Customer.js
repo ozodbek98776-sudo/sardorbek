@@ -2,10 +2,10 @@ const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String, required: true },
+  phone: { type: String, required: true, unique: true }, // Unique telefon raqam
   email: String,
   address: String,
-  telegramChatId: String, // Telegram chat ID for notifications
+  telegramChatId: String, // Telegram chat ID for notifications (renamed from telegramId)
   totalPurchases: { type: Number, default: 0 },
   debt: { type: Number, default: 0 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }

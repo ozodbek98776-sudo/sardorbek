@@ -14,11 +14,12 @@ import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/recei
 // Payment Breakdown Form komponenti
 interface PaymentBreakdownFormProps {
   item: CartItem;
+  selectedCustomer?: Customer | null;
   onSave: (cash: number, click: number, card: number) => void;
   onCancel: () => void;
 }
 
-const PaymentBreakdownForm = ({ item, onSave, onCancel }: PaymentBreakdownFormProps) => {
+const PaymentBreakdownForm = ({ item, selectedCustomer, onSave, onCancel }: PaymentBreakdownFormProps) => {
   const [cash, setCash] = useState(item.paymentBreakdown?.cash || 0);
   const [click, setClick] = useState(item.paymentBreakdown?.click || 0);
   const [card, setCard] = useState(item.paymentBreakdown?.card || 0);
@@ -127,7 +128,7 @@ const PaymentBreakdownForm = ({ item, onSave, onCancel }: PaymentBreakdownFormPr
         {remaining > 1 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mt-2">
             <p className="text-xs text-blue-700">
-              ℹ️ {formatNumber(remaining)} so'm qoldiq qarz daftariga qo'shiladi
+              ℹ️ {formatNumber(remaining)} so'm qoldiq {selectedCustomer ? 'qarz daftariga qo\'shiladi va botga yuboriladi' : 'qarz bo\'ladi (mijoz tanlanmagan)'}
             </p>
           </div>
         )}
@@ -746,7 +747,7 @@ export default function KassaMain() {
   };
 
   // To'lov turlarini saqlash
-  const saveItemPaymentBreakdown = (cash: number, click: number, card: number) => {
+  const saveItemPaymentBreakdown = async (cash: number, click: number, card: number) => {
     if (!selectedItemForPayment) return;
     
     const itemTotal = selectedItemForPayment.price * selectedItemForPayment.cartQuantity;
@@ -756,6 +757,37 @@ export default function KassaMain() {
     if (breakdownTotal > itemTotal + 1) { // 1 so'm farqga ruxsat berish
       showAlert(`Ortiq pul kiritib bo'lmaydi. Maksimal: ${formatNumber(itemTotal)} so'm, Kiritilgan: ${formatNumber(breakdownTotal)} so'm`, 'Xatolik', 'danger');
       return;
+    }
+    
+    // Agar qoldiq bo'lsa va mijoz tanlangan bo'lsa, qarz yaratish
+    const remainingAmount = itemTotal - breakdownTotal;
+    if (remainingAmount > 1 && selectedCustomer) {
+      try {
+        console.log(`Tovar uchun qoldiq qarz yaratilmoqda: ${remainingAmount} so'm`);
+        
+        // Qarz yaratish
+        const debtData = {
+          customer: selectedCustomer._id,
+          amount: remainingAmount,
+          paidAmount: 0,
+          description: `${selectedItemForPayment.name} uchun qoldiq to'lov - ${new Date().toLocaleDateString('uz-UZ')}`,
+          items: [{
+            product: selectedItemForPayment._id,
+            name: selectedItemForPayment.name,
+            code: selectedItemForPayment.code,
+            price: selectedItemForPayment.price,
+            quantity: selectedItemForPayment.cartQuantity
+          }]
+        };
+
+        await api.post('/debts/kassa', debtData);
+        console.log('✅ Tovar uchun qoldiq qarz muvaffaqiyatli qo\'shildi va botga yuborildi');
+        showAlert(`${formatNumber(remainingAmount)} so'm qarz qo'shildi va botga yuborildi`, 'Ma\'lumot', 'info');
+        
+      } catch (debtError: any) {
+        console.error('❌ Qarz yaratishda xatolik:', debtError);
+        showAlert('Qarz yaratishda xatolik yuz berdi', 'Ogohlantirish', 'warning');
+      }
     }
     
     setCart(prev => prev.map(p => 
@@ -1799,14 +1831,79 @@ export default function KassaMain() {
                       cashier: 'Kassir',
                       date: new Date()
                     };
+
+                    // 3. Qoldiq qarzni hisoblash va botga yuborish
+                    if (paidAmount < total && selectedCustomer) {
+                      const remainingDebt = total - paidAmount;
+                      
+                      try {
+                        console.log(`Qoldiq qarz qo'shilmoqda: ${remainingDebt} so'm`);
+                        
+                        // Qarz yaratish
+                        const debtData = {
+                          customer: selectedCustomer._id,
+                          amount: remainingDebt,
+                          paidAmount: 0,
+                          description: `Xarid qoldig'i - ${new Date().toLocaleDateString('uz-UZ')}`,
+                          items: cart.map(item => ({
+                            product: item._id,
+                            name: item.name,
+                            code: item.code,
+                            price: item.price,
+                            quantity: item.cartQuantity
+                          }))
+                        };
+
+                        await api.post('/debts/kassa', debtData);
+                        console.log('✅ Qoldiq qarz muvaffaqiyatli qo\'shildi va botga yuborildi');
+                        
+                      } catch (debtError: any) {
+                        console.error('❌ Qarz yaratishda xatolik:', debtError);
+                        showAlert('Qarz yaratishda xatolik yuz berdi', 'Ogohlantirish', 'warning');
+                      }
+                    }
+
+                    // 4. Telegram botga xabar yuborish
+                    try {
+                      console.log('Telegram botga chek ma\'lumotlarini yuborish...');
+                      
+                      const receiptData = {
+                        items: cart.map(item => ({
+                          product: item._id,
+                          name: item.name,
+                          code: item.code,
+                          price: item.price,
+                          quantity: item.cartQuantity,
+                          paymentBreakdown: item.paymentBreakdown || { cash: 0, click: 0, card: 0 }
+                        })),
+                        total,
+                        paymentMethod: 'cash',
+                        customer: selectedCustomer?._id || null,
+                        receiptNumber,
+                        paidAmount: paidAmount,
+                        remainingAmount: total - paidAmount
+                      };
+
+                      // Kassa endpoint ga yuborish (telegram xabar ham yuboriladi)
+                      const response = await api.post('/receipts/kassa', receiptData);
+                      console.log('✅ Chek ma\'lumotlari serverga yuborildi:', response.data);
+                      
+                    } catch (telegramError: any) {
+                      console.error('❌ Telegram xabar yuborishda xatolik:', telegramError);
+                      // Telegram xatoligi chek chiqarishni to'xtatmasin
+                    }
                     
-                    // 3. Print qilish
+                    // 5. Print qilish
                     const printSuccess = await printReceipt(printReceiptData, () => {
                       // Print tugagandan keyin
                       const successCount = updateResults.filter(r => r.success).length;
                       const failCount = updateResults.filter(r => !r.success).length;
                       
-                      let message = 'Chek muvaffaqiyatli chiqarildi';
+                      let message = 'Chek muvaffaqiyatli chiqarildi va telegram botga yuborildi';
+                      if (paidAmount < total && selectedCustomer) {
+                        message += `, ${formatNumber(total - paidAmount)} so'm qarz qo'shildi`;
+                      }
+                      
                       if (failCount === 0) {
                         showAlert(message + ', tovar miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
                       } else {
@@ -1820,11 +1917,15 @@ export default function KassaMain() {
                     });
                     
                     if (!printSuccess) {
-                      // Print ishlamasa ham tovar miqdorlari yangilangan
+                      // Print ishlamasa ham tovar miqdorlari yangilangan va telegram xabar yuborilgan
                       const successCount = updateResults.filter(r => r.success).length;
                       const failCount = updateResults.filter(r => !r.success).length;
                       
-                      let message = 'Chek faylga yuklandi';
+                      let message = 'Chek faylga yuklandi va telegram botga yuborildi';
+                      if (paidAmount < total && selectedCustomer) {
+                        message += `, ${formatNumber(total - paidAmount)} so'm qarz qo'shildi`;
+                      }
+                      
                       if (failCount === 0) {
                         showAlert(message + ', tovar miqdorlari yangilandi!', 'Ma\'lumot', 'info');
                       } else {
@@ -1888,6 +1989,7 @@ export default function KassaMain() {
             
             <PaymentBreakdownForm
               item={selectedItemForPayment}
+              selectedCustomer={selectedCustomer}
               onSave={saveItemPaymentBreakdown}
               onCancel={() => {
                 setShowPaymentBreakdown(false);

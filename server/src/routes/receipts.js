@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const { auth, authorize } = require('../middleware/auth');
 const telegramService = require('../services/telegramService');
+const { getPOSBot } = require('../telegram.bot'); // POS Bot import qilish
 
 const router = express.Router();
 
@@ -178,22 +179,30 @@ router.post('/kassa-atomic', async (req, res) => {
             console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
           }
 
-          // Telegram xabari yuborish
+          // Faqat mijozga POS Bot orqali chek yuborish
           if (customerData.telegramChatId) {
             try {
               const updatedCustomer = await Customer.findById(customer);
 
-              await telegramService.sendReceiptToCustomer({
-                customer: updatedCustomer,
-                items: items,
-                total: total,
-                paymentMethod: paymentMethod
-              });
-
-              console.log(`Receipt sent to ${customerData.name} successfully`);
+              // Faqat POS Bot orqali yuborish
+              const posBot = getPOSBot();
+              if (posBot) {
+                await posBot.sendReceiptToCustomer({
+                  customer: updatedCustomer,
+                  items: items,
+                  total: total,
+                  paymentMethod: paymentMethod,
+                  receiptNumber: receiptNumber || `CHK-${Date.now()}`
+                });
+                console.log(`✅ Atomic POS Bot: Chek ${customerData.name} ga yuborildi`);
+              } else {
+                console.log(`❌ Atomic: POS Bot mavjud emas`);
+              }
             } catch (telegramError) {
-              console.error('Telegram notification error:', telegramError);
+              console.error('❌ Atomic POS Bot xatosi:', telegramError);
             }
+          } else {
+            console.log(`❌ Atomic: Mijoz ${customerData.name} da telegram ID yo'q`);
           }
         }
       } catch (customerError) {
@@ -244,6 +253,7 @@ router.post('/kassa', async (req, res) => {
       remainingAmount: remainingAmount || 0,
       status: 'completed',
       isPaid: (paidAmount || total) >= total,
+      createdBy: new (require('mongoose')).Types.ObjectId(), // Dummy user ID for kassa
       createdAt: new Date()
     };
 
@@ -270,6 +280,15 @@ router.post('/kassa', async (req, res) => {
             customer,
             { $inc: { totalPurchases: total } }
           );
+
+          // Qoldiq summa qarz sifatida qo'shish (agar to'liq to'lanmagan bo'lsa)
+          if (remainingAmount && remainingAmount > 0) {
+            await Customer.findByIdAndUpdate(
+              customer,
+              { $inc: { debt: remainingAmount } }
+            );
+            console.log(`✅ Mijoz ${customerData.name} ga ${remainingAmount} so'm qarz qo'shildi`);
+          }
 
           // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish
           if (customerData.debt > 0) {
@@ -336,25 +355,35 @@ router.post('/kassa', async (req, res) => {
             }
           }
 
-          // Telegram orqali chek yuborish (agar mijoz botga start bergan bo'lsa)
+          // Faqat mijozga POS Bot orqali chek yuborish
           if (customerData.telegramChatId) {
-            console.log(`Sending receipt to customer ${customerData.name} via Telegram...`);
+            console.log(`Sending receipt to customer ${customerData.name} via POS Bot...`);
 
             // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
             const updatedCustomer = await Customer.findById(customer);
 
-            await telegramService.sendReceiptToCustomer({
-              customer: updatedCustomer,
-              items: items,
-              total: total,
-              paidAmount: paidAmount || total,
-              remainingAmount: remainingAmount || 0,
-              paymentMethod: paymentMethod
-            });
-
-            console.log(`Receipt sent to ${customerData.name} successfully`);
+            // Faqat POS Bot orqali yuborish
+            try {
+              const posBot = getPOSBot();
+              if (posBot) {
+                await posBot.sendReceiptToCustomer({
+                  customer: updatedCustomer,
+                  items: items,
+                  total: total,
+                  paidAmount: paidAmount || total,
+                  remainingAmount: remainingAmount || 0,
+                  paymentMethod: paymentMethod,
+                  receiptNumber: receiptNumber || `CHK-${Date.now()}`
+                });
+                console.log(`✅ POS Bot: Chek ${customerData.name} ga yuborildi`);
+              } else {
+                console.log(`❌ POS Bot mavjud emas`);
+              }
+            } catch (posBotError) {
+              console.error('❌ POS Bot chek yuborishda xatolik:', posBotError);
+            }
           } else {
-            console.log(`Customer ${customerData.name} has no Telegram chat ID`);
+            console.log(`❌ Mijoz ${customerData.name} da telegram ID yo'q`);
           }
         }
       } catch (telegramError) {

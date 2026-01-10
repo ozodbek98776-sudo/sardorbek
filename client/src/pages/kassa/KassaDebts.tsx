@@ -19,6 +19,7 @@ export default function KassaDebts() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showNewDebtModal, setShowNewDebtModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -371,11 +372,22 @@ export default function KassaDebts() {
   const paidAmount = parseFloat(parseNumber(newDebtForm.paidAmount)) || 0;
   const remainingDebt = totalAmount - paidAmount;
 
+  // Qarzlarni filtrlash
+  const filteredDebts = debts.filter(debt => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const customerName = debt.customer?.name?.toLowerCase() || '';
+    const customerPhone = debt.customer?.phone || '';
+    
+    return customerName.includes(query) || customerPhone.includes(query);
+  });
+
   return (
-    <div className="p-3 sm:p-6">
+    <div className="p-3 sm:p-6 h-full flex flex-col overflow-hidden">
       {AlertComponent}
       
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 flex-shrink-0">
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
             onClick={() => setShowNewDebtModal(true)}
@@ -396,7 +408,7 @@ export default function KassaDebts() {
       </div>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-6 flex-shrink-0">
         <div className="bg-white p-3 sm:p-4 rounded-xl border border-surface-200">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-100 rounded-lg flex items-center justify-center">
@@ -426,134 +438,155 @@ export default function KassaDebts() {
       </div>
 
       {/* Debts Table */}
-      <div className="bg-white rounded-xl border border-surface-200 overflow-hidden">
-        <div className="p-3 sm:p-4 border-b border-surface-200">
+      <div className="bg-white rounded-xl border border-surface-200 overflow-hidden flex flex-col h-[calc(100vh-400px)] min-h-[400px]">
+        <div className="p-3 sm:p-4 border-b border-surface-200 flex-shrink-0">
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-surface-400" />
               <input
                 type="text"
                 placeholder="Mijoz qidirish..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 text-sm border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500"
               />
             </div>
           </div>
         </div>
         
-        {/* Mobile Card View */}
-        <div className="block sm:hidden">
-          {debts.map(debt => (
-            <div key={debt._id} className="p-4 border-b border-surface-100 last:border-b-0">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-semibold text-brand-600">
-                    {debt.customer?.name.charAt(0)}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-surface-900 truncate">{debt.customer?.name}</p>
-                  <p className="text-sm text-surface-500">{debt.customer?.phone}</p>
-                </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {filteredDebts.length === 0 ? (
+            <div className="p-8 text-center text-surface-500">
+              <div className="w-16 h-16 bg-surface-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="w-8 h-8 text-surface-400" />
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-surface-500 mb-1">Qarz summasi</p>
-                  <p className="font-medium text-surface-900">{formatNumber(debt.amount)}</p>
-                </div>
-                <div>
-                  <p className="text-surface-500 mb-1">Qoldiq</p>
-                  <p className="font-medium text-danger-600">{formatNumber(debt.amount - debt.paidAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-surface-500 mb-1">Muddat</p>
-                  <p className="text-surface-900">{new Date(debt.dueDate).toLocaleDateString()}</p>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button 
-                    onClick={() => handleViewDebt(debt)}
-                    className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
-                    title="Qarz ma'lumotlarini ko'rish"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteDebt(debt)}
-                    className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
-                    title="Qarzni o'chirish"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              <p className="font-medium text-lg mb-2">
+                {searchQuery ? 'Qarz topilmadi' : 'Qarzlar ro\'yxati bo\'sh'}
+              </p>
+              <p className="text-sm">
+                {searchQuery ? `"${searchQuery}" bo'yicha hech qanday qarz topilmadi` : 'Hozircha hech qanday qarz qo\'shilmagan'}
+              </p>
             </div>
-          ))}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-surface-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Mijoz</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qarz</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qoldiq</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Muddat</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Amallar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100">
-              {debts.map(debt => (
-                <tr key={debt._id} className="hover:bg-surface-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="block sm:hidden">
+                {filteredDebts.map(debt => (
+                  <div key={debt._id} className="p-4 border-b border-surface-100 last:border-b-0">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <span className="text-sm font-semibold text-brand-600">
                           {debt.customer?.name.charAt(0)}
                         </span>
                       </div>
-                      <div className="min-w-0">
+                      <div className="flex-1 min-w-0">
                         <p className="font-medium text-surface-900 truncate">{debt.customer?.name}</p>
-                        <p className="text-sm text-surface-500 truncate">{debt.customer?.phone}</p>
+                        <p className="text-sm text-surface-500">{debt.customer?.phone}</p>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-surface-900">
-                      {formatNumber(debt.amount)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-danger-600">
-                      {formatNumber(debt.amount - debt.paidAmount)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-surface-500">
-                      {new Date(debt.dueDate).toLocaleDateString()}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleViewDebt(debt)}
-                        className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
-                        title="Qarz ma'lumotlarini ko'rish"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteDebt(debt)}
-                        className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
-                        title="Qarzni o'chirish"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-surface-500 mb-1">Qarz summasi</p>
+                        <p className="font-medium text-surface-900">{formatNumber(debt.amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-surface-500 mb-1">Qoldiq</p>
+                        <p className="font-medium text-danger-600">{formatNumber(debt.amount - debt.paidAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-surface-500 mb-1">Muddat</p>
+                        <p className="text-surface-900">{new Date(debt.dueDate).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleViewDebt(debt)}
+                          className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                          title="Qarz ma'lumotlarini ko'rish"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteDebt(debt)}
+                          className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                          title="Qarzni o'chirish"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>  
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block">
+                <table className="w-full">
+                  <thead className="bg-surface-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Mijoz</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qarz</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Qoldiq</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Muddat</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-surface-500 uppercase">Amallar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-100">
+                    {filteredDebts.map(debt => (
+                      <tr key={debt._id} className="hover:bg-surface-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+                              <span className="text-sm font-semibold text-brand-600">
+                                {debt.customer?.name.charAt(0)}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-surface-900 truncate">{debt.customer?.name}</p>
+                              <p className="text-sm text-surface-500 truncate">{debt.customer?.phone}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-surface-900">
+                            {formatNumber(debt.amount)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-danger-600">
+                            {formatNumber(debt.amount - debt.paidAmount)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-surface-500">
+                            {new Date(debt.dueDate).toLocaleDateString()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleViewDebt(debt)}
+                              className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors"
+                              title="Qarz ma'lumotlarini ko'rish"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteDebt(debt)}
+                              className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                              title="Qarzni o'chirish"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>  
+              </div>
+            </>
+          )}
         </div>
       </div>
 

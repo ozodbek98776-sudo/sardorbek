@@ -127,17 +127,12 @@ Muammolar bo'lsa do'kon bilan bog'laning.
     await this.sendMessage(helpMessage.trim(), chatId);
   }
 
-  // Mijozga chek yuborish
+  // Mijozga chek yuborish (qarz ma'lumotisiz)
   async sendReceiptToCustomer(receiptData) {
     if (!receiptData.customer || !receiptData.customer.telegramChatId) {
       console.log('Customer does not have Telegram chat ID');
       return;
     }
-
-    // Mijozning qarzini tekshirish
-    const debtInfo = receiptData.customer.debt > 0 ?
-      `\n💳 <b>Qarz holati:</b> ${this.formatNumber(receiptData.customer.debt)} so'm qarz mavjud` :
-      '\n✅ <b>Qarz holati:</b> Qarz yo\'q';
 
     const message = `
 🧾 <b>XARID CHEKI</b>
@@ -152,7 +147,7 @@ ${receiptData.items.map(item =>
     ).join('\n')}
 
 💰 <b>Jami summa:</b> ${this.formatNumber(receiptData.total)} so'm
-💳 <b>To'lov turi:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul' : 'Plastik karta'}${debtInfo}
+💳 <b>To'lov turi:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul' : 'Plastik karta'}
 
 🙏 Xaridingiz uchun rahmat!
     `;
@@ -160,28 +155,11 @@ ${receiptData.items.map(item =>
     return this.sendMessage(message.trim(), receiptData.customer.telegramChatId);
   }
 
-  // Qarz to'lovi haqida mijozga xabar
+  // Qarz to'lovi haqida mijozga xabar (o'chirildi - faqat admin uchun)
   async sendDebtPaymentToCustomer(paymentData) {
-    if (!paymentData.customer || !paymentData.customer.telegramChatId) {
-      console.log('Customer does not have Telegram chat ID');
-      return;
-    }
-
-    const message = `
-💰 <b>QARZ TO'LOVI</b>
-
-👤 <b>Mijoz:</b> ${paymentData.customer.name}
-💳 <b>To'lov summasi:</b> ${this.formatNumber(paymentData.amount)} so'm
-💰 <b>Qoldiq qarz:</b> ${this.formatNumber(paymentData.remainingDebt)} so'm
-📅 <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
-📝 <b>Sabab:</b> Xarid orqali avtomatik to'lov
-
-${paymentData.remainingDebt === 0 ? '✅ Qarzingiz to\'liq to\'landi!' : ''}
-
-🙏 To'lovingiz uchun rahmat!
-    `;
-
-    return this.sendMessage(message.trim(), paymentData.customer.telegramChatId);
+    // Mijozlarga qarz ma'lumotlari yuborilmaydi
+    console.log('Debt payment notification to customer disabled - only admin receives debt info');
+    return;
   }
 
   // Xabar yuborish
@@ -258,16 +236,35 @@ ${saleData.discount > 0 ? `🎯 <b>Chegirma:</b> ${this.formatNumber(saleData.di
 
   // Qarz qo'shilganda xabar
   async sendDebtNotification(debtData) {
+    const isAddedToExisting = debtData.isAddedToExisting;
+    const addedAmount = debtData.amount;
+    const totalAmount = debtData.totalAmount || debtData.amount;
+
     const message = `
-💳 <b>YANGI QARZ QO'SHILDI</b>
+💳 <b>${isAddedToExisting ? 'QARZGA QO\'SHILDI' : 'YANGI QARZ QO\'SHILDI'}</b>
 
 👤 <b>Mijoz:</b> ${debtData.customerName}
 📞 <b>Telefon:</b> ${debtData.customerPhone}
-💰 <b>Qarz summasi:</b> ${this.formatNumber(debtData.amount)} so'm
+${isAddedToExisting ?
+        `💰 <b>Qo'shilgan summa:</b> ${this.formatNumber(addedAmount)} so'm
+💳 <b>Jami qarz:</b> ${this.formatNumber(totalAmount)} so'm` :
+        `💰 <b>Qarz summasi:</b> ${this.formatNumber(addedAmount)} so'm`
+      }
 ${debtData.paidAmount > 0 ? `💵 <b>To'langan:</b> ${this.formatNumber(debtData.paidAmount)} so'm` : ''}
 ${debtData.remainingDebt ? `💸 <b>Qarz qoldi:</b> ${this.formatNumber(debtData.remainingDebt)} so'm` : ''}
 📅 <b>Muddat:</b> ${new Date(debtData.dueDate).toLocaleDateString('uz-UZ')}
+📝 <b>Sabab:</b> ${debtData.description || 'Xarid qoldig\'i'}
 ${debtData.collateral ? `🔒 <b>Garov:</b> ${debtData.collateral}` : ''}
+
+${debtData.items && debtData.items.length > 0 ? `📦 <b>Mahsulotlar:</b>
+${debtData.items.map(item =>
+        `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
+      ).join('\n')}` : ''}
+
+${isAddedToExisting ?
+        '🔄 <b>Eslatma:</b> Bu summa mavjud qarzga qo\'shildi.' :
+        '⚠️ <b>Eslatma:</b> Bu qarz avtomatik yaratildi va tasdiqlangan.'
+      }
     `;
 
     return this.sendDebtMessage(message.trim());
