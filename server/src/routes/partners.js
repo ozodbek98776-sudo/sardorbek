@@ -1,26 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { sendTelegramMessage } = require('../services/telegramService');
+const telegramService = require('../services/telegramService');
 
 // Hamkorlar ro'yxati
 const PARTNERS = {
   uzum: {
     name: 'Uzum Market',
-    chatId: process.env.UZUM_CHAT_ID || '',
     icon: '🛒',
     color: '#8B5CF6'
   },
   ishonch: {
     name: 'Ishonch',
-    chatId: process.env.ISHONCH_CHAT_ID || '',
     icon: '🤝',
     color: '#F59E0B'
-  },
-  yandex: {
-    name: 'Yandex Market',
-    chatId: process.env.YANDEX_CHAT_ID || '',
-    icon: '🚚',
-    color: '#EF4444'
   }
 };
 
@@ -73,44 +65,26 @@ router.post('/payment', async (req, res) => {
 
     // Telegram xabarini tayyorlash
     const customerInfo = customer ? 
-      `\n👤 Mijoz: ${customer.name} (${customer.phone})` : 
-      '\n👤 Mijoz: Tanlanmagan';
+      `\n👤 <b>Mijoz:</b> ${customer.name} (${customer.phone})` : 
+      '\n👤 <b>Mijoz:</b> Tanlanmagan';
 
-    const message = `${partnerInfo.icon} ${partnerInfo.name} - Yangi to'lov!${customerInfo}
+    const message = `${partnerInfo.icon} <b>${partnerInfo.name} - Yangi to'lov!</b>${customerInfo}
 
-📦 Tovar: ${item.name}
-🏷️ Kod: ${item.code}
-💰 Summa: ${amount.toLocaleString()} so'm
-📄 Chek: ${receiptNumber || 'N/A'}
-⏰ Vaqt: ${new Date().toLocaleString('uz-UZ')}
+📦 <b>Tovar:</b> ${item.name}
+🏷️ <b>Kod:</b> ${item.code}
+💰 <b>Summa:</b> ${amount.toLocaleString()} so'm
+📄 <b>Chek:</b> ${receiptNumber || 'N/A'}
+⏰ <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
 
-💳 To'lov turi: ${partnerInfo.name} orqali`;
+💳 <b>To'lov turi:</b> ${partnerInfo.name} orqali`;
 
-    // Telegram xabarini yuborish
+    // Hamkorlar botiga xabar yuborish
     let telegramSuccess = false;
-    if (partnerInfo.chatId) {
-      try {
-        await sendTelegramMessage(partnerInfo.chatId, message);
-        telegramSuccess = true;
-      } catch (telegramError) {
-        console.error(`${partnerInfo.name} ga xabar yuborishda xatolik:`, telegramError);
-      }
-    }
-
-    // Umumiy admin chatga ham yuborish
-    if (process.env.TELEGRAM_CHAT_ID) {
-      try {
-        const adminMessage = `🤝 Hamkor to'lovi qabul qilindi!
-
-${partnerInfo.icon} Hamkor: ${partnerInfo.name}
-📦 Tovar: ${item.name}
-💰 Summa: ${amount.toLocaleString()} so'm${customerInfo}
-⏰ Vaqt: ${new Date().toLocaleString('uz-UZ')}`;
-
-        await sendTelegramMessage(process.env.TELEGRAM_CHAT_ID, adminMessage);
-      } catch (adminError) {
-        console.error('Admin chatga xabar yuborishda xatolik:', adminError);
-      }
+    try {
+      const result = await telegramService.sendPartnerMessage(message);
+      telegramSuccess = !!result;
+    } catch (telegramError) {
+      console.error(`${partnerInfo.name} ga xabar yuborishda xatolik:`, telegramError);
     }
 
     res.json({
@@ -132,8 +106,6 @@ ${partnerInfo.icon} Hamkor: ${partnerInfo.name}
 // Hamkor statistikasini olish
 router.get('/stats', async (req, res) => {
   try {
-    // Bu yerda hamkorlar bo'yicha statistika olish logikasi bo'lishi kerak
-    // Hozircha mock data qaytaramiz
     const stats = Object.keys(PARTNERS).map(key => ({
       id: key,
       name: PARTNERS[key].name,

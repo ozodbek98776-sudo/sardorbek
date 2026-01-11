@@ -181,4 +181,56 @@ router.get('/updates', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Hamkor to'lovi xabari yuborish
+router.post('/send-partner-payment', async (req, res) => {
+  try {
+    const { message, partner, amount, customer, item } = req.body;
+    
+    if (!partner || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Majburiy maydonlar to\'ldirilmagan' 
+      });
+    }
+
+    // Mijoz ma'lumotini qo'shish
+    const customerInfo = customer ? `\n👤 Mijoz: ${customer.name} (${customer.phone})` : '\n👤 Mijoz: Tanlanmagan';
+    
+    // Xabar tayyorlash
+    const partnerName = partner === 'uzum' ? 'Uzum Market' : partner === 'ishonch' ? 'Ishonch' : 'Yandex Market';
+    const partnerIcon = partner === 'uzum' ? '🛒' : partner === 'ishonch' ? '🤝' : '🚚';
+    
+    const formattedMessage = `${partnerIcon} <b>${partnerName} - Yangi to'lov!</b>${customerInfo}
+
+📦 <b>Tovar:</b> ${item?.name || 'Noma\'lum'}
+🏷️ <b>Kod:</b> ${item?.code || '-'}
+💰 <b>Summa:</b> ${amount.toLocaleString()} so'm
+⏰ <b>Vaqt:</b> ${new Date().toLocaleString('uz-UZ')}
+
+💳 <b>To'lov turi:</b> ${partnerName} orqali`;
+
+    // Hamkorlar botiga xabar yuborish
+    const result = await telegramService.sendPartnerMessage(formattedMessage);
+    
+    if (result) {
+      res.json({ 
+        success: true, 
+        message: 'Hamkor to\'lovi xabari muvaffaqiyatli yuborildi' 
+      });
+    } else {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Xabar yuborishda xatolik - bot token yoki chat ID tekshiring' 
+      });
+    }
+  } catch (error) {
+    console.error('Hamkor to\'lovi xabari yuborishda xatolik:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server xatosi', 
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

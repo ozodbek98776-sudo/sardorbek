@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, Smartphone, Truck, ShoppingCart } from 'lucide-react';
+import { X, CreditCard, Smartphone, ShoppingCart } from 'lucide-react';
 import { CartItem, Customer } from '../types';
 import { formatNumber, parseNumber } from '../utils/format';
 
@@ -141,8 +141,6 @@ const PartnerPaymentModal: React.FC<PartnerPaymentModalProps> = ({
         return <ShoppingCart className="w-6 h-6" />;
       case 'ishonch':
         return <CreditCard className="w-6 h-6" />;
-      case 'yandex':
-        return <Truck className="w-6 h-6" />;
       default:
         return <Smartphone className="w-6 h-6" />;
     }
@@ -154,10 +152,19 @@ const PartnerPaymentModal: React.FC<PartnerPaymentModalProps> = ({
         return 'from-purple-500 to-purple-600';
       case 'ishonch':
         return 'from-amber-500 to-amber-600';
-      case 'yandex':
-        return 'from-red-500 to-red-600';
       default:
         return 'from-blue-500 to-blue-600';
+    }
+  };
+
+  const getPartnerDescription = (partnerId: string) => {
+    switch (partnerId) {
+      case 'uzum':
+        return 'Muddatli to\'lov';
+      case 'ishonch':
+        return 'Kredit tizimi';
+      default:
+        return '';
     }
   };
 
@@ -221,9 +228,7 @@ const PartnerPaymentModal: React.FC<PartnerPaymentModalProps> = ({
                     <div className="flex-1 text-left">
                       <h4 className="font-semibold text-gray-900">{partner.name}</h4>
                       <p className="text-sm text-gray-500">
-                        {partner.id === 'uzum' && 'Online marketplace'}
-                        {partner.id === 'ishonch' && 'Kredit tizimi'}
-                        {partner.id === 'yandex' && 'Yetkazib berish'}
+                        {getPartnerDescription(partner.id)}
                       </p>
                     </div>
                     {selectedPartner === partner.id && (

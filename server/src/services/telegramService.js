@@ -11,6 +11,11 @@ class TelegramService {
     this.debtBotToken = process.env.TELEGRAM_DEBT_BOT_TOKEN;
     this.debtChatId = process.env.TELEGRAM_DEBT_CHAT_ID;
     this.debtBaseUrl = `https://api.telegram.org/bot${this.debtBotToken}`;
+
+    // Hamkorlar uchun alohida bot
+    this.partnerBotToken = process.env.PARTNER_BOT_TOKEN;
+    this.partnerChatId = process.env.PARTNER_CHAT_ID;
+    this.partnerBaseUrl = `https://api.telegram.org/bot${this.partnerBotToken}`;
   }
 
   // Webhook orqali kelgan xabarlarni qayta ishlash
@@ -209,6 +214,32 @@ ${receiptData.items.map(item =>
       return response.data;
     } catch (error) {
       console.error('Telegram debt bot send message error:', error.response?.data || error.message);
+    }
+  }
+
+  // Hamkorlar uchun alohida xabar yuborish
+  async sendPartnerMessage(message, chatId = null) {
+    if (!this.partnerBotToken) {
+      console.log('Telegram partner bot token not configured');
+      return null;
+    }
+
+    const targetChatId = chatId || this.partnerChatId;
+    if (!targetChatId) {
+      console.log('Telegram partner chat ID not configured');
+      return null;
+    }
+
+    try {
+      const response = await axios.post(`${this.partnerBaseUrl}/sendMessage`, {
+        chat_id: targetChatId,
+        text: message,
+        parse_mode: 'HTML'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Telegram partner bot send message error:', error.response?.data || error.message);
+      throw error;
     }
   }
 

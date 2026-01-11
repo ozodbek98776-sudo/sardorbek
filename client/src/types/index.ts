@@ -20,7 +20,30 @@ export interface Product {
   isMainWarehouse?: boolean;
   category?: string;
   image?: string;
+  images?: string[];
   minStock?: number;
+  
+  // O'lchov birliklari
+  unit?: 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr';
+  
+  // Rulon/Karobka uchun qo'shimcha ma'lumotlar
+  unitConversion?: {
+    enabled: boolean;
+    baseUnit: 'dona' | 'metr' | 'gram' | 'kg' | 'litr';
+    conversionRate: number; // 1 rulon = X metr
+    packageCount: number; // Nechta rulon/karobka bor
+    totalBaseUnits: number; // Jami metr/dona
+  };
+  
+  // Turli narxlar
+  prices?: {
+    perUnit: number; // Dona narxi
+    perMeter: number; // Metr narxi
+    perGram: number; // Gram narxi
+    perKg: number; // Kg narxi
+    perRoll: number; // Rulon narxi
+    perBox: number; // Karobka narxi
+  };
 }
 
 export interface CartItem extends Product {

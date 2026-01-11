@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -24,7 +24,17 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    code: '', name: '', costPrice: '', wholesalePrice: '', quantity: ''
+    code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '',
+    unit: 'dona' as 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr',
+    conversionEnabled: false,
+    baseUnit: 'dona' as 'dona' | 'metr' | 'gram' | 'kg' | 'litr',
+    conversionRate: '',
+    packageCount: '',
+    pricePerMeter: '',
+    pricePerRoll: '',
+    pricePerBox: '',
+    pricePerKg: '',
+    pricePerGram: ''
   });
   const [packageData, setPackageData] = useState({
     packageCount: '', unitsPerPackage: '', totalCost: ''
@@ -144,6 +154,12 @@ export default function Products() {
         totalUnits: totalUnits
       };
     }
+
+    // Konversiya hisoblash
+    let totalBaseUnits = finalQuantity;
+    if (formData.conversionEnabled && formData.conversionRate) {
+      totalBaseUnits = finalQuantity * Number(formData.conversionRate);
+    }
     
     try {
       const data = {
@@ -154,7 +170,24 @@ export default function Products() {
         quantity: finalQuantity,
         warehouse: mainWarehouse?._id,
         images,
-        packageInfo
+        packageInfo,
+        // Yangi fieldlar
+        unit: formData.unit,
+        unitConversion: {
+          enabled: formData.conversionEnabled,
+          baseUnit: formData.baseUnit,
+          conversionRate: Number(formData.conversionRate) || 1,
+          packageCount: finalQuantity,
+          totalBaseUnits: totalBaseUnits
+        },
+        prices: {
+          perUnit: Number(formData.wholesalePrice),
+          perMeter: Number(formData.pricePerMeter) || 0,
+          perRoll: Number(formData.pricePerRoll) || 0,
+          perBox: Number(formData.pricePerBox) || 0,
+          perKg: Number(formData.pricePerKg) || 0,
+          perGram: Number(formData.pricePerGram) || 0
+        }
       };
       if (editingProduct) {
         await api.put(`/products/${editingProduct._id}`, data);
@@ -186,7 +219,17 @@ export default function Products() {
       name: product.name,
       costPrice: String((product as any).costPrice || 0),
       wholesalePrice: String(product.price),
-      quantity: String(product.quantity)
+      quantity: String(product.quantity),
+      unit: product.unit || 'dona',
+      conversionEnabled: product.unitConversion?.enabled || false,
+      baseUnit: product.unitConversion?.baseUnit || 'dona',
+      conversionRate: String(product.unitConversion?.conversionRate || ''),
+      packageCount: String(product.unitConversion?.packageCount || ''),
+      pricePerMeter: String(product.prices?.perMeter || ''),
+      pricePerRoll: String(product.prices?.perRoll || ''),
+      pricePerBox: String(product.prices?.perBox || ''),
+      pricePerKg: String(product.prices?.perKg || ''),
+      pricePerGram: String(product.prices?.perGram || '')
     });
     setImages((product as any).images || []);
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
@@ -232,7 +275,19 @@ export default function Products() {
   const closeModal = () => {
     setShowModal(false);
     setEditingProduct(null);
-    setFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    setFormData({ 
+      code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '',
+      unit: 'dona',
+      conversionEnabled: false,
+      baseUnit: 'dona',
+      conversionRate: '',
+      packageCount: '',
+      pricePerMeter: '',
+      pricePerRoll: '',
+      pricePerBox: '',
+      pricePerKg: '',
+      pricePerGram: ''
+    });
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setImages([]);
     setCodeError('');
@@ -261,7 +316,19 @@ export default function Products() {
   const openAddModal = async () => {
     try {
       const res = await api.get('/products/next-code');
-      setFormData({ code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+      setFormData({ 
+        code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '',
+        unit: 'dona',
+        conversionEnabled: false,
+        baseUnit: 'dona',
+        conversionRate: '',
+        packageCount: '',
+        pricePerMeter: '',
+        pricePerRoll: '',
+        pricePerBox: '',
+        pricePerKg: '',
+        pricePerGram: ''
+      });
     } catch (err) {
       console.error('Error getting next code:', err);
     }
@@ -672,7 +739,7 @@ export default function Products() {
                           <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
                         ) : (
                           <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
-                            <Image className="w-5 h-5 text-surface-400" />
+                            <img className="w-5 h-5 text-surface-400" />
                           </div>
                         )}
                       </div>
@@ -714,48 +781,145 @@ export default function Products() {
                   ))}
                 </div>
               </div>
-              <div className="lg:hidden divide-y divide-surface-100">
-                {filteredProducts.map(product => (
-                  <div key={product._id} className="p-4">
-                    <div className="flex items-start gap-3">
-                      {getProductImage(product) ? (
-                        <img src={getProductImage(product)!} alt={product.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Package className="w-6 h-6 text-brand-600" />
+              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+                {filteredProducts.map(product => {
+                  const unit = product.unit || 'dona';
+                  const hasConversion = product.unitConversion?.enabled;
+                  const getUnitLabel = (u?: string) => {
+                    switch (u) {
+                      case 'metr': return 'm';
+                      case 'rulon': return 'rulon';
+                      case 'karobka': return 'quti';
+                      case 'gram': return 'g';
+                      case 'kg': return 'kg';
+                      case 'litr': return 'L';
+                      default: return 'dona';
+                    }
+                  };
+                  const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
+                  
+                  return (
+                    <div key={product._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-lg transition-all duration-300 overflow-hidden group">
+                      {/* Image Section */}
+                      <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-100 to-surface-50 overflow-hidden">
+                        {getProductImage(product) ? (
+                          <img src={getProductImage(product)!} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center">
+                              <Package className="w-8 h-8 text-brand-500" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Stock Badge */}
+                        <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          stockStatus === 'danger' ? 'bg-red-500 text-white' : 
+                          stockStatus === 'warning' ? 'bg-amber-500 text-white' : 
+                          'bg-emerald-500 text-white'
+                        }`}>
+                          {stockStatus === 'danger' ? 'Tugagan' : stockStatus === 'warning' ? 'Kam qoldi' : 'Mavjud'}
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h4 className="font-medium text-surface-900 truncate">{product.name}</h4>
-                            <p className="text-sm text-surface-500">Kod: {product.code}</p>
-                          </div>
-                          <div className="flex gap-1">
-                            <button onClick={() => openQRModal(product)} className="btn-icon-sm"><QrCode className="w-4 h-4" /></button>
-                            <button onClick={() => openPrintModal(product)} className="btn-icon-sm text-blue-600"><Printer className="w-4 h-4" /></button>
-                            <button onClick={() => openEditModal(product)} className="btn-icon-sm"><Edit className="w-4 h-4" /></button>
-                            <button onClick={() => handleDelete(product._id)} className="btn-icon-sm text-danger-500"><Trash2 className="w-4 h-4" /></button>
-                          </div>
+
+                        {/* Code Badge */}
+                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs font-mono text-white">
+                          #{product.code}
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-surface-50 rounded-xl p-3">
-                            <p className="text-xs text-surface-500 mb-1">Tan narxi</p>
-                            <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
-                          </div>
-                          <div className="bg-surface-50 rounded-xl p-3">
-                            <p className="text-xs text-surface-500 mb-1">Optom narxi</p>
-                            <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
-                          </div>
-                          <div className={`rounded-xl p-3 ${product.quantity === 0 ? 'bg-danger-50' : product.quantity <= (product.minStock || 100) ? 'bg-warning-50' : 'bg-success-50'}`}>
-                            <p className="text-xs text-surface-500 mb-1">Miqdori</p>
-                            <p className={`font-semibold ${product.quantity === 0 ? 'text-danger-600' : product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'}`}>{product.quantity}</p>
-                          </div>
+
+                        {/* Quick Actions */}
+                        <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openQRModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-brand-600 hover:bg-white transition-colors shadow-sm">
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openPrintModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-blue-600 hover:bg-white transition-colors shadow-sm">
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openEditModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-amber-600 hover:bg-white transition-colors shadow-sm">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(product._id)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-red-600 hover:bg-white transition-colors shadow-sm">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
+
+                      {/* Content Section */}
+                      <div className="p-4">
+                        {/* Name */}
+                        <h3 className="font-semibold text-surface-900 text-base mb-3 line-clamp-2 min-h-[2.5rem]">
+                          {product.name}
+                        </h3>
+
+                        {/* Quantity with Unit */}
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
+                            stockStatus === 'danger' ? 'bg-red-50 text-red-700' : 
+                            stockStatus === 'warning' ? 'bg-amber-50 text-amber-700' : 
+                            'bg-emerald-50 text-emerald-700'
+                          }`}>
+                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-3.5 h-3.5" /> :
+                             unit === 'karobka' ? <Box className="w-3.5 h-3.5" /> :
+                             unit === 'gram' || unit === 'kg' ? <Scale className="w-3.5 h-3.5" /> :
+                             <Package className="w-3.5 h-3.5" />}
+                            <span>{formatNumber(product.quantity)} {getUnitLabel(unit)}</span>
+                          </div>
+                          
+                          {/* Conversion info */}
+                          {hasConversion && product.unitConversion && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-xs text-purple-700">
+                              <RotateCcw className="w-3 h-3" />
+                              <span>= {formatNumber(product.unitConversion.totalBaseUnits)} {getUnitLabel(product.unitConversion.baseUnit)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Prices Grid */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-surface-50 rounded-xl p-2.5">
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
+                            <p className="font-bold text-surface-900 text-sm">
+                              {formatNumber((product as any).costPrice || 0)}
+                              <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
+                            </p>
+                          </div>
+                          <div className="bg-brand-50 rounded-xl p-2.5">
+                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Sotish narxi</p>
+                            <p className="font-bold text-brand-700 text-sm">
+                              {formatNumber(product.price)}
+                              <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Additional Prices */}
+                        {product.prices && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {product.prices.perMeter > 0 && (
+                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perMeter)}/m
+                              </span>
+                            )}
+                            {product.prices.perRoll > 0 && (
+                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perRoll)}/rulon
+                              </span>
+                            )}
+                            {product.prices.perBox > 0 && (
+                              <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perBox)}/quti
+                              </span>
+                            )}
+                            {product.prices.perKg > 0 && (
+                              <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perKg)}/kg
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -860,6 +1024,122 @@ export default function Products() {
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Optom narxi (so'm)</label>
                   <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.wholesalePrice)} onChange={e => setFormData({...formData, wholesalePrice: parseNumber(e.target.value)})} required />
+                </div>
+              </div>
+
+              {/* O'lchov birligi */}
+              <div className="border-t border-surface-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-brand-600" />
+                  O'lchov birligi
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-surface-700 mb-2 block">Birlik</label>
+                    <select 
+                      className="input"
+                      value={formData.unit}
+                      onChange={e => setFormData({...formData, unit: e.target.value as any})}
+                    >
+                      <option value="dona">Dona</option>
+                      <option value="metr">Metr</option>
+                      <option value="rulon">Rulon</option>
+                      <option value="karobka">Karobka/Quti</option>
+                      <option value="gram">Gram</option>
+                      <option value="kg">Kilogram</option>
+                      <option value="litr">Litr</option>
+                    </select>
+                  </div>
+                  
+                  {/* Konversiya */}
+                  {(formData.unit === 'rulon' || formData.unit === 'karobka') && (
+                    <div>
+                      <label className="text-sm font-medium text-surface-700 mb-2 block">
+                        1 {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = ? 
+                      </label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          className="input flex-1" 
+                          placeholder="30"
+                          value={formData.conversionRate}
+                          onChange={e => setFormData({
+                            ...formData, 
+                            conversionRate: parseNumber(e.target.value),
+                            conversionEnabled: true
+                          })}
+                        />
+                        <select 
+                          className="input w-24"
+                          value={formData.baseUnit}
+                          onChange={e => setFormData({...formData, baseUnit: e.target.value as any})}
+                        >
+                          <option value="metr">metr</option>
+                          <option value="dona">dona</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Konversiya natijasi */}
+                {formData.conversionEnabled && formData.conversionRate && formData.quantity && (
+                  <div className="mt-3 p-3 bg-purple-50 rounded-xl">
+                    <p className="text-sm text-purple-700">
+                      <span className="font-semibold">{formatNumber(formData.quantity)}</span> {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = 
+                      <span className="font-semibold ml-1">{formatNumber(Number(formData.quantity) * Number(formData.conversionRate))}</span> {formData.baseUnit}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Qo'shimcha narxlar */}
+              <div className="border-t border-surface-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  Qo'shimcha narxlar (ixtiyoriy)
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Metr narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerMeter)}
+                      onChange={e => setFormData({...formData, pricePerMeter: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Rulon narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerRoll)}
+                      onChange={e => setFormData({...formData, pricePerRoll: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Karobka narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerBox)}
+                      onChange={e => setFormData({...formData, pricePerBox: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Kg narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerKg)}
+                      onChange={e => setFormData({...formData, pricePerKg: parseNumber(e.target.value)})}
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -1226,278 +1506,3 @@ export default function Products() {
     </div>
   );
 }
-  const fetchMainWarehouse = async () => {
-    try {
-      const res = await api.get('/warehouses');
-      const main = res.data.find((w: Warehouse) => w.name === 'Asosiy ombor');
-      if (main) {
-        setMainWarehouse(main);
-      } else {
-        const newMain = await api.post('/warehouses', { name: 'Asosiy ombor', address: '' });
-        setMainWarehouse(newMain.data);
-      }
-    } catch (err) {
-      console.error('Error fetching warehouses:', err);
-      setLoading(false);
-    }
-  };
-
-  const fetchProducts = async () => {
-    try {
-      const res = await api.get('/products?mainOnly=true');
-      setProducts(res.data);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    const remainingSlots = 8 - images.length;
-    if (remainingSlots <= 0) {
-      showAlert('Maksimum 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
-      return;
-    }
-
-    const filesToUpload = Array.from(files).slice(0, remainingSlots);
-    const formData = new FormData();
-    filesToUpload.forEach(file => formData.append('images', file));
-
-    setUploading(true);
-    try {
-      const res = await api.post('/products/upload-images', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setImages([...images, ...res.data.images]);
-    } catch (err) {
-      console.error('Error uploading images:', err);
-      showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const removeImage = async (imagePath: string) => {
-    try {
-      await api.delete('/products/delete-image', { data: { imagePath } });
-      setImages(images.filter(img => img !== imagePath));
-    } catch (err) {
-      console.error('Error deleting image:', err);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (codeError) {
-      showAlert(codeError, 'Xatolik', 'danger');
-      return;
-    }
-    
-    let finalQuantity = Number(formData.quantity);
-    let finalCostPrice = Number(formData.costPrice);
-    let packageInfo = null;
-    
-    if (showPackageInput && packageData.packageCount && packageData.unitsPerPackage) {
-      const totalUnits = Number(packageData.packageCount) * Number(packageData.unitsPerPackage);
-      finalQuantity = editingProduct ? Number(formData.quantity) + totalUnits : totalUnits;
-      packageInfo = {
-        packageCount: Number(packageData.packageCount),
-        unitsPerPackage: Number(packageData.unitsPerPackage),
-        totalUnits: totalUnits
-      };
-    }
-    
-    try {
-      const data = {
-        code: formData.code,
-        name: formData.name,
-        costPrice: finalCostPrice,
-        price: Number(formData.wholesalePrice),
-        quantity: finalQuantity,
-        warehouse: mainWarehouse?._id,
-        images,
-        packageInfo
-      };
-      if (editingProduct) {
-        await api.put(`/products/${editingProduct._id}`, data);
-      } else {
-        await api.post('/products', data);
-      }
-      fetchProducts();
-      closeModal();
-    } catch (err: any) {
-      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const confirmed = await showConfirm("Tovarni o'chirishni tasdiqlaysizmi?", "O'chirish");
-    if (!confirmed) return;
-    try {
-      await api.delete(`/products/${id}`);
-      fetchProducts();
-    } catch (err) {
-      console.error('Error deleting product:', err);
-    }
-  };
-
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-    setFormData({
-      code: product.code,
-      name: product.name,
-      costPrice: String((product as any).costPrice || 0),
-      wholesalePrice: String(product.price),
-      quantity: String(product.quantity)
-    });
-    setImages((product as any).images || []);
-    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
-    setCodeError('');
-    setShowPackageInput(false);
-    setShowModal(true);
-  };
-
-  const openQRModal = (product: Product) => {
-    setSelectedProduct(product);
-    setShowQRModal(true);
-  };
-
-  const openPrintModal = (product: Product) => {
-    setSelectedProduct(product);
-    setShowPrintModal(true);
-    loadAvailablePrinters();
-  };
-
-  const loadAvailablePrinters = async () => {
-    try {
-      const myPrinters = [
-        'EPSON L132 Series (Copy 1)',
-        'EPSON L132 Series',
-        'X printer'
-      ];
-      
-      setAvailablePrinters(myPrinters);
-      setPrintSettings(prev => ({
-        ...prev,
-        printer: myPrinters[0]
-      }));
-      
-    } catch (error) {
-      console.error('Error loading printers:', error);
-      setAvailablePrinters(['EPSON L132 Series', 'X printer']);
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingProduct(null);
-    setFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
-    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
-    setImages([]);
-    setCodeError('');
-    setShowPackageInput(false);
-  };
-
-  const openQuantityModal = (mode: 'add' | 'subtract') => {
-    setQuantityMode(mode);
-    setQuantityInput('');
-    setShowQuantityModal(true);
-  };
-
-  const applyQuantityChange = () => {
-    const change = Number(quantityInput) || 0;
-    if (change <= 0) return;
-    
-    const currentQty = Number(formData.quantity) || 0;
-    let newQty = quantityMode === 'add' ? currentQty + change : currentQty - change;
-    if (newQty < 0) newQty = 0;
-    
-    setFormData({ ...formData, quantity: String(newQty) });
-    setShowQuantityModal(false);
-    setQuantityInput('');
-  };
-
-  const openAddModal = async () => {
-    try {
-      const res = await api.get('/products/next-code');
-      setFormData({ code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '' });
-    } catch (err) {
-      console.error('Error getting next code:', err);
-    }
-    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
-    setImages([]);
-    setCodeError('');
-    setShowPackageInput(false);
-    setShowModal(true);
-  };
-
-  const checkCodeExists = async (code: string) => {
-    if (!code) return;
-    try {
-      const excludeId = editingProduct?._id || '';
-      const res = await api.get(`/products/check-code/${code}${excludeId ? `?excludeId=${excludeId}` : ''}`);
-      if (res.data.exists) {
-        setCodeError(`Kod "${code}" allaqachon mavjud`);
-      } else {
-        setCodeError('');
-      }
-    } catch (err) {
-      console.error('Error checking code:', err);
-    }
-  };
-
-  const downloadQR = () => {
-    if (!selectedProduct) return;
-    const svg = document.getElementById('qr-code-svg');
-    if (!svg) return;
-    
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = document.createElement('img');
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-    
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-  };
-
-  const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
-    try {
-      const qrData = JSON.stringify({
-        id: product._id,
-        code: product.code,
-        name: product.name,
-        price: product.price
-      });
-      
-      const qrDataURL = await QRCode.toDataURL(qrData, {
-        width: size * 10,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'H',
-        type: 'image/png'
-      });
-      
-      return qrDataURL;
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      return '';
-    }
-  };

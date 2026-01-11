@@ -11,6 +11,33 @@ const productSchema = new mongoose.Schema({
   category: String,
   images: [{ type: String }], // Array of image paths
   minStock: { type: Number, default: 50 },
+  
+  // O'lchov birliklari
+  unit: { 
+    type: String, 
+    enum: ['dona', 'metr', 'rulon', 'karobka', 'gram', 'kg', 'litr'],
+    default: 'dona'
+  },
+  
+  // Rulon/Karobka uchun qo'shimcha ma'lumotlar
+  unitConversion: {
+    enabled: { type: Boolean, default: false },
+    // Masalan: 1 rulon = 30 metr, 1 karobka = 12 dona
+    baseUnit: { type: String, enum: ['dona', 'metr', 'gram', 'kg', 'litr'], default: 'dona' },
+    conversionRate: { type: Number, default: 1 }, // 1 rulon = X metr
+    packageCount: { type: Number, default: 0 }, // Nechta rulon/karobka bor
+    totalBaseUnits: { type: Number, default: 0 } // Jami metr/dona
+  },
+  
+  // Turli narxlar
+  prices: {
+    perUnit: { type: Number, default: 0 }, // Dona narxi
+    perMeter: { type: Number, default: 0 }, // Metr narxi
+    perGram: { type: Number, default: 0 }, // Gram narxi
+    perKg: { type: Number, default: 0 }, // Kg narxi
+    perRoll: { type: Number, default: 0 }, // Rulon narxi
+    perBox: { type: Number, default: 0 } // Karobka narxi
+  },
   // Wholesale pricing tiers
   pricingTiers: {
     tier1: { // 1-9 dona
