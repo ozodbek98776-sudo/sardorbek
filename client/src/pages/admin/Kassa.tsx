@@ -8,7 +8,13 @@ import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useOffline } from '../../hooks/useOffline';
-import { cacheProducts, getCachedProducts } from '../../utils/indexedDbService';
+import { 
+  cacheProducts, 
+  getCachedProducts,
+  saveOfflineSale,
+  markSalesAsSynced,
+  deleteSyncedSales
+} from '../../utils/indexedDbService';
 
 interface SavedReceipt {
   id: string;
@@ -262,9 +268,6 @@ export default function Kassa() {
     };
 
     try {
-      // Import offline sale function
-      const { saveOfflineSale, markSalesAsSynced, deleteSyncedSales } = await import('../../utils/indexedDbService');
-      
       // Step 1: ALWAYS save locally first (safety - never lose sales)
       const offlineSale = await saveOfflineSale(saleData);
       console.log('Sale saved locally:', offlineSale.id);

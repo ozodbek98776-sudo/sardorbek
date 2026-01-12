@@ -10,6 +10,8 @@ import {
   getCachedProducts,
   cacheProducts,
   getUnsyncedSalesCount,
+  markSalesAsSynced,
+  deleteSyncedSales,
   CachedProduct,
   OfflineSale
 } from '../utils/indexedDbService';
@@ -141,8 +143,6 @@ export const useOffline = (): UseOfflineReturn => {
             isReturn: saleData.isReturn
           });
 
-          // Success - mark local sale as synced and delete
-          const { markSalesAsSynced, deleteSyncedSales } = await import('../utils/indexedDbService');
           await markSalesAsSynced([offlineSale.id]);
           await deleteSyncedSales([offlineSale.id]);
 
