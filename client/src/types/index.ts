@@ -15,6 +15,8 @@ export interface Product {
   description?: string;
   costPrice?: number;
   price: number;
+  previousPrice?: number; // Oldingi narxi
+  currentPrice?: number; // Hozirgi narxi
   quantity: number;
   warehouse: string | { _id: string; name: string };
   isMainWarehouse?: boolean;

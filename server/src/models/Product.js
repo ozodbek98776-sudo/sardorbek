@@ -5,20 +5,22 @@ const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   costPrice: { type: Number, default: 0 },
   price: { type: Number, required: true }, // Base price (cost price)
+  previousPrice: { type: Number, default: 0 }, // Oldingi narxi
+  currentPrice: { type: Number, default: 0 }, // Hozirgi narxi
   quantity: { type: Number, default: 0 },
   warehouse: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
   isMainWarehouse: { type: Boolean, default: false },
   category: String,
   images: [{ type: String }], // Array of image paths
   minStock: { type: Number, default: 50 },
-  
+
   // O'lchov birliklari
-  unit: { 
-    type: String, 
+  unit: {
+    type: String,
     enum: ['dona', 'metr', 'rulon', 'karobka', 'gram', 'kg', 'litr'],
     default: 'dona'
   },
-  
+
   // Rulon/Karobka uchun qo'shimcha ma'lumotlar
   unitConversion: {
     enabled: { type: Boolean, default: false },
@@ -28,7 +30,7 @@ const productSchema = new mongoose.Schema({
     packageCount: { type: Number, default: 0 }, // Nechta rulon/karobka bor
     totalBaseUnits: { type: Number, default: 0 } // Jami metr/dona
   },
-  
+
   // Turli narxlar
   prices: {
     perUnit: { type: Number, default: 0 }, // Dona narxi
@@ -68,10 +70,10 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Miqdorga qarab narx hisoblash method
-productSchema.methods.calculatePrice = function(quantity) {
+productSchema.methods.calculatePrice = function (quantity) {
   const basePrice = this.price; // Base price (cost price)
   let markupPercent = 15; // Default 15%
-  
+
   // Pricing tier aniqlash
   if (quantity >= 100) {
     markupPercent = this.pricingTiers?.tier3?.markupPercent || 11;
@@ -80,14 +82,14 @@ productSchema.methods.calculatePrice = function(quantity) {
   } else {
     markupPercent = this.pricingTiers?.tier1?.markupPercent || 15;
   }
-  
+
   // Narxni hisoblash
   const finalPrice = basePrice * (1 + markupPercent / 100);
   return Math.round(finalPrice); // Yaxlitlash
 };
 
 // Pricing tier ma'lumotini olish method
-productSchema.methods.getPricingTier = function(quantity) {
+productSchema.methods.getPricingTier = function (quantity) {
   if (quantity >= 100) {
     return {
       tier: 'tier3',
@@ -98,7 +100,7 @@ productSchema.methods.getPricingTier = function(quantity) {
     };
   } else if (quantity >= 10) {
     return {
-      tier: 'tier2', 
+      tier: 'tier2',
       name: '10-99 dona',
       markupPercent: this.pricingTiers?.tier2?.markupPercent || 13,
       minQuantity: 10,
@@ -107,7 +109,7 @@ productSchema.methods.getPricingTier = function(quantity) {
   } else {
     return {
       tier: 'tier1',
-      name: '1-9 dona', 
+      name: '1-9 dona',
       markupPercent: this.pricingTiers?.tier1?.markupPercent || 15,
       minQuantity: 1,
       maxQuantity: 9

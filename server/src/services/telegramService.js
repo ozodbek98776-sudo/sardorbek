@@ -16,6 +16,11 @@ class TelegramService {
     this.partnerBotToken = process.env.PARTNER_BOT_TOKEN;
     this.partnerChatId = process.env.PARTNER_CHAT_ID;
     this.partnerBaseUrl = `https://api.telegram.org/bot${this.partnerBotToken}`;
+
+    // POS Bot uchun alohida bot (mijozlar uchun)
+    this.posBotToken = process.env.POS_TELEGRAM_BOT_TOKEN;
+    this.posAdminChatId = process.env.POS_ADMIN_CHAT_ID;
+    this.posBaseUrl = `https://api.telegram.org/bot${this.posBotToken}`;
   }
 
   // Webhook orqali kelgan xabarlarni qayta ishlash
@@ -44,6 +49,60 @@ class TelegramService {
       }
     } catch (error) {
       console.error('Webhook handle error:', error);
+    }
+  }
+
+  // POS Bot webhook orqali kelgan xabarlarni qayta ishlash
+  async handlePOSWebhook(update) {
+    try {
+      if (update.message) {
+        const chatId = update.message.chat.id;
+        const user = update.message.from;
+
+        console.log(`POS Bot: ${user.first_name} (${chatId}) dan xabar keldi`);
+
+        // Agar contact (telefon raqam) yuborilgan bo'lsa
+        if (update.message.contact) {
+          const phoneNumber = update.message.contact.phone_number;
+          console.log(`POS Bot: Contact yuborildi - ${phoneNumber}`);
+          await this.handlePOSPhoneRegistration(chatId, phoneNumber, user);
+          return;
+        }
+
+        // Agar matn yuborilgan bo'lsa
+        if (update.message.text) {
+          const text = update.message.text;
+          console.log(`POS Bot: Matn yuborildi - ${text}`);
+
+          // /start komandasi
+          if (text === '/start') {
+            await this.handlePOSStartCommand(chatId, user);
+          }
+          // Telefon raqam yuborilganda
+          else if (text.match(/^\+998\d{9}$/) || text.match(/^998\d{9}$/) || text.match(/^\d{9}$/)) {
+            await this.handlePOSPhoneRegistration(chatId, text, user);
+          }
+          // Yordam komandasi
+          else if (text === '/help') {
+            await this.sendPOSHelpMessage(chatId);
+          }
+          else {
+            const keyboard = {
+              keyboard: [
+                [{
+                  text: "📱 Telefon raqamni yuborish",
+                  request_contact: true
+                }]
+              ],
+              resize_keyboard: true,
+              one_time_keyboard: true
+            };
+            await this.sendPOSMessage('📱 Telefon raqamingizni yuboring yoki pastdagi tugmani bosing:', chatId, keyboard);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('POS Webhook handle error:', error);
     }
   }
 
@@ -132,6 +191,129 @@ Muammolar bo'lsa do'kon bilan bog'laning.
     await this.sendMessage(helpMessage.trim(), chatId);
   }
 
+  // POS Bot uchun /start komandasi
+  async handlePOSStartCommand(chatId, user) {
+    const welcomeMessage = `
+👋 Assalomu alaykum, ${user.first_name}!
+
+🏪 Sardor Furnitura do'koniga xush kelibsiz!
+
+📱 Cheklar va xabarlarni olish uchun telefon raqamingizni yuboring yoki pastdagi tugmani bosing:
+    `;
+
+    const keyboard = {
+      keyboard: [
+        [{
+          text: "📱 Telefon raqamni yuborish",
+          request_contact: true
+        }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    };
+
+    await this.sendPOSMessage(welcomeMessage.trim(), chatId, keyboard);
+  }
+
+  // POS Bot uchun telefon raqam ro'yxatdan o'tkazish
+  async handlePOSPhoneRegistration(chatId, phone, user) {
+    try {
+      // Telefon raqamni formatlash
+      let formattedPhone = phone.replace(/\D/g, ''); // Faqat raqamlar
+      if (formattedPhone.startsWith('998')) {
+        formattedPhone = '+' + formattedPhone;
+      } else if (formattedPhone.length === 9) {
+        formattedPhone = '+998' + formattedPhone;
+      } else {
+        await this.sendPOSMessage('❌ Noto\'g\'ri telefon raqam formati. Masalan: +998901234567', chatId);
+        return;
+      }
+
+      // Mijozni topish
+      const customer = await Customer.findOne({ phone: formattedPhone });
+
+      if (customer) {
+        // Telegram chat ID ni yangilash
+        customer.telegramChatId = chatId.toString();
+        await customer.save();
+
+        const successMessage = `
+✅ Muvaffaqiyat!
+
+👤 Siz ${customer.name} sifatida ro'yxatdan o'tdingiz.
+📱 Telefon: ${customer.phone}
+
+🔔 Endi barcha cheklar va xabarlar shu yerga yuboriladi.
+        `;
+
+        await this.sendPOSMessage(successMessage.trim(), chatId);
+      } else {
+        const notFoundMessage = `
+❌ Kechirasiz, ${formattedPhone} raqami bilan mijoz topilmadi.
+
+📞 Iltimos, do'kon bilan bog'laning yoki to'g'ri telefon raqamni kiriting.
+        `;
+
+        await this.sendPOSMessage(notFoundMessage.trim(), chatId);
+      }
+    } catch (error) {
+      console.error('POS Phone registration error:', error);
+      await this.sendPOSMessage('❌ Xatolik yuz berdi. Qaytadan urinib ko\'ring.', chatId);
+    }
+  }
+
+  // POS Bot uchun yordam xabari
+  async sendPOSHelpMessage(chatId) {
+    const helpMessage = `
+ℹ️ <b>YORDAM</b>
+
+🤖 <b>Mavjud buyruqlar:</b>
+• /start - Botni ishga tushirish
+• /help - Yordam
+
+📱 <b>Ro'yxatdan o'tish:</b>
+Telefon raqamingizni yuboring yoki "Telefon raqamni yuborish" tugmasini bosing
+
+🧾 <b>Cheklar:</b>
+Ro'yxatdan o'tgandan keyin barcha xaridlaringiz avtomatik yuboriladi.
+
+📞 <b>Yordam:</b>
+Muammolar bo'lsa do'kon bilan bog'laning.
+    `;
+
+    await this.sendPOSMessage(helpMessage.trim(), chatId);
+  }
+
+  // POS Bot uchun xabar yuborish
+  async sendPOSMessage(message, chatId, keyboard = null) {
+    if (!this.posBotToken) {
+      console.log('POS Telegram bot token not configured');
+      return;
+    }
+
+    if (!chatId) {
+      console.log('POS Telegram chat ID not provided');
+      return;
+    }
+
+    try {
+      const payload = {
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML'
+      };
+
+      if (keyboard) {
+        payload.reply_markup = keyboard;
+      }
+
+      const response = await axios.post(`${this.posBaseUrl}/sendMessage`, payload);
+      return response.data;
+    } catch (error) {
+      console.error('POS Telegram send message error:', error.response?.data || error.message);
+    }
+  }
+
   // Mijozga chek yuborish (qarz ma'lumotisiz)
   async sendReceiptToCustomer(receiptData) {
     if (!receiptData.customer || !receiptData.customer.telegramChatId) {
@@ -158,6 +340,37 @@ ${receiptData.items.map(item =>
     `;
 
     return this.sendMessage(message.trim(), receiptData.customer.telegramChatId);
+  }
+
+  // Mijozga POS Bot orqali chek yuborish
+  async sendReceiptToCustomerViaPOSBot(receiptData) {
+    if (!receiptData.customer || !receiptData.customer.telegramChatId) {
+      console.log('Customer does not have Telegram chat ID');
+      return false;
+    }
+
+    const message = `
+🧾 <b>XARID CHEKI</b>
+
+📅 <b>Sana:</b> ${new Date().toLocaleString('uz-UZ')}
+🏪 <b>Do'kon:</b> Sardor Furnitura
+👤 <b>Mijoz:</b> ${receiptData.customer.name}
+🧾 <b>Chek №:</b> ${receiptData.receiptNumber || `CHK-${Date.now()}`}
+
+📦 <b>Xarid qilingan mahsulotlar:</b>
+${receiptData.items.map(item =>
+      `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
+    ).join('\n')}
+
+💰 <b>Jami summa:</b> ${this.formatNumber(receiptData.total)} so'm
+💳 <b>To'lov turi:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul' : receiptData.paymentMethod === 'card' ? 'Plastik karta' : 'Click'}
+${receiptData.paidAmount ? `💵 <b>To'langan:</b> ${this.formatNumber(receiptData.paidAmount)} so'm` : ''}
+${receiptData.remainingAmount && receiptData.remainingAmount > 0 ? `💸 <b>Qoldiq:</b> ${this.formatNumber(receiptData.remainingAmount)} so'm` : ''}
+
+🙏 Xaridingiz uchun katta rahmat!
+    `;
+
+    return this.sendPOSMessage(message.trim(), receiptData.customer.telegramChatId);
   }
 
   // Qarz to'lovi haqida mijozga xabar (o'chirildi - faqat admin uchun)

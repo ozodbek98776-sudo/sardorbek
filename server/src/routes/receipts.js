@@ -358,35 +358,28 @@ router.post('/kassa', async (req, res) => {
             }
           }
 
-          // Faqat mijozga POS Bot orqali chek yuborish
+          // Mijozga telegram orqali chek yuborish
           if (customerData.telegramChatId) {
-            console.log(`Sending receipt to customer ${customerData.name} via POS Bot...`);
+            console.log(`Sending receipt to customer ${customerData.name} via Telegram...`);
 
             // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
             const updatedCustomer = await Customer.findById(customer);
 
-            // Faqat POS Bot orqali yuborish - vaqtincha o'chirildi
-            /*
             try {
-              const posBot = getPOSBot();
-              if (posBot) {
-                await posBot.sendReceiptToCustomer({
-                  customer: updatedCustomer,
-                  items: items,
-                  total: total,
-                  paidAmount: paidAmount || total,
-                  remainingAmount: remainingAmount || 0,
-                  paymentMethod: paymentMethod,
-                  receiptNumber: receiptNumber || `CHK-${Date.now()}`
-                });
-                console.log(`✅ POS Bot: Chek ${customerData.name} ga yuborildi`);
-              } else {
-                console.log(`❌ POS Bot mavjud emas`);
-              }
-            } catch (posBotError) {
-              console.error('❌ POS Bot chek yuborishda xatolik:', posBotError);
+              // TelegramService orqali POS Bot bilan chek yuborish
+              await telegramService.sendReceiptToCustomerViaPOSBot({
+                customer: updatedCustomer,
+                items: items,
+                total: total,
+                paidAmount: paidAmount || total,
+                remainingAmount: remainingAmount || 0,
+                paymentMethod: paymentMethod,
+                receiptNumber: receiptNumber || `CHK-${Date.now()}`
+              });
+              console.log(`✅ POS Bot: Chek ${customerData.name} ga yuborildi`);
+            } catch (telegramError) {
+              console.error('❌ POS Bot chek yuborishda xatolik:', telegramError);
             }
-            */
           } else {
             console.log(`❌ Mijoz ${customerData.name} da telegram ID yo'q`);
           }

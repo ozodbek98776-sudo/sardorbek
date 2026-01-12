@@ -4,8 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 
-// Telegram Bot import qilish - vaqtincha o'chirildi
-// const { createPOSBot } = require('./telegram.bot');
+// Telegram Bot import qilish
+const { createPOSBot } = require('./telegram.bot');
 
 const authRoutes = require('./routes/auth');
 const kassaAuthRoutes = require('./routes/kassaAuth');
@@ -59,8 +59,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
   .then(async () => {
     console.log('MongoDB connected');
 
-    // Telegram Bot ishga tushirish - vaqtincha o'chirildi
-    /*
+    // Telegram Bot ishga tushirish
     try {
       const posBot = createPOSBot();
       if (posBot) {
@@ -70,7 +69,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
     } catch (botError) {
       console.error('❌ Telegram Bot ishga tushirishda xatolik:', botError);
     }
-    */
 
     // Drop old indexes to fix unique constraint issues
     try {
@@ -85,4 +83,4 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
   .catch(err => console.error('MongoDB connection error:', err));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '127.0.0.1', () => console.log(`Server running on port ${PORT}`));

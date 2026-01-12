@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus } from 'lucide-react';
+import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus, Ruler, Box, Scale, RotateCcw } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -27,7 +27,19 @@ export default function KassaProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    code: '', name: '', costPrice: '', wholesalePrice: '', quantity: ''
+    code: '', name: '', quantity: '',
+    previousPrice: '', // Oldingi narxi
+    currentPrice: '', // Hozirgi narxi
+    unit: 'dona' as 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr',
+    conversionEnabled: false,
+    baseUnit: 'dona' as 'dona' | 'metr' | 'gram' | 'kg' | 'litr',
+    conversionRate: '',
+    packageCount: '',
+    pricePerMeter: '',
+    pricePerRoll: '',
+    pricePerBox: '',
+    pricePerKg: '',
+    pricePerGram: ''
   });
   const [packageData, setPackageData] = useState({
     packageCount: '', unitsPerPackage: '', totalCost: ''
@@ -42,7 +54,9 @@ export default function KassaProducts() {
     printer: '',
     copies: 1,
     size: 'card',
-    layout: 'standard'
+    layout: 'standard',
+    customWidth: '',
+    customHeight: ''
   });
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +189,6 @@ export default function KassaProducts() {
     }
     
     let finalQuantity = Number(formData.quantity);
-    let finalCostPrice = Number(formData.costPrice);
     let packageInfo = null;
     
     // If package data is provided, calculate totals
@@ -190,17 +203,41 @@ export default function KassaProducts() {
         totalUnits: totalUnits
       };
     }
+
+    // Konversiya hisoblash
+    let totalBaseUnits = finalQuantity;
+    if (formData.conversionEnabled && formData.conversionRate) {
+      totalBaseUnits = finalQuantity * Number(formData.conversionRate);
+    }
     
     try {
       const data = {
         code: formData.code,
         name: formData.name,
-        costPrice: finalCostPrice,
-        price: Number(formData.wholesalePrice),
+        price: Number(formData.currentPrice), // Hozirgi narxni asosiy narx sifatida ishlatamiz
+        previousPrice: Number(formData.previousPrice) || 0, // Oldingi narxi
+        currentPrice: Number(formData.currentPrice) || 0, // Hozirgi narxi
         quantity: finalQuantity,
         warehouse: mainWarehouse?._id,
         images,
-        packageInfo
+        packageInfo,
+        // Yangi fieldlar
+        unit: formData.unit,
+        unitConversion: {
+          enabled: formData.conversionEnabled,
+          baseUnit: formData.baseUnit,
+          conversionRate: Number(formData.conversionRate) || 1,
+          packageCount: finalQuantity,
+          totalBaseUnits: totalBaseUnits
+        },
+        prices: {
+          perUnit: Number(formData.currentPrice),
+          perMeter: Number(formData.pricePerMeter) || 0,
+          perRoll: Number(formData.pricePerRoll) || 0,
+          perBox: Number(formData.pricePerBox) || 0,
+          perKg: Number(formData.pricePerKg) || 0,
+          perGram: Number(formData.pricePerGram) || 0
+        }
       };
       if (editingProduct) {
         await api.put(`/products/${editingProduct._id}`, data);
@@ -230,9 +267,19 @@ export default function KassaProducts() {
     setFormData({
       code: product.code,
       name: product.name,
-      costPrice: String((product as any).costPrice || 0),
-      wholesalePrice: String(product.price),
-      quantity: String(product.quantity)
+      previousPrice: String((product as any).previousPrice || 0), // Oldingi narxi
+      currentPrice: String((product as any).currentPrice || product.price), // Hozirgi narxi
+      quantity: String(product.quantity),
+      unit: product.unit || 'dona',
+      conversionEnabled: product.unitConversion?.enabled || false,
+      baseUnit: product.unitConversion?.baseUnit || 'dona',
+      conversionRate: String(product.unitConversion?.conversionRate || ''),
+      packageCount: String(product.unitConversion?.packageCount || ''),
+      pricePerMeter: String(product.prices?.perMeter || ''),
+      pricePerRoll: String(product.prices?.perRoll || ''),
+      pricePerBox: String(product.prices?.perBox || ''),
+      pricePerKg: String(product.prices?.perKg || ''),
+      pricePerGram: String(product.prices?.perGram || '')
     });
     setImages((product as any).images || []);
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
@@ -254,13 +301,16 @@ export default function KassaProducts() {
 
   const loadAvailablePrinters = async () => {
     try {
+      // Sizning haqiqiy printerlaringiz
       const myPrinters = [
         'EPSON L132 Series (Copy 1)',
-        'EPSON L132 Series'
+        'EPSON L132 Series',
+        'X printer'
       ];
       
       setAvailablePrinters(myPrinters);
       
+      // Default printer as selected
       setPrintSettings(prev => ({
         ...prev,
         printer: myPrinters[0]
@@ -268,14 +318,27 @@ export default function KassaProducts() {
       
     } catch (error) {
       console.error('Error loading printers:', error);
-      setAvailablePrinters(['EPSON L132 Series']);
+      setAvailablePrinters(['EPSON L132 Series', 'X printer']);
     }
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingProduct(null);
-    setFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+    setFormData({ 
+      code: '', name: '', quantity: '',
+      previousPrice: '', currentPrice: '', // Yangi maydonlar
+      unit: 'dona',
+      conversionEnabled: false,
+      baseUnit: 'dona',
+      conversionRate: '',
+      packageCount: '',
+      pricePerMeter: '',
+      pricePerRoll: '',
+      pricePerBox: '',
+      pricePerKg: '',
+      pricePerGram: ''
+    });
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setImages([]);
     setCodeError('');
@@ -304,7 +367,20 @@ export default function KassaProducts() {
   const openAddModal = async () => {
     try {
       const res = await api.get('/products/next-code');
-      setFormData({ code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '' });
+      setFormData({ 
+        code: res.data.code, name: '', quantity: '',
+        previousPrice: '', currentPrice: '', // Yangi maydonlar
+        unit: 'dona',
+        conversionEnabled: false,
+        baseUnit: 'dona',
+        conversionRate: '',
+        packageCount: '',
+        pricePerMeter: '',
+        pricePerRoll: '',
+        pricePerBox: '',
+        pricePerKg: '',
+        pricePerGram: ''
+      });
     } catch (err) {
       console.error('Error getting next code:', err);
     }
@@ -385,9 +461,16 @@ export default function KassaProducts() {
     if (!selectedProduct) return;
     
     try {
-      const qrSize = printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 130 : 220;
+      // Maxsus o'lchamni tekshirish
+      const hasCustomSize = printSettings.customWidth && printSettings.customHeight;
+      const customWidth = hasCustomSize ? `${printSettings.customWidth}mm` : null;
+      const customHeight = hasCustomSize ? `${printSettings.customHeight}mm` : null;
+      
+      // Generate QR code as high-quality data URL
+      const qrSize = printSettings.size === 'card' ? 65 : printSettings.size === 'thermal' ? 125 : 145;
       const qrDataUrl = await generateQRCodeDataURL(selectedProduct, qrSize);
       
+      // Create print-ready HTML with single page layout
       const printContent = `
         <!DOCTYPE html>
         <html>
@@ -396,7 +479,7 @@ export default function KassaProducts() {
           <title>Label - ${selectedProduct.name}</title>
           <style>
             @page {
-              size: ${printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 45mm'};
+              size: ${hasCustomSize ? `${customWidth} ${customHeight}` : (printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 70mm')};
               margin: 0;
             }
             * {
@@ -423,34 +506,37 @@ export default function KassaProducts() {
               border: 2px solid #333;
               padding: ${printSettings.size === 'card' ? '1mm' : printSettings.size === 'thermal' ? '6px' : '12px'};
               background: white;
-              width: ${printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : '120mm'};
-              height: ${printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '39mm' : '90mm'};
+              width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '120mm' : '120mm')};
+              height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '60mm' : printSettings.size === 'A4' ? '100mm' : printSettings.size === 'A5' ? '140mm' : '140mm')};
               display: flex;
-              align-items: center;
-              gap: 1px;
+              flex-direction: column;
+              justify-content: space-between;
+              gap: 2px;
               overflow: hidden;
               border-radius: 2px;
               page-break-inside: avoid;
             }
             .product-info {
               flex: 1;
-              max-width: 60%;
+              width: 100%;
               display: flex;
               flex-direction: column;
               justify-content: center;
-              height: 100%;
+              align-items: center;
+              text-align: center;
+              height: auto;
             }
             .product-name {
-              font-size: ${printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px'};
-              font-weight: 700;
+              font-size: ${printSettings.size === 'card' ? '8px' : printSettings.size === 'thermal' ? '16px' : '20px'};
+              font-weight: 600;
               color: #1a1a1a;
-              line-height: 1.0;
+              line-height: 1.1;
               margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
               word-wrap: break-word;
               overflow: hidden;
               text-overflow: ellipsis;
               display: -webkit-box;
-              -webkit-line-clamp: ${printSettings.size === 'card' ? '2' : '3'};
+              -webkit-line-clamp: ${printSettings.size === 'card' ? '1' : '2'};
               -webkit-box-orient: vertical;
             }
             .product-code {
@@ -472,13 +558,17 @@ export default function KassaProducts() {
               display: flex;
               align-items: center;
               justify-content: center;
-              max-width: 42%;
-              height: 100%;
-              padding-left: 1px;
+              width: 100%;
+              height: auto;
+              padding: 2px 0;
+              overflow: hidden;
+              box-sizing: border-box;
             }
             .qr-code-img {
-              width: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
-              height: ${printSettings.size === 'card' ? '70px' : printSettings.size === 'thermal' ? '140px' : '240px'};
+              width: ${printSettings.size === 'card' ? '60px' : printSettings.size === 'thermal' ? '120px' : '140px'};
+              height: ${printSettings.size === 'card' ? '60px' : printSettings.size === 'thermal' ? '120px' : '140px'};
+              max-width: 95%;
+              max-height: 95%;
               border: 1px solid #e0e0e0;
               border-radius: 2px;
               background: white;
@@ -511,11 +601,30 @@ export default function KassaProducts() {
               }
               .label-container {
                 page-break-inside: avoid !important;
+                width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '85mm' : printSettings.size === 'A5' ? '130mm' : '130mm')} !important;
+                height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '65mm' : printSettings.size === 'A4' ? '105mm' : printSettings.size === 'A5' ? '145mm' : '145mm')} !important;
+                padding: ${printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '15px'} !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+              }
+              .qr-code-section {
+                width: 100% !important;
+                height: auto !important;
+                overflow: hidden !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
               }
               .qr-code-img {
                 -webkit-print-color-adjust: exact !important;
                 color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                width: ${printSettings.size === 'card' ? '65px' : printSettings.size === 'thermal' ? '125px' : '145px'} !important;
+                height: ${printSettings.size === 'card' ? '65px' : printSettings.size === 'thermal' ? '125px' : '145px'} !important;
+                max-width: 95% !important;
+                max-height: 95% !important;
+                object-fit: contain !important;
               }
             }
           </style>
@@ -524,9 +633,9 @@ export default function KassaProducts() {
           <div class="page-container">
             <div class="label-container">
               <div class="product-info">
-                <div class="product-name">${selectedProduct.name}</div>
+                <div class="product-price">${formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</div>
                 <div class="product-code">Kod: ${selectedProduct.code}</div>
-                <div class="product-price">${formatNumber(selectedProduct.price)} so'm</div>
+                <div class="product-name">${selectedProduct.name}</div>
                 
                 ${printSettings.layout === 'standard' ? `
                   <div class="additional-info">
@@ -544,6 +653,7 @@ export default function KassaProducts() {
         </html>
       `;
       
+      // Create new window and print directly
       const printWindow = window.open('', '_blank', 'width=1024,height=768');
       
       if (!printWindow) {
@@ -551,21 +661,25 @@ export default function KassaProducts() {
         return;
       }
       
+      // Write content and print
       printWindow.document.open();
       printWindow.document.write(printContent);
       printWindow.document.close();
       
+      // Wait for content to load, then print
       printWindow.onload = () => {
         setTimeout(() => {
           printWindow.focus();
           printWindow.print();
           
+          // Close window after printing
           setTimeout(() => {
             printWindow.close();
           }, 1000);
         }, 500);
       };
       
+      // Close the print modal
       setShowPrintModal(false);
       
     } catch (error) {
@@ -679,8 +793,8 @@ export default function KassaProducts() {
                     <span className="table-header-cell col-span-1">Rasm</span>
                     <span className="table-header-cell col-span-2">Kod</span>
                     <span className="table-header-cell col-span-2">Nomi</span>
-                    <span className="table-header-cell col-span-2">Tan narxi</span>
-                    <span className="table-header-cell col-span-2">Optom narxi</span>
+                    <span className="table-header-cell col-span-2">Oldingi narxi</span>
+                    <span className="table-header-cell col-span-2">Hozirgi narxi</span>
                     <span className="table-header-cell col-span-1">Miqdori</span>
                     <span className="table-header-cell col-span-2 text-center">Amallar</span>
                   </div>
@@ -704,11 +818,41 @@ export default function KassaProducts() {
                         <p className="font-medium text-surface-900">{product.name}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
+                        <p className={`font-semibold ${
+                          (() => {
+                            const oldPrice = (product as any).previousPrice || 0;
+                            const newPrice = (product as any).currentPrice || product.price;
+                            return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
+                          })()
+                        }`}>
+                          {formatNumber((product as any).previousPrice || 0)}
+                        </p>
                         <p className="text-sm text-surface-500">so'm</p>
                       </div>
-                      <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
+                      <div className="col-span-2 relative">
+                        {/* Chegirma foizi tepada */}
+                        {(() => {
+                          const oldPrice = (product as any).previousPrice || 0;
+                          const newPrice = (product as any).currentPrice || product.price;
+                          if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
+                            const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                            if (discountPercent > 0) {
+                              return (
+                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                  -{discountPercent}%
+                                </div>
+                              );
+                            } else if (discountPercent < 0) {
+                              return (
+                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                  +{Math.abs(discountPercent)}%
+                                </div>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                        <p className="font-semibold text-surface-900">{formatNumber((product as any).currentPrice || product.price)}</p>
                         <p className="text-sm text-surface-500">so'm</p>
                       </div>
                       <div className="col-span-1">
@@ -735,51 +879,173 @@ export default function KassaProducts() {
                   ))}
                 </div>
               </div>
-              <div className="lg:hidden divide-y divide-surface-100">
-                {filteredProducts.map(product => (
-                  <div key={product._id} className="p-4">
-                    <div className="flex items-start gap-3">
-                      {getProductImage(product) ? (
-                        <img src={getProductImage(product)!} alt={product.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Package className="w-6 h-6 text-brand-600" />
+              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+                {filteredProducts.map(product => {
+                  const unit = product.unit || 'dona';
+                  const hasConversion = product.unitConversion?.enabled;
+                  const getUnitLabel = (u?: string) => {
+                    switch (u) {
+                      case 'metr': return 'm';
+                      case 'rulon': return 'rulon';
+                      case 'karobka': return 'quti';
+                      case 'gram': return 'g';
+                      case 'kg': return 'kg';
+                      case 'litr': return 'L';
+                      default: return 'dona';
+                    }
+                  };
+                  const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
+                  
+                  return (
+                    <div key={product._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-lg transition-all duration-300 overflow-hidden group">
+                      {/* Image Section */}
+                      <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-100 to-surface-50 overflow-hidden">
+                        {getProductImage(product) ? (
+                          <img src={getProductImage(product)!} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center">
+                              <Package className="w-8 h-8 text-brand-500" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Stock Badge */}
+                        <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          stockStatus === 'danger' ? 'bg-red-500 text-white' : 
+                          stockStatus === 'warning' ? 'bg-amber-500 text-white' : 
+                          'bg-emerald-500 text-white'
+                        }`}>
+                          {stockStatus === 'danger' ? 'Tugagan' : stockStatus === 'warning' ? 'Kam qoldi' : 'Mavjud'}
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h4 className="font-medium text-surface-900 truncate">{product.name}</h4>
-                            <p className="text-sm text-surface-500">Kod: {product.code}</p>
-                          </div>
-                          <div className="flex gap-1">
-                            <button onClick={() => openQRModal(product)} className="btn-icon-sm"><QrCode className="w-4 h-4" /></button>
-                            <button onClick={() => openPrintModal(product)} className="btn-icon-sm text-blue-600"><Printer className="w-4 h-4" /></button>
-                            <button onClick={() => openEditModal(product)} className="btn-icon-sm"><Edit className="w-4 h-4" /></button>
-                            <button onClick={() => handleDelete(product._id)} className="btn-icon-sm text-danger-500"><Trash2 className="w-4 h-4" /></button>
-                          </div>
+
+                        {/* Code Badge */}
+                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs font-mono text-white">
+                          #{product.code}
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-surface-50 rounded-xl p-3">
-                            <p className="text-xs text-surface-500 mb-1">Tan narxi</p>
-                            <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
-                          </div>
-                          <div className="bg-surface-50 rounded-xl p-3">
-                            <p className="text-xs text-surface-500 mb-1">Optom narxi</p>
-                            <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
-                          </div>
-                          <div className={`rounded-xl p-3 ${product.quantity === 0 ? 'bg-danger-50' : product.quantity <= (product.minStock || 100) ? 'bg-warning-50' : 'bg-success-50'}`}>
-                            <p className="text-xs text-surface-500 mb-1">Miqdori</p>
-                            <p className={`font-semibold ${
-                              product.quantity === 0 ? 'text-danger-600' :
-                              product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
-                            }`}>{product.quantity}</p>
-                          </div>
+
+                        {/* Quick Actions */}
+                        <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openQRModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-brand-600 hover:bg-white transition-colors shadow-sm">
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openPrintModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-blue-600 hover:bg-white transition-colors shadow-sm">
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => openEditModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-amber-600 hover:bg-white transition-colors shadow-sm">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(product._id)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-red-600 hover:bg-white transition-colors shadow-sm">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
+
+                      {/* Content Section */}
+                      <div className="p-4">
+                        {/* Name */}
+                        <h3 className="font-semibold text-surface-900 text-base mb-3 line-clamp-2 min-h-[2.5rem]">
+                          {product.name}
+                        </h3>
+
+                        {/* Quantity with Unit */}
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
+                            stockStatus === 'danger' ? 'bg-red-50 text-red-700' : 
+                            stockStatus === 'warning' ? 'bg-amber-50 text-amber-700' : 
+                            'bg-emerald-50 text-emerald-700'
+                          }`}>
+                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-3.5 h-3.5" /> :
+                             unit === 'karobka' ? <Box className="w-3.5 h-3.5" /> :
+                             unit === 'gram' || unit === 'kg' ? <Scale className="w-3.5 h-3.5" /> :
+                             <Package className="w-3.5 h-3.5" />}
+                            <span>{formatNumber(product.quantity)} {getUnitLabel(unit)}</span>
+                          </div>
+                          
+                          {/* Conversion info */}
+                          {hasConversion && product.unitConversion && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-xs text-purple-700">
+                              <RotateCcw className="w-3 h-3" />
+                              <span>= {formatNumber(product.unitConversion.totalBaseUnits)} {getUnitLabel(product.unitConversion.baseUnit)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Prices Grid */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-surface-50 rounded-xl p-2.5">
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Oldingi narxi</p>
+                            <p className={`font-bold text-sm ${
+                              (() => {
+                                const oldPrice = (product as any).previousPrice || 0;
+                                const newPrice = (product as any).currentPrice || product.price;
+                                return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
+                              })()
+                            }`}>
+                              {formatNumber((product as any).previousPrice || 0)}
+                              <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
+                            </p>
+                          </div>
+                          <div className="bg-brand-50 rounded-xl p-2.5 relative">
+                            {/* Chegirma foizi tepada */}
+                            {(() => {
+                              const oldPrice = (product as any).previousPrice || 0;
+                              const newPrice = (product as any).currentPrice || product.price;
+                              if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
+                                const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                                if (discountPercent > 0) {
+                                  return (
+                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold shadow-sm">
+                                      -{discountPercent}%
+                                    </div>
+                                  );
+                                } else if (discountPercent < 0) {
+                                  return (
+                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-green-500 text-white rounded text-[9px] font-bold shadow-sm">
+                                      +{Math.abs(discountPercent)}%
+                                    </div>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
+                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Hozirgi narxi</p>
+                            <p className="font-bold text-brand-700 text-sm">
+                              {formatNumber((product as any).currentPrice || product.price)}
+                              <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Additional Prices */}
+                        {product.prices && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {product.prices.perMeter > 0 && (
+                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perMeter)}/m
+                              </span>
+                            )}
+                            {product.prices.perRoll > 0 && (
+                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perRoll)}/rulon
+                              </span>
+                            )}
+                            {product.prices.perBox > 0 && (
+                              <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perBox)}/quti
+                              </span>
+                            )}
+                            {product.prices.perKg > 0 && (
+                              <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
+                                {formatNumber(product.prices.perKg)}/kg
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -877,14 +1143,159 @@ export default function KassaProducts() {
                 <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
                 <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
               </div>
+              
+              {/* Oldingi va hozirgi narxlar */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Tan narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.costPrice)} onChange={e => setFormData({...formData, costPrice: parseNumber(e.target.value)})} required />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Oldingi narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.previousPrice)} onChange={e => setFormData({...formData, previousPrice: parseNumber(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Optom narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.wholesalePrice)} onChange={e => setFormData({...formData, wholesalePrice: parseNumber(e.target.value)})} required />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Hozirgi narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.currentPrice)} onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})} required />
+                  {/* Chegirma foizi ko'rsatish */}
+                  {formData.previousPrice && formData.currentPrice && Number(formData.previousPrice) > 0 && Number(formData.currentPrice) > 0 && (
+                    <div className="mt-2">
+                      {(() => {
+                        const oldPrice = Number(formData.previousPrice);
+                        const newPrice = Number(formData.currentPrice);
+                        const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                        
+                        if (discountPercent > 0) {
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-green-700">{discountPercent}% chegirma</span>
+                            </div>
+                          );
+                        } else if (discountPercent < 0) {
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-red-700">{Math.abs(discountPercent)}% qimmatroq</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* O'lchov birligi */}
+              <div className="border-t border-surface-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-brand-600" />
+                  O'lchov birligi
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-surface-700 mb-2 block">Birlik</label>
+                    <select 
+                      className="input"
+                      value={formData.unit}
+                      onChange={e => setFormData({...formData, unit: e.target.value as any})}
+                    >
+                      <option value="dona">Dona</option>
+                      <option value="metr">Metr</option>
+                      <option value="rulon">Rulon</option>
+                      <option value="karobka">Karobka/Quti</option>
+                      <option value="gram">Gram</option>
+                      <option value="kg">Kilogram</option>
+                      <option value="litr">Litr</option>
+                    </select>
+                  </div>
+                  
+                  {/* Konversiya */}
+                  {(formData.unit === 'rulon' || formData.unit === 'karobka') && (
+                    <div>
+                      <label className="text-sm font-medium text-surface-700 mb-2 block">
+                        1 {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = ? 
+                      </label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          className="input flex-1" 
+                          placeholder="30"
+                          value={formData.conversionRate}
+                          onChange={e => setFormData({
+                            ...formData, 
+                            conversionRate: parseNumber(e.target.value),
+                            conversionEnabled: true
+                          })}
+                        />
+                        <select 
+                          className="input w-24"
+                          value={formData.baseUnit}
+                          onChange={e => setFormData({...formData, baseUnit: e.target.value as any})}
+                        >
+                          <option value="metr">metr</option>
+                          <option value="dona">dona</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Konversiya natijasi */}
+                {formData.conversionEnabled && formData.conversionRate && formData.quantity && (
+                  <div className="mt-3 p-3 bg-purple-50 rounded-xl">
+                    <p className="text-sm text-purple-700">
+                      <span className="font-semibold">{formatNumber(formData.quantity)}</span> {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = 
+                      <span className="font-semibold ml-1">{formatNumber(Number(formData.quantity) * Number(formData.conversionRate))}</span> {formData.baseUnit}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Qo'shimcha narxlar */}
+              <div className="border-t border-surface-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  Qo'shimcha narxlar (ixtiyoriy)
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Metr narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerMeter)}
+                      onChange={e => setFormData({...formData, pricePerMeter: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Rulon narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerRoll)}
+                      onChange={e => setFormData({...formData, pricePerRoll: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Karobka narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerBox)}
+                      onChange={e => setFormData({...formData, pricePerBox: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Kg narxi</label>
+                    <input 
+                      type="text" 
+                      className="input text-sm py-2" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.pricePerKg)}
+                      onChange={e => setFormData({...formData, pricePerKg: parseNumber(e.target.value)})}
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -924,8 +1335,8 @@ export default function KassaProducts() {
               <div className="text-center mb-4">
                 <p className="font-semibold text-surface-900">{selectedProduct.name}</p>
                 <p className="text-sm text-surface-500">Kod: {selectedProduct.code}</p>
-                <p className="text-sm text-surface-500">Tan narxi: {formatNumber((selectedProduct as any).costPrice || 0)} so'm</p>
-                <p className="text-sm text-surface-500">Optom: {formatNumber(selectedProduct.price)} so'm</p>
+                <p className="text-sm text-surface-500">Oldingi narxi: {formatNumber((selectedProduct as any).previousPrice || 0)} so'm</p>
+                <p className="text-sm text-surface-500">Hozirgi narxi: {formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</p>
               </div>
               <button onClick={downloadQR} className="btn-primary w-full">
                 <Download className="w-4 h-4" />
@@ -1003,52 +1414,80 @@ export default function KassaProducts() {
                     onChange={e => setPrintSettings({...printSettings, copies: parseInt(e.target.value) || 1})}
                   />
                 </div>
+
+                <div className="border-t border-surface-200 pt-4">
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Maxsus o'lcham (ixtiyoriy)</label>
+                  <p className="text-xs text-surface-500 mb-3">Agar maxsus o'lcham belgilasangiz, u qog'oz o'lchamidan ustun bo'ladi</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-surface-600 mb-1 block">Eni (mm)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className="input"
+                        placeholder="Masalan: 50"
+                        value={printSettings.customWidth}
+                        onChange={e => setPrintSettings({...printSettings, customWidth: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-surface-600 mb-1 block">Bo'yi (mm)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className="input"
+                        placeholder="Masalan: 25"
+                        value={printSettings.customHeight}
+                        onChange={e => setPrintSettings({...printSettings, customHeight: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Preview Panel */}
               <div className="bg-surface-50 rounded-xl p-4">
                 <h4 className="text-sm font-medium text-surface-700 mb-3">Ko'rinish</h4>
-                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center min-h-[420px]">
+                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center items-start min-h-[420px]">
                   <div 
                     className="bg-white border border-gray-200 shadow-lg rounded-xl"
                     style={{
-                      width: printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '50mm' : printSettings.size === 'A5' ? '148mm' : '130mm',
-                      height: printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '45mm' : printSettings.size === 'A5' ? '120mm' : '100mm',
-                      fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '10px' : '12px',
-                      transform: printSettings.size === 'card' ? 'scale(5)' : printSettings.size === 'thermal' ? 'scale(2.4)' : 'scale(2.0)',
+                      width: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customWidth}mm` : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '140mm' : '120mm'),
+                      height: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customHeight}mm` : (printSettings.size === 'card' ? '17mm' : printSettings.size === 'thermal' ? '65mm' : printSettings.size === 'A4' ? '105mm' : printSettings.size === 'A5' ? '145mm' : '140mm'),
+                      fontSize: printSettings.size === 'card' ? '5px' : printSettings.size === 'thermal' ? '9px' : '11px',
+                      transform: printSettings.size === 'card' ? 'scale(4.2)' : printSettings.size === 'thermal' ? 'scale(2.1)' : 'scale(1.8)',
                       transformOrigin: 'center center',
                       overflow: 'hidden',
-                      padding: printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '14px',
+                      padding: printSettings.size === 'card' ? '1.2mm' : printSettings.size === 'thermal' ? '7px' : '12px',
                       borderRadius: '8px',
-                      background: '#ffffff'
+                      background: '#ffffff',
+                      marginTop: '80px'
                     }}
                   >
-                    <div className="flex items-center h-full" style={{gap: printSettings.size === 'card' ? '2px' : '6px'}}>
-                      <div className="flex-1 flex flex-col justify-center h-full" style={{maxWidth: '58%', paddingRight: '6px'}}>
+                    {/* Main content - vertical layout */}
+                    <div className="flex flex-col justify-between h-full" style={{gap: printSettings.size === 'card' ? '2px' : '4px'}}>
+                      {/* Top - Product info */}
+                      <div className="flex flex-col justify-center items-center text-center" style={{flex: 1}}>
+                        {/* Price */}
                         <div 
-                          className="font-bold text-black"
+                          className="font-bold"
                           style={{
-                          fontSize: printSettings.size === 'card' ? '11px' : printSettings.size === 'thermal' ? '22px' : '28px',
-                          lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
-                            fontWeight: '700',
-                            color: '#1a1a1a',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: printSettings.size === 'card' ? 2 : 3,
-                            WebkitBoxOrient: 'vertical'
+                            fontSize: printSettings.size === 'card' ? '10px' : printSettings.size === 'thermal' ? '18px' : '22px',
+                            lineHeight: '1.0',
+                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
+                            fontWeight: '800',
+                            color: '#d32f2f'
                           }}
                         >
-                          {selectedProduct.name}
+                          {formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm
                         </div>
-                        
+
                         <div 
                           className="text-gray-600"
                           style={{
-                            fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
+                            fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '12px' : '16px',
                             lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '1px' : '2px',
+                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
                             fontWeight: '500',
                             color: '#666'
                           }}
@@ -1057,18 +1496,24 @@ export default function KassaProducts() {
                         </div>
 
                         <div 
-                          className="font-bold"
+                          className="font-bold text-black"
                           style={{
-                            fontSize: printSettings.size === 'card' ? '12px' : printSettings.size === 'thermal' ? '20px' : '24px',
-                            lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
-                            fontWeight: '800',
-                            color: '#d32f2f'
+                          fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
+                          lineHeight: '1.1',
+                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
+                            fontWeight: '600',
+                            color: '#1a1a1a',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: printSettings.size === 'card' ? 1 : 2,
+                            WebkitBoxOrient: 'vertical'
                           }}
                         >
-                          {formatNumber(selectedProduct.price)} so'm
+                          {selectedProduct.name}
                         </div>
 
+                        {/* Additional info only in standard layout */}
                         {printSettings.layout === 'standard' && (
                           <div 
                             className="text-gray-500" 
@@ -1085,12 +1530,20 @@ export default function KassaProducts() {
                         )}
                       </div>
 
-                      <div className="flex-shrink-0 flex items-center justify-center" style={{maxWidth: '40%', height: '100%', paddingLeft: '8px', borderLeft: '1px solid #e5e7eb'}}>
+                      {/* Bottom - QR Code */}
+                      <div className="flex justify-center items-center" style={{
+                        width: '100%',
+                        height: 'auto',
+                        padding: '2px 0'
+                      }}>
                         <div style={{
                           border: '1px solid #e2e8f0',
-                          borderRadius: '6px',
+                          borderRadius: '4px',
                           background: '#ffffff',
-                          padding: '4px'
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
                           <QRCodeSVG
                             value={JSON.stringify({
@@ -1099,9 +1552,16 @@ export default function KassaProducts() {
                               name: selectedProduct.name,
                               price: selectedProduct.price
                             })}
-                            size={printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 140 : 220}
+                            size={printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 120 : 140}
                             level="H"
                             includeMargin={false}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              maxWidth: printSettings.size === 'card' ? '60px' : printSettings.size === 'thermal' ? '120px' : '140px',
+                              maxHeight: printSettings.size === 'card' ? '60px' : printSettings.size === 'thermal' ? '120px' : '140px',
+                              objectFit: 'contain'
+                            }}
                           />
                         </div>
                       </div>
