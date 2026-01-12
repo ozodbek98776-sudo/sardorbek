@@ -13,23 +13,40 @@ export default defineConfig({
     }
   },
   build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React va React DOM ni alohida chunk'ga ajratish
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          // Chart kutubxonasini alohida chunk'ga ajratish
-          'chart-vendor': ['recharts'],
-          // QR Code kutubxonalarini alohida chunk'ga ajratish
-          'qrcode-vendor': ['qrcode', 'qrcode.react', 'html5-qrcode'],
-          // Icon kutubxonasini alohida chunk'ga ajratish
-          'icons-vendor': ['lucide-react'],
-          // Axios ni alohida chunk'ga ajratish
-          'http-vendor': ['axios']
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            if (id.includes('lucide-react')) {
+              return 'icons-vendor';
+            }
+            if (id.includes('axios')) {
+              return 'http-vendor';
+            }
+            if (id.includes('qrcode') || id.includes('html5-qrcode')) {
+              return 'qrcode-vendor';
+            }
+            if (id.includes('recharts')) {
+              return 'chart-vendor';
+            }
+            return 'vendor';
+          }
         }
       }
     },
-    // Chunk size limitini 1000 KB ga oshirish (yoki optimallashtirish orqali kamaytirish)
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 2000,
+    target: 'es2015'
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
+  },
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })

@@ -83,4 +83,5 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
   .catch(err => console.error('MongoDB connection error:', err));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '127.0.0.1', () => console.log(`Server running on port ${PORT}`));
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+app.listen(PORT, HOST, () => console.log(`Server running on ${HOST}:${PORT}`));

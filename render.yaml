@@ -1,0 +1,32 @@
+services:
+  # Backend Service
+  - type: web
+    name: sardor-furnitura-backend
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: sardor-furnitura-db
+          property: connectionString
+    
+  # Frontend Service  
+  - type: web
+    name: sardor-furnitura-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+# Database
+databases:
+  - name: sardor-furnitura-db
+    databaseName: sardor_furnitura
+    user: sardor_user
