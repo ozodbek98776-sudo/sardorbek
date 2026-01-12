@@ -24,7 +24,9 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '',
+    code: '', name: '', quantity: '',
+    previousPrice: '', // Oldingi narxi
+    currentPrice: '', // Hozirgi narxi
     unit: 'dona' as 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr',
     conversionEnabled: false,
     baseUnit: 'dona' as 'dona' | 'metr' | 'gram' | 'kg' | 'litr',
@@ -139,7 +141,6 @@ export default function Products() {
     }
     
     let finalQuantity = Number(formData.quantity);
-    let finalCostPrice = Number(formData.costPrice);
     let packageInfo = null;
     
     // If package data is provided, calculate totals
@@ -165,8 +166,9 @@ export default function Products() {
       const data = {
         code: formData.code,
         name: formData.name,
-        costPrice: finalCostPrice,
-        price: Number(formData.wholesalePrice),
+        price: Number(formData.currentPrice), // Hozirgi narxni asosiy narx sifatida ishlatamiz
+        previousPrice: Number(formData.previousPrice) || 0, // Oldingi narxi
+        currentPrice: Number(formData.currentPrice) || 0, // Hozirgi narxi
         quantity: finalQuantity,
         warehouse: mainWarehouse?._id,
         images,
@@ -181,7 +183,7 @@ export default function Products() {
           totalBaseUnits: totalBaseUnits
         },
         prices: {
-          perUnit: Number(formData.wholesalePrice),
+          perUnit: Number(formData.currentPrice),
           perMeter: Number(formData.pricePerMeter) || 0,
           perRoll: Number(formData.pricePerRoll) || 0,
           perBox: Number(formData.pricePerBox) || 0,
@@ -217,8 +219,8 @@ export default function Products() {
     setFormData({
       code: product.code,
       name: product.name,
-      costPrice: String((product as any).costPrice || 0),
-      wholesalePrice: String(product.price),
+      previousPrice: String((product as any).previousPrice || 0), // Oldingi narxi
+      currentPrice: String((product as any).currentPrice || product.price), // Hozirgi narxi
       quantity: String(product.quantity),
       unit: product.unit || 'dona',
       conversionEnabled: product.unitConversion?.enabled || false,
@@ -276,7 +278,8 @@ export default function Products() {
     setShowModal(false);
     setEditingProduct(null);
     setFormData({ 
-      code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '',
+      code: '', name: '', quantity: '',
+      previousPrice: '', currentPrice: '', // Yangi maydonlar
       unit: 'dona',
       conversionEnabled: false,
       baseUnit: 'dona',
@@ -317,7 +320,8 @@ export default function Products() {
     try {
       const res = await api.get('/products/next-code');
       setFormData({ 
-        code: res.data.code, name: '', costPrice: '', wholesalePrice: '', quantity: '',
+        code: res.data.code, name: '', quantity: '',
+        previousPrice: '', currentPrice: '', // Yangi maydonlar
         unit: 'dona',
         conversionEnabled: false,
         baseUnit: 'dona',
@@ -579,7 +583,7 @@ export default function Products() {
           <div class="page-container">
             <div class="label-container">
               <div class="product-info">
-                <div class="product-price">${formatNumber(selectedProduct.price)} so'm</div>
+                <div class="product-price">${formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</div>
                 <div class="product-code">Kod: ${selectedProduct.code}</div>
                 <div class="product-name">${selectedProduct.name}</div>
                 
@@ -725,8 +729,8 @@ export default function Products() {
                     <span className="table-header-cell col-span-1">Rasm</span>
                     <span className="table-header-cell col-span-2">Kod</span>
                     <span className="table-header-cell col-span-2">Nomi</span>
-                    <span className="table-header-cell col-span-2">Tan narxi</span>
-                    <span className="table-header-cell col-span-2">Optom narxi</span>
+                    <span className="table-header-cell col-span-2">Oldingi narxi</span>
+                    <span className="table-header-cell col-span-2">Hozirgi narxi</span>
                     <span className="table-header-cell col-span-1">Miqdori</span>
                     <span className="table-header-cell col-span-2 text-center">Amallar</span>
                   </div>
@@ -750,11 +754,41 @@ export default function Products() {
                         <p className="font-medium text-surface-900">{product.name}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
+                        <p className={`font-semibold ${
+                          (() => {
+                            const oldPrice = (product as any).previousPrice || 0;
+                            const newPrice = (product as any).currentPrice || product.price;
+                            return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
+                          })()
+                        }`}>
+                          {formatNumber((product as any).previousPrice || 0)}
+                        </p>
                         <p className="text-sm text-surface-500">so'm</p>
                       </div>
-                      <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
+                      <div className="col-span-2 relative">
+                        {/* Chegirma foizi tepada */}
+                        {(() => {
+                          const oldPrice = (product as any).previousPrice || 0;
+                          const newPrice = (product as any).currentPrice || product.price;
+                          if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
+                            const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                            if (discountPercent > 0) {
+                              return (
+                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                  -{discountPercent}%
+                                </div>
+                              );
+                            } else if (discountPercent < 0) {
+                              return (
+                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                  +{Math.abs(discountPercent)}%
+                                </div>
+                              );
+                            }
+                          }
+                          return null;
+                        })()}
+                        <p className="font-semibold text-surface-900">{formatNumber((product as any).currentPrice || product.price)}</p>
                         <p className="text-sm text-surface-500">so'm</p>
                       </div>
                       <div className="col-span-1">
@@ -876,16 +910,44 @@ export default function Products() {
                         {/* Prices Grid */}
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="bg-surface-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
-                            <p className="font-bold text-surface-900 text-sm">
-                              {formatNumber((product as any).costPrice || 0)}
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Oldingi narxi</p>
+                            <p className={`font-bold text-sm ${
+                              (() => {
+                                const oldPrice = (product as any).previousPrice || 0;
+                                const newPrice = (product as any).currentPrice || product.price;
+                                return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
+                              })()
+                            }`}>
+                              {formatNumber((product as any).previousPrice || 0)}
                               <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
                             </p>
                           </div>
-                          <div className="bg-brand-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Sotish narxi</p>
+                          <div className="bg-brand-50 rounded-xl p-2.5 relative">
+                            {/* Chegirma foizi tepada */}
+                            {(() => {
+                              const oldPrice = (product as any).previousPrice || 0;
+                              const newPrice = (product as any).currentPrice || product.price;
+                              if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
+                                const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                                if (discountPercent > 0) {
+                                  return (
+                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold shadow-sm">
+                                      -{discountPercent}%
+                                    </div>
+                                  );
+                                } else if (discountPercent < 0) {
+                                  return (
+                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-green-500 text-white rounded text-[9px] font-bold shadow-sm">
+                                      +{Math.abs(discountPercent)}%
+                                    </div>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
+                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Hozirgi narxi</p>
                             <p className="font-bold text-brand-700 text-sm">
-                              {formatNumber(product.price)}
+                              {formatNumber((product as any).currentPrice || product.price)}
                               <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
                             </p>
                           </div>
@@ -1016,14 +1078,42 @@ export default function Products() {
                 <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
                 <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
               </div>
+              {/* Oldingi va hozirgi narxlar */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Tan narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.costPrice)} onChange={e => setFormData({...formData, costPrice: parseNumber(e.target.value)})} required />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Oldingi narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.previousPrice)} onChange={e => setFormData({...formData, previousPrice: parseNumber(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Optom narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.wholesalePrice)} onChange={e => setFormData({...formData, wholesalePrice: parseNumber(e.target.value)})} required />
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Hozirgi narxi (so'm)</label>
+                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.currentPrice)} onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})} required />
+                  {/* Chegirma foizi ko'rsatish */}
+                  {formData.previousPrice && formData.currentPrice && Number(formData.previousPrice) > 0 && Number(formData.currentPrice) > 0 && (
+                    <div className="mt-2">
+                      {(() => {
+                        const oldPrice = Number(formData.previousPrice);
+                        const newPrice = Number(formData.currentPrice);
+                        const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+                        
+                        if (discountPercent > 0) {
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-green-700">{discountPercent}% chegirma</span>
+                            </div>
+                          );
+                        } else if (discountPercent < 0) {
+                          return (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-red-700">{Math.abs(discountPercent)}% qimmatroq</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1178,8 +1268,8 @@ export default function Products() {
               <div className="text-center mb-4">
                 <p className="font-semibold text-surface-900">{selectedProduct.name}</p>
                 <p className="text-sm text-surface-500">Kod: {selectedProduct.code}</p>
-                <p className="text-sm text-surface-500">Tan narxi: {formatNumber((selectedProduct as any).costPrice || 0)} so'm</p>
-                <p className="text-sm text-surface-500">Optom: {formatNumber(selectedProduct.price)} so'm</p>
+                <p className="text-sm text-surface-500">Oldingi narxi: {formatNumber((selectedProduct as any).previousPrice || 0)} so'm</p>
+                <p className="text-sm text-surface-500">Hozirgi narxi: {formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</p>
               </div>
               <button onClick={downloadQR} className="btn-primary w-full">
                 <Download className="w-4 h-4" />

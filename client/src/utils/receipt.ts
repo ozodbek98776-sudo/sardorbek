@@ -39,8 +39,28 @@ export const formatReceiptData = (data: ReceiptData): string => {
   data.items.forEach((item, index) => {
     receipt += `${index + 1}. ${item.name}\n`;
     receipt += `    ${item.code}\n`;
-    receipt += `    ${item.cartQuantity} x ${formatNumber(item.price)}\n`;
-    receipt += `    = ${formatNumber(item.price * item.cartQuantity)} so'm\n`;
+    
+    // Oldingi va hozirgi narxlarni ko'rsatish
+    const previousPrice = (item as any).previousPrice;
+    const currentPrice = (item as any).currentPrice || item.price;
+    
+    if (previousPrice && previousPrice > 0 && previousPrice !== currentPrice) {
+      const discountPercent = Math.round(((previousPrice - currentPrice) / previousPrice) * 100);
+      receipt += `    OLDINGI: ${formatNumber(previousPrice)} so'm\n`;
+      receipt += `    HOZIRGI: ${formatNumber(currentPrice)} so'm`;
+      if (discountPercent > 0) {
+        receipt += ` (-${discountPercent}%)\n`;
+      } else if (discountPercent < 0) {
+        receipt += ` (+${Math.abs(discountPercent)}%)\n`;
+      } else {
+        receipt += '\n';
+      }
+    } else {
+      receipt += `    NARXI: ${formatNumber(item.price)} so'm\n`;
+    }
+    
+    receipt += `    ${item.cartQuantity} x ${formatNumber(currentPrice)}\n`;
+    receipt += `    = ${formatNumber(currentPrice * item.cartQuantity)} so'm\n`;
     receipt += '\n';
   });
   

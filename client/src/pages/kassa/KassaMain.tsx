@@ -107,14 +107,14 @@ const PaymentBreakdownForm = ({ item, selectedCustomer, onSave, onCancel }: Paym
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-surface-600">Tovar summasi:</span>
-          <span className="font-semibold text-surface-900">{formatNumber(itemTotal)} so'm</span>
+          <span className="font-semibold text-surface-900">{formatNumber(breakdownTotal)} so'm</span>
         </div>
         <div className={`flex justify-between text-sm font-semibold pt-2 border-t border-surface-200 ${
           remaining <= 1 && remaining >= -1 ? 'text-success-600' : 
           remaining > 1 ? 'text-warning-600' : 'text-danger-600'
         }`}>
           <span>Qoldiq:</span>
-          <span>{formatNumber(remaining)} so'm</span>
+          <span>{formatNumber(itemTotal - breakdownTotal)} so'm</span>
         </div>
         
         {remaining < -1 && (
@@ -1832,38 +1832,7 @@ export default function KassaMain() {
                       date: new Date()
                     };
 
-                    // 3. Qoldiq qarzni hisoblash va botga yuborish
-                    if (paidAmount < total && selectedCustomer) {
-                      const remainingDebt = total - paidAmount;
-                      
-                      try {
-                        console.log(`Qoldiq qarz qo'shilmoqda: ${remainingDebt} so'm`);
-                        
-                        // Qarz yaratish
-                        const debtData = {
-                          customer: selectedCustomer._id,
-                          amount: remainingDebt,
-                          paidAmount: 0,
-                          description: `Xarid qoldig'i - ${new Date().toLocaleDateString('uz-UZ')}`,
-                          items: cart.map(item => ({
-                            product: item._id,
-                            name: item.name,
-                            code: item.code,
-                            price: item.price,
-                            quantity: item.cartQuantity
-                          }))
-                        };
-
-                        await api.post('/debts/kassa', debtData);
-                        console.log('✅ Qoldiq qarz muvaffaqiyatli qo\'shildi va botga yuborildi');
-                        
-                      } catch (debtError: any) {
-                        console.error('❌ Qarz yaratishda xatolik:', debtError);
-                        showAlert('Qarz yaratishda xatolik yuz berdi', 'Ogohlantirish', 'warning');
-                      }
-                    }
-
-                    // 4. Telegram botga xabar yuborish
+                    // 3. Telegram botga xabar yuborish
                     try {
                       console.log('Telegram botga chek ma\'lumotlarini yuborish...');
                       
@@ -1893,16 +1862,13 @@ export default function KassaMain() {
                       // Telegram xatoligi chek chiqarishni to'xtatmasin
                     }
                     
-                    // 5. Print qilish
+                    // 4. Print qilish
                     const printSuccess = await printReceipt(printReceiptData, () => {
                       // Print tugagandan keyin
                       const successCount = updateResults.filter(r => r.success).length;
                       const failCount = updateResults.filter(r => !r.success).length;
                       
                       let message = 'Chek muvaffaqiyatli chiqarildi va telegram botga yuborildi';
-                      if (paidAmount < total && selectedCustomer) {
-                        message += `, ${formatNumber(total - paidAmount)} so'm qarz qo'shildi`;
-                      }
                       
                       if (failCount === 0) {
                         showAlert(message + ', tovar miqdorlari yangilandi!', 'Muvaffaqiyat', 'success');
@@ -1922,9 +1888,6 @@ export default function KassaMain() {
                       const failCount = updateResults.filter(r => !r.success).length;
                       
                       let message = 'Chek faylga yuklandi va telegram botga yuborildi';
-                      if (paidAmount < total && selectedCustomer) {
-                        message += `, ${formatNumber(total - paidAmount)} so'm qarz qo'shildi`;
-                      }
                       
                       if (failCount === 0) {
                         showAlert(message + ', tovar miqdorlari yangilandi!', 'Ma\'lumot', 'info');
