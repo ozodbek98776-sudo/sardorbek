@@ -850,104 +850,8 @@ export default function Products() {
             </div>
           ) : (
             <>
-<<<<<<< HEAD
               {/* Pro Design Cards - barcha ekranlar uchun */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 p-3 sm:p-4 md:p-5">
-=======
-              <div className="hidden lg:block">
-                <div className="table-header">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-4">
-                    <span className="table-header-cell col-span-1">Rasm</span>
-                    <span className="table-header-cell col-span-2">Kod</span>
-                    <span className="table-header-cell col-span-2">Nomi</span>
-                    <span className="table-header-cell col-span-2">Oldingi narxi</span>
-                    <span className="table-header-cell col-span-2">Hozirgi narxi</span>
-                    <span className="table-header-cell col-span-1">Miqdori</span>
-                    <span className="table-header-cell col-span-2 text-center">Amallar</span>
-                  </div>
-                </div>
-                <div className="divide-y divide-surface-100">
-                  {filteredProducts.map(product => (
-                    <div key={product._id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-surface-50 transition-colors">
-                      <div className="col-span-1">
-                        {getProductImage(product) ? (
-                          <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
-                            <img className="w-5 h-5 text-surface-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <span className="font-mono text-sm bg-surface-100 px-2 py-1 rounded-lg">{product.code}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="font-medium text-surface-900">{product.name}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className={`font-semibold ${
-                          (() => {
-                            const oldPrice = (product as any).previousPrice || 0;
-                            const newPrice = (product as any).currentPrice || product.price;
-                            return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
-                          })()
-                        }`}>
-                          {formatNumber((product as any).previousPrice || 0)}
-                        </p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-2 relative">
-                        {/* Chegirma foizi tepada */}
-                        {(() => {
-                          const oldPrice = (product as any).previousPrice || 0;
-                          const newPrice = (product as any).currentPrice || product.price;
-                          if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
-                            const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
-                            if (discountPercent > 0) {
-                              return (
-                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
-                                  -{discountPercent}%
-                                </div>
-                              );
-                            } else if (discountPercent < 0) {
-                              return (
-                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
-                                  +{Math.abs(discountPercent)}%
-                                </div>
-                              );
-                            }
-                          }
-                          return null;
-                        })()}
-                        <p className="font-semibold text-surface-900">{formatNumber((product as any).currentPrice || product.price)}</p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-1">
-                        <span className={`font-semibold ${
-                          product.quantity === 0 ? 'text-danger-600' :
-                          product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
-                        }`}>{product.quantity}</span>
-                      </div>
-                      <div className="col-span-2 flex items-center justify-center gap-2">
-                        <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openPrintModal(product)} className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600" title="Print">
-                          <Printer className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openEditModal(product)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(product._id)} className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
->>>>>>> 11f2c19cfb986aa5507f5d51fa258eb0194afc50
                 {filteredProducts.map(product => {
                   const unit = product.unit || 'dona';
                   const hasConversion = product.unitConversion?.enabled;
@@ -1040,7 +944,6 @@ export default function Products() {
                         </div>
 
                         {/* Prices Grid */}
-<<<<<<< HEAD
                         <div className="grid grid-cols-2 gap-1 sm:gap-1.5 md:gap-2 mb-1.5 sm:mb-2 md:mb-3">
                           <div className="bg-gradient-to-br from-surface-50 to-surface-100 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-3 border border-surface-200">
                             <p className="text-[8px] sm:text-[9px] md:text-[10px] text-surface-500 uppercase tracking-wider font-semibold mb-0.5">Tan narxi</p>
@@ -1054,49 +957,6 @@ export default function Products() {
                             <p className="font-bold text-brand-700 text-[10px] sm:text-xs md:text-sm">
                               {formatNumber(product.price)}
                               <span className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-400 ml-0.5">so'm</span>
-=======
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="bg-surface-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Oldingi narxi</p>
-                            <p className={`font-bold text-sm ${
-                              (() => {
-                                const oldPrice = (product as any).previousPrice || 0;
-                                const newPrice = (product as any).currentPrice || product.price;
-                                return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
-                              })()
-                            }`}>
-                              {formatNumber((product as any).previousPrice || 0)}
-                              <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
-                            </p>
-                          </div>
-                          <div className="bg-brand-50 rounded-xl p-2.5 relative">
-                            {/* Chegirma foizi tepada */}
-                            {(() => {
-                              const oldPrice = (product as any).previousPrice || 0;
-                              const newPrice = (product as any).currentPrice || product.price;
-                              if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
-                                const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
-                                if (discountPercent > 0) {
-                                  return (
-                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold shadow-sm">
-                                      -{discountPercent}%
-                                    </div>
-                                  );
-                                } else if (discountPercent < 0) {
-                                  return (
-                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-green-500 text-white rounded text-[9px] font-bold shadow-sm">
-                                      +{Math.abs(discountPercent)}%
-                                    </div>
-                                  );
-                                }
-                              }
-                              return null;
-                            })()}
-                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Hozirgi narxi</p>
-                            <p className="font-bold text-brand-700 text-sm">
-                              {formatNumber((product as any).currentPrice || product.price)}
-                              <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
->>>>>>> 11f2c19cfb986aa5507f5d51fa258eb0194afc50
                             </p>
                           </div>
                         </div>
@@ -1409,7 +1269,6 @@ export default function Products() {
                   includeMargin
                 />
               </div>
-<<<<<<< HEAD
               
               {/* Product Info */}
               <div className="text-center mb-4 w-full">
@@ -1443,13 +1302,6 @@ export default function Products() {
                   <li>• Margins: None</li>
                   <li>• Scale: 100%</li>
                 </ul>
-=======
-              <div className="text-center mb-4">
-                <p className="font-semibold text-surface-900">{selectedProduct.name}</p>
-                <p className="text-sm text-surface-500">Kod: {selectedProduct.code}</p>
-                <p className="text-sm text-surface-500">Oldingi narxi: {formatNumber((selectedProduct as any).previousPrice || 0)} so'm</p>
-                <p className="text-sm text-surface-500">Hozirgi narxi: {formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</p>
->>>>>>> 11f2c19cfb986aa5507f5d51fa258eb0194afc50
               </div>
             </div>
           </div>

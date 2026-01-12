@@ -7,15 +7,15 @@ const api = axios.create({
   timeout: 10000 // 10 second timeout
 });
 
-api.interceptors.request.use(config => {
+api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 api.interceptors.response.use(
-  response => response,
-  error => {
+  (response: any) => response,
+  (error: any) => {
     // Handle server offline errors (503 from Service Worker)
     if (OfflineHandler.isServerOfflineError(error)) {
       console.warn('Server is offline:', error.response.data.message);

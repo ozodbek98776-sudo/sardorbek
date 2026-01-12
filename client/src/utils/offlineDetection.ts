@@ -2,7 +2,7 @@
  * Offline Detection Utility
  * Works with the limited offline Service Worker
  */
-import React from 'react';
+import { useState, useEffect } from 'react';
 
 export interface ServerStatus {
   online: boolean;
@@ -138,9 +138,9 @@ export const offlineDetection = new OfflineDetectionService();
  * React hook for using offline detection
  */
 export function useOfflineDetection() {
-  const [status, setStatus] = React.useState<ServerStatus>(offlineDetection.getStatus());
+  const [status, setStatus] = useState<ServerStatus>(offlineDetection.getStatus());
 
-  React.useEffect(() => {
+  useEffect(() => {
     const unsubscribe = offlineDetection.onStatusChange(setStatus);
     return unsubscribe;
   }, []);
