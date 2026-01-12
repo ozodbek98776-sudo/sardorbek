@@ -25,6 +25,7 @@ import KassaDebts from './pages/kassa/KassaDebts';
 import KassaProducts from './pages/kassa/KassaProducts';
 import TelegramSettings from './pages/admin/TelegramSettings';
 import KassaLogin from './pages/KassaLogin';
+import ProductView from './pages/ProductView';
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
   const { user, loading } = useAuth();
@@ -247,6 +248,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/kassa-login" element={<KassaLogin />} />
+            <Route path="/product/:id" element={<ProductView />} />
             <Route path="/" element={<RoleRedirect />} />
             
             {/* Kassa Routes - TO'LIQ HIMOYALANGAN */}

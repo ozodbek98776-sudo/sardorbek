@@ -302,222 +302,161 @@ export default function Debts() {
             </div>
           ) : (
             <>
-              {/* Desktop Table */}
-              <div className="hidden lg:block">
-                <div className="table-header">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-4">
-                    <span className="table-header-cell col-span-2">
-                      {debtType === 'receivable' ? 'Mijoz' : 'Kimga qarzdorman'}
-                    </span>
-                    <span className="table-header-cell col-span-2">Qarz</span>
-                    <span className="table-header-cell col-span-2">Qoldiq</span>
-                    <span className="table-header-cell col-span-2">Muddat</span>
-                    {debtType === 'receivable' && <span className="table-header-cell col-span-2">Zalog</span>}
-                    <span className={`table-header-cell ${debtType === 'receivable' ? 'col-span-1' : 'col-span-2'}`}>Holat</span>
-                    <span className="table-header-cell col-span-1 text-center">Amallar</span>
-                  </div>
-                </div>
-                <div className="divide-y divide-surface-100">
-                  {filteredDebts.map(debt => (
-                    <div key={debt._id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-surface-50 transition-colors">
-                      <div className="col-span-2 flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                          debtType === 'receivable' ? 'bg-success-100' : 'bg-danger-100'
-                        }`}>
-                          <User className={`w-5 h-5 ${debtType === 'receivable' ? 'text-success-600' : 'text-danger-600'}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-surface-900 truncate">{getDebtorName(debt)}</p>
-                          {getDebtorPhone(debt) && <p className="text-sm text-surface-500 truncate">{getDebtorPhone(debt)}</p>}
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber(debt.amount)}</p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className={`font-semibold ${debtType === 'receivable' ? 'text-success-600' : 'text-danger-600'}`}>
-                          {formatNumber(debt.amount - debt.paidAmount)}
-                        </p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-2 flex items-center gap-2 text-surface-600">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(debt.dueDate).toLocaleDateString('uz-UZ')}
-                      </div>
-                      {debtType === 'receivable' && (
-                        <div className="col-span-2">
-                          {debt.collateral ? (
-                            <span className="text-sm text-amber-600 font-medium">{debt.collateral}</span>
-                          ) : (
-                            <span className="text-sm text-surface-400">-</span>
-                          )}
-                        </div>
-                      )}
-                      <div className={debtType === 'receivable' ? 'col-span-1' : 'col-span-2'}>
-                        <div className="flex justify-start">
-                          <span className={`badge ${
-                            debt.status === 'paid' ? 'badge-success' :
-                            debt.status === 'overdue' ? 'badge-danger' : 
-                            debt.status === 'pending_approval' ? 'badge-amber' : 
-                            debt.status === 'approved' ? 'badge-success' : 'badge-warning'
-                          }`}>
-                            {debt.status === 'paid' ? "To'langan" :
-                             debt.status === 'overdue' ? "Muddati o'tgan" : 
-                             debt.status === 'pending_approval' ? 'Tasdiqlash' : 
-                             debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-span-1 flex items-center justify-center gap-2">
-                        {debt.status === 'pending_approval' ? (
-                          <>
-                            <button 
-                              onClick={() => handleApprove(debt._id)} 
-                              className="btn-icon-sm hover:bg-green-100 hover:text-green-600"
-                              title="Tasdiqlash"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleReject(debt._id)} 
-                              className="btn-icon-sm hover:bg-red-100 hover:text-red-600"
-                              title="Rad etish"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            {((debt.status as string) !== 'paid' && (debt.status as string) !== 'pending_approval') && (
-                              <button 
-                                onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                className="btn-icon-sm hover:bg-success-100 hover:text-success-600"
-                                title="To'lov"
-                              >
-                                <DollarSign className="w-4 h-4" />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => openEditModal(debt)} 
-                              className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
-                              title="Tahrirlash"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(debt._id)} 
-                              className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="lg:hidden divide-y divide-surface-100">
-                {filteredDebts.map(debt => (
-                  <div key={debt._id} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        debtType === 'receivable' ? 'bg-success-100' : 'bg-danger-100'
+              {/* Pro Design Cards - barcha ekranlar uchun */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 p-4 sm:p-5">
+                {filteredDebts.map(debt => {
+                  const isPaid = debt.status === 'paid';
+                  const isOverdue = debt.status === 'overdue';
+                  const isPending = debt.status === 'pending_approval';
+                  const isApproved = debt.status === 'approved';
+                  const remaining = debt.amount - debt.paidAmount;
+                  const paidPercent = Math.round((debt.paidAmount / debt.amount) * 100);
+                  
+                  return (
+                    <div key={debt._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                      {/* Header with Avatar and Status */}
+                      <div className={`relative p-4 ${
+                        debtType === 'receivable' 
+                          ? 'bg-gradient-to-br from-emerald-50 to-green-50' 
+                          : 'bg-gradient-to-br from-red-50 to-rose-50'
                       }`}>
-                        <User className={`w-6 h-6 ${debtType === 'receivable' ? 'text-success-600' : 'text-danger-600'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-surface-900">{getDebtorName(debt)}</h4>
-                            {getDebtorPhone(debt) && <p className="text-sm text-surface-500">{getDebtorPhone(debt)}</p>}
-                            <div className="mt-2">
-                              <span className={`badge ${
-                                debt.status === 'paid' ? 'badge-success' :
-                                debt.status === 'overdue' ? 'badge-danger' : 
-                                debt.status === 'pending_approval' ? 'badge-amber' : 
-                                debt.status === 'approved' ? 'badge-success' : 'badge-warning'
-                              }`}>
-                                {debt.status === 'paid' ? "To'langan" :
-                                 debt.status === 'overdue' ? "O'tgan" : 
-                                 debt.status === 'pending_approval' ? 'Tasdiqlash' : 
-                                 debt.status === 'approved' ? 'Tasdiqlangan' : 'Kutilmoqda'}
-                              </span>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                              debtType === 'receivable' 
+                                ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
+                                : 'bg-gradient-to-br from-red-400 to-rose-500'
+                            }`}>
+                              <User className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-surface-900 truncate text-sm sm:text-base">{getDebtorName(debt)}</h4>
+                              {getDebtorPhone(debt) && (
+                                <p className="text-xs sm:text-sm text-surface-500 flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {getDebtorPhone(debt)}
+                                </p>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                          <div className="bg-surface-50 rounded-xl p-3">
-                            <p className="text-xs text-surface-500 mb-1">Qarz</p>
-                            <p className="font-semibold text-surface-900">{formatNumber(debt.amount)}</p>
+                          
+                          {/* Status Badge */}
+                          <div className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold flex items-center gap-1.5 ${
+                            isApproved ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200' : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200'
+                          }`}>
+                            {isApproved ? <CheckCircle2 className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                            <span>
+                              {isPaid ? "To'langan" :
+                               isOverdue ? "Muddati o'tgan" : 
+                               isPending ? 'Kutilmoqda' : 
+                               isApproved ? 'Tasdiqlangan' : 'Jarayonda'}
+                            </span>
                           </div>
-                          <div className={`rounded-xl p-3 ${debtType === 'receivable' ? 'bg-success-50' : 'bg-danger-50'}`}>
-                            <p className="text-xs text-surface-500 mb-1">Qoldiq</p>
-                            <p className={`font-semibold ${debtType === 'receivable' ? 'text-success-600' : 'text-danger-600'}`}>
-                              {formatNumber(debt.amount - debt.paidAmount)}
-                            </p>
-                          </div>
                         </div>
-                        {debtType === 'receivable' && debt.collateral && (
-                          <div className="bg-amber-50 rounded-xl p-2 mb-3">
-                            <p className="text-xs text-amber-600">
-                              <span className="font-medium">Zalog:</span> {debt.collateral}
-                            </p>
+
+                        {/* Progress Bar */}
+                        {!isPaid && (
+                          <div className="mt-3">
+                            <div className="flex justify-between text-[10px] sm:text-xs text-surface-600 mb-1">
+                              <span>To'langan: {paidPercent}%</span>
+                              <span>{formatNumber(debt.paidAmount)} / {formatNumber(debt.amount)}</span>
+                            </div>
+                            <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  debtType === 'receivable' ? 'bg-emerald-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${paidPercent}%` }}
+                              />
+                            </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm text-surface-500">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(debt.dueDate).toLocaleDateString('uz-UZ')}
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        {/* Amount Cards */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-surface-50 rounded-xl p-3 border border-surface-100">
+                            <p className="text-[10px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-1">Jami qarz</p>
+                            <p className="font-bold text-surface-900 text-sm sm:text-base">{formatNumber(debt.amount)}</p>
+                            <p className="text-[10px] text-surface-400">so'm</p>
                           </div>
-                          <div className="flex gap-2">
-                            {debt.status === 'pending_approval' ? (
-                              <>
-                                <button 
-                                  onClick={() => handleApprove(debt._id)} 
-                                  className="btn-icon-sm bg-green-100 text-green-600"
-                                  title="Tasdiqlash"
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleReject(debt._id)} 
-                                  className="btn-icon-sm bg-red-100 text-red-600"
-                                  title="Rad etish"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                {((debt.status as string) !== 'paid' && (debt.status as string) !== 'pending_approval') && (
-                                  <button 
-                                    onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                    className="btn-icon-sm bg-success-100 text-success-600"
-                                  >
-                                    <DollarSign className="w-4 h-4" />
-                                  </button>
-                                )}
-                                <button 
-                                  onClick={() => openEditModal(debt)} 
-                                  className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => handleDelete(debt._id)} className="btn-icon-sm text-danger-500">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
+                          <div className={`rounded-xl p-3 border ${
+                            debtType === 'receivable' 
+                              ? 'bg-emerald-50 border-emerald-200' 
+                              : 'bg-red-50 border-red-200'
+                          }`}>
+                            <p className="text-[10px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-1">Qoldiq</p>
+                            <p className={`font-bold text-sm sm:text-base ${
+                              debtType === 'receivable' ? 'text-emerald-600' : 'text-red-600'
+                            }`}>{formatNumber(remaining)}</p>
+                            <p className="text-[10px] text-surface-400">so'm</p>
                           </div>
+                        </div>
+
+                        {/* Due Date & Collateral */}
+                        <div className="flex items-center justify-between mb-3 text-xs sm:text-sm">
+                          <div className="flex items-center gap-1.5 text-surface-600">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
+                          </div>
+                          {debtType === 'receivable' && debt.collateral && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg text-amber-700 text-[10px] sm:text-xs font-medium border border-amber-200">
+                              🔒 {debt.collateral}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100">
+                          {isPending ? (
+                            <>
+                              <button 
+                                onClick={() => handleApprove(debt._id)} 
+                                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                Tasdiqlash
+                              </button>
+                              <button 
+                                onClick={() => handleReject(debt._id)} 
+                                className="flex items-center gap-1.5 px-3 py-2 bg-red-100 text-red-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-red-200 transition-all"
+                              >
+                                <X className="w-4 h-4" />
+                                Rad
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {!isPaid && !isPending && (
+                                <button 
+                                  onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  To'lov
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => openEditModal(debt)} 
+                                className="p-2 bg-surface-100 text-surface-600 rounded-xl hover:bg-brand-100 hover:text-brand-600 transition-all"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(debt._id)} 
+                                className="p-2 bg-surface-100 text-surface-600 rounded-xl hover:bg-red-100 hover:text-red-600 transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

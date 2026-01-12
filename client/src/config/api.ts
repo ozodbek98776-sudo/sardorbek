@@ -1,5 +1,5 @@
 // API konfiguratsiyasi
-const isDevelopment = import.meta.env.DEV;
+const isDevelopment = (import.meta as any).env.DEV;
 
 export const API_BASE_URL = isDevelopment 
   ? 'http://localhost:3003/api'

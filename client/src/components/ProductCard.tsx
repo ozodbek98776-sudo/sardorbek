@@ -145,7 +145,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {/* Conversion info */}
           {hasConversion && product.unitConversion && (
             <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-xs text-purple-700">
-              <span>= {formatNumber(product.unitConversion.totalBaseUnits)} {getUnitLabel(product.unitConversion.baseUnit)}</span>
+              <span>= {product.unitConversion.totalBaseUnits} {getUnitLabel(product.unitConversion.baseUnit)}</span>
             </div>
           )}
         </div>

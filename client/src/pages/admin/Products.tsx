@@ -53,7 +53,7 @@ export default function Products() {
     customWidth: '',
     customHeight: ''
   });
-  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [availablePrinters] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -243,34 +243,7 @@ export default function Products() {
     setShowQRModal(true);
   };
 
-  const openPrintModal = (product: Product) => {
-    setSelectedProduct(product);
-    setShowPrintModal(true);
-    loadAvailablePrinters();
-  };
-
-  const loadAvailablePrinters = async () => {
-    try {
-      // Sizning haqiqiy printerlaringiz
-      const myPrinters = [
-        'EPSON L132 Series (Copy 1)',
-        'EPSON L132 Series',
-        'X printer'
-      ];
-      
-      setAvailablePrinters(myPrinters);
-      
-      // Default printer as selected
-      setPrintSettings(prev => ({
-        ...prev,
-        printer: myPrinters[0]
-      }));
-      
-    } catch (error) {
-      console.error('Error loading printers:', error);
-      setAvailablePrinters(['EPSON L132 Series', 'X printer']);
-    }
-  };
+  // Print funksiyalari hozircha ishlatilmaydi, keyin qo'shilishi mumkin
 
   const closeModal = () => {
     setShowModal(false);
@@ -376,6 +349,160 @@ export default function Products() {
     };
     
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  // Xprinter uchun optimallashtirilgan print funksiyasi
+  const printXprinterLabel = async (product: Product) => {
+    const printWindow = window.open('', '_blank', 'width=400,height=400');
+    if (!printWindow) {
+      showAlert('Pop-up bloklangan. Iltimos, pop-up ga ruxsat bering.', 'Xatolik', 'danger');
+      return;
+    }
+
+    // QR code URL yaratish
+    const productUrl = `${window.location.origin}/product/${product._id}`;
+    
+    try {
+      const qrDataURL = await QRCode.toDataURL(productUrl, {
+        width: 400,
+        margin: 1,
+        errorCorrectionLevel: 'H',
+        color: { dark: '#000000', light: '#FFFFFF' }
+      });
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Xprinter Label - ${product.name}</title>
+          <style>
+            /* Xprinter 58mm x 40mm label */
+            @page {
+              size: 58mm 40mm;
+              margin: 0;
+            }
+            
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: Arial, sans-serif;
+              background: #f0f0f0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+            }
+            
+            .label-container {
+              width: 58mm;
+              height: 40mm;
+              background: white;
+              padding: 2mm;
+              display: flex;
+              flex-direction: column;
+              border: 1px solid #ccc;
+            }
+            
+            /* Yuqorida - NARX */
+            .price-section {
+              text-align: center;
+              padding: 1mm 0;
+            }
+            
+            .product-price {
+              font-size: 20pt;
+              font-weight: 900;
+              color: #000;
+              line-height: 1;
+            }
+            
+            /* Pastda - QR (chap) va NOM (o'ng) */
+            .bottom-section {
+              flex: 1;
+              display: flex;
+              align-items: flex-end;
+              gap: 8mm;
+            }
+            
+            .qr-code {
+              width: 20mm;
+              height: 20mm;
+              flex-shrink: 0;
+            }
+            
+            .qr-code img {
+              width: 100%;
+              height: 100%;
+              display: block;
+            }
+            
+            .product-name {
+              flex: 1;
+              font-size: 11pt;
+              font-weight: 700;
+              color: #000;
+              line-height: 1.1;
+              word-break: break-word;
+              text-transform: uppercase;
+              display: flex;
+              align-items: flex-end;
+            }
+            
+            /* Print styles */
+            @media print {
+              body {
+                background: white;
+                min-height: auto;
+              }
+              
+              .label-container {
+                border: none;
+                box-shadow: none;
+              }
+              
+              /* Hide everything except label */
+              .no-print {
+                display: none !important;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label-container">
+            <div class="price-section">
+              <div class="product-price">${formatNumber(product.price)}</div>
+            </div>
+            <div class="bottom-section">
+              <div class="qr-code">
+                <img src="${qrDataURL}" alt="QR Code" />
+              </div>
+              <div class="product-name">${product.name}</div>
+            </div>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.onafterprint = function() {
+                  window.close();
+                };
+              }, 300);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } catch (error) {
+      console.error('QR code generation error:', error);
+      showAlert('QR kod yaratishda xatolik', 'Xatolik', 'danger');
+      printWindow.close();
+    }
   };
 
   const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
@@ -679,23 +806,23 @@ export default function Products() {
         }
       />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
-        <div className="grid grid-cols-4 gap-4">
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6 max-w-[1800px] mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStockFilter(stat.filter)}
-              className={`stat-card ${stat.filter ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${
+              className={`stat-card p-2 sm:p-3 md:p-4 lg:p-6 ${stat.filter ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${
                 stockFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
               }`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className={`stat-icon bg-${stat.color}-50`}>
-                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+              <div className="flex items-start justify-between mb-1 sm:mb-2 md:mb-3">
+                <div className={`stat-icon w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 bg-${stat.color}-50`}>
+                  <stat.icon className={`w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 text-${stat.color}-600`} />
                 </div>
               </div>
-              <p className="stat-value">{stat.value}</p>
-              <p className="stat-label">{stat.label}</p>
+              <p className="stat-value text-sm sm:text-base md:text-xl lg:text-3xl">{stat.value}</p>
+              <p className="stat-label text-[10px] sm:text-xs md:text-sm lg:text-base">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -719,69 +846,8 @@ export default function Products() {
             </div>
           ) : (
             <>
-              <div className="hidden lg:block">
-                <div className="table-header">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-4">
-                    <span className="table-header-cell col-span-1">Rasm</span>
-                    <span className="table-header-cell col-span-2">Kod</span>
-                    <span className="table-header-cell col-span-2">Nomi</span>
-                    <span className="table-header-cell col-span-2">Tan narxi</span>
-                    <span className="table-header-cell col-span-2">Optom narxi</span>
-                    <span className="table-header-cell col-span-1">Miqdori</span>
-                    <span className="table-header-cell col-span-2 text-center">Amallar</span>
-                  </div>
-                </div>
-                <div className="divide-y divide-surface-100">
-                  {filteredProducts.map(product => (
-                    <div key={product._id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-surface-50 transition-colors">
-                      <div className="col-span-1">
-                        {getProductImage(product) ? (
-                          <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
-                            <img className="w-5 h-5 text-surface-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        <span className="font-mono text-sm bg-surface-100 px-2 py-1 rounded-lg">{product.code}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="font-medium text-surface-900">{product.name}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber((product as any).costPrice || 0)}</p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="font-semibold text-surface-900">{formatNumber(product.price)}</p>
-                        <p className="text-sm text-surface-500">so'm</p>
-                      </div>
-                      <div className="col-span-1">
-                        <span className={`font-semibold ${
-                          product.quantity === 0 ? 'text-danger-600' :
-                          product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
-                        }`}>{product.quantity}</span>
-                      </div>
-                      <div className="col-span-2 flex items-center justify-center gap-2">
-                        <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openPrintModal(product)} className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600" title="Print">
-                          <Printer className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openEditModal(product)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(product._id)} className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+              {/* Pro Design Cards - barcha ekranlar uchun */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 p-3 sm:p-4 md:p-5">
                 {filteredProducts.map(product => {
                   const unit = product.unit || 'dona';
                   const hasConversion = product.unitConversion?.enabled;
@@ -799,119 +865,119 @@ export default function Products() {
                   const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
                   
                   return (
-                    <div key={product._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-lg transition-all duration-300 overflow-hidden group">
+                    <div key={product._id} className="bg-white rounded-xl sm:rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group">
                       {/* Image Section */}
                       <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-100 to-surface-50 overflow-hidden">
                         {getProductImage(product) ? (
                           <img src={getProductImage(product)!} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center">
-                              <Package className="w-8 h-8 text-brand-500" />
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-50 to-indigo-50">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white/80 backdrop-blur rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                              <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-brand-500" />
                             </div>
                           </div>
                         )}
                         
                         {/* Stock Badge */}
-                        <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          stockStatus === 'danger' ? 'bg-red-500 text-white' : 
-                          stockStatus === 'warning' ? 'bg-amber-500 text-white' : 
-                          'bg-emerald-500 text-white'
+                        <div className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 md:top-3 md:left-3 px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 md:py-1.5 rounded-full text-[10px] sm:text-xs font-bold shadow-lg ${
+                          stockStatus === 'danger' ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white' : 
+                          stockStatus === 'warning' ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white' : 
+                          'bg-gradient-to-r from-emerald-400 to-green-500 text-white'
                         }`}>
-                          {stockStatus === 'danger' ? 'Tugagan' : stockStatus === 'warning' ? 'Kam qoldi' : 'Mavjud'}
+                          <span className="hidden sm:inline">{stockStatus === 'danger' ? '❌ Tugagan' : stockStatus === 'warning' ? '⚠️ Kam' : '✓ Mavjud'}</span>
+                          <span className="sm:hidden">{stockStatus === 'danger' ? '❌' : stockStatus === 'warning' ? '⚠️' : '✓'}</span>
                         </div>
 
                         {/* Code Badge */}
-                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs font-mono text-white">
+                        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 md:top-3 md:right-3 px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 md:py-1.5 bg-black/70 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-mono text-white font-bold shadow-lg">
                           #{product.code}
                         </div>
 
-                        {/* Quick Actions */}
-                        <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openQRModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-brand-600 hover:bg-white transition-colors shadow-sm">
-                            <QrCode className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => openPrintModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-blue-600 hover:bg-white transition-colors shadow-sm">
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => openEditModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-amber-600 hover:bg-white transition-colors shadow-sm">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(product._id)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-red-600 hover:bg-white transition-colors shadow-sm">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Quick Actions - Hover */}
+                        <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-2 md:p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2">
+                            <button onClick={() => openQRModal(product)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-brand-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                              <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                            </button>
+                            <button onClick={() => openEditModal(product)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-amber-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                              <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(product._id)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-red-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
                       {/* Content Section */}
-                      <div className="p-4">
+                      <div className="p-2 sm:p-3 md:p-4">
                         {/* Name */}
-                        <h3 className="font-semibold text-surface-900 text-base mb-3 line-clamp-2 min-h-[2.5rem]">
+                        <h3 className="font-bold text-surface-900 text-xs sm:text-sm md:text-base mb-1.5 sm:mb-2 md:mb-3 line-clamp-2 min-h-[2rem] sm:min-h-[2.25rem] md:min-h-[2.5rem] group-hover:text-brand-700 transition-colors">
                           {product.name}
                         </h3>
 
                         {/* Quantity with Unit */}
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
-                            stockStatus === 'danger' ? 'bg-red-50 text-red-700' : 
-                            stockStatus === 'warning' ? 'bg-amber-50 text-amber-700' : 
-                            'bg-emerald-50 text-emerald-700'
+                        <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 mb-1.5 sm:mb-2 md:mb-3 flex-wrap">
+                          <div className={`flex items-center gap-1 px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 md:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold ${
+                            stockStatus === 'danger' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                            stockStatus === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
+                            'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}>
-                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-3.5 h-3.5" /> :
-                             unit === 'karobka' ? <Box className="w-3.5 h-3.5" /> :
-                             unit === 'gram' || unit === 'kg' ? <Scale className="w-3.5 h-3.5" /> :
-                             <Package className="w-3.5 h-3.5" />}
-                            <span>{formatNumber(product.quantity)} {getUnitLabel(unit)}</span>
+                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5" /> :
+                             unit === 'karobka' ? <Box className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5" /> :
+                             unit === 'gram' || unit === 'kg' ? <Scale className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5" /> :
+                             <Package className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5" />}
+                            <span>{product.quantity} {getUnitLabel(unit)}</span>
                           </div>
                           
                           {/* Conversion info */}
                           {hasConversion && product.unitConversion && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-xs text-purple-700">
-                              <RotateCcw className="w-3 h-3" />
-                              <span>= {formatNumber(product.unitConversion.totalBaseUnits)} {getUnitLabel(product.unitConversion.baseUnit)}</span>
+                            <div className="flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 md:py-1.5 bg-purple-50 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] md:text-xs text-purple-700 font-semibold border border-purple-200">
+                              <RotateCcw className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
+                              <span>= {product.unitConversion.totalBaseUnits} {getUnitLabel(product.unitConversion.baseUnit)}</span>
                             </div>
                           )}
                         </div>
 
                         {/* Prices Grid */}
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="bg-surface-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
-                            <p className="font-bold text-surface-900 text-sm">
+                        <div className="grid grid-cols-2 gap-1 sm:gap-1.5 md:gap-2 mb-1.5 sm:mb-2 md:mb-3">
+                          <div className="bg-gradient-to-br from-surface-50 to-surface-100 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-3 border border-surface-200">
+                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-surface-500 uppercase tracking-wider font-semibold mb-0.5">Tan narxi</p>
+                            <p className="font-bold text-surface-900 text-[10px] sm:text-xs md:text-sm">
                               {formatNumber((product as any).costPrice || 0)}
-                              <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
+                              <span className="text-[8px] sm:text-[9px] md:text-[10px] text-surface-400 ml-0.5">so'm</span>
                             </p>
                           </div>
-                          <div className="bg-brand-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Sotish narxi</p>
-                            <p className="font-bold text-brand-700 text-sm">
+                          <div className="bg-gradient-to-br from-brand-50 to-indigo-50 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-3 border border-brand-200">
+                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-600 uppercase tracking-wider font-semibold mb-0.5">Sotish</p>
+                            <p className="font-bold text-brand-700 text-[10px] sm:text-xs md:text-sm">
                               {formatNumber(product.price)}
-                              <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
+                              <span className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-400 ml-0.5">so'm</span>
                             </p>
                           </div>
                         </div>
 
                         {/* Additional Prices */}
-                        {product.prices && (
-                          <div className="flex flex-wrap gap-1.5">
+                        {product.prices && (product.prices.perMeter > 0 || product.prices.perRoll > 0 || product.prices.perBox > 0 || product.prices.perKg > 0) && (
+                          <div className="flex flex-wrap gap-1 pt-1.5 sm:pt-2 border-t border-surface-100">
                             {product.prices.perMeter > 0 && (
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perMeter)}/m
+                              <span className="px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] md:text-xs font-semibold border border-blue-200">
+                                📏 {formatNumber(product.prices.perMeter)}/m
                               </span>
                             )}
                             {product.prices.perRoll > 0 && (
-                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perRoll)}/rulon
+                              <span className="px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] md:text-xs font-semibold border border-purple-200">
+                                🎞️ {formatNumber(product.prices.perRoll)}/rulon
                               </span>
                             )}
                             {product.prices.perBox > 0 && (
-                              <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perBox)}/quti
+                              <span className="px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 bg-orange-50 text-orange-700 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] md:text-xs font-semibold border border-orange-200">
+                                📦 {formatNumber(product.prices.perBox)}/quti
                               </span>
                             )}
                             {product.prices.perKg > 0 && (
-                              <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perKg)}/kg
+                              <span className="px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] md:text-xs font-semibold border border-green-200">
+                                ⚖️ {formatNumber(product.prices.perKg)}/kg
                               </span>
                             )}
                           </div>
@@ -1086,8 +1152,8 @@ export default function Products() {
                 {formData.conversionEnabled && formData.conversionRate && formData.quantity && (
                   <div className="mt-3 p-3 bg-purple-50 rounded-xl">
                     <p className="text-sm text-purple-700">
-                      <span className="font-semibold">{formatNumber(formData.quantity)}</span> {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = 
-                      <span className="font-semibold ml-1">{formatNumber(Number(formData.quantity) * Number(formData.conversionRate))}</span> {formData.baseUnit}
+                      <span className="font-semibold">{formData.quantity}</span> {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = 
+                      <span className="font-semibold ml-1">{Number(formData.quantity) * Number(formData.conversionRate)}</span> {formData.baseUnit}
                     </p>
                   </div>
                 )}
@@ -1157,34 +1223,54 @@ export default function Products() {
           <div className="overlay" onClick={() => setShowQRModal(false)} />
           <div className="modal w-full max-w-sm p-6 relative z-10">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-900">QR Kod</h3>
+              <h3 className="text-lg font-semibold text-surface-900">QR Kod - Xprinter</h3>
               <button onClick={() => setShowQRModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
             </div>
             <div className="flex flex-col items-center">
-              <div className="bg-white p-4 rounded-xl border border-surface-200 mb-4">
+              {/* QR Code Preview */}
+              <div className="bg-white p-4 rounded-xl border border-surface-200 mb-4" id="qr-print-area">
                 <QRCodeSVG
                   id="qr-code-svg"
-                  value={JSON.stringify({
-                    id: selectedProduct._id,
-                    code: selectedProduct.code,
-                    name: selectedProduct.name,
-                    price: selectedProduct.price
-                  })}
-                  size={200}
+                  value={`${window.location.origin}/product/${selectedProduct._id}`}
+                  size={180}
                   level="H"
                   includeMargin
                 />
               </div>
-              <div className="text-center mb-4">
-                <p className="font-semibold text-surface-900">{selectedProduct.name}</p>
-                <p className="text-sm text-surface-500">Kod: {selectedProduct.code}</p>
-                <p className="text-sm text-surface-500">Tan narxi: {formatNumber((selectedProduct as any).costPrice || 0)} so'm</p>
-                <p className="text-sm text-surface-500">Optom: {formatNumber(selectedProduct.price)} so'm</p>
+              
+              {/* Product Info */}
+              <div className="text-center mb-4 w-full">
+                <p className="font-bold text-lg text-surface-900 mb-1">{selectedProduct.name}</p>
+                <p className="text-sm text-surface-600 font-mono bg-surface-100 px-3 py-1 rounded-lg inline-block mb-2">
+                  ID: {selectedProduct.code}
+                </p>
+                <p className="text-xl font-bold text-brand-600">{formatNumber(selectedProduct.price)} so'm</p>
               </div>
-              <button onClick={downloadQR} className="btn-primary w-full">
-                <Download className="w-4 h-4" />
-                Yuklab olish
-              </button>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 w-full">
+                <button onClick={downloadQR} className="btn-secondary flex-1">
+                  <Download className="w-4 h-4" />
+                  Yuklab olish
+                </button>
+                <button 
+                  onClick={() => printXprinterLabel(selectedProduct)}
+                  className="btn-primary flex-1"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print (Xprinter)
+                </button>
+              </div>
+              
+              {/* Xprinter Info */}
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700 w-full">
+                <p className="font-medium mb-1">📋 Xprinter sozlamalari:</p>
+                <ul className="space-y-0.5">
+                  <li>• Qog'oz: 58mm x 40mm</li>
+                  <li>• Margins: None</li>
+                  <li>• Scale: 100%</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

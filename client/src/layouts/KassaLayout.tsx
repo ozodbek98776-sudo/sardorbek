@@ -111,23 +111,20 @@ export default function KassaLayout() {
        'success'
       );
       if (type === 'arrived') {
-        // TEST REJIMI: localStorage'ga saqlash o'chirilgan
-        // const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
-        // const current = attendanceToday;
-        // const updated = { ...current, arrived: current.arrived + 1 };
-        // localStorage.setItem(key, JSON.stringify(updated));
-        // setAttendanceToday(updated);
-        // if (updated.arrived > 0 && updated.left === 0) {
-        //   setUiMode('arrived');
-        // }
-        setUiMode('arrived');
+        const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+        const current = attendanceToday;
+        const updated = { ...current, arrived: current.arrived + 1 };
+        localStorage.setItem(key, JSON.stringify(updated));
+        setAttendanceToday(updated);
+        if (updated.arrived > 0 && updated.left === 0) {
+          setUiMode('arrived');
+        }
       } else {
-        // TEST REJIMI: localStorage'ga saqlash o'chirilgan
-        // const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
-        // const current = attendanceToday;
-        // const updated = { ...current, left: current.left + 1 };
-        // localStorage.setItem(key, JSON.stringify(updated));
-        // setAttendanceToday(updated);
+        const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
+        const current = attendanceToday;
+        const updated = { ...current, left: current.left + 1 };
+        localStorage.setItem(key, JSON.stringify(updated));
+        setAttendanceToday(updated);
         handleLogout();
         window.location.replace('/kassa-login');
       }

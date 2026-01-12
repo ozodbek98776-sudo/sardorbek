@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { LogOut, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PWAInstallButton from '../components/PWAInstallButton.tsx';
@@ -8,7 +8,6 @@ import { useAlert } from '../hooks/useAlert';
 
 export default function HelperLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [sending, setSending] = useState<'arrived' | 'left' | null>(null);
   const [uiMode, setUiMode] = useState<'idle' | 'arrived'>('idle');
   const { showAlert, AlertComponent } = useAlert();

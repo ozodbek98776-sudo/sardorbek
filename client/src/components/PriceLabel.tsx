@@ -1,5 +1,5 @@
 import React from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface PriceLabelProps {
   price: number;
@@ -106,13 +106,7 @@ const PriceLabel: React.FC<PriceLabelProps> = ({
             alignItems: 'center'
           }}
         >
-          <QRCode 
-            value={qrValue}
-            size={64}
-            level="L"
-            includeMargin={false}
-            renderAs="svg"
-          />
+          <QRCodeCanvas value={qrValue} size={64} level="L" includeMargin={false} />
         </div>
       </div>
     </div>

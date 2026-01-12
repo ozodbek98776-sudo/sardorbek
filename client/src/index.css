@@ -453,32 +453,70 @@
 /* ============================================
    📱 iOS & PWA Responsive Adjustments
    ============================================ */
+
+/* Extra small devices (phones, 320px - 359px) */
+@media (max-width: 359px) {
+  .card {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .stat-card {
+    padding: 0.75rem;
+  }
+
+  .modal {
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+/* Small devices (phones, 360px - 639px) */
+@media (min-width: 360px) and (max-width: 639px) {
+  .card {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+}
+
 @media (max-width: 768px) {
   .card {
-    @apply p-4 rounded-xl;
+    padding: 1rem;
+    border-radius: 0.75rem;
   }
 
   .btn-md {
-    @apply px-3 py-2;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
     min-height: 44px;
   }
 
   .input {
-    @apply px-3 py-2.5;
-    font-size: 16px; /* Prevent zoom on iOS */
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+    font-size: 16px;
     min-height: 44px;
   }
 
   .stat-card {
-    @apply p-5;
+    padding: 1.25rem;
   }
 
   .stat-icon {
-    @apply w-12 h-12;
+    width: 3rem;
+    height: 3rem;
   }
 
   .stat-value {
-    @apply text-xl;
+    font-size: 1.25rem;
   }
 }
 

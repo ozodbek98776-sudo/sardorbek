@@ -50,19 +50,27 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, password, login } = req.body;
     
-    // Support login with phone or email (for backward compatibility)
-    const user = await User.findOne({ 
-      $or: [{ phone }, { email: phone }] 
-    });
-    if (!user) return res.status(400).json({ message: 'Telefon raqam yoki parol noto\'g\'ri' });
+    // Support login with phone, email, or login username
+    let user;
+    if (login) {
+      // Login bilan kirish (admin uchun)
+      user = await User.findOne({ login });
+    } else {
+      // Phone yoki email bilan kirish
+      user = await User.findOne({ 
+        $or: [{ phone }, { email: phone }] 
+      });
+    }
+    
+    if (!user) return res.status(400).json({ message: 'Login yoki parol noto\'g\'ri' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'Telefon raqam yoki parol noto\'g\'ri' });
+    if (!isMatch) return res.status(400).json({ message: 'Login yoki parol noto\'g\'ri' });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-    res.json({ token, user: { _id: user._id, name: user.name, phone: user.phone || user.email, role: user.role } });
+    res.json({ token, user: { _id: user._id, name: user.name, phone: user.phone || user.email, login: user.login, role: user.role } });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }

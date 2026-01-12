@@ -279,6 +279,29 @@ router.delete('/delete-image', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Public endpoint - QR code skanerlash uchun (auth talab qilmaydi)
+router.get('/public/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate('warehouse', 'name');
+    if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
+    
+    // Faqat kerakli ma'lumotlarni qaytarish
+    res.json({
+      _id: product._id,
+      code: product.code,
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      unit: product.unit,
+      images: product.images,
+      warehouse: product.warehouse,
+      createdAt: product.createdAt
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate('warehouse', 'name');

@@ -10,6 +10,7 @@ import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/receipt';
+import PartnerPaymentModal from '../../components/PartnerPaymentModal';
 
 // Payment Breakdown Form komponenti
 interface PaymentBreakdownFormProps {
@@ -197,6 +198,8 @@ export default function KassaMain() {
   // To'lov turlari uchun state
   const [showPaymentBreakdown, setShowPaymentBreakdown] = useState(false);
   const [selectedItemForPayment, setSelectedItemForPayment] = useState<CartItem | null>(null);
+  const [showPartnerPayment, setShowPartnerPayment] = useState(false);
+  const [selectedItemForPartner, setSelectedItemForPartner] = useState<CartItem | null>(null);
   
   // Pricing tier edit uchun state
   const [showPricingEdit, setShowPricingEdit] = useState(false);
@@ -746,6 +749,11 @@ export default function KassaMain() {
     setShowPaymentBreakdown(true);
   };
 
+  const handlePartnerPaymentClick = (item: CartItem) => {
+    setSelectedItemForPartner(item);
+    setShowPartnerPayment(true);
+  };
+
   // To'lov turlarini saqlash
   const saveItemPaymentBreakdown = async (cash: number, click: number, card: number) => {
     if (!selectedItemForPayment) return;
@@ -792,7 +800,15 @@ export default function KassaMain() {
     
     setCart(prev => prev.map(p => 
       p._id === selectedItemForPayment._id 
-        ? { ...p, paymentBreakdown: { cash, click, card } }
+        ? { 
+            ...p, 
+            paymentBreakdown: { 
+              cash, 
+              click, 
+              card,
+              partner: p.paymentBreakdown?.partner || 0 
+            } 
+          }
         : p
     ));
     
@@ -1090,6 +1106,12 @@ export default function KassaMain() {
                                 {formatNumber(item.paymentBreakdown.card)}
                               </div>
                             )}
+                            {item.paymentBreakdown.partner && item.paymentBreakdown.partner > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Smartphone className="w-3 h-3 text-blue-600" />
+                                {formatNumber(item.paymentBreakdown.partner)}
+                              </div>
+                            )}
                           </div>
                         )}
                         {!item.paymentBreakdown && (
@@ -1102,6 +1124,13 @@ export default function KassaMain() {
                         )}
                       </div>
                       <div className="col-span-1 flex justify-center gap-1">
+                        <button
+                          onClick={() => handlePartnerPaymentClick(item)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-500 hover:bg-purple-50 transition-colors"
+                          title="Hamkor orqali to'lash"
+                        >
+                          <Smartphone className="w-4 h-4" />
+                        </button>
                         {item.paymentBreakdown && (
                           <button
                             onClick={() => handleItemPaymentBreakdown(item)}
@@ -1216,6 +1245,12 @@ export default function KassaMain() {
                                 <div className="flex items-center gap-1">
                                   <CreditCard className="w-3 h-3 text-blue-600" />
                                   {formatNumber(item.paymentBreakdown.card)}
+                                </div>
+                              )}
+                              {item.paymentBreakdown.partner && item.paymentBreakdown.partner > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3 text-blue-600" />
+                                  {formatNumber(item.paymentBreakdown.partner)}
                                 </div>
                               )}
                             </div>
@@ -1361,7 +1396,8 @@ export default function KassaMain() {
                 const totalCash = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
                 const totalClick = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
                 const totalCard = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
-                const totalPaid = totalCash + totalClick + totalCard;
+                const totalPartner = cart.reduce((sum, item) => sum + (item.paymentBreakdown?.partner || 0), 0);
+                const totalPaid = totalCash + totalClick + totalCard + totalPartner;
                 
                 // To'lov miqdorlarini state ga saqlash
                 setPaymentAmounts({cash: totalCash, click: totalClick, card: totalCard});
@@ -1998,6 +2034,33 @@ export default function KassaMain() {
             />
           </div>
         </div>
+      )}
+
+      {showPartnerPayment && selectedItemForPartner && (
+        <PartnerPaymentModal
+          isOpen={showPartnerPayment}
+          onClose={() => {
+            setShowPartnerPayment(false);
+            setSelectedItemForPartner(null);
+          }}
+          item={selectedItemForPartner}
+          customer={selectedCustomer}
+          onSave={(_, amount) => {
+            setCart(prev =>
+              prev.map(p => {
+                if (p._id !== selectedItemForPartner._id) return p;
+                const current = p.paymentBreakdown || { cash: 0, click: 0, card: 0, partner: 0 };
+                return {
+                  ...p,
+                  paymentBreakdown: {
+                    ...current,
+                    partner: (current.partner || 0) + amount
+                  }
+                };
+              })
+            );
+          }}
+        />
       )}
 
       {/* Pricing Edit Modal - Foizni o'zgartirish */}
