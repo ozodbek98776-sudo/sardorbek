@@ -26,7 +26,7 @@ if [ -d ".git" ]; then
     git reset --hard origin/main
 else
     echo "📥 Loyiha yuklab olinmoqda..."
-    git clone https://github.com/alishernamozov286-design/Sardor_furnitura.git .
+    git clone https://github.com/ozodbek98776-sudo/sardorbek.git . --depth 1
 fi
 
 # 3. Server dependencies
