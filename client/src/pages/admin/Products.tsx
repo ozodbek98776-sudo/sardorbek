@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -10,13 +10,31 @@ import QRCode from 'qrcode';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 
+// Statistika interfeysi
+interface ProductStats {
+  product: { _id: string; name: string; code: string; price: number; quantity: number };
+  stats: {
+    totalSold: number;
+    totalRevenue: number;
+    totalReceipts: number;
+    averagePerSale: number;
+    bestDay: { date: string; count: number } | null;
+    bestHour: { hour: number; label: string; count: number } | null;
+  };
+  last7Days: { date: string; count: number; revenue: number }[];
+  hourlyStats: { hour: number; label: string; count: number; revenue: number }[];
+  recentSales: { date: string; quantity: number; price: number; total: number; customer: any; receiptId: string }[];
+}
+
 export default function Products() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const [products, setProducts] = useState<Product[]>([]);
   const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [productStats, setProductStats] = useState<ProductStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,14 +43,18 @@ export default function Products() {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     code: '', name: '', quantity: '',
-    previousPrice: '', // Oldingi narxi
-    currentPrice: '', // Hozirgi narxi
+    previousPrice: '', 
+    currentPrice: '', // Dona narxi
     unit: 'dona' as 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr',
-    conversionEnabled: false,
-    baseUnit: 'dona' as 'dona' | 'metr' | 'gram' | 'kg' | 'litr',
-    conversionRate: '',
-    packageCount: '',
-    pricePerMeter: '',
+    // O'lchamlar (sm/mm)
+    dimensions: { width: '', height: '', length: '' },
+    // Rulon uchun
+    metersPerRoll: '', // 1 rulonda necha metr
+    // Karobka uchun
+    unitsPerBox: '', // 1 karobkada necha dona
+    // Metr narxlari (diapazon bo'yicha)
+    meterPriceRanges: [{ from: '', to: '', price: '' }] as { from: string; to: string; price: string }[],
+    // Narxlar
     pricePerRoll: '',
     pricePerBox: '',
     pricePerKg: '',
@@ -47,15 +69,6 @@ export default function Products() {
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
   const [quantityInput, setQuantityInput] = useState('');
-  const [printSettings, setPrintSettings] = useState({
-    printer: '',
-    copies: 1,
-    size: 'card',
-    layout: 'standard',
-    customWidth: '',
-    customHeight: ''
-  });
-  const [availablePrinters] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -156,35 +169,45 @@ export default function Products() {
       };
     }
 
-    // Konversiya hisoblash
-    let totalBaseUnits = finalQuantity;
-    if (formData.conversionEnabled && formData.conversionRate) {
-      totalBaseUnits = finalQuantity * Number(formData.conversionRate);
+    // Hisoblangan qiymatlar
+    let totalMeters = 0;
+    let totalUnits = 0;
+    if (formData.unit === 'rulon' && formData.metersPerRoll) {
+      totalMeters = finalQuantity * Number(formData.metersPerRoll);
+    }
+    if (formData.unit === 'karobka' && formData.unitsPerBox) {
+      totalUnits = finalQuantity * Number(formData.unitsPerBox);
     }
     
     try {
       const data = {
         code: formData.code,
         name: formData.name,
-        price: Number(formData.currentPrice), // Hozirgi narxni asosiy narx sifatida ishlatamiz
-        previousPrice: Number(formData.previousPrice) || 0, // Oldingi narxi
-        currentPrice: Number(formData.currentPrice) || 0, // Hozirgi narxi
+        price: Number(formData.currentPrice),
+        previousPrice: Number(formData.previousPrice) || 0,
+        currentPrice: Number(formData.currentPrice) || 0,
         quantity: finalQuantity,
         warehouse: mainWarehouse?._id,
         images,
         packageInfo,
-        // Yangi fieldlar
         unit: formData.unit,
-        unitConversion: {
-          enabled: formData.conversionEnabled,
-          baseUnit: formData.baseUnit,
-          conversionRate: Number(formData.conversionRate) || 1,
-          packageCount: finalQuantity,
-          totalBaseUnits: totalBaseUnits
+        // O'lchamlar
+        dimensions: {
+          width: formData.dimensions.width || '',
+          height: formData.dimensions.height || '',
+          length: formData.dimensions.length || ''
         },
+        // Rulon/Karobka sozlamalari
+        metersPerRoll: Number(formData.metersPerRoll) || 0,
+        unitsPerBox: Number(formData.unitsPerBox) || 0,
+        totalMeters,
+        totalUnits,
+        // Metr narxlari (diapazon)
+        meterPriceRanges: formData.meterPriceRanges
+          .filter(r => r.from && r.to && r.price)
+          .map(r => ({ from: Number(r.from), to: Number(r.to), price: Number(r.price) })),
         prices: {
           perUnit: Number(formData.currentPrice),
-          perMeter: Number(formData.pricePerMeter) || 0,
           perRoll: Number(formData.pricePerRoll) || 0,
           perBox: Number(formData.pricePerBox) || 0,
           perKg: Number(formData.pricePerKg) || 0,
@@ -219,15 +242,20 @@ export default function Products() {
     setFormData({
       code: product.code,
       name: product.name,
-      previousPrice: String((product as any).previousPrice || 0), // Oldingi narxi
-      currentPrice: String((product as any).currentPrice || product.price), // Hozirgi narxi
+      previousPrice: String((product as any).previousPrice || 0),
+      currentPrice: String((product as any).currentPrice || product.price),
       quantity: String(product.quantity),
       unit: product.unit || 'dona',
-      conversionEnabled: product.unitConversion?.enabled || false,
-      baseUnit: product.unitConversion?.baseUnit || 'dona',
-      conversionRate: String(product.unitConversion?.conversionRate || ''),
-      packageCount: String(product.unitConversion?.packageCount || ''),
-      pricePerMeter: String(product.prices?.perMeter || ''),
+      dimensions: {
+        width: (product as any).dimensions?.width || '',
+        height: (product as any).dimensions?.height || '',
+        length: (product as any).dimensions?.length || ''
+      },
+      metersPerRoll: String((product as any).metersPerRoll || ''),
+      unitsPerBox: String((product as any).unitsPerBox || ''),
+      meterPriceRanges: (product as any).meterPriceRanges?.length > 0 
+        ? (product as any).meterPriceRanges.map((r: any) => ({ from: String(r.from || ''), to: String(r.to || ''), price: String(r.price || '') }))
+        : [{ from: '', to: '', price: '' }],
       pricePerRoll: String(product.prices?.perRoll || ''),
       pricePerBox: String(product.prices?.perBox || ''),
       pricePerKg: String(product.prices?.perKg || ''),
@@ -245,6 +273,23 @@ export default function Products() {
     setShowQRModal(true);
   };
 
+  // Mahsulot statistikasini ochish
+  const openStatsModal = async (product: Product) => {
+    setSelectedProduct(product);
+    setShowStatsModal(true);
+    setStatsLoading(true);
+    
+    try {
+      const res = await api.get(`/products/stats/${product._id}`);
+      setProductStats(res.data);
+    } catch (err) {
+      console.error('Error fetching product stats:', err);
+      showAlert('Statistikani yuklashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   // Print funksiyalari hozircha ishlatilmaydi, keyin qo'shilishi mumkin
 
   const closeModal = () => {
@@ -252,13 +297,12 @@ export default function Products() {
     setEditingProduct(null);
     setFormData({ 
       code: '', name: '', quantity: '',
-      previousPrice: '', currentPrice: '', // Yangi maydonlar
+      previousPrice: '', currentPrice: '',
       unit: 'dona',
-      conversionEnabled: false,
-      baseUnit: 'dona',
-      conversionRate: '',
-      packageCount: '',
-      pricePerMeter: '',
+      dimensions: { width: '', height: '', length: '' },
+      metersPerRoll: '',
+      unitsPerBox: '',
+      meterPriceRanges: [{ from: '', to: '', price: '' }],
       pricePerRoll: '',
       pricePerBox: '',
       pricePerKg: '',
@@ -294,13 +338,12 @@ export default function Products() {
       const res = await api.get('/products/next-code');
       setFormData({ 
         code: res.data.code, name: '', quantity: '',
-        previousPrice: '', currentPrice: '', // Yangi maydonlar
+        previousPrice: '', currentPrice: '',
         unit: 'dona',
-        conversionEnabled: false,
-        baseUnit: 'dona',
-        conversionRate: '',
-        packageCount: '',
-        pricePerMeter: '',
+        dimensions: { width: '', height: '', length: '' },
+        metersPerRoll: '',
+        unitsPerBox: '',
+        meterPriceRanges: [{ from: '', to: '', price: '' }],
         pricePerRoll: '',
         pricePerBox: '',
         pricePerKg: '',
@@ -366,11 +409,29 @@ export default function Products() {
     // QR code URL yaratish
     const productUrl = `${window.location.origin}/product/${product._id}`;
     
+    // O'lchamlarni olish (sm/mm)
+    const dimensions = (product as any).dimensions || {};
+    const width = dimensions.width || '';
+    const height = dimensions.height || '';
+    const length = dimensions.length || '';
+    
+    // O'lcham stringini yaratish
+    let sizeStr = '';
+    if (width && height) {
+      sizeStr = `${width}sm x ${height}mm`;
+    } else if (width) {
+      sizeStr = `${width}sm`;
+    } else if (height) {
+      sizeStr = `${height}mm`;
+    } else if (length) {
+      sizeStr = `${length}sm`;
+    }
+    
     try {
       const qrDataURL = await QRCode.toDataURL(productUrl, {
-        width: 400,
-        margin: 1,
-        errorCorrectionLevel: 'H',
+        width: 300,
+        margin: 0,
+        errorCorrectionLevel: 'M',
         color: { dark: '#000000', light: '#FFFFFF' }
       });
 
@@ -405,36 +466,22 @@ export default function Products() {
               width: 58mm;
               height: 40mm;
               background: white;
-              padding: 2mm;
+              padding: 1.5mm;
               display: flex;
               flex-direction: column;
               border: 1px solid #ccc;
             }
             
-            /* Yuqorida - NARX */
-            .price-section {
-              text-align: center;
-              padding: 1mm 0;
-            }
-            
-            .product-price {
-              font-size: 20pt;
-              font-weight: 900;
-              color: #000;
-              line-height: 1;
-            }
-            
-            /* Pastda - QR (chap) va NOM (o'ng) */
-            .bottom-section {
-              flex: 1;
+            /* Yuqori qism - QR (chap) va ma'lumotlar (o'ng) */
+            .top-section {
               display: flex;
-              align-items: flex-end;
-              gap: 8mm;
+              gap: 2mm;
+              flex: 1;
             }
             
             .qr-code {
-              width: 20mm;
-              height: 20mm;
+              width: 22mm;
+              height: 22mm;
               flex-shrink: 0;
             }
             
@@ -444,16 +491,57 @@ export default function Products() {
               display: block;
             }
             
-            .product-name {
+            .info-section {
               flex: 1;
-              font-size: 11pt;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              gap: 0.5mm;
+              padding-top: 1mm;
+            }
+            
+            .product-code {
+              font-size: 8pt;
+              font-weight: 600;
+              color: #333;
+            }
+            
+            .product-name {
+              font-size: 9pt;
               font-weight: 700;
               color: #000;
               line-height: 1.1;
               word-break: break-word;
               text-transform: uppercase;
-              display: flex;
-              align-items: flex-end;
+              max-height: 10mm;
+              overflow: hidden;
+            }
+            
+            .product-size {
+              font-size: 8pt;
+              font-weight: 500;
+              color: #555;
+            }
+            
+            /* Pastda - KATTA NARX */
+            .price-section {
+              text-align: center;
+              padding: 1mm 0;
+              border-top: 0.5mm dashed #ccc;
+              margin-top: auto;
+            }
+            
+            .product-price {
+              font-size: 28pt;
+              font-weight: 900;
+              color: #000;
+              line-height: 1;
+              letter-spacing: -0.5px;
+            }
+            
+            .currency {
+              font-size: 10pt;
+              font-weight: 600;
             }
             
             /* Print styles */
@@ -468,7 +556,6 @@ export default function Products() {
                 box-shadow: none;
               }
               
-              /* Hide everything except label */
               .no-print {
                 display: none !important;
               }
@@ -477,14 +564,18 @@ export default function Products() {
         </head>
         <body>
           <div class="label-container">
-            <div class="price-section">
-              <div class="product-price">${formatNumber(product.price)}</div>
-            </div>
-            <div class="bottom-section">
+            <div class="top-section">
               <div class="qr-code">
                 <img src="${qrDataURL}" alt="QR Code" />
               </div>
-              <div class="product-name">${product.name}</div>
+              <div class="info-section">
+                <div class="product-code">Kod: ${product.code || product._id?.slice(-6) || ''}</div>
+                <div class="product-name">${product.name}</div>
+                ${sizeStr ? `<div class="product-size">${sizeStr}</div>` : ''}
+              </div>
+            </div>
+            <div class="price-section">
+              <div class="product-price">${formatNumber(product.price)} <span class="currency">so'm</span></div>
             </div>
           </div>
           
@@ -506,262 +597,6 @@ export default function Products() {
       console.error('QR code generation error:', error);
       showAlert('QR kod yaratishda xatolik', 'Xatolik', 'danger');
       printWindow.close();
-    }
-  };
-
-  const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
-    try {
-      // Create QR data exactly like in preview
-      const qrData = JSON.stringify({
-        id: product._id,
-        code: product.code,
-        name: product.name,
-        price: product.price
-      });
-      
-      // Generate real QR code using qrcode library
-      const qrDataURL = await QRCode.toDataURL(qrData, {
-        width: size * 10, // Higher resolution for better print quality
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'H', // High error correction
-        type: 'image/png'
-      });
-      
-      return qrDataURL;
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      return '';
-    }
-  };
-  
-  const handlePrint = async () => {
-    if (!selectedProduct) return;
-    
-    try {
-      // Maxsus o'lchamni tekshirish
-      const hasCustomSize = printSettings.customWidth && printSettings.customHeight;
-      const customWidth = hasCustomSize ? `${printSettings.customWidth}mm` : null;
-      const customHeight = hasCustomSize ? `${printSettings.customHeight}mm` : null;
-      
-      // Generate QR code as high-quality data URL
-      const qrSize = printSettings.size === 'card' ? 52 : printSettings.size === 'thermal' ? 102 : 122;
-      const qrDataUrl = await generateQRCodeDataURL(selectedProduct, qrSize);
-      
-      // Create print-ready HTML with single page layout
-      const printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Label - ${selectedProduct.name}</title>
-          <style>
-            @page {
-              size: ${hasCustomSize ? `${customWidth} ${customHeight}` : (printSettings.size === 'card' ? '28mm 18mm' : printSettings.size === 'A4' ? 'A4' : printSettings.size === 'A5' ? 'A5' : '50mm 45mm')};
-              margin: 0;
-            }
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            html, body {
-              width: 100%;
-              height: 100%;
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              background: white;
-              overflow: hidden;
-            }
-            .page-container {
-              width: 100%;
-              height: 100vh;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              page-break-after: avoid;
-            }
-            .label-container {
-              border: 2px solid #333;
-              padding: ${printSettings.size === 'card' ? '1mm' : printSettings.size === 'thermal' ? '6px' : '12px'};
-              background: white;
-              width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '44mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '120mm' : '120mm')};
-              height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '16mm' : printSettings.size === 'thermal' ? '60mm' : printSettings.size === 'A4' ? '100mm' : printSettings.size === 'A5' ? '140mm' : '140mm')};
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              gap: 2px;
-              overflow: hidden;
-              border-radius: 2px;
-              page-break-inside: avoid;
-            }
-            .product-info {
-              flex: 1;
-              width: 100%;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-              text-align: center;
-              height: auto;
-            }
-            .product-name {
-              font-size: ${printSettings.size === 'card' ? '8px' : printSettings.size === 'thermal' ? '16px' : '20px'};
-              font-weight: 600;
-              color: #1a1a1a;
-              line-height: 1.1;
-              margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
-              word-wrap: break-word;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              display: -webkit-box;
-              -webkit-line-clamp: ${printSettings.size === 'card' ? '1' : '2'};
-              -webkit-box-orient: vertical;
-            }
-            .product-code {
-              font-size: ${printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px'};
-              color: #666;
-              line-height: 1.0;
-              margin-bottom: ${printSettings.size === 'card' ? '1px' : '2px'};
-              font-weight: 500;
-            }
-            .product-price {
-              font-size: ${printSettings.size === 'card' ? '12px' : printSettings.size === 'thermal' ? '20px' : '24px'};
-              font-weight: 800;
-              color: #d32f2f;
-              line-height: 1.0;
-              margin-bottom: ${printSettings.size === 'card' ? '0px' : '1px'};
-            }
-            .qr-code-section {
-              flex-shrink: 0;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              max-width: 42%;
-              width: 42%;
-              height: 100%;
-              padding-left: 1px;
-              overflow: hidden;
-              box-sizing: border-box;
-            }
-            .qr-code-img {
-              width: ${printSettings.size === 'card' ? '52px' : printSettings.size === 'thermal' ? '102px' : '122px'};
-              height: ${printSettings.size === 'card' ? '52px' : printSettings.size === 'thermal' ? '102px' : '122px'};
-              max-width: 100%;
-              max-height: 100%;
-              border: 1px solid #e0e0e0;
-              border-radius: 2px;
-              background: white;
-              object-fit: contain;
-              image-rendering: -webkit-optimize-contrast;
-              image-rendering: crisp-edges;
-              image-rendering: pixelated;
-            }
-            .additional-info {
-              margin: 0;
-              font-size: ${printSettings.size === 'card' ? '4px' : printSettings.size === 'thermal' ? '10px' : '12px'};
-              color: #888;
-              line-height: 1.0;
-              font-weight: 400;
-            }
-            ${printSettings.layout === 'minimal' ? '.additional-info { display: none; }' : ''}
-            
-            @media print {
-              html, body {
-                background: white !important;
-                -webkit-print-color-adjust: exact !important;
-                color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-              .page-container {
-                height: 100vh !important;
-                page-break-after: avoid !important;
-              }
-              .label-container {
-                page-break-inside: avoid !important;
-                width: ${hasCustomSize ? customWidth : (printSettings.size === 'card' ? '28mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '85mm' : printSettings.size === 'A5' ? '130mm' : '130mm')} !important;
-                height: ${hasCustomSize ? customHeight : (printSettings.size === 'card' ? '18mm' : printSettings.size === 'thermal' ? '45mm' : printSettings.size === 'A4' ? '65mm' : printSettings.size === 'A5' ? '100mm' : '100mm')} !important;
-                padding: ${printSettings.size === 'card' ? '1.5mm' : printSettings.size === 'thermal' ? '8px' : '15px'} !important;
-              }
-              .qr-code-section {
-                max-width: 42% !important;
-                width: 42% !important;
-                overflow: hidden !important;
-                box-sizing: border-box !important;
-              }
-              .qr-code-img {
-                -webkit-print-color-adjust: exact !important;
-                color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                width: ${printSettings.size === 'card' ? '62px' : printSettings.size === 'thermal' ? '122px' : '152px'} !important;
-                height: ${printSettings.size === 'card' ? '62px' : printSettings.size === 'thermal' ? '122px' : '152px'} !important;
-                max-width: 100% !important;
-                max-height: 100% !important;
-                object-fit: contain !important;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="page-container">
-            <div class="label-container">
-              <div class="product-info">
-                <div class="product-price">${formatNumber((selectedProduct as any).currentPrice || selectedProduct.price)} so'm</div>
-                <div class="product-code">Kod: ${selectedProduct.code}</div>
-                <div class="product-name">${selectedProduct.name}</div>
-                
-                ${printSettings.layout === 'standard' ? `
-                  <div class="additional-info">
-                    Miqdor: ${selectedProduct.quantity} | ${new Date().toLocaleDateString('uz-UZ')}
-                  </div>
-                ` : ''}
-              </div>
-              
-              <div class="qr-code-section">
-                <img src="${qrDataUrl}" alt="QR Code" class="qr-code-img" />
-              </div>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-      
-      // Create new window and print directly
-      const printWindow = window.open('', '_blank', 'width=1024,height=768');
-      
-      if (!printWindow) {
-        alert('Popup blocker tomonidan to\'sib qo\'yildi. Popup\'larni yoqing.');
-        return;
-      }
-      
-      // Write content and print
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      
-      // Wait for content to load, then print
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
-          
-          // Close window after printing
-          setTimeout(() => {
-            printWindow.close();
-          }, 1000);
-        }, 500);
-      };
-      
-      // Close the print modal
-      setShowPrintModal(false);
-      
-    } catch (error) {
-      console.error('Error generating print content:', error);
-      alert('Chop uchun tayyorlashda xatolik yuz berdi');
     }
   };
 
@@ -854,7 +689,6 @@ export default function Products() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-5 p-3 sm:p-4 md:p-5">
                 {filteredProducts.map(product => {
                   const unit = product.unit || 'dona';
-                  const hasConversion = product.unitConversion?.enabled;
                   const getUnitLabel = (u?: string) => {
                     switch (u) {
                       case 'metr': return 'm';
@@ -869,7 +703,11 @@ export default function Products() {
                   const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
                   
                   return (
-                    <div key={product._id} className="bg-white rounded-xl sm:rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                    <div 
+                      key={product._id} 
+                      className="bg-white rounded-xl sm:rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
+                      onClick={() => openStatsModal(product)}
+                    >
                       {/* Image Section */}
                       <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-100 to-surface-50 overflow-hidden">
                         {getProductImage(product) ? (
@@ -900,13 +738,13 @@ export default function Products() {
                         {/* Quick Actions - Hover */}
                         <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-2 md:p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
                           <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2">
-                            <button onClick={() => openQRModal(product)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-brand-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                            <button onClick={(e) => { e.stopPropagation(); openQRModal(product); }} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-brand-600 hover:bg-white transition-all shadow-lg hover:scale-110">
                               <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                             </button>
-                            <button onClick={() => openEditModal(product)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-amber-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                            <button onClick={(e) => { e.stopPropagation(); openEditModal(product); }} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-amber-600 hover:bg-white transition-all shadow-lg hover:scale-110">
                               <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                             </button>
-                            <button onClick={() => handleDelete(product._id)} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-red-600 hover:bg-white transition-all shadow-lg hover:scale-110">
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/95 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center text-surface-700 hover:text-red-600 hover:bg-white transition-all shadow-lg hover:scale-110">
                               <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                             </button>
                           </div>
@@ -934,11 +772,19 @@ export default function Products() {
                             <span>{product.quantity} {getUnitLabel(unit)}</span>
                           </div>
                           
-                          {/* Conversion info */}
-                          {hasConversion && product.unitConversion && (
+                          {/* Rulon uchun - metr ko'rsatish */}
+                          {unit === 'rulon' && (product as any).metersPerRoll > 0 && (
                             <div className="flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 md:py-1.5 bg-purple-50 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] md:text-xs text-purple-700 font-semibold border border-purple-200">
                               <RotateCcw className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
-                              <span>= {product.unitConversion.totalBaseUnits} {getUnitLabel(product.unitConversion.baseUnit)}</span>
+                              <span>= {formatNumber(product.quantity * (product as any).metersPerRoll)} m</span>
+                            </div>
+                          )}
+                          
+                          {/* Karobka uchun - dona ko'rsatish */}
+                          {unit === 'karobka' && (product as any).unitsPerBox > 0 && (
+                            <div className="flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 md:px-2.5 py-0.5 sm:py-1 md:py-1.5 bg-orange-50 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] md:text-xs text-orange-700 font-semibold border border-orange-200">
+                              <RotateCcw className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
+                              <span>= {formatNumber(product.quantity * (product as any).unitsPerBox)} dona</span>
                             </div>
                           )}
                         </div>
@@ -1049,6 +895,7 @@ export default function Products() {
                 />
               </div>
 
+              {/* Kod va Nomi */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Kod</label>
@@ -1064,76 +911,62 @@ export default function Products() {
                   {codeError && <p className="text-sm text-danger-600 mt-1">{codeError}</p>}
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Miqdori</label>
-                  {editingProduct ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 px-4 py-3 bg-surface-100 rounded-xl text-center font-semibold text-surface-900">
-                        {formatNumber(formData.quantity || 0)}
-                      </div>
-                      <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon bg-success-100 text-success-600 hover:bg-success-200">
-                        <Plus className="w-5 h-5" />
-                      </button>
-                      <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon bg-danger-100 text-danger-600 hover:bg-danger-200">
-                        <Minus className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.quantity)} onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} required />
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
-                <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-              </div>
-              {/* Oldingi va hozirgi narxlar */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Oldingi narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.previousPrice)} onChange={e => setFormData({...formData, previousPrice: parseNumber(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Hozirgi narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.currentPrice)} onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})} required />
-                  {/* Chegirma foizi ko'rsatish */}
-                  {formData.previousPrice && formData.currentPrice && Number(formData.previousPrice) > 0 && Number(formData.currentPrice) > 0 && (
-                    <div className="mt-2">
-                      {(() => {
-                        const oldPrice = Number(formData.previousPrice);
-                        const newPrice = Number(formData.currentPrice);
-                        const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
-                        
-                        if (discountPercent > 0) {
-                          return (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-green-700">{discountPercent}% chegirma</span>
-                            </div>
-                          );
-                        } else if (discountPercent < 0) {
-                          return (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-red-700">{Math.abs(discountPercent)}% qimmatroq</span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  )}
+                  <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
+                  <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                 </div>
               </div>
 
-              {/* O'lchov birligi */}
+              {/* O'lchamlar (sm/mm) */}
               <div className="border-t border-surface-200 pt-4 mt-4">
                 <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
                   <Ruler className="w-4 h-4 text-brand-600" />
-                  O'lchov birligi
+                  O'lchamlar (ixtiyoriy)
                 </h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-surface-700 mb-2 block">Birlik</label>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Eni (sm)</label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      placeholder="50"
+                      value={formData.dimensions.width}
+                      onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, width: e.target.value}})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Bo'yi (mm)</label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      placeholder="30"
+                      value={formData.dimensions.height}
+                      onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, height: e.target.value}})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Uzunligi (sm)</label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      placeholder="100"
+                      value={formData.dimensions.length}
+                      onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, length: e.target.value}})}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* O'lchov birligi va Miqdor */}
+              <div className="border-t border-surface-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-brand-600" />
+                  O'lchov birligi va Miqdor
+                </h4>
+                
+                {/* Birlik tanlash va miqdor kiritish - yon-yoniga */}
+                <div className="flex gap-3 mb-4">
+                  <div className="w-1/3">
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">Birlik</label>
                     <select 
                       className="input"
                       value={formData.unit}
@@ -1142,103 +975,280 @@ export default function Products() {
                       <option value="dona">Dona</option>
                       <option value="metr">Metr</option>
                       <option value="rulon">Rulon</option>
-                      <option value="karobka">Karobka/Quti</option>
-                      <option value="gram">Gram</option>
+                      <option value="karobka">Karobka</option>
                       <option value="kg">Kilogram</option>
+                      <option value="gram">Gram</option>
                       <option value="litr">Litr</option>
                     </select>
                   </div>
-                  
-                  {/* Konversiya */}
-                  {(formData.unit === 'rulon' || formData.unit === 'karobka') && (
-                    <div>
-                      <label className="text-sm font-medium text-surface-700 mb-2 block">
-                        1 {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = ? 
-                      </label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          className="input flex-1" 
-                          placeholder="30"
-                          value={formData.conversionRate}
-                          onChange={e => setFormData({
-                            ...formData, 
-                            conversionRate: parseNumber(e.target.value),
-                            conversionEnabled: true
-                          })}
-                        />
-                        <select 
-                          className="input w-24"
-                          value={formData.baseUnit}
-                          onChange={e => setFormData({...formData, baseUnit: e.target.value as any})}
-                        >
-                          <option value="metr">metr</option>
-                          <option value="dona">dona</option>
-                        </select>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">
+                      Miqdor ({formData.unit === 'dona' ? 'dona' : formData.unit === 'metr' ? 'metr' : formData.unit === 'rulon' ? 'rulon' : formData.unit === 'karobka' ? 'karobka' : formData.unit === 'kg' ? 'kg' : formData.unit === 'gram' ? 'gram' : 'litr'})
+                    </label>
+                    {editingProduct ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 px-3 py-2 bg-surface-100 rounded-lg text-center font-semibold text-surface-900">
+                          {formatNumber(formData.quantity || 0)}
+                        </div>
+                        <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon-sm bg-success-100 text-success-600 hover:bg-success-200">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon-sm bg-danger-100 text-danger-600 hover:bg-danger-200">
+                          <Minus className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <input 
+                        type="text" 
+                        className="input" 
+                        placeholder="0" 
+                        value={formatInputNumber(formData.quantity)} 
+                        onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} 
+                        required 
+                      />
+                    )}
+                  </div>
                 </div>
 
-                {/* Konversiya natijasi */}
-                {formData.conversionEnabled && formData.conversionRate && formData.quantity && (
-                  <div className="mt-3 p-3 bg-purple-50 rounded-xl">
-                    <p className="text-sm text-purple-700">
-                      <span className="font-semibold">{formData.quantity}</span> {formData.unit === 'rulon' ? 'rulon' : 'karobka'} = 
-                      <span className="font-semibold ml-1">{Number(formData.quantity) * Number(formData.conversionRate)}</span> {formData.baseUnit}
-                    </p>
+                {/* Metr tanlanganda - Rulon sozlamalari */}
+                {formData.unit === 'metr' && (
+                  <div className="bg-purple-50 rounded-xl p-3 mb-3 border border-purple-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-purple-700 mb-1 block">🎞️ 1 rulonda necha metr?</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="30"
+                          value={formData.metersPerRoll}
+                          onChange={e => setFormData({...formData, metersPerRoll: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-purple-700 mb-1 block">Rulon narxi (so'm)</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="0"
+                          value={formatInputNumber(formData.pricePerRoll)}
+                          onChange={e => setFormData({...formData, pricePerRoll: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+                    {/* Avtomatik hisoblash */}
+                    {formData.metersPerRoll && formData.quantity && (
+                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+                        <RotateCcw className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-700">
+                          {formData.quantity} metr = {(Number(formData.quantity) / Number(formData.metersPerRoll)).toFixed(1)} rulon
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Dona tanlanganda - Karobka sozlamalari */}
+                {formData.unit === 'dona' && (
+                  <div className="bg-orange-50 rounded-xl p-3 mb-3 border border-orange-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-orange-700 mb-1 block">📦 1 karobkada necha dona?</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="12"
+                          value={formData.unitsPerBox}
+                          onChange={e => setFormData({...formData, unitsPerBox: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-orange-700 mb-1 block">Karobka narxi (so'm)</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="0"
+                          value={formatInputNumber(formData.pricePerBox)}
+                          onChange={e => setFormData({...formData, pricePerBox: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+                    {/* Avtomatik hisoblash */}
+                    {formData.unitsPerBox && formData.quantity && (
+                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+                        <RotateCcw className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm font-semibold text-orange-700">
+                          {formData.quantity} dona = {(Number(formData.quantity) / Number(formData.unitsPerBox)).toFixed(1)} karobka
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Rulon tanlanganda - 1 rulonda necha metr */}
+                {formData.unit === 'rulon' && (
+                  <div className="bg-purple-50 rounded-xl p-3 mb-3 border border-purple-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-purple-700 mb-1 block">1 rulonda necha metr?</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="30"
+                          value={formData.metersPerRoll}
+                          onChange={e => setFormData({...formData, metersPerRoll: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+                    {/* Avtomatik hisoblash */}
+                    {formData.metersPerRoll && formData.quantity && (
+                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+                        <RotateCcw className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-700">
+                          {formData.quantity} rulon = {formatNumber(Number(formData.quantity) * Number(formData.metersPerRoll))} metr
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Karobka tanlanganda - 1 karobkada necha dona */}
+                {formData.unit === 'karobka' && (
+                  <div className="bg-orange-50 rounded-xl p-3 mb-3 border border-orange-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-medium text-orange-700 mb-1 block">1 karobkada necha dona?</label>
+                        <input 
+                          type="text" 
+                          className="input text-sm" 
+                          placeholder="12"
+                          value={formData.unitsPerBox}
+                          onChange={e => setFormData({...formData, unitsPerBox: parseNumber(e.target.value)})}
+                        />
+                      </div>
+                    </div>
+                    {/* Avtomatik hisoblash */}
+                    {formData.unitsPerBox && formData.quantity && (
+                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
+                        <RotateCcw className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm font-semibold text-orange-700">
+                          {formData.quantity} karobka = {formatNumber(Number(formData.quantity) * Number(formData.unitsPerBox))} dona
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Qo'shimcha narxlar */}
+              {/* Narxlar */}
               <div className="border-t border-surface-200 pt-4 mt-4">
                 <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-600" />
-                  Qo'shimcha narxlar (ixtiyoriy)
+                  Narxlar
                 </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-surface-600 mb-1 block">Metr narxi</label>
-                    <input 
-                      type="text" 
-                      className="input text-sm py-2" 
-                      placeholder="0"
-                      value={formatInputNumber(formData.pricePerMeter)}
-                      onChange={e => setFormData({...formData, pricePerMeter: parseNumber(e.target.value)})}
-                    />
+                
+                {/* Asosiy narx - birlikka qarab */}
+                <div className="mb-4">
+                  <label className="text-xs font-medium text-surface-600 mb-1 block">
+                    {formData.unit === 'metr' ? '📏 Metr narxi' : 
+                     formData.unit === 'rulon' ? '🎞️ Rulon narxi' : 
+                     formData.unit === 'karobka' ? '📦 Karobka narxi' : 
+                     formData.unit === 'kg' ? '⚖️ Kg narxi' : 
+                     formData.unit === 'gram' ? '⚖️ Gram narxi' : 
+                     formData.unit === 'litr' ? '💧 Litr narxi' : 
+                     '💰 Dona narxi'} (so'm)
+                  </label>
+                  <input 
+                    type="text" 
+                    className="input" 
+                    placeholder="0"
+                    value={formatInputNumber(formData.currentPrice)}
+                    onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})}
+                    required
+                  />
+                </div>
+
+                {/* Metr narxi - diapazon bo'yicha */}
+                {(formData.unit === 'metr' || formData.unit === 'rulon') && (
+                  <div className="bg-blue-50 rounded-xl p-3 mb-3 border border-blue-200">
+                    <label className="text-xs font-medium text-blue-700 mb-2 block">📏 Metr narxlari (diapazon bo'yicha)</label>
+                    {formData.meterPriceRanges.map((range, idx) => (
+                      <div key={idx} className="flex items-center gap-2 mb-2">
+                        <input 
+                          type="text" 
+                          className="input text-sm w-16" 
+                          placeholder="1"
+                          value={range.from}
+                          onChange={e => {
+                            const newRanges = [...formData.meterPriceRanges];
+                            newRanges[idx].from = e.target.value;
+                            setFormData({...formData, meterPriceRanges: newRanges});
+                          }}
+                        />
+                        <span className="text-xs text-blue-600">dan</span>
+                        <input 
+                          type="text" 
+                          className="input text-sm w-16" 
+                          placeholder="10"
+                          value={range.to}
+                          onChange={e => {
+                            const newRanges = [...formData.meterPriceRanges];
+                            newRanges[idx].to = e.target.value;
+                            setFormData({...formData, meterPriceRanges: newRanges});
+                          }}
+                        />
+                        <span className="text-xs text-blue-600">gacha</span>
+                        <input 
+                          type="text" 
+                          className="input text-sm flex-1" 
+                          placeholder="Narx"
+                          value={formatInputNumber(range.price)}
+                          onChange={e => {
+                            const newRanges = [...formData.meterPriceRanges];
+                            newRanges[idx].price = parseNumber(e.target.value);
+                            setFormData({...formData, meterPriceRanges: newRanges});
+                          }}
+                        />
+                        <span className="text-xs text-blue-600">so'm</span>
+                        {formData.meterPriceRanges.length > 1 && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const newRanges = formData.meterPriceRanges.filter((_, i) => i !== idx);
+                              setFormData({...formData, meterPriceRanges: newRanges});
+                            }}
+                            className="w-6 h-6 bg-red-100 text-red-600 rounded flex items-center justify-center hover:bg-red-200"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData, 
+                        meterPriceRanges: [...formData.meterPriceRanges, { from: '', to: '', price: '' }]
+                      })}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Diapazon qo'shish
+                    </button>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-surface-600 mb-1 block">Rulon narxi</label>
+                )}
+
+                {/* Kg narxi */}
+                {formData.unit === 'kg' && (
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">⚖️ Kg narxi (so'm)</label>
                     <input 
                       type="text" 
-                      className="input text-sm py-2" 
-                      placeholder="0"
-                      value={formatInputNumber(formData.pricePerRoll)}
-                      onChange={e => setFormData({...formData, pricePerRoll: parseNumber(e.target.value)})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-surface-600 mb-1 block">Karobka narxi</label>
-                    <input 
-                      type="text" 
-                      className="input text-sm py-2" 
-                      placeholder="0"
-                      value={formatInputNumber(formData.pricePerBox)}
-                      onChange={e => setFormData({...formData, pricePerBox: parseNumber(e.target.value)})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-surface-600 mb-1 block">Kg narxi</label>
-                    <input 
-                      type="text" 
-                      className="input text-sm py-2" 
+                      className="input text-sm" 
                       placeholder="0"
                       value={formatInputNumber(formData.pricePerKg)}
                       onChange={e => setFormData({...formData, pricePerKg: parseNumber(e.target.value)})}
                     />
                   </div>
-                </div>
+                )}
               </div>
               
               <div className="flex gap-3 pt-4">
@@ -1308,255 +1318,6 @@ export default function Products() {
         </div>
       )}
 
-      {/* Print Modal */}
-      {showPrintModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="overlay" onClick={() => setShowPrintModal(false)} />
-          <div className="modal w-full max-w-4xl p-6 relative z-10 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-900">Print sozlamalari</h3>
-              <button onClick={() => setShowPrintModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Settings Panel */}
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Printer tanlash</label>
-                  <select 
-                    className="input"
-                    value={printSettings.printer}
-                    onChange={e => setPrintSettings({...printSettings, printer: e.target.value})}
-                  >
-                    <option value="">Printer tanlang</option>
-                    {availablePrinters.map(printer => (
-                      <option key={printer} value={printer}>{printer}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-surface-500 mt-1">
-                    Print tugmasini bosganda Windows print dialog ochiladi va barcha mavjud printerlarni ko'rsatadi
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Qog'oz o'lchami</label>
-                  <select 
-                    className="input"
-                    value={printSettings.size}
-                    onChange={e => setPrintSettings({...printSettings, size: e.target.value})}
-                  >
-                    <option value="card">Kichik yorliq (50×25mm)</option>
-                    <option value="A4">A4 (210×297mm)</option>
-                    <option value="A5">A5 (148×210mm)</option>
-                    <option value="thermal">Thermal (80×120mm)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Nusxalar soni</label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="10"
-                    className="input"
-                    value={printSettings.copies}
-                    onChange={e => setPrintSettings({...printSettings, copies: parseInt(e.target.value) || 1})}
-                  />
-                </div>
-
-                <div className="border-t border-surface-200 pt-4">
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Maxsus o'lcham (ixtiyoriy)</label>
-                  <p className="text-xs text-surface-500 mb-3">Agar maxsus o'lcham belgilasangiz, u qog'oz o'lchamidan ustun bo'ladi</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-surface-600 mb-1 block">Eni (mm)</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        className="input"
-                        placeholder="Masalan: 50"
-                        value={printSettings.customWidth}
-                        onChange={e => setPrintSettings({...printSettings, customWidth: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-surface-600 mb-1 block">Bo'yi (mm)</label>
-                      <input 
-                        type="number" 
-                        min="1"
-                        className="input"
-                        placeholder="Masalan: 25"
-                        value={printSettings.customHeight}
-                        onChange={e => setPrintSettings({...printSettings, customHeight: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Preview Panel */}
-              <div className="bg-surface-50 rounded-xl p-4">
-                <h4 className="text-sm font-medium text-surface-700 mb-3">Ko'rinish</h4>
-                <div className="bg-white shadow-md rounded-xl p-6 flex justify-center items-start min-h-[420px]">
-                  <div 
-                    className="bg-white border border-gray-200 shadow-lg rounded-xl"
-                    style={{
-                      width: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customWidth}mm` : (printSettings.size === 'card' ? '26mm' : printSettings.size === 'thermal' ? '48mm' : printSettings.size === 'A4' ? '80mm' : printSettings.size === 'A5' ? '140mm' : '120mm'),
-                      height: (printSettings.customWidth && printSettings.customHeight) ? `${printSettings.customHeight}mm` : (printSettings.size === 'card' ? '17mm' : printSettings.size === 'thermal' ? '42mm' : printSettings.size === 'A4' ? '60mm' : printSettings.size === 'A5' ? '115mm' : '92mm'),
-                      fontSize: printSettings.size === 'card' ? '5px' : printSettings.size === 'thermal' ? '9px' : '11px',
-                      transform: printSettings.size === 'card' ? 'scale(4.2)' : printSettings.size === 'thermal' ? 'scale(2.1)' : 'scale(1.8)',
-                      transformOrigin: 'center center',
-                      overflow: 'hidden',
-                      padding: printSettings.size === 'card' ? '1.2mm' : printSettings.size === 'thermal' ? '7px' : '12px',
-                      borderRadius: '8px',
-                      background: '#ffffff',
-                      marginTop: '80px'
-                    }}
-                  >
-                    {/* Main content - horizontal layout */}
-                    <div className="flex items-center h-full" style={{gap: printSettings.size === 'card' ? '2px' : '6px'}}>
-                      {/* Left side - Product info */}
-                      <div className="flex-1 flex flex-col justify-center h-full" style={{maxWidth: '58%', paddingRight: '6px'}}>
-                        {/* Price */}
-                        <div 
-                          className="font-bold"
-                          style={{
-                            fontSize: printSettings.size === 'card' ? '10px' : printSettings.size === 'thermal' ? '18px' : '22px',
-                            lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '0px' : '1px',
-                            fontWeight: '800',
-                            color: '#d32f2f'
-                          }}
-                        >
-                          {formatNumber(selectedProduct.price)} so'm
-                        </div>
-
-                        <div 
-                          className="text-gray-600"
-                          style={{
-                            fontSize: printSettings.size === 'card' ? '6px' : printSettings.size === 'thermal' ? '12px' : '16px',
-                            lineHeight: '1.0',
-                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
-                            fontWeight: '500',
-                            color: '#666'
-                          }}
-                        >
-                          Kod: {selectedProduct.code}
-                        </div>
-
-                        <div 
-                          className="font-bold text-black"
-                          style={{
-                          fontSize: printSettings.size === 'card' ? '7px' : printSettings.size === 'thermal' ? '14px' : '18px',
-                          lineHeight: '1.1',
-                            marginBottom: printSettings.size === 'card' ? '0.5px' : '1px',
-                            fontWeight: '600',
-                            color: '#1a1a1a',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: printSettings.size === 'card' ? 1 : 2,
-                            WebkitBoxOrient: 'vertical'
-                          }}
-                        >
-                          {selectedProduct.name}
-                        </div>
-
-                        {/* Additional info only in standard layout */}
-                        {printSettings.layout === 'standard' && (
-                          <div 
-                            className="text-gray-500" 
-                            style={{
-                              fontSize: printSettings.size === 'card' ? '4px' : printSettings.size === 'thermal' ? '10px' : '12px',
-                              lineHeight: '1.0',
-                              margin: 0,
-                              color: '#888',
-                              fontWeight: '400'
-                            }}
-                          >
-                            Miqdor: {selectedProduct.quantity} | {new Date().toLocaleDateString('uz-UZ')}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right side - QR Code */}
-                      <div className="flex-shrink-0 flex items-center justify-center" style={{
-                        maxWidth: '38%', 
-                        width: '38%',
-                        height: '100%', 
-                        paddingLeft: '6px', 
-                        borderLeft: '1px solid #e5e7eb',
-                        overflow: 'hidden',
-                        boxSizing: 'border-box'
-                      }}>
-                        <div style={{
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '4px',
-                          background: '#ffffff',
-                          padding: '3px',
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxSizing: 'border-box',
-                          maxWidth: '100%',
-                          maxHeight: '100%'
-                        }}>
-                          <QRCodeSVG
-                            value={JSON.stringify({
-                              id: selectedProduct._id,
-                              code: selectedProduct.code,
-                              name: selectedProduct.name,
-                              price: selectedProduct.price
-                            })}
-                            size={printSettings.size === 'card' ? 73 : printSettings.size === 'thermal' ? 123 : 143}
-                            level="H"
-                            includeMargin={false}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {printSettings.copies > 1 && (
-                  <p className="text-xs text-surface-500 mt-2 text-center">
-                    {printSettings.copies} nusxa chop etiladi
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-6">
-              <button 
-                type="button" 
-                onClick={() => setShowPrintModal(false)} 
-                className="btn-secondary flex-1"
-              >
-                Bekor qilish
-              </button>
-              <button 
-                type="button" 
-                onClick={handlePrint} 
-                className="btn-primary flex-1"
-                disabled={!printSettings.printer}
-              >
-                <Printer className="w-4 h-4" />
-                Print
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Quantity Adjustment Modal */}
       {showQuantityModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -1618,6 +1379,207 @@ export default function Products() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Statistics Modal */}
+      {showStatsModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="overlay" onClick={() => setShowStatsModal(false)} />
+          <div className="modal w-full max-w-4xl p-6 relative z-10 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-surface-900">{selectedProduct.name}</h3>
+                  <p className="text-sm text-surface-500">Sotuv statistikasi va tarixi</p>
+                </div>
+              </div>
+              <button onClick={() => setShowStatsModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
+            </div>
+
+            {statsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="spinner text-brand-600 w-10 h-10 mb-4" />
+                <p className="text-surface-500">Statistika yuklanmoqda...</p>
+              </div>
+            ) : productStats ? (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShoppingCart className="w-5 h-5 text-blue-600" />
+                      <span className="text-xs font-medium text-blue-600 uppercase">Jami sotilgan</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-700">{formatNumber(productStats.stats.totalSold)}</p>
+                    <p className="text-xs text-blue-500">{productStats.stats.totalReceipts} ta chekda</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                      <span className="text-xs font-medium text-green-600 uppercase">Jami daromad</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-700">{formatNumber(productStats.stats.totalRevenue)}</p>
+                    <p className="text-xs text-green-500">so'm</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="w-5 h-5 text-purple-600" />
+                      <span className="text-xs font-medium text-purple-600 uppercase">Eng ko'p kun</span>
+                    </div>
+                    {productStats.stats.bestDay ? (
+                      <>
+                        <p className="text-lg font-bold text-purple-700">{productStats.stats.bestDay.date}</p>
+                        <p className="text-xs text-purple-500">{productStats.stats.bestDay.count} dona sotilgan</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-purple-500">Ma'lumot yo'q</p>
+                    )}
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-5 h-5 text-orange-600" />
+                      <span className="text-xs font-medium text-orange-600 uppercase">Eng ko'p soat</span>
+                    </div>
+                    {productStats.stats.bestHour ? (
+                      <>
+                        <p className="text-lg font-bold text-orange-700">{productStats.stats.bestHour.label}</p>
+                        <p className="text-xs text-orange-500">{productStats.stats.bestHour.count} dona sotilgan</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-orange-500">Ma'lumot yo'q</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Hourly Stats Bar Chart */}
+                <div className="bg-white rounded-xl border border-surface-200 p-4">
+                  <h4 className="text-sm font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-brand-600" />
+                    Soatlik statistika (24 soat)
+                  </h4>
+                  <div className="flex items-end gap-1 h-32">
+                    {productStats.hourlyStats.map((hour, idx) => {
+                      const maxCount = Math.max(...productStats.hourlyStats.map(h => h.count), 1);
+                      const heightPercent = (hour.count / maxCount) * 100;
+                      const isBestHour = productStats.stats.bestHour?.hour === hour.hour;
+                      
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center group relative">
+                          <div 
+                            className={`w-full rounded-t transition-all ${isBestHour ? 'bg-gradient-to-t from-orange-500 to-amber-400' : 'bg-gradient-to-t from-brand-500 to-brand-400'} hover:opacity-80`}
+                            style={{ height: `${Math.max(heightPercent, 4)}%` }}
+                          />
+                          <span className="text-[8px] text-surface-400 mt-1">{hour.hour}</span>
+                          
+                          {/* Tooltip */}
+                          <div className="absolute bottom-full mb-2 hidden group-hover:block bg-surface-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                            {hour.label}: {hour.count} dona
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Last 7 Days Chart */}
+                <div className="bg-white rounded-xl border border-surface-200 p-4">
+                  <h4 className="text-sm font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-brand-600" />
+                    Oxirgi 7 kun
+                  </h4>
+                  <div className="space-y-2">
+                    {productStats.last7Days.map((day, idx) => {
+                      const maxCount = Math.max(...productStats.last7Days.map(d => d.count), 1);
+                      const widthPercent = (day.count / maxCount) * 100;
+                      
+                      return (
+                        <div key={idx} className="flex items-center gap-3">
+                          <span className="text-xs text-surface-600 w-20 flex-shrink-0">
+                            {new Date(day.date).toLocaleDateString('uz-UZ', { weekday: 'short', day: 'numeric' })}
+                          </span>
+                          <div className="flex-1 bg-surface-100 rounded-full h-6 overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full flex items-center justify-end pr-2 transition-all"
+                              style={{ width: `${Math.max(widthPercent, 5)}%` }}
+                            >
+                              {day.count > 0 && (
+                                <span className="text-[10px] font-bold text-white">{day.count}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-xs text-surface-500 w-24 text-right">
+                            {formatNumber(day.revenue)} so'm
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Recent Sales Table */}
+                <div className="bg-white rounded-xl border border-surface-200 p-4">
+                  <h4 className="text-sm font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 text-brand-600" />
+                    Oxirgi sotuvlar (20 ta)
+                  </h4>
+                  {productStats.recentSales.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-surface-200">
+                            <th className="text-left py-2 px-3 text-surface-600 font-medium">Sana</th>
+                            <th className="text-center py-2 px-3 text-surface-600 font-medium">Miqdor</th>
+                            <th className="text-right py-2 px-3 text-surface-600 font-medium">Narx</th>
+                            <th className="text-right py-2 px-3 text-surface-600 font-medium">Jami</th>
+                            <th className="text-left py-2 px-3 text-surface-600 font-medium">Mijoz</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productStats.recentSales.map((sale, idx) => (
+                            <tr key={idx} className="border-b border-surface-100 hover:bg-surface-50">
+                              <td className="py-2 px-3 text-surface-700">
+                                {new Date(sale.date).toLocaleString('uz-UZ', { 
+                                  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                                })}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <span className="px-2 py-0.5 bg-brand-100 text-brand-700 rounded-full text-xs font-semibold">
+                                  {sale.quantity}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-right text-surface-600">{formatNumber(sale.price)}</td>
+                              <td className="py-2 px-3 text-right font-semibold text-surface-900">{formatNumber(sale.total)}</td>
+                              <td className="py-2 px-3 text-surface-600">
+                                {sale.customer?.name || 'Noma\'lum'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-surface-500">
+                      <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-surface-300" />
+                      <p>Hali sotuvlar yo'q</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-surface-500">
+                <BarChart3 className="w-16 h-16 mx-auto mb-4 text-surface-300" />
+                <p>Statistika ma'lumotlari topilmadi</p>
+              </div>
+            )}
           </div>
         </div>
       )}

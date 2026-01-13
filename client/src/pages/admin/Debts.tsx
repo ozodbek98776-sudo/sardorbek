@@ -312,17 +312,57 @@ export default function Debts() {
                   const remaining = debt.amount - debt.paidAmount;
                   const paidPercent = Math.round((debt.paidAmount / debt.amount) * 100);
                   
+                  // To'lov muddati yaqinlashganini tekshirish
+                  const dueDate = new Date(debt.dueDate);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  // Rang logikasi: 
+                  // - Muddati o'tgan yoki bugun = qizil
+                  // - 3 kun qolgan = to'q sariq (orange)
+                  // - 7 kun qolgan = sariq
+                  // - Boshqa = normal
+                  const isUrgent = !isPaid && (isOverdue || daysUntilDue <= 0); // Muddati o'tgan
+                  const isWarning = !isPaid && !isUrgent && daysUntilDue <= 3; // 3 kun qolgan
+                  const isCaution = !isPaid && !isUrgent && !isWarning && daysUntilDue <= 7; // 7 kun qolgan
+                  
+                  // Karta chegarasi rangi
+                  const borderColor = isUrgent ? 'border-red-400 ring-2 ring-red-200' : 
+                                     isWarning ? 'border-orange-400 ring-2 ring-orange-200' : 
+                                     isCaution ? 'border-amber-400 ring-1 ring-amber-200' : 
+                                     'border-surface-200 hover:border-brand-300';
+                  
                   return (
-                    <div key={debt._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                    <div key={debt._id} className={`bg-white rounded-2xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
                       {/* Header with Avatar and Status */}
                       <div className={`relative p-4 ${
+                        isUrgent ? 'bg-gradient-to-br from-red-100 to-rose-100' :
+                        isWarning ? 'bg-gradient-to-br from-orange-50 to-amber-50' :
+                        isCaution ? 'bg-gradient-to-br from-amber-50 to-yellow-50' :
                         debtType === 'receivable' 
                           ? 'bg-gradient-to-br from-emerald-50 to-green-50' 
                           : 'bg-gradient-to-br from-red-50 to-rose-50'
                       }`}>
+                        {/* Muddat ogohlantirishi */}
+                        {!isPaid && daysUntilDue <= 7 && (
+                          <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-[10px] font-bold ${
+                            isUrgent ? 'bg-red-500 text-white animate-pulse' :
+                            isWarning ? 'bg-orange-500 text-white' :
+                            'bg-amber-500 text-white'
+                          }`}>
+                            {isOverdue || daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} kun o'tdi!` :
+                             daysUntilDue === 0 ? 'Bugun!' :
+                             `${daysUntilDue} kun qoldi`}
+                          </div>
+                        )}
+                        
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                              isUrgent ? 'bg-gradient-to-br from-red-500 to-rose-600' :
+                              isWarning ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
+                              isCaution ? 'bg-gradient-to-br from-amber-400 to-yellow-500' :
                               debtType === 'receivable' 
                                 ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
                                 : 'bg-gradient-to-br from-red-400 to-rose-500'
@@ -361,9 +401,14 @@ export default function Debts() {
                               <span>To'langan: {paidPercent}%</span>
                               <span>{formatNumber(debt.paidAmount)} / {formatNumber(debt.amount)}</span>
                             </div>
-                            <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+                            <div className={`h-2 rounded-full overflow-hidden ${
+                              isUrgent ? 'bg-red-200' : isWarning ? 'bg-orange-200' : isCaution ? 'bg-amber-200' : 'bg-white/60'
+                            }`}>
                               <div 
                                 className={`h-full rounded-full transition-all duration-500 ${
+                                  isUrgent ? 'bg-red-500' :
+                                  isWarning ? 'bg-orange-500' :
+                                  isCaution ? 'bg-amber-500' :
                                   debtType === 'receivable' ? 'bg-emerald-500' : 'bg-red-500'
                                 }`}
                                 style={{ width: `${paidPercent}%` }}

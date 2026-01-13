@@ -6,6 +6,9 @@ class POSTelegramBot {
     // Bot tokenini environment variable dan olish
     this.token = process.env.POS_TELEGRAM_BOT_TOKEN;
     this.adminChatId = process.env.POS_ADMIN_CHAT_ID;
+    this.isReconnecting = false;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
 
     if (!this.token) {
       console.error('❌ POS_TELEGRAM_BOT_TOKEN topilmadi .env faylida');
@@ -13,12 +16,57 @@ class POSTelegramBot {
     }
 
     // Bot yaratish - polling rejimida
-    this.bot = new TelegramBot(this.token, { polling: true });
+    this.initBot();
+  }
 
-    console.log('🤖 POS Telegram Bot ishga tushdi (polling rejimida)');
+  // Bot ni ishga tushirish
+  initBot() {
+    try {
+      this.bot = new TelegramBot(this.token, { 
+        polling: {
+          interval: 1000,
+          autoStart: true,
+          params: {
+            timeout: 30
+          }
+        }
+      });
 
-    // Event handlerlarni o'rnatish
-    this.setupHandlers();
+      console.log('🤖 POS Telegram Bot ishga tushdi (polling rejimida)');
+
+      // Event handlerlarni o'rnatish
+      this.setupHandlers();
+      this.reconnectAttempts = 0;
+    } catch (error) {
+      console.error('❌ Bot yaratishda xatolik:', error);
+      this.scheduleReconnect();
+    }
+  }
+
+  // Qayta ulanishni rejalashtirish
+  scheduleReconnect() {
+    if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts) {
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.error('❌ Maksimal qayta ulanish urinishlari tugadi');
+      }
+      return;
+    }
+
+    this.isReconnecting = true;
+    this.reconnectAttempts++;
+    
+    const delay = Math.min(5000 * this.reconnectAttempts, 60000); // Max 60 sekund
+    console.log(`🔄 Telegram Bot qayta ulanish ${this.reconnectAttempts}/${this.maxReconnectAttempts} (${delay/1000}s keyin)...`);
+
+    setTimeout(() => {
+      this.isReconnecting = false;
+      if (this.bot) {
+        try {
+          this.bot.stopPolling();
+        } catch (e) {}
+      }
+      this.initBot();
+    }, delay);
   }
 
   // Barcha event handlerlarni o'rnatish
@@ -43,12 +91,18 @@ class POSTelegramBot {
 
     // Xatoliklarni ushlash
     this.bot.on('error', (error) => {
-      console.error('❌ Telegram Bot xatosi:', error);
+      console.error('❌ Telegram Bot xatosi:', error.message || error);
     });
 
-    // Polling xatoliklarini ushlash
+    // Polling xatoliklarini ushlash va qayta ulanish
     this.bot.on('polling_error', (error) => {
-      console.error('❌ Telegram Bot polling xatosi:', error);
+      const errorCode = error.code || error.cause?.code;
+      console.error('❌ Telegram Bot polling xatosi:', errorCode, error.message || '');
+      
+      // Tarmoq xatoliklari uchun qayta ulanish
+      if (errorCode === 'EFATAL' || errorCode === 'ECONNRESET' || errorCode === 'ETIMEDOUT' || errorCode === 'ENOTFOUND') {
+        this.scheduleReconnect();
+      }
     });
   }
 

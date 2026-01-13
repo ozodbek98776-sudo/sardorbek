@@ -14,6 +14,13 @@ const productSchema = new mongoose.Schema({
   images: [{ type: String }], // Array of image paths
   minStock: { type: Number, default: 50 },
 
+  // Mahsulot o'lchamlari (sm/mm)
+  dimensions: {
+    width: { type: String, default: '' },   // Eni (sm)
+    height: { type: String, default: '' },  // Bo'yi (mm)
+    length: { type: String, default: '' }   // Uzunligi (sm)
+  },
+
   // O'lchov birliklari
   unit: {
     type: String,

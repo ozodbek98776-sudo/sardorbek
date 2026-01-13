@@ -279,6 +279,129 @@ router.delete('/delete-image', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Mahsulot statistikasi - sotuv tarixi
+router.get('/stats/:id', auth, async (req, res) => {
+  try {
+    const Receipt = require('../models/Receipt');
+    const productId = req.params.id;
+    
+    const product = await Product.findById(productId);
+    if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
+
+    // Barcha sotuvlarni olish (bu mahsulot qatnashgan)
+    const receipts = await Receipt.find({
+      'items.product': productId,
+      status: 'completed'
+    }).sort({ createdAt: -1 }).populate('customer', 'name phone');
+
+    // Statistikalarni hisoblash
+    let totalSold = 0;
+    let totalRevenue = 0;
+    const salesByDate = {};
+    const salesByHour = {};
+    const salesHistory = [];
+
+    receipts.forEach(receipt => {
+      const item = receipt.items.find(i => i.product?.toString() === productId);
+      if (item) {
+        totalSold += item.quantity;
+        totalRevenue += item.price * item.quantity;
+
+        // Sana bo'yicha
+        const date = new Date(receipt.createdAt).toLocaleDateString('uz-UZ');
+        if (!salesByDate[date]) salesByDate[date] = { count: 0, revenue: 0 };
+        salesByDate[date].count += item.quantity;
+        salesByDate[date].revenue += item.price * item.quantity;
+
+        // Soat bo'yicha
+        const hour = new Date(receipt.createdAt).getHours();
+        if (!salesByHour[hour]) salesByHour[hour] = { count: 0, revenue: 0 };
+        salesByHour[hour].count += item.quantity;
+        salesByHour[hour].revenue += item.price * item.quantity;
+
+        // Tarix
+        salesHistory.push({
+          date: receipt.createdAt,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.price * item.quantity,
+          customer: receipt.customer,
+          receiptId: receipt._id
+        });
+      }
+    });
+
+    // Eng ko'p sotilgan kun
+    let bestDay = null;
+    let bestDayCount = 0;
+    Object.entries(salesByDate).forEach(([date, data]) => {
+      if (data.count > bestDayCount) {
+        bestDayCount = data.count;
+        bestDay = date;
+      }
+    });
+
+    // Eng ko'p sotilgan soat
+    let bestHour = null;
+    let bestHourCount = 0;
+    Object.entries(salesByHour).forEach(([hour, data]) => {
+      if (data.count > bestHourCount) {
+        bestHourCount = data.count;
+        bestHour = parseInt(hour);
+      }
+    });
+
+    // Oxirgi 7 kun statistikasi
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toLocaleDateString('uz-UZ');
+      const isoDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      last7Days.push({
+        date: isoDate,
+        count: salesByDate[dateStr]?.count || 0,
+        revenue: salesByDate[dateStr]?.revenue || 0
+      });
+    }
+
+    // Soatlar bo'yicha (0-23)
+    const hourlyStats = [];
+    for (let h = 0; h < 24; h++) {
+      hourlyStats.push({
+        hour: h,
+        label: `${h}:00`,
+        count: salesByHour[h]?.count || 0,
+        revenue: salesByHour[h]?.revenue || 0
+      });
+    }
+
+    res.json({
+      product: {
+        _id: product._id,
+        name: product.name,
+        code: product.code,
+        price: product.price,
+        quantity: product.quantity
+      },
+      stats: {
+        totalSold,
+        totalRevenue,
+        totalReceipts: receipts.length,
+        averagePerSale: receipts.length > 0 ? Math.round(totalSold / receipts.length) : 0,
+        bestDay: bestDay ? { date: bestDay, count: bestDayCount } : null,
+        bestHour: bestHour !== null ? { hour: bestHour, label: `${bestHour}:00 - ${bestHour + 1}:00`, count: bestHourCount } : null
+      },
+      last7Days,
+      hourlyStats,
+      recentSales: salesHistory.slice(0, 20) // Oxirgi 20 ta sotuv
+    });
+  } catch (error) {
+    console.error('Product stats error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Public endpoint - QR code skanerlash uchun (auth talab qilmaydi)
 router.get('/public/:id', async (req, res) => {
   try {
