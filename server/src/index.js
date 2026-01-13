@@ -54,6 +54,21 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/partners', partnerRoutes);
 
+// Production da static fayllarni serve qilish
+if (process.env.NODE_ENV === 'production') {
+  // Client build fayllarini serve qilish
+  app.use(express.static(path.join(__dirname, '../public')));
+  
+  // SPA uchun - barcha route larni index.html ga yo'naltirish
+  app.get('*', (req, res) => {
+    // API route larini o'tkazib yuborish
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ message: 'API endpoint topilmadi' });
+    }
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  });
+}
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal_uz')
   .then(async () => {

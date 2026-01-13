@@ -161,10 +161,13 @@ router.post('/kassa-atomic', async (req, res) => {
         const customerData = await Customer.findById(customer);
 
         if (customerData) {
-          // Statistikani yangilash
+          // Ball hisoblash - har 1,000,000 = 1 ball
+          const earnedBalls = Math.floor(total / 1000000);
+          
+          // Statistikani va ballni yangilash
           await Customer.findByIdAndUpdate(
             customer,
-            { $inc: { totalPurchases: total } }
+            { $inc: { totalPurchases: total, totalBalls: earnedBalls } }
           );
 
           // Qarz to'lovi logikasi (agar kerak bo'lsa)
@@ -278,10 +281,13 @@ router.post('/kassa', async (req, res) => {
         const customerData = await Customer.findById(customer);
 
         if (customerData) {
-          // Statistikani yangilash
+          // Ball hisoblash - har 1,000,000 = 1 ball
+          const earnedBalls = Math.floor(total / 1000000);
+          
+          // Statistikani va ballni yangilash
           await Customer.findByIdAndUpdate(
             customer,
-            { $inc: { totalPurchases: total } }
+            { $inc: { totalPurchases: total, totalBalls: earnedBalls } }
           );
 
           // Qoldiq summa qarz sifatida qo'shish (agar to'liq to'lanmagan bo'lsa)

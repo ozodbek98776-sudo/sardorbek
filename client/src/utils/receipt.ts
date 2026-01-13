@@ -35,6 +35,10 @@ export const formatReceiptData = (data: ReceiptData): string => {
   
   receipt += '--------------------------------\n';
   
+  // Umumiy chegirma hisoblash
+  let totalOriginalPrice = 0;
+  let totalCurrentPrice = 0;
+  
   // Items - Oddiy va tushunarli
   data.items.forEach((item, index) => {
     receipt += `${index + 1}. ${item.name}\n`;
@@ -43,6 +47,10 @@ export const formatReceiptData = (data: ReceiptData): string => {
     // Oldingi va hozirgi narxlarni ko'rsatish
     const previousPrice = (item as any).previousPrice;
     const currentPrice = (item as any).currentPrice || item.price;
+    
+    // Umumiy narxlarni yig'ish
+    totalOriginalPrice += (previousPrice && previousPrice > 0 ? previousPrice : currentPrice) * item.cartQuantity;
+    totalCurrentPrice += currentPrice * item.cartQuantity;
     
     if (previousPrice && previousPrice > 0 && previousPrice !== currentPrice) {
       const discountPercent = Math.round(((previousPrice - currentPrice) / previousPrice) * 100);
@@ -69,6 +77,13 @@ export const formatReceiptData = (data: ReceiptData): string => {
   // Total - Katta va aniq
   receipt += `JAMI:     ${formatNumber(data.total)} SO'M\n`;
   
+  // Umumiy chegirma foizini ko'rsatish
+  if (totalOriginalPrice > totalCurrentPrice) {
+    const totalDiscount = totalOriginalPrice - totalCurrentPrice;
+    const totalDiscountPercent = Math.round((totalDiscount / totalOriginalPrice) * 100);
+    receipt += `CHEGIRMA: ${formatNumber(totalDiscount)} SO'M (${totalDiscountPercent}%)\n`;
+  }
+  
   // To'lov turlari bo'yicha breakdown
   const totalCash = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
   const totalClick = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
@@ -80,8 +95,23 @@ export const formatReceiptData = (data: ReceiptData): string => {
   
   receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : data.paymentMethod === 'click' ? 'CLICK' : 'PLASTIK KARTA'}\n`;
   
+  // Ball tizimi - har 1,000,000 so'm = 1 ball
+  const earnedBalls = Math.floor(data.total / 1000000);
+  if (earnedBalls > 0) {
+    receipt += '--------------------------------\n';
+    receipt += `BALL:     +${earnedBalls} BALL YUTDINGIZ!\n`;
+  }
+  
+  // Mijoz umumiy balli (agar mavjud bo'lsa)
+  if (data.customer && (data.customer as any).totalBalls) {
+    receipt += `JAMI BALL: ${(data.customer as any).totalBalls} BALL\n`;
+  }
+  
   receipt += '================================\n';
   receipt += '    XARIDINGIZ UCHUN RAHMAT!    \n';
+  receipt += '================================\n';
+  receipt += '\n';
+  receipt += '⚠️ VAZVRAT CHEKSIZ QABUL QILINMAYDI\n';
   receipt += '================================\n';
   
   return receipt;
