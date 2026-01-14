@@ -9,6 +9,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+// Rasmlar uchun alohida URL
+const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:5000';
 
 export default function KassaProducts() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
@@ -697,7 +699,7 @@ export default function KassaProducts() {
 
   const getProductImage = (product: any) => {
     if (product.images && product.images.length > 0) {
-      return `${API_URL}${product.images[0]}`;
+      return `${UPLOADS_URL}${product.images[0]}`;
     }
     return null;
   };
@@ -1068,7 +1070,7 @@ export default function KassaProducts() {
                 <div className="grid grid-cols-4 gap-2 mb-2">
                   {images.map((img, idx) => (
                     <div key={idx} className="relative aspect-square">
-                      <img src={`${API_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <img src={`${UPLOADS_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
                       <button
                         type="button"
                         onClick={() => removeImage(img)}

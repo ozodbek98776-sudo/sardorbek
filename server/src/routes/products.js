@@ -284,14 +284,26 @@ router.get('/stats/:id', auth, async (req, res) => {
   try {
     const Receipt = require('../models/Receipt');
     const productId = req.params.id;
+    const { period } = req.query; // 7, 30, 90, 365, 'all'
     
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
 
+    // Davr bo'yicha filter
+    let dateFilter = {};
+    const now = new Date();
+    if (period && period !== 'all') {
+      const days = parseInt(period);
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { $gte: startDate } };
+    }
+
     // Barcha sotuvlarni olish (bu mahsulot qatnashgan)
     const receipts = await Receipt.find({
       'items.product': productId,
-      status: 'completed'
+      status: 'completed',
+      ...dateFilter
     }).sort({ createdAt: -1 }).populate('customer', 'name phone');
 
     // Statistikalarni hisoblash
@@ -299,6 +311,7 @@ router.get('/stats/:id', auth, async (req, res) => {
     let totalRevenue = 0;
     const salesByDate = {};
     const salesByHour = {};
+    const salesByMonth = {};
     const salesHistory = [];
 
     receipts.forEach(receipt => {
@@ -312,6 +325,12 @@ router.get('/stats/:id', auth, async (req, res) => {
         if (!salesByDate[date]) salesByDate[date] = { count: 0, revenue: 0 };
         salesByDate[date].count += item.quantity;
         salesByDate[date].revenue += item.price * item.quantity;
+
+        // Oy bo'yicha
+        const monthKey = new Date(receipt.createdAt).toISOString().slice(0, 7); // YYYY-MM
+        if (!salesByMonth[monthKey]) salesByMonth[monthKey] = { count: 0, revenue: 0 };
+        salesByMonth[monthKey].count += item.quantity;
+        salesByMonth[monthKey].revenue += item.price * item.quantity;
 
         // Soat bo'yicha
         const hour = new Date(receipt.createdAt).getHours();
@@ -351,19 +370,30 @@ router.get('/stats/:id', auth, async (req, res) => {
       }
     });
 
-    // Oxirgi 7 kun statistikasi
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
+    // Davr bo'yicha kunlik statistika
+    const days = period === 'all' ? 365 : (parseInt(period) || 7);
+    const periodStats = [];
+    for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toLocaleDateString('uz-UZ');
-      const isoDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-      last7Days.push({
+      const isoDate = date.toISOString().split('T')[0];
+      periodStats.push({
         date: isoDate,
         count: salesByDate[dateStr]?.count || 0,
         revenue: salesByDate[dateStr]?.revenue || 0
       });
     }
+
+    // Oylik statistika (yillik ko'rinish uchun)
+    const monthlyStats = Object.entries(salesByMonth)
+      .map(([month, data]) => ({
+        month,
+        label: new Date(month + '-01').toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short' }),
+        count: data.count,
+        revenue: data.revenue
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
 
     // Soatlar bo'yicha (0-23)
     const hourlyStats = [];
@@ -392,9 +422,10 @@ router.get('/stats/:id', auth, async (req, res) => {
         bestDay: bestDay ? { date: bestDay, count: bestDayCount } : null,
         bestHour: bestHour !== null ? { hour: bestHour, label: `${bestHour}:00 - ${bestHour + 1}:00`, count: bestHourCount } : null
       },
-      last7Days,
+      periodStats,
+      monthlyStats,
       hourlyStats,
-      recentSales: salesHistory.slice(0, 20) // Oxirgi 20 ta sotuv
+      recentSales: salesHistory.slice(0, 50) // Oxirgi 50 ta sotuv
     });
   } catch (error) {
     console.error('Product stats error:', error);

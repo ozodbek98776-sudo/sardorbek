@@ -4,6 +4,9 @@ import { Package, ArrowLeft, Tag, Box, DollarSign, Calendar, Warehouse } from 'l
 import api from '../utils/api';
 import { formatNumber } from '../utils/format';
 
+// Rasmlar uchun URL
+const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:5000';
+
 interface Product {
   _id: string;
   code: string;
@@ -95,7 +98,7 @@ export default function ProductView() {
         {product.images && product.images.length > 0 ? (
           <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
             <img 
-              src={product.images[0]} 
+              src={`${UPLOADS_URL}${product.images[0]}`} 
               alt={product.name}
               className="w-full h-64 object-cover"
             />

@@ -9,6 +9,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+// Rasmlar uchun alohida URL
+const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:5000';
 
 // Statistika interfeysi
 interface ProductStats {
@@ -21,7 +23,8 @@ interface ProductStats {
     bestDay: { date: string; count: number } | null;
     bestHour: { hour: number; label: string; count: number } | null;
   };
-  last7Days: { date: string; count: number; revenue: number }[];
+  periodStats: { date: string; count: number; revenue: number }[];
+  monthlyStats: { month: string; label: string; count: number; revenue: number }[];
   hourlyStats: { hour: number; label: string; count: number; revenue: number }[];
   recentSales: { date: string; quantity: number; price: number; total: number; customer: any; receiptId: string }[];
 }
@@ -35,6 +38,7 @@ export default function Products() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [productStats, setProductStats] = useState<ProductStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsPeriod, setStatsPeriod] = useState<string>('7'); // 7, 30, 90, 365, all
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,17 +278,34 @@ export default function Products() {
   };
 
   // Mahsulot statistikasini ochish
-  const openStatsModal = async (product: Product) => {
+  const openStatsModal = async (product: Product, period: string = '7') => {
     setSelectedProduct(product);
     setShowStatsModal(true);
     setStatsLoading(true);
+    setStatsPeriod(period);
     
     try {
-      const res = await api.get(`/products/stats/${product._id}`);
+      const res = await api.get(`/products/stats/${product._id}?period=${period}`);
       setProductStats(res.data);
     } catch (err) {
       console.error('Error fetching product stats:', err);
       showAlert('Statistikani yuklashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  // Davr o'zgarganda statistikani qayta yuklash
+  const handlePeriodChange = async (period: string) => {
+    if (!selectedProduct) return;
+    setStatsPeriod(period);
+    setStatsLoading(true);
+    
+    try {
+      const res = await api.get(`/products/stats/${selectedProduct._id}?period=${period}`);
+      setProductStats(res.data);
+    } catch (err) {
+      console.error('Error fetching product stats:', err);
     } finally {
       setStatsLoading(false);
     }
@@ -625,7 +646,7 @@ export default function Products() {
 
   const getProductImage = (product: any) => {
     if (product.images && product.images.length > 0) {
-      return `${API_URL}${product.images[0]}`;
+      return `${UPLOADS_URL}${product.images[0]}`;
     }
     return null;
   };
@@ -857,7 +878,7 @@ export default function Products() {
                 <div className="grid grid-cols-4 gap-2 mb-2">
                   {images.map((img, idx) => (
                     <div key={idx} className="relative aspect-square">
-                      <img src={`${API_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <img src={`${UPLOADS_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
                       <button
                         type="button"
                         onClick={() => removeImage(img)}
@@ -1490,51 +1511,104 @@ export default function Products() {
                   </div>
                 </div>
 
-                {/* Last 7 Days Chart */}
+                {/* Period Selector & Chart */}
                 <div className="bg-white rounded-xl border border-surface-200 p-4">
-                  <h4 className="text-sm font-semibold text-surface-900 mb-4 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-brand-600" />
-                    Oxirgi 7 kun
-                  </h4>
-                  <div className="space-y-2">
-                    {productStats.last7Days.map((day, idx) => {
-                      const maxCount = Math.max(...productStats.last7Days.map(d => d.count), 1);
-                      const widthPercent = (day.count / maxCount) * 100;
-                      
-                      return (
-                        <div key={idx} className="flex items-center gap-3">
-                          <span className="text-xs text-surface-600 w-20 flex-shrink-0">
-                            {new Date(day.date).toLocaleDateString('uz-UZ', { weekday: 'short', day: 'numeric' })}
-                          </span>
-                          <div className="flex-1 bg-surface-100 rounded-full h-6 overflow-hidden">
-                            <div 
-                              className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full flex items-center justify-end pr-2 transition-all"
-                              style={{ width: `${Math.max(widthPercent, 5)}%` }}
-                            >
-                              {day.count > 0 && (
-                                <span className="text-[10px] font-bold text-white">{day.count}</span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="text-xs text-surface-500 w-24 text-right">
-                            {formatNumber(day.revenue)} so'm
-                          </span>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-semibold text-surface-900 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-brand-600" />
+                      Sotuv tarixi
+                    </h4>
+                    <div className="flex gap-1">
+                      {[
+                        { value: '7', label: '7 kun' },
+                        { value: '30', label: '30 kun' },
+                        { value: '90', label: '3 oy' },
+                        { value: '365', label: '1 yil' },
+                        { value: 'all', label: 'Hammasi' }
+                      ].map(p => (
+                        <button
+                          key={p.value}
+                          onClick={() => handlePeriodChange(p.value)}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                            statsPeriod === p.value 
+                              ? 'bg-brand-600 text-white' 
+                              : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  
+                  {/* Oylik statistika (yillik ko'rinish uchun) */}
+                  {(statsPeriod === '365' || statsPeriod === 'all') && productStats.monthlyStats && productStats.monthlyStats.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {productStats.monthlyStats.map((month, idx) => {
+                        const maxCount = Math.max(...productStats.monthlyStats.map(m => m.count), 1);
+                        const widthPercent = (month.count / maxCount) * 100;
+                        
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            <span className="text-xs text-surface-600 w-24 flex-shrink-0">{month.label}</span>
+                            <div className="flex-1 bg-surface-100 rounded-full h-6 overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full flex items-center justify-end pr-2 transition-all"
+                                style={{ width: `${Math.max(widthPercent, 5)}%` }}
+                              >
+                                {month.count > 0 && (
+                                  <span className="text-[10px] font-bold text-white">{month.count}</span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs text-surface-500 w-28 text-right">
+                              {formatNumber(month.revenue)} so'm
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {productStats.periodStats && productStats.periodStats.slice(-30).map((day, idx) => {
+                        const maxCount = Math.max(...productStats.periodStats.map(d => d.count), 1);
+                        const widthPercent = (day.count / maxCount) * 100;
+                        
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            <span className="text-xs text-surface-600 w-20 flex-shrink-0">
+                              {new Date(day.date).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <div className="flex-1 bg-surface-100 rounded-full h-6 overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full flex items-center justify-end pr-2 transition-all"
+                                style={{ width: `${Math.max(widthPercent, 5)}%` }}
+                              >
+                                {day.count > 0 && (
+                                  <span className="text-[10px] font-bold text-white">{day.count}</span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs text-surface-500 w-24 text-right">
+                              {formatNumber(day.revenue)} so'm
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Recent Sales Table */}
                 <div className="bg-white rounded-xl border border-surface-200 p-4">
                   <h4 className="text-sm font-semibold text-surface-900 mb-4 flex items-center gap-2">
                     <ShoppingCart className="w-4 h-4 text-brand-600" />
-                    Oxirgi sotuvlar (20 ta)
+                    Oxirgi sotuvlar (50 ta)
                   </h4>
                   {productStats.recentSales.length > 0 ? (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
                       <table className="w-full text-sm">
-                        <thead>
+                        <thead className="sticky top-0 bg-white">
                           <tr className="border-b border-surface-200">
                             <th className="text-left py-2 px-3 text-surface-600 font-medium">Sana</th>
                             <th className="text-center py-2 px-3 text-surface-600 font-medium">Miqdor</th>
