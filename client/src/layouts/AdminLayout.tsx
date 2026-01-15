@@ -7,7 +7,7 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}>
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar 

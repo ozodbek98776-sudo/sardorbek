@@ -53,19 +53,38 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   };
 
   return (
-    <aside className={`fixed left-0 top-0 h-full bg-white border-r border-slate-200 transition-all duration-300 ease-in-out z-50 shadow-lg ${
-      collapsed ? 'w-16' : 'w-64'
-    }`}>
+    <aside 
+      className={`fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-50 ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+      style={{
+        background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
+        borderRight: '1px solid rgba(6, 182, 212, 0.2)',
+        boxShadow: '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
+      }}
+    >
       {/* Header */}
-      <div className="h-14 flex items-center justify-between px-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50">
+      <div 
+        className="h-16 flex items-center justify-between px-4"
+        style={{
+          borderBottom: '1px solid rgba(6, 182, 212, 0.15)',
+          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, transparent 100%)'
+        }}
+      >
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-md">
-              <Building2 className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
+              }}
+            >
+              <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-base text-slate-900">Sardorbek</span>
-              <p className="text-xs text-slate-500 font-medium">Furnetura</p>
+              <span className="font-bold text-base text-white">Sardor</span>
+              <p className="text-xs font-medium" style={{ color: '#c4b5fd' }}>Furnitura</p>
             </div>
           </div>
         )}
@@ -73,7 +92,11 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
           <PWAInstallButton variant="icon" />
           <button 
             onClick={() => setCollapsed?.(!collapsed)} 
-            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all duration-200"
+            className="p-2 rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              color: '#c4b5fd'
+            }}
           >
             {collapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
           </button>
@@ -81,20 +104,23 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
       </div>
 
       {/* Navigation */}
-      <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-160px)]">
+      <nav className="p-3 space-y-1.5 overflow-y-auto h-[calc(100vh-180px)]">
         {items.map((item, i) => (
           <NavLink
             key={i}
             to={`${basePath}${item.path}`}
             end={item.path === ''}
             className={({ isActive }) => `
-              flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 group
+              flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200 group
               ${collapsed ? 'justify-center px-2' : ''}
-              ${isActive 
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25' 
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }
             `}
+            style={({ isActive }) => ({
+              background: isActive 
+                ? 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' 
+                : 'transparent',
+              color: isActive ? '#ffffff' : '#c4b5fd',
+              boxShadow: isActive ? '0 4px 12px -2px rgba(6, 182, 212, 0.4)' : 'none'
+            })}
             title={collapsed ? item.label : undefined}
           >
             <span className="flex-shrink-0 transition-transform group-hover:scale-110">{item.icon}</span>
@@ -104,34 +130,56 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
       </nav>
 
       {/* User Section */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50">
+      <div 
+        className="absolute bottom-0 left-0 right-0 p-3"
+        style={{
+          borderTop: '1px solid rgba(6, 182, 212, 0.15)',
+          background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.2) 100%)'
+        }}
+      >
         {!collapsed && (
-          <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-white rounded-xl shadow-sm border border-slate-100">
-            <div className="w-8 h-8 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg flex items-center justify-center">
-              <span className="text-xs font-bold text-slate-700">
+          <div 
+            className="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-xl"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(6, 182, 212, 0.15)'
+            }}
+          >
+            <div 
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
+              }}
+            >
+              <span className="text-sm font-bold text-white">
                 {user?.name?.charAt(0).toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">{user?.name}</p>
-              <p className="text-xs text-slate-500 capitalize font-medium">{user?.role}</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+              <p className="text-xs capitalize font-medium" style={{ color: '#a78bfa' }}>{user?.role}</p>
             </div>
             {user?.role === 'admin' && (
               <button
                 onClick={openEditModal}
-                className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-all duration-200"
+                className="p-1.5 rounded-lg transition-all duration-200"
+                style={{
+                  background: 'rgba(6, 182, 212, 0.2)',
+                  color: '#67e8f9'
+                }}
                 title="Profilni tahrirlash"
               >
-                <Edit className="w-3 h-3" />
+                <Edit className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         )}
         <button
           onClick={logout}
-          className={`flex items-center gap-2 w-full px-3 py-2 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-medium text-sm ${
+          className={`flex items-center gap-2 w-full px-3 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm ${
             collapsed ? 'justify-center px-2' : ''
           }`}
+          style={{ color: '#fca5a5' }}
           title={collapsed ? 'Sign Out' : undefined}
         >
           <LogOut className="w-4 h-4" />
@@ -142,25 +190,45 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
       {/* Edit Profile Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 relative z-10 shadow-2xl border border-slate-200">
+          <div 
+            className="fixed inset-0" 
+            style={{ background: 'rgba(46, 16, 101, 0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowEditModal(false)} 
+          />
+          <div 
+            className="w-full max-w-md p-8 relative z-10 rounded-3xl"
+            style={{
+              background: 'linear-gradient(145deg, #ffffff 0%, #faf5ff 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.15)',
+              boxShadow: '0 25px 50px -12px rgba(46, 16, 101, 0.35)'
+            }}
+          >
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold text-slate-900">{t('sidebar.editProfile')}</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600">
+              <h3 className="text-xl font-bold" style={{ color: '#2e1065' }}>{t('sidebar.editProfile')}</h3>
+              <button 
+                onClick={() => setShowEditModal(false)} 
+                className="p-2 rounded-xl transition-all"
+                style={{ background: '#f5f3ff', color: '#7c3aed' }}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="text-sm font-semibold text-slate-700 mb-3 block flex items-center gap-2">
+                <label className="text-sm font-semibold mb-3 block flex items-center gap-2" style={{ color: '#5b21b6' }}>
                   <User className="w-4 h-4" />
                   {t('sidebar.fullName')}
                 </label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#a1a1aa' }} />
                   <input 
                     type="text" 
-                    className="w-full pl-12 pr-4 py-4 text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white" 
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none" 
+                    style={{
+                      background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                      border: '1.5px solid #ddd6fe',
+                      color: '#2e1065'
+                    }}
                     placeholder={t('sidebar.namePlaceholder')} 
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})} 
@@ -169,15 +237,20 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-slate-700 mb-3 block flex items-center gap-2">
+                <label className="text-sm font-semibold mb-3 block flex items-center gap-2" style={{ color: '#5b21b6' }}>
                   <Phone className="w-4 h-4" />
                   {t('sidebar.phoneNumber')}
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#a1a1aa' }} />
                   <input 
                     type="tel" 
-                    className="w-full pl-12 pr-4 py-4 text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white" 
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none" 
+                    style={{
+                      background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                      border: '1.5px solid #ddd6fe',
+                      color: '#2e1065'
+                    }}
                     placeholder="+998 (XX) XXX-XX-XX" 
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})} 
@@ -186,15 +259,20 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-slate-700 mb-3 block flex items-center gap-2">
+                <label className="text-sm font-semibold mb-3 block flex items-center gap-2" style={{ color: '#5b21b6' }}>
                   <Lock className="w-4 h-4" />
                   {t('sidebar.newPassword')}
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#a1a1aa' }} />
                   <input 
                     type="password" 
-                    className="w-full pl-12 pr-4 py-4 text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white" 
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none" 
+                    style={{
+                      background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                      border: '1.5px solid #ddd6fe',
+                      color: '#2e1065'
+                    }}
                     placeholder={t('sidebar.passwordHint')} 
                     value={formData.password}
                     onChange={e => setFormData({...formData, password: e.target.value})} 
@@ -205,13 +283,21 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                 <button 
                   type="button" 
                   onClick={() => setShowEditModal(false)} 
-                  className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-2xl hover:bg-slate-200 transition-all duration-200"
+                  className="flex-1 px-6 py-3.5 font-semibold rounded-2xl transition-all duration-200"
+                  style={{
+                    background: '#f5f3ff',
+                    color: '#7c3aed'
+                  }}
                 >
                   {t('sidebar.cancel')}
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/25 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-200"
+                  className="flex-1 px-6 py-3.5 text-white font-semibold rounded-2xl transition-all duration-200"
+                  style={{
+                    background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                    boxShadow: '0 4px 14px -2px rgba(124, 58, 237, 0.4)'
+                  }}
                 >
                   {t('sidebar.saveChanges')}
                 </button>
@@ -226,6 +312,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
 export const adminMenuItems: MenuItem[] = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: 'sidebar.statistics', path: '' },
+  { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' },
   { icon: <Package className="w-5 h-5" />, label: 'sidebar.products', path: '/products' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },

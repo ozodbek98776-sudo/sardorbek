@@ -3,17 +3,23 @@
 @tailwind utilities;
 
 /* ============================================
-   🎨 Modern PWA Design System 2025-2026
-   Clean • Minimal • Professional • iOS Optimized
+   💜 SARDOR FURNITURA - To'q Binafsha Dizayn
+   Deep Purple • Violet • Premium
    ============================================ */
 
 @layer base {
   :root {
-    /* iOS Safe Area Variables */
     --safe-area-inset-top: env(safe-area-inset-top, 0px);
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-inset-left: env(safe-area-inset-left, 0px);
     --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    
+    /* Binafsha Ranglar */
+    --purple-dark: #2e1065;
+    --purple-medium: #4c1d95;
+    --purple-light: #7c3aed;
+    --purple-cream: #f5f3ff;
+    --cyan-accent: #06b6d4;
   }
 
   * {
@@ -26,71 +32,57 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* iOS specific */
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 
   body {
-    @apply font-sans bg-gray-50 text-gray-900;
+    @apply font-sans text-slate-900;
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%);
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     line-height: 1.6;
-    /* iOS specific */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
-    /* PWA safe areas */
     padding-top: var(--safe-area-inset-top);
     padding-bottom: var(--safe-area-inset-bottom);
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
+    min-height: 100vh;
   }
 
-  /* iOS PWA Status Bar */
   @media (display-mode: standalone) {
     body {
       padding-top: max(var(--safe-area-inset-top), 20px);
     }
   }
 
-  /* Skeleton Loading Animations */
-  .skeleton {
-    @apply bg-slate-200 animate-pulse rounded-lg;
-  }
-
-  .skeleton-title {
-    @apply h-4 bg-slate-200 animate-pulse rounded w-3/4 mb-2;
-  }
-
-  .skeleton-text {
-    @apply h-3 bg-slate-200 animate-pulse rounded;
-  }
-
-  /* Modern Scrollbar */
+  /* Binafsha scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: #ede9fe;
+    border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 rounded-full;
-    transition: background 0.2s ease;
+    background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%);
+    border-radius: 4px;
+    border: 1px solid #c4b5fd;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400;
+    background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
   }
 
-  /* Selection */
   ::selection {
-    @apply bg-blue-500/20 text-blue-900;
+    background: rgba(139, 92, 246, 0.25);
+    color: #2e1065;
   }
 
-  /* iOS specific touch styles */
   button, input, select, textarea {
     -webkit-appearance: none;
     appearance: none;
@@ -98,7 +90,6 @@
     border-radius: 0;
   }
 
-  /* Prevent iOS zoom on input focus */
   input[type="text"],
   input[type="email"],
   input[type="tel"],
@@ -115,30 +106,50 @@
      📦 Card Components
      ============================================ */
   .card {
-    @apply bg-white rounded-2xl p-6 border border-gray-200 shadow-sm;
-    @apply transition-all duration-300;
+    @apply bg-white/95 rounded-2xl p-6 shadow-lg;
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .card-hover {
-    @apply card hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5;
+    @apply card;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(109, 40, 217, 0.25);
+    border-color: rgba(139, 92, 246, 0.3);
   }
 
-  .card-glass {
-    @apply bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200 shadow-lg;
+  .card-purple {
+    background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%);
+    border: 1px solid #ddd6fe;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px -4px rgba(109, 40, 217, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .card-premium {
+    background: linear-gradient(145deg, #4c1d95 0%, #2e1065 100%);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    color: #f3e8ff;
+    box-shadow: 0 8px 32px -8px rgba(46, 16, 101, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   /* ============================================
-     🔘 Button Components - iOS Optimized
+     🔘 Button Components
      ============================================ */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl;
-    @apply transition-all duration-200;
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    /* iOS specific */
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    min-height: 44px; /* iOS minimum touch target */
+    min-height: 44px;
   }
 
   .btn-sm {
@@ -147,96 +158,176 @@
   }
 
   .btn-md {
-    @apply btn px-4 py-2.5 text-sm;
+    @apply btn px-5 py-2.5 text-sm;
     min-height: 44px;
   }
 
   .btn-lg {
-    @apply btn px-6 py-3 text-base;
-    min-height: 48px;
+    @apply btn px-6 py-3.5 text-base;
+    min-height: 52px;
   }
 
-  /* Primary Button - Blue */
+  /* Primary Button - To'q Binafsha */
   .btn-primary {
-    @apply btn-md bg-blue-600 text-white shadow-sm;
-    @apply hover:bg-blue-700 hover:shadow-md hover:-translate-y-0.5;
-    @apply active:bg-blue-800 active:translate-y-0 active:scale-95;
-    @apply focus-visible:ring-blue-500;
+    @apply btn-md text-white;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
 
-  /* Secondary Button - Gray */
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px -2px rgba(124, 58, 237, 0.4);
+  }
+
+  /* Secondary Button */
   .btn-secondary {
-    @apply btn-md bg-gray-100 text-gray-700;
-    @apply hover:bg-gray-200 hover:text-gray-900;
-    @apply active:bg-gray-300 active:scale-95;
-    @apply focus-visible:ring-gray-400;
+    @apply btn-md text-violet-700;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #ddd6fe;
+    box-shadow: 0 2px 8px -2px rgba(109, 40, 217, 0.15);
+  }
+
+  .btn-secondary:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+    border-color: #c4b5fd;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  /* Accent Button - Cyan */
+  .btn-accent {
+    @apply btn-md text-white;
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    box-shadow: 0 4px 14px -2px rgba(6, 182, 212, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-accent:hover {
+    background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(6, 182, 212, 0.5);
   }
 
   /* Ghost Button */
   .btn-ghost {
-    @apply btn-md bg-transparent text-gray-600;
-    @apply hover:bg-gray-100 hover:text-gray-900;
-    @apply active:bg-gray-200 active:scale-95;
+    @apply btn-md bg-transparent text-violet-600;
   }
 
-  /* Success Button - Green */
+  .btn-ghost:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: #5b21b6;
+  }
+
+  .btn-ghost:active {
+    background: rgba(139, 92, 246, 0.15);
+    transform: scale(0.98);
+  }
+
+  /* Success Button */
   .btn-success {
-    @apply btn-md bg-emerald-600 text-white shadow-sm;
-    @apply hover:bg-emerald-700 hover:shadow-md hover:-translate-y-0.5;
-    @apply active:bg-emerald-800 active:translate-y-0 active:scale-95;
-    @apply focus-visible:ring-emerald-500;
+    @apply btn-md text-white;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    box-shadow: 0 4px 14px -2px rgba(22, 163, 74, 0.35);
   }
 
-  /* Danger Button - Red */
+  .btn-success:hover {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(22, 163, 74, 0.45);
+  }
+
+  /* Danger Button */
   .btn-danger {
-    @apply btn-md bg-red-600 text-white shadow-sm;
-    @apply hover:bg-red-700 hover:shadow-md hover:-translate-y-0.5;
-    @apply active:bg-red-800 active:translate-y-0 active:scale-95;
-    @apply focus-visible:ring-red-500;
+    @apply btn-md text-white;
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 4px 14px -2px rgba(220, 38, 38, 0.35);
   }
 
-  /* Warning Button - Orange */
+  .btn-danger:hover {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px rgba(220, 38, 38, 0.45);
+  }
+
+  /* Warning Button */
   .btn-warning {
-    @apply btn-md bg-orange-500 text-white shadow-sm;
-    @apply hover:bg-orange-600 hover:shadow-md hover:-translate-y-0.5;
-    @apply active:bg-orange-700 active:translate-y-0 active:scale-95;
-    @apply focus-visible:ring-orange-500;
+    @apply btn-md text-white;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 4px 14px -2px rgba(245, 158, 11, 0.35);
   }
 
-  /* Icon Button */
+  .btn-warning:hover {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    transform: translateY(-2px);
+  }
+
+  /* Icon Buttons */
   .btn-icon {
     @apply btn p-2.5 rounded-xl;
-    @apply bg-transparent text-gray-500;
-    @apply hover:bg-gray-100 hover:text-gray-700;
-    @apply active:bg-gray-200 active:scale-95;
+    background: transparent;
+    color: #71717a;
     min-height: 44px;
     min-width: 44px;
   }
 
+  .btn-icon:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: #7c3aed;
+  }
+
   .btn-icon-sm {
     @apply btn p-2 rounded-lg;
-    @apply bg-transparent text-gray-500;
-    @apply hover:bg-gray-100 hover:text-gray-700;
-    @apply active:bg-gray-200 active:scale-95;
+    background: transparent;
+    color: #71717a;
     min-height: 36px;
     min-width: 36px;
   }
 
+  .btn-icon-sm:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: #7c3aed;
+  }
+
   /* ============================================
-     📝 Input Components - iOS Optimized
+     📝 Input Components
      ============================================ */
   .input {
-    @apply w-full px-4 py-3 text-gray-900 bg-white;
-    @apply border border-gray-300 rounded-xl;
-    @apply placeholder:text-gray-400;
-    @apply transition-all duration-200;
-    @apply focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10;
-    @apply disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed;
-    /* iOS specific */
-    -webkit-appearance: none;
-    appearance: none;
-    font-size: 16px; /* Prevent zoom on iOS */
+    @apply w-full px-4 py-3 text-slate-900 rounded-xl;
+    background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+    border: 1.5px solid #ddd6fe;
+    box-shadow: inset 0 2px 4px rgba(109, 40, 217, 0.05);
+    transition: all 0.25s ease;
+    font-size: 16px;
     min-height: 44px;
+  }
+
+  .input::placeholder {
+    color: #a1a1aa;
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15),
+                inset 0 2px 4px rgba(109, 40, 217, 0.05);
+    background: #ffffff;
+  }
+
+  .input:disabled {
+    background: #f4f4f5;
+    color: #a1a1aa;
+    cursor: not-allowed;
   }
 
   .input-sm {
@@ -249,12 +340,9 @@
     min-height: 52px;
   }
 
-  /* Select */
   .select {
     @apply input cursor-pointer pr-10;
-    -webkit-appearance: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%237c3aed' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
     background-position: right 0.75rem center;
     background-repeat: no-repeat;
     background-size: 1.25em 1.25em;
@@ -264,941 +352,436 @@
      🏷️ Badge Components
      ============================================ */
   .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full;
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full;
   }
 
   .badge-default {
-    @apply badge bg-gray-100 text-gray-700;
+    @apply badge;
+    background: linear-gradient(135deg, #f4f4f5 0%, #e4e4e7 100%);
+    color: #52525b;
   }
 
   .badge-primary {
-    @apply badge bg-blue-100 text-blue-700;
+    @apply badge;
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+    color: #5b21b6;
   }
 
   .badge-success {
-    @apply badge bg-emerald-100 text-emerald-700;
+    @apply badge;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
   }
 
   .badge-warning {
-    @apply badge bg-orange-100 text-orange-700;
+    @apply badge;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
   }
 
   .badge-danger {
-    @apply badge bg-red-100 text-red-700;
+    @apply badge;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
   }
 
-  .badge-amber {
-    @apply badge bg-amber-100 text-amber-700;
+  .badge-cyan {
+    @apply badge;
+    background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
+    color: #155e75;
+    border: 1px solid rgba(6, 182, 212, 0.3);
   }
 
   /* ============================================
      📊 Stat Card Components
      ============================================ */
   .stat-card {
-    @apply bg-white rounded-2xl p-6 border border-gray-100 shadow-sm;
-    @apply transition-all duration-300;
-    @apply hover:shadow-md hover:border-gray-200;
+    background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%);
+    border: 1px solid rgba(139, 92, 246, 0.12);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px -4px rgba(109, 40, 217, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -8px rgba(109, 40, 217, 0.18);
+    border-color: rgba(139, 92, 246, 0.25);
   }
 
   .stat-icon {
     @apply w-14 h-14 rounded-xl flex items-center justify-center;
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
   }
 
   .stat-value {
-    @apply text-3xl font-bold text-gray-900 tracking-tight;
+    @apply text-3xl font-bold tracking-tight;
+    color: #2e1065;
   }
 
   .stat-label {
-    @apply text-base text-gray-500 font-medium;
+    @apply text-sm font-medium;
+    color: #71717a;
   }
 
   /* ============================================
      🧭 Navigation Components
      ============================================ */
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl;
-    @apply text-gray-600 font-medium;
-    @apply transition-all duration-200;
-    @apply hover:bg-gray-100 hover:text-gray-900;
-    /* iOS specific */
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl font-medium;
+    color: #71717a;
+    transition: all 0.25s ease;
     -webkit-tap-highlight-color: transparent;
     min-height: 44px;
   }
 
+  .nav-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: #7c3aed;
+  }
+
   .nav-item-active {
-    @apply nav-item bg-blue-50 text-blue-600;
-    @apply hover:bg-blue-100 hover:text-blue-700;
+    @apply nav-item;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px -2px rgba(124, 58, 237, 0.35);
+  }
+
+  .nav-item-active:hover {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: #ffffff;
   }
 
   /* ============================================
      🎭 Modal & Overlay
      ============================================ */
   .overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm;
-    animation: fadeIn 0.2s ease-out;
+    @apply fixed inset-0;
+    background: rgba(46, 16, 101, 0.6);
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.25s ease-out;
   }
 
   .modal {
-    @apply bg-white rounded-3xl shadow-2xl;
-    animation: scaleIn 0.2s ease-out;
+    background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(46, 16, 101, 0.35);
+    animation: scaleIn 0.25s ease-out;
   }
 
   /* ============================================
      📋 Table Components
      ============================================ */
   .table-header {
-    @apply bg-gray-50 border-b border-gray-200;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border-bottom: 1px solid #ddd6fe;
   }
 
   .table-header-cell {
-    @apply text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+    @apply text-xs font-semibold uppercase tracking-wider;
+    color: #5b21b6;
+  }
+
+  .table-row {
+    @apply border-b transition-colors;
+    border-color: rgba(139, 92, 246, 0.08);
+  }
+
+  .table-row:hover {
+    background: rgba(245, 243, 255, 0.5);
+  }
+
+  .table-cell {
+    @apply py-4 text-sm;
+    color: #3f3f46;
   }
 
   /* ============================================
-     🔔 Alert Components
-     ============================================ */
-  .alert {
-    @apply flex items-start gap-3 p-4 rounded-xl border;
-  }
-
-  .alert-info {
-    @apply alert bg-blue-50 border-blue-200 text-blue-800;
-  }
-
-  .alert-success {
-    @apply alert bg-emerald-50 border-emerald-200 text-emerald-800;
-  }
-
-  .alert-warning {
-    @apply alert bg-orange-50 border-orange-200 text-orange-800;
-  }
-
-  .alert-danger {
-    @apply alert bg-red-50 border-red-200 text-red-800;
-  }
-
-  /* ============================================
-     ⏳ Loading States
+     🔄 Loading Spinner
      ============================================ */
   .spinner {
-    @apply w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
+    @apply w-5 h-5 border-2 rounded-full animate-spin;
+    border-color: #ddd6fe;
+    border-top-color: #7c3aed;
+  }
+
+  .spinner-lg {
+    @apply w-8 h-8 border-3 rounded-full animate-spin;
+    border-color: #ddd6fe;
+    border-top-color: #7c3aed;
   }
 
   /* ============================================
-     📱 PWA Specific Styles
+     🎨 Special Effects
      ============================================ */
-  .pwa-safe-top {
-    padding-top: var(--safe-area-inset-top);
+  .purple-gradient {
+    background: linear-gradient(135deg, #5b21b6 0%, #2e1065 100%);
   }
 
-  .pwa-safe-bottom {
-    padding-bottom: var(--safe-area-inset-bottom);
+  .purple-gradient-light {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
   }
 
-  .pwa-safe-left {
-    padding-left: var(--safe-area-inset-left);
+  .violet-gradient {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
   }
 
-  .pwa-safe-right {
-    padding-right: var(--safe-area-inset-right);
+  .cyan-gradient {
+    background: linear-gradient(135deg, #a5f3fc 0%, #06b6d4 100%);
   }
 
-  .pwa-safe-all {
-    padding-top: var(--safe-area-inset-top);
-    padding-bottom: var(--safe-area-inset-bottom);
-    padding-left: var(--safe-area-inset-left);
-    padding-right: var(--safe-area-inset-right);
-  }
-}
-
-/* ============================================
-   🎬 Animations
-   ============================================ */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-@keyframes pulseSlow {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { opacity: 0.9; box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.animate-fade-up {
-  animation: fadeUp 0.4s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.2s ease-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
-}
-
-.animate-pulse-slow {
-  animation: pulseSlow 2s ease-in-out infinite;
-}
-
-/* ============================================
-   📱 iOS & PWA Responsive Adjustments
-   ============================================ */
-
-/* Extra small devices (phones, 320px - 359px) */
-@media (max-width: 359px) {
-  .card {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
+  .glass-purple {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(139, 92, 246, 0.12);
   }
 
-  .stat-card {
-    padding: 0.75rem;
+  .text-purple {
+    color: #7c3aed;
   }
 
-  .modal {
-    border-radius: 0.75rem;
-    padding: 0.75rem;
-  }
-}
-
-/* Small devices (phones, 360px - 639px) */
-@media (min-width: 360px) and (max-width: 639px) {
-  .card {
-    padding: 0.75rem;
-    border-radius: 0.75rem;
+  .text-purple-dark {
+    color: #2e1065;
   }
 
-  .stat-card {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .card {
-    padding: 1rem;
-    border-radius: 0.75rem;
+  .text-cyan {
+    color: #06b6d4;
   }
 
-  .btn-md {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    min-height: 44px;
+  /* ============================================
+     📱 Bottom Navigation (Mobile)
+     ============================================ */
+  .bottom-nav {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 245, 255, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(139, 92, 246, 0.12);
+    box-shadow: 0 -4px 20px -4px rgba(109, 40, 217, 0.1);
   }
 
-  .input {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    padding-top: 0.625rem;
-    padding-bottom: 0.625rem;
-    font-size: 16px;
-    min-height: 44px;
+  .bottom-nav-item {
+    @apply flex flex-col items-center justify-center py-2 px-3;
+    color: #a1a1aa;
+    transition: all 0.25s ease;
+    min-height: 56px;
   }
 
-  .stat-card {
-    padding: 1.25rem;
+  .bottom-nav-item:hover {
+    color: #71717a;
   }
 
-  .stat-icon {
-    width: 3rem;
-    height: 3rem;
+  .bottom-nav-item-active {
+    @apply bottom-nav-item;
+    color: #7c3aed;
   }
 
-  .stat-value {
-    font-size: 1.25rem;
+  .bottom-nav-item-active::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    width: 4px;
+    height: 4px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    border-radius: 50%;
   }
-}
 
-/* iOS specific media queries */
-@supports (-webkit-touch-callout: none) {
-  /* iOS Safari specific styles */
-  .input {
-    font-size: 16px !important;
+  /* ============================================
+     🖼️ Product Card
+     ============================================ */
+  .product-card {
+    background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%);
+    border: 1px solid rgba(139, 92, 246, 0.1);
+    border-radius: 1.25rem;
+    overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
-}
 
-/* PWA display mode styles */
-@media (display-mode: standalone) {
-  /* Hide browser UI elements when in PWA mode */
-  .browser-only {
-    display: none !important;
+  .product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px -12px rgba(109, 40, 217, 0.2);
+    border-color: rgba(139, 92, 246, 0.25);
   }
-  
-  /* Add PWA specific styles */
-  body {
+
+  .product-card-image {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  }
+
+  .product-card-badge {
+    @apply absolute top-3 left-3 px-2.5 py-1 text-xs font-bold rounded-full;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px -2px rgba(124, 58, 237, 0.4);
+  }
+
+  .product-card-price {
+    @apply text-xl font-bold;
+    color: #7c3aed;
+  }
+
+  /* ============================================
+     🎯 Animations
+     ============================================ */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from { 
+      opacity: 0; 
+      transform: scale(0.95); 
+    }
+    to { 
+      opacity: 1; 
+      transform: scale(1); 
+    }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0; 
+      transform: translateY(20px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  /* ============================================
+     🔒 Kassa Protected Mode
+     ============================================ */
+  body.kassa-locked {
     user-select: none;
     -webkit-user-select: none;
   }
-  
-  /* Allow text selection in inputs and content areas */
-  input, textarea, [contenteditable] {
-    user-select: text;
-    -webkit-user-select: text;
+
+  body.kassa-protected {
+    overflow: hidden;
   }
 }
 
-/* Landscape orientation adjustments for mobile */
-@media (orientation: landscape) and (max-height: 500px) {
-  .mobile-landscape-adjust {
-    padding-top: 0;
-    padding-bottom: 0;
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
-}
 
-/* High DPI displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .high-dpi-optimize {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-}
 
-/* ============================================
-   🛒 PROFESSIONAL CART ITEM DESIGN
-   ============================================ */
-
-/* Modern Cart Item Container - PRO DESIGN */
-.pro-cart-item {
-  @apply bg-gradient-to-r from-white to-gray-50/50 rounded-2xl border border-gray-100;
-  @apply transition-all duration-300 overflow-hidden;
-  @apply hover:shadow-lg hover:border-brand-200 hover:from-brand-50/30 hover:to-white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-
-.pro-cart-item:hover {
-  transform: translateY(-2px);
-}
-
-/* Cart Header - Compact & Modern */
-.pro-cart-header {
-  @apply flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-50 to-transparent;
-  @apply border-b border-gray-100/50;
-}
-
-.pro-cart-badge {
-  @apply w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 text-white;
-  @apply flex items-center justify-center font-bold text-lg shadow-lg shadow-brand-500/30;
-  @apply transition-transform duration-200 hover:scale-110;
-}
-
-.pro-cart-title {
-  @apply text-base font-bold text-gray-900 truncate leading-tight;
-}
-
-.pro-cart-code {
-  @apply text-xs text-gray-400 font-medium mt-0.5;
-}
-
-/* Cart Controls - Sleek Design */
-.pro-cart-controls {
-  @apply flex items-center justify-between px-4 py-3 gap-4;
-}
-
-/* Quantity Control - Pill Style */
-.pro-quantity-control {
-  @apply flex items-center bg-gray-100 rounded-full overflow-hidden;
-  @apply border border-gray-200 shadow-inner;
-}
-
-.pro-quantity-btn {
-  @apply w-9 h-9 flex items-center justify-center text-gray-600 font-bold text-lg;
-  @apply hover:bg-brand-500 hover:text-white transition-all duration-200;
-  @apply active:scale-90;
-}
-
-.pro-quantity-input {
-  @apply w-14 h-9 text-center font-bold text-gray-900 bg-white border-0;
-  @apply focus:outline-none focus:ring-0;
-}
-
-/* Pricing Tier Badge - Glassmorphism */
-.pro-tier-badge {
-  @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold;
-  @apply cursor-pointer transition-all duration-200 backdrop-blur-sm;
-  @apply hover:scale-105 active:scale-95 shadow-sm;
-}
-
-.pro-tier-normal {
-  @apply bg-gray-100/80 text-gray-700 border border-gray-200;
-}
-
-.pro-tier-discount {
-  @apply bg-emerald-100/80 text-emerald-700 border border-emerald-200;
-  @apply shadow-emerald-500/10;
-}
-
-.pro-tier-custom {
-  @apply bg-purple-100/80 text-purple-700 border border-purple-200;
-  @apply shadow-purple-500/10;
-}
-
-/* Price Section - Bold & Clear */
-.pro-price-section {
-  @apply text-right flex flex-col items-end;
-}
-
-.pro-price-calculation {
-  @apply flex items-center gap-1.5 text-sm text-gray-400 font-medium;
-}
-
-.pro-price-total {
-  @apply text-xl font-black text-gray-900 flex items-baseline gap-1;
-  @apply bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text;
-}
-
-.pro-price-currency {
-  @apply text-sm font-semibold text-gray-500;
-}
-
-/* Payment Breakdown - Card Style */
-.pro-payment-breakdown {
-  @apply mx-4 mb-3 p-3 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100/50;
-  @apply border border-gray-100;
-}
-
-.pro-payment-item {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold;
-  @apply shadow-sm;
-}
-
-.pro-payment-cash {
-  @apply bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200;
-}
-
-.pro-payment-click {
-  @apply bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border border-purple-200;
-}
-
-.pro-payment-card {
-  @apply bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200;
-}
-
-.pro-payment-partner {
-  @apply bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border border-orange-200;
-}
-
-.pro-payment-dot {
-  @apply w-2 h-2 rounded-full animate-pulse;
-}
-
-.pro-payment-cash .pro-payment-dot {
-  @apply bg-green-500;
-}
-
-.pro-payment-click .pro-payment-dot {
-  @apply bg-purple-500;
-}
-
-.pro-payment-card .pro-payment-dot {
-  @apply bg-blue-500;
-}
-
-.pro-payment-partner .pro-payment-dot {
-  @apply bg-orange-500;
-}
-
-.pro-payment-text {
-  @apply font-bold;
-}
-
-.pro-payment-setup-btn {
-  @apply flex items-center justify-center gap-2 px-4 py-2.5 text-sm;
-  @apply bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-xl;
-  @apply hover:from-brand-600 hover:to-brand-700 shadow-lg shadow-brand-500/30;
-  @apply transition-all duration-200 font-semibold;
-  @apply active:scale-95;
-}
-
-/* Delete Button - Subtle */
-.pro-delete-btn {
-  @apply w-9 h-9 flex items-center justify-center text-gray-400;
-  @apply hover:text-red-500 hover:bg-red-50 rounded-xl;
-  @apply transition-all duration-200;
-  @apply active:scale-90;
-}
-
-/* Cart Item Left Section */
-.pro-cart-left {
-  @apply flex items-center gap-4 flex-1;
-}
-
-.pro-item-number {
-  @apply w-8 h-8 rounded-full bg-gray-100 text-gray-600 text-sm font-medium;
-  @apply flex items-center justify-center flex-shrink-0;
-}
-
-.pro-item-details {
-  @apply flex-1 min-w-0;
-}
-
-.pro-item-name {
-  @apply text-base font-semibold text-gray-900 truncate;
-  @apply mb-1;
-}
-
-.pro-item-meta {
-  @apply flex items-center gap-3 text-sm text-gray-500;
-}
-
-/* Cart Item Center Section - Quantity Controls */
-.pro-quantity-section {
-  @apply flex items-center gap-3 flex-shrink-0;
-}
-
-.pro-quantity-controls {
-  @apply flex items-center bg-gray-50 rounded-xl border border-gray-200;
-  @apply transition-all duration-200;
-}
-
-.pro-quantity-controls:hover {
-  @apply border-gray-300 bg-gray-100;
-}
-
-.pro-quantity-display {
-  @apply px-4 py-2 text-center font-semibold text-gray-900 min-w-[3rem];
-  @apply bg-white border-x border-gray-200;
-}
-
-/* Cart Item Right Section - Price & Actions */
-.pro-cart-right {
-  @apply flex flex-col items-end gap-2 flex-shrink-0;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .pro-cart-item {
-    @apply flex-col items-stretch gap-3 p-3;
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
-  
-  .pro-cart-left {
-    @apply gap-3;
+
+  .pb-safe {
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
   }
-  
-  .pro-quantity-section {
-    @apply justify-center;
+
+  .pt-safe {
+    padding-top: max(1rem, var(--safe-area-inset-top));
   }
-  
-  .pro-cart-right {
-    @apply flex-row items-center justify-between;
+
+  .text-gradient-purple {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-  
-  .pro-price-section {
-    @apply text-left;
+
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
 /* ============================================
-   🛒 CART SUMMARY DESIGN
+   ❄️ QOR ANIMATSIYASI - Snowfall Effect
    ============================================ */
-
-.pro-cart-summary {
-  @apply bg-white rounded-2xl p-6 border border-gray-100 shadow-sm;
-  @apply sticky bottom-0 z-10;
-}
-
-.pro-cart-total {
-  @apply flex items-center justify-between mb-4;
-}
-
-.pro-total-label {
-  @apply text-lg font-semibold text-gray-700;
-}
-
-.pro-total-amount {
-  @apply text-2xl font-bold text-gray-900;
-}
-
-.pro-checkout-btn {
-  @apply w-full bg-blue-600 text-white py-4 rounded-xl font-semibold;
-  @apply hover:bg-blue-700 active:bg-blue-800;
-  @apply transition-all duration-200;
-  @apply disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-/* ============================================
-   🔒 KASSA HIMOYA TIZIMI - CHIQISH TAQIQLANADI
-   ============================================ */
-
-/* Kassa sahifalarida barcha chiqish yo'llarini bloklash */
-body.kassa-locked {
-  /* Context menu ni bloklash */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  
-  /* Drag & drop ni bloklash */
-  -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  -o-user-drag: none;
-  user-drag: none;
-  
-  /* Print ni bloklash */
-  -webkit-print-color-adjust: exact;
-}
-
-/* Kassa sahifalarida F12, Ctrl+Shift+I va boshqa dev tools tugmalarini bloklash */
-body.kassa-locked * {
-  pointer-events: auto;
-}
-
-/* Kassa sahifalarida text selection ni bloklash */
-body.kassa-locked *::selection {
-  background: transparent;
-}
-
-body.kassa-locked *::-moz-selection {
-  background: transparent;
-}
-
-/* Kassa himoyalangan elementlar */
-.kassa-protected {
-  /* Copy-paste ni bloklash */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  
-  /* Right click ni bloklash */
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Kassa bloklangan tugma */
-.kassa-blocked-button {
-  @apply cursor-not-allowed opacity-50 bg-gray-200 text-gray-400;
-  pointer-events: none !important;
-}
-
-/* Kassa himoyalangan oyna */
-.kassa-secure-window {
-  /* Sahifa yopilishini bloklash */
+.snowfall-container {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   z-index: 9999;
+  overflow: hidden;
 }
 
-/* Kassa xavfsizlik xabari */
-.kassa-security-notice {
-  @apply fixed top-4 right-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded-lg text-sm font-medium z-50;
-  animation: pulse 2s infinite;
+.snowflake {
+  position: absolute;
+  top: -20px;
+  color: white;
+  font-size: 1em;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+  animation: snowfall linear infinite;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 3px rgba(200, 200, 255, 0.6));
 }
 
-/* Kassa session indikatori */
-.kassa-session-indicator {
-  @apply fixed bottom-4 left-4 bg-green-100 border border-green-300 text-green-800 px-3 py-1 rounded-full text-xs font-medium z-50;
-}
-
-/* Kassa himoyalangan input */
-.kassa-secure-input {
-  @apply input;
-  /* Autocomplete ni bloklash */
-  autocomplete: off !important;
-  /* Browser parol saqlashni bloklash */
-  data-lpignore: true;
-}
-
-/* Kassa himoyalangan forma */
-.kassa-secure-form {
-  /* Form submit ni bloklash (faqat JavaScript orqali) */
-  onsubmit: return false;
-}
-
-/* Mobile uchun qo'shimcha himoya */
-@media (max-width: 768px) {
-  body.kassa-locked {
-    /* Mobile browser menu ni bloklash */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    
-    /* Zoom ni bloklash */
-    touch-action: manipulation;
+@keyframes snowfall {
+  0% {
+    transform: translateY(-20px) rotate(0deg) translateX(0);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(25vh) rotate(90deg) translateX(15px);
+  }
+  50% {
+    transform: translateY(50vh) rotate(180deg) translateX(-15px);
+  }
+  75% {
+    transform: translateY(75vh) rotate(270deg) translateX(15px);
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg) translateX(-15px);
+    opacity: 0.3;
   }
 }
 
-/* Kassa tizimi uchun maxsus cursor */
-.kassa-cursor-locked {
-  cursor: not-allowed !important;
+/* Turli o'lchamdagi qor uchun */
+.snowflake.small {
+  font-size: 0.6em;
+  opacity: 0.6;
 }
 
-/* Kassa himoyalangan matn */
-.kassa-no-copy {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
+.snowflake.medium {
+  font-size: 1em;
+  opacity: 0.8;
 }
 
-/* Kassa xavfsizlik overlay */
-.kassa-security-overlay {
-  @apply fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center;
+.snowflake.large {
+  font-size: 1.4em;
+  opacity: 1;
 }
 
-.kassa-security-message {
-  @apply bg-white rounded-2xl p-8 max-w-md mx-4 text-center shadow-2xl;
+/* Qor yog'ish tezligi */
+.snowflake.slow {
+  animation-duration: 12s;
 }
 
-/* Print ni to'liq bloklash */
-@media print {
-  body.kassa-locked {
-    display: none !important;
-  }
-  
-  body.kassa-locked::before {
-    content: "KASSA TIZIMI - CHOP ETISH TAQIQLANADI";
-    display: block !important;
-    text-align: center;
-    font-size: 24px;
-    font-weight: bold;
-    color: red;
-    margin: 50px;
-  }
+.snowflake.normal {
+  animation-duration: 8s;
 }
 
-
-/* ========================================
-   PRO CART ITEM V2 - Modern Table Style
-   ======================================== */
-
-.pro-cart-item-v2 {
-  @apply bg-white rounded-2xl overflow-hidden;
-  @apply border border-gray-100 shadow-sm;
-  @apply transition-all duration-300;
-  @apply hover:shadow-xl hover:border-brand-200;
-}
-
-.pro-cart-item-v2:hover {
-  transform: translateY(-2px);
-}
-
-/* Row 1: Header */
-.pro-cart-row-1 {
-  @apply flex items-center gap-4 px-4 py-3;
-  @apply bg-gradient-to-r from-gray-50 to-white;
-  @apply border-b border-gray-100;
-}
-
-.pro-cart-index {
-  @apply w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-600;
-  @apply text-white font-bold text-sm flex items-center justify-center;
-  @apply shadow-lg shadow-brand-500/30 flex-shrink-0;
-}
-
-.pro-cart-info {
-  @apply flex-1 min-w-0 flex items-center gap-3;
-}
-
-.pro-cart-name {
-  @apply text-base font-bold text-gray-900 truncate;
-}
-
-.pro-cart-code-badge {
-  @apply px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-md;
-  @apply flex-shrink-0;
-}
-
-.pro-cart-delete {
-  @apply w-8 h-8 rounded-lg flex items-center justify-center;
-  @apply text-gray-400 hover:text-red-500 hover:bg-red-50;
-  @apply transition-all duration-200 flex-shrink-0;
-}
-
-/* Row 2: Controls */
-.pro-cart-row-2 {
-  @apply flex items-center justify-between gap-3 px-4 py-3;
-  @apply flex-wrap;
-}
-
-/* Quantity Wrapper */
-.pro-qty-wrapper {
-  @apply flex items-center bg-gray-100 rounded-xl overflow-hidden;
-  @apply border border-gray-200;
-}
-
-.pro-qty-btn {
-  @apply w-10 h-10 flex items-center justify-center;
-  @apply text-gray-600 font-bold text-xl;
-  @apply transition-all duration-200;
-}
-
-.pro-qty-minus {
-  @apply hover:bg-red-500 hover:text-white;
-}
-
-.pro-qty-plus {
-  @apply hover:bg-green-500 hover:text-white;
-}
-
-.pro-qty-input {
-  @apply w-16 h-10 text-center font-bold text-gray-900 text-lg;
-  @apply bg-white border-0 focus:outline-none focus:ring-0;
-}
-
-/* Unit Price */
-.pro-unit-price {
-  @apply flex flex-col items-center;
-}
-
-.pro-unit-label {
-  @apply text-xs text-gray-400 font-medium;
-}
-
-.pro-unit-value {
-  @apply text-sm font-bold text-gray-700;
-}
-
-/* Tier Button */
-.pro-tier-btn {
-  @apply px-3 py-1.5 rounded-full text-xs font-bold;
-  @apply transition-all duration-200 cursor-pointer;
-  @apply hover:scale-105 active:scale-95;
-}
-
-.pro-tier-normal-v2 {
-  @apply bg-gray-100 text-gray-600 border border-gray-200;
-  @apply hover:bg-gray-200;
-}
-
-.pro-tier-discount-v2 {
-  @apply bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700;
-  @apply border border-emerald-200 shadow-sm shadow-emerald-500/20;
-}
-
-.pro-tier-custom-v2 {
-  @apply bg-gradient-to-r from-purple-100 to-violet-100 text-purple-700;
-  @apply border border-purple-200 shadow-sm shadow-purple-500/20;
-}
-
-/* Total Price */
-.pro-total-price {
-  @apply flex items-baseline gap-1 bg-gradient-to-r from-brand-50 to-brand-100;
-  @apply px-4 py-2 rounded-xl border border-brand-200;
-}
-
-.pro-total-value {
-  @apply text-xl font-black text-brand-700;
-}
-
-.pro-total-currency {
-  @apply text-sm font-semibold text-brand-500;
-}
-
-/* Row 3: Payment */
-.pro-cart-row-3 {
-  @apply flex items-center justify-between gap-3 px-4 py-3;
-  @apply bg-gradient-to-r from-gray-50/50 to-transparent;
-  @apply border-t border-gray-100;
-}
-
-/* Payment Chips */
-.pro-payment-chips {
-  @apply flex items-center gap-2 flex-wrap;
-}
-
-.pro-chip {
-  @apply px-3 py-1.5 rounded-lg text-xs font-bold;
-  @apply flex items-center gap-1.5;
-}
-
-.pro-chip-cash {
-  @apply bg-gradient-to-r from-green-100 to-emerald-100 text-green-700;
-  @apply border border-green-200;
-}
-
-.pro-chip-click {
-  @apply bg-gradient-to-r from-purple-100 to-violet-100 text-purple-700;
-  @apply border border-purple-200;
-}
-
-.pro-chip-card {
-  @apply bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700;
-  @apply border border-blue-200;
-}
-
-.pro-chip-partner {
-  @apply bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700;
-  @apply border border-orange-200;
-}
-
-.pro-edit-payment {
-  @apply px-3 py-1.5 text-xs font-semibold text-blue-600;
-  @apply hover:text-blue-700 hover:bg-blue-50 rounded-lg;
-  @apply transition-all duration-200;
-}
-
-.pro-setup-payment {
-  @apply flex-1 flex items-center justify-center gap-2 px-4 py-2.5;
-  @apply bg-gradient-to-r from-brand-500 to-brand-600 text-white;
-  @apply rounded-xl font-semibold text-sm;
-  @apply shadow-lg shadow-brand-500/30;
-  @apply hover:from-brand-600 hover:to-brand-700;
-  @apply transition-all duration-200 active:scale-95;
-}
-
-.pro-partner-btn {
-  @apply px-4 py-2.5 text-sm font-semibold;
-  @apply text-orange-600 bg-orange-50 border border-orange-200;
-  @apply rounded-xl hover:bg-orange-100;
-  @apply transition-all duration-200;
-}
-
-/* Mobile Responsive for V2 */
-@media (max-width: 640px) {
-  .pro-cart-row-2 {
-    @apply flex-col items-stretch gap-3;
-  }
-  
-  .pro-qty-wrapper {
-    @apply w-full justify-center;
-  }
-  
-  .pro-qty-input {
-    @apply flex-1;
-  }
-  
-  .pro-unit-price {
-    @apply flex-row gap-2;
-  }
-  
-  .pro-total-price {
-    @apply w-full justify-center;
-  }
-  
-  .pro-cart-row-3 {
-    @apply flex-col gap-2;
-  }
-  
-  .pro-payment-chips {
-    @apply w-full justify-center;
-  }
+.snowflake.fast {
+  animation-duration: 5s;
 }

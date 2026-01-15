@@ -35,6 +35,11 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
       <div className="px-2 sm:px-3 md:px-4 lg:px-6 h-12 sm:h-14 flex items-center justify-between gap-2 sm:gap-3 md:gap-4">
         {/* Title */}
         <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0 flex-shrink">
+          <img 
+            src="/o5sk1awh.png" 
+            alt="Logo" 
+            className="h-8 w-auto max-h-8"
+          />
           <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 truncate">{title}</h1>
           <div className="hidden md:flex items-center gap-2">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />

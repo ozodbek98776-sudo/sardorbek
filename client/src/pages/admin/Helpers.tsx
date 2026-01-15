@@ -123,9 +123,7 @@ export default function Helpers() {
     if (!confirmed) return;
     
     try {
-      console.log('O\'chirish uchun helper ID:', helper._id);
-      const response = await api.delete(`/users/${helper._id}`);
-      console.log('O\'chirish javobi:', response.data);
+      await api.delete(`/users/${helper._id}`);
       
       // Ma'lumotlarni yangilash
       await fetchHelpers();
@@ -134,7 +132,6 @@ export default function Helpers() {
       showAlert('Yordamchi muvaffaqiyatli o\'chirildi', 'Muvaffaqiyat', 'success');
     } catch (err: any) { 
       console.error('Error deleting helper:', err);
-      console.error('Error response:', err.response?.data);
       showAlert(`Yordamchini o'chirishda xatolik: ${err.response?.data?.message || err.message}`, 'Xatolik', 'danger');
     }
   };

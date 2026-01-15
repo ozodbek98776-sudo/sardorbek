@@ -24,10 +24,26 @@ const partnerRoutes = require('./routes/partners');
 const app = express();
 
 app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || 'http://localhost:5173',
-    process.env.CLIENT_URL_PROD || 'https://sardor-furnitura.your-domain.com'
-  ],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and local network IPs
+    const allowedPatterns = [
+      /^http:\/\/localhost(:\d+)?$/,
+      /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+      /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/, // Local network
+      /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,  // Local network
+      /^https?:\/\/.*\.your-domain\.com$/     // Production
+    ];
+    
+    const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for development
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -97,6 +113,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
   })
   .catch(err => console.error('MongoDB connection error:', err));
 
-const PORT = process.env.PORT || 5000;
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+const PORT = process.env.PORT || 8000;
+const HOST = '0.0.0.0'; // Barcha network interface'lardan kirish uchun
 app.listen(PORT, HOST, () => console.log(`Server running on ${HOST}:${PORT}`));

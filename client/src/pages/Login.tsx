@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, User, Lock, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, ArrowRight, Building2 } from 'lucide-react';
 import api from '../utils/api';
 
 export default function Login() {
@@ -48,113 +48,168 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-2 sm:p-3 md:p-4 relative overflow-hidden">
-      
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}
+    >
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-64 sm:w-80 md:w-96 h-64 sm:h-80 md:h-96 bg-gradient-to-br from-blue-400/20 to-indigo-600/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-64 sm:w-80 md:w-96 h-64 sm:h-80 md:h-96 bg-gradient-to-tr from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 sm:w-56 md:w-64 h-48 sm:h-56 md:h-64 bg-gradient-to-r from-blue-300/10 to-indigo-400/10 rounded-full blur-2xl" />
+        <div 
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%)' }}
+        />
+        <div 
+          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(109, 40, 217, 0.15) 0%, transparent 70%)' }}
+        />
+        <div 
+          className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full blur-2xl"
+          style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%)' }}
+        />
       </div>
 
-      {/* Grid Pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23e2e8f0%22%20fill-opacity%3D%220.3%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%221.5%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-40" />
-
-      <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-sm relative z-10">
+      <div className="w-full max-w-sm relative z-10">
         {/* Header */}
-        <div className="text-center mb-4 sm:mb-5 md:mb-6 animate-fade-up">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-1 sm:mb-2">
-            Admin Panel
+        <div className="text-center mb-6 animate-fade-up">
+          <div 
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{
+              background: 'linear-gradient(135deg, #5b21b6 0%, #2e1065 100%)',
+              boxShadow: '0 8px 32px -8px rgba(91, 33, 182, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <Building2 className="w-10 h-10 text-violet-200" />
+          </div>
+          <h1 
+            className="text-3xl font-bold mb-2"
+            style={{ 
+              background: 'linear-gradient(135deg, #2e1065 0%, #5b21b6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            Sardor Furnitura
           </h1>
-          <p className="text-slate-600 font-medium text-xs sm:text-sm">Boshqaruv tizimi</p>
-          <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
-            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] sm:text-xs md:text-sm text-slate-500">Xavfsiz kirish</span>
+          <p className="font-medium" style={{ color: '#71717a' }}>Admin boshqaruv tizimi</p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22c55e' }} />
+            <span className="text-sm" style={{ color: '#a1a1aa' }}>Xavfsiz kirish</span>
           </div>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-xl border border-white/20 animate-fade-up">
-          <div className="text-center mb-4 sm:mb-5 md:mb-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg shadow-blue-500/30">
-              <User className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
+        <div 
+          className="rounded-2xl p-6 animate-fade-up"
+          style={{
+            background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 245, 255, 0.95) 100%)',
+            border: '1px solid rgba(139, 92, 246, 0.15)',
+            boxShadow: '0 20px 40px -12px rgba(109, 40, 217, 0.2)',
+            backdropFilter: 'blur(20px)'
+          }}
+        >
+          <div className="text-center mb-6">
+            <div 
+              className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
+              style={{
+                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                boxShadow: '0 4px 14px -2px rgba(6, 182, 212, 0.4)'
+              }}
+            >
+              <User className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 mb-0.5 sm:mb-1">Xush kelibsiz!</h2>
-            <p className="text-slate-600 text-xs sm:text-sm">Login va parolingizni kiriting</p>
+            <h2 className="text-xl font-bold mb-1" style={{ color: '#2e1065' }}>Xush kelibsiz!</h2>
+            <p style={{ color: '#71717a' }}>Login va parolingizni kiriting</p>
           </div>
 
           {successMessage && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-4 sm:mb-5 md:mb-6 animate-fade-in">
-              <div className="flex items-start gap-2 sm:gap-3">
-                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-[10px] sm:text-xs font-bold">✓</span>
+            <div 
+              className="rounded-xl p-4 mb-6 animate-fade-in"
+              style={{ background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', border: '1px solid #86efac' }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#22c55e' }}>
+                  <span className="text-white text-xs font-bold">✓</span>
                 </div>
                 <div>
-                  <p className="text-emerald-800 font-medium text-xs sm:text-sm">Muvaffaqiyat</p>
-                  <p className="text-emerald-700 text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">{successMessage}</p>
+                  <p className="font-medium text-sm" style={{ color: '#166534' }}>Muvaffaqiyat</p>
+                  <p className="text-sm mt-1" style={{ color: '#15803d' }}>{successMessage}</p>
                 </div>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-4 sm:mb-5 md:mb-6 animate-fade-in">
-              <div className="flex items-start gap-2 sm:gap-3">
-                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-[10px] sm:text-xs font-bold">!</span>
+            <div 
+              className="rounded-xl p-4 mb-6 animate-fade-in"
+              style={{ background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', border: '1px solid #fca5a5' }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#ef4444' }}>
+                  <span className="text-white text-xs font-bold">!</span>
                 </div>
                 <div>
-                  <p className="text-red-800 font-medium text-xs sm:text-sm">Xatolik</p>
-                  <p className="text-red-700 text-[10px] sm:text-xs md:text-sm mt-0.5 sm:mt-1">{error}</p>
+                  <p className="font-medium text-sm" style={{ color: '#991b1b' }}>Xatolik</p>
+                  <p className="text-sm mt-1" style={{ color: '#b91c1c' }}>{error}</p>
                 </div>
               </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5 sm:gap-2">
-                <User className="w-3 h-3" />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold flex items-center gap-2" style={{ color: '#5b21b6' }}>
+                <User className="w-3.5 h-3.5" />
                 Login
               </label>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none">
-                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="w-4 h-4 transition-colors" style={{ color: '#a1a1aa' }} />
                 </div>
                 <input
                   type="text"
                   placeholder="Loginingizni kiriting"
                   value={login}
                   onChange={e => setLogin(e.target.value)}
-                  className="w-full pl-8 sm:pl-10 pr-3 py-2.5 sm:py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 focus:bg-white text-sm"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl transition-all duration-200 focus:outline-none text-sm"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                    border: '1.5px solid #ddd6fe',
+                    color: '#2e1065'
+                  }}
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5 sm:gap-2">
-                <Lock className="w-3 h-3" />
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold flex items-center gap-2" style={{ color: '#5b21b6' }}>
+                <Lock className="w-3.5 h-3.5" />
                 Parol
               </label>
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none">
-                  <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="w-4 h-4 transition-colors" style={{ color: '#a1a1aa' }} />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Parolingizni kiriting"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2.5 sm:py-3 text-slate-900 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 focus:bg-white text-sm"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl transition-all duration-200 focus:outline-none text-sm"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                    border: '1.5px solid #ddd6fe',
+                    color: '#2e1065'
+                  }}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-2.5 sm:pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center transition-colors"
+                  style={{ color: '#a1a1aa' }}
                 >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -162,28 +217,36 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={loading} 
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl shadow-md shadow-blue-500/25 transition-all duration-200 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group text-sm sm:text-base"
+              className="w-full text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                boxShadow: '0 4px 14px -2px rgba(124, 58, 237, 0.4)'
+              }}
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Kirish...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-2">
                   <span>Kirish</span>
-                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </div>
               )}
             </button>
           </form>
 
-          <div className="mt-4 sm:mt-5 md:mt-6 text-center">
-            <div className="p-2 sm:p-2.5 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-[10px] sm:text-xs text-blue-700 font-medium mb-0.5 sm:mb-1">Kassa xodimi uchun:</p>
+          <div className="mt-6 text-center">
+            <div 
+              className="p-3 rounded-xl"
+              style={{ background: 'linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%)', border: '1px solid rgba(6, 182, 212, 0.3)' }}
+            >
+              <p className="text-xs font-medium mb-1" style={{ color: '#155e75' }}>Kassa xodimi uchun:</p>
               <button
                 onClick={() => navigate('/kassa-login')}
-                className="text-[10px] sm:text-xs text-blue-600 hover:text-blue-700 underline"
+                className="text-sm font-semibold underline transition-colors"
+                style={{ color: '#0891b2' }}
               >
                 Kassa tizimiga kirish →
               </button>
@@ -192,16 +255,16 @@ export default function Login() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-4 sm:mt-5 md:mt-6 animate-fade-up">
-          <p className="text-slate-500 text-[10px] sm:text-xs md:text-sm">
-            © 2025 Sardorbek.Furnetura. All rights reserved.
+        <div className="text-center mt-6 animate-fade-up">
+          <p className="text-sm" style={{ color: '#71717a' }}>
+            © 2025 Sardor Furnitura. Barcha huquqlar himoyalangan.
           </p>
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-[9px] sm:text-[10px] md:text-xs text-slate-400">
-            <span>Secure</span>
-            <div className="w-0.5 sm:w-1 h-0.5 sm:h-1 bg-slate-300 rounded-full" />
+          <div className="flex items-center justify-center gap-3 mt-2 text-xs" style={{ color: '#a1a1aa' }}>
+            <span>Xavfsiz</span>
+            <div className="w-1 h-1 rounded-full" style={{ background: '#ddd6fe' }} />
             <span>Professional</span>
-            <div className="w-0.5 sm:w-1 h-0.5 sm:h-1 bg-slate-300 rounded-full" />
-            <span>Reliable</span>
+            <div className="w-1 h-1 rounded-full" style={{ background: '#ddd6fe' }} />
+            <span>Ishonchli</span>
           </div>
         </div>
       </div>

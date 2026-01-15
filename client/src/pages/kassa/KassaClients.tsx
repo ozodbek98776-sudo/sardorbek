@@ -34,12 +34,9 @@ export default function KassaClients() {
   }, [location.pathname]);
 
   const handleRefresh = async () => {
-    console.log('Refresh tugmasi bosildi');
     setIsRefreshing(true);
     try {
-      console.log('Ma\'lumotlar yangilanmoqda...');
       await fetchCustomers(false); // Loading ko'rsatmaslik
-      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
       showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
     } catch (error) {
       console.error('Refresh xatosi:', error);
@@ -68,7 +65,6 @@ export default function KassaClients() {
         setLoading(true);
       }
       setError('');
-      console.log('Mijozlar yuklanmoqda...');
       const res = await api.get('/customers/kassa');
       
       // Ma'lumotlarni tozalash va filtrlash
@@ -85,10 +81,6 @@ export default function KassaClients() {
       }));
       
       setCustomers(cleanCustomers);
-      console.log(`Kassa: ${cleanCustomers.length} ta mijoz yuklandi`);
-      if (cleanCustomers.length > 0) {
-        console.log('Sample customer:', cleanCustomers[0]);
-      }
     } catch (err: any) {
       console.error('Error fetching customers:', err);
       setError('Mijozlarni yuklashda xatolik yuz berdi');

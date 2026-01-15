@@ -104,16 +104,13 @@ export default function KassaDebts() {
   };
 
   const handleRefresh = async () => {
-    console.log('Refresh tugmasi bosildi');
     setIsRefreshing(true);
     try {
-      console.log('Ma\'lumotlar yangilanmoqda...');
       await Promise.all([
         fetchDebts(),
         fetchCustomers(),
         fetchProducts()
       ]);
-      console.log('Ma\'lumotlar muvaffaqiyatli yangilandi');
       showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
     } catch (error) {
       console.error('Refresh xatosi:', error);
@@ -168,7 +165,6 @@ export default function KassaDebts() {
     }
     
     // Mijoz tanlanganda mijozlar ro'yxatini yashirish va qarz qo'shish formasi ko'rsatish
-    console.log('Tanlangan mijoz:', customer.name);
   };
 
   const resetModal = () => {

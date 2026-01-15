@@ -15,11 +15,6 @@ export default function KassaLayout() {
   const [attendanceToday, setAttendanceToday] = useState<{ arrived: number; left: number }>({ arrived: 0, left: 0 });
   const [todayKey, setTodayKey] = useState<string>('');
   
-  // Navigate funksiyasini memoize qilish
-  const navigateToLogin = useCallback(() => {
-    navigate('/login', { replace: true });
-  }, [navigate]);
-  
   // Qo'shimcha himoya choralari
   useEffect(() => {
     // URL ni doimiy kassa sahifasida ushlab turish
@@ -145,9 +140,9 @@ export default function KassaLayout() {
     localStorage.removeItem('kassaLoggedIn');
     localStorage.removeItem('kassaToken');
     
-    // Avtomatik login sahifasiga yo'naltirish
-    navigateToLogin();
-  }, [navigateToLogin]);
+    // Kassa login sahifasiga yo'naltirish
+    window.location.replace('/kassa-login');
+  }, []);
 
   const getPageTitle = () => {
     const path = location.pathname;
@@ -158,39 +153,64 @@ export default function KassaLayout() {
   };
 
   return (
-    <div className="h-screen bg-surface-50 flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden" style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}>
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+          className="fixed inset-0 z-40 lg:hidden" 
+          style={{ background: 'rgba(46, 16, 101, 0.6)', backdropFilter: 'blur(8px)' }}
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-surface-200 flex flex-col
+        fixed lg:static inset-y-0 left-0 z-50 w-72 flex flex-col
         transform transition-transform duration-300 ease-in-out lg:transform-none
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      `}
+      style={{
+        background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
+        borderRight: '1px solid rgba(6, 182, 212, 0.2)',
+        boxShadow: '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
+      }}
+      >
         {/* Logo/Header */}
-        <div className="p-4 lg:p-6 border-b border-surface-200 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-surface-900">Sardor Furnitura</h1>
-            <p className="text-sm text-surface-500">Kassa tizimi</p>
+        <div 
+          className="p-5 flex items-center justify-between"
+          style={{
+            borderBottom: '1px solid rgba(6, 182, 212, 0.15)',
+            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, transparent 100%)'
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
+              }}
+            >
+              <Calculator className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-white">Sardor Furnitura</h1>
+              <p className="text-xs font-medium" style={{ color: '#c4b5fd' }}>Kassa tizimi</p>
+            </div>
           </div>
           {/* Mobile Close Button */}
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-lg hover:bg-surface-100"
+            className="lg:hidden p-2 rounded-xl transition-colors"
+            style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#c4b5fd' }}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
         {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <div className="space-y-2">
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="space-y-1.5">
             {[
               { path: '/kassa', label: 'Kassa', icon: Calculator },
               { path: '/kassa/clients', label: 'Mijozlar', icon: Users },
@@ -200,12 +220,15 @@ export default function KassaLayout() {
               <Link
                 key={path}
                 to={path}
-                onClick={() => setIsSidebarOpen(false)} // Close sidebar on mobile when navigating
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  location.pathname === path
-                    ? 'bg-brand-100 text-brand-700'
-                    : 'text-surface-600 hover:text-surface-900 hover:bg-surface-100'
-                }`}
+                onClick={() => setIsSidebarOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+                style={{
+                  background: location.pathname === path 
+                    ? 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' 
+                    : 'transparent',
+                  color: location.pathname === path ? '#ffffff' : '#c4b5fd',
+                  boxShadow: location.pathname === path ? '0 4px 12px -2px rgba(6, 182, 212, 0.4)' : 'none'
+                }}
               >
                 <Icon className="w-5 h-5" />
                 {label}
@@ -215,39 +238,62 @@ export default function KassaLayout() {
         </nav>
         
         {/* User Profile Section */}
-        <div className="p-3 border-t border-surface-200">
-          {/* Profile Card - Compact Design */}
-          <div className="bg-white rounded-2xl p-3 mb-3 border border-surface-200 shadow-sm">
+        <div 
+          className="p-4"
+          style={{
+            borderTop: '1px solid rgba(6, 182, 212, 0.15)',
+            background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.2) 100%)'
+          }}
+        >
+          {/* Profile Card */}
+          <div 
+            className="rounded-2xl p-4 mb-3"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(6, 182, 212, 0.15)'
+            }}
+          >
             <div className="flex items-center gap-3">
-              {/* Avatar - Smaller */}
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-500 rounded-2xl flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-white">
+              {/* Avatar */}
+              <div 
+                className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                  boxShadow: '0 4px 12px -2px rgba(124, 58, 237, 0.4)'
+                }}
+              >
+                <span className="text-base font-bold text-white">
                   {userInfo.username.charAt(0).toUpperCase()}
                 </span>
               </div>
               
-              {/* User Info - Compact */}
+              {/* User Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 truncate leading-tight">
+                <h3 className="text-sm font-bold text-white truncate">
                   {userInfo.username === 'alisher' ? 'Namozov Alisher' : 
                    userInfo.username === 'kassa1' ? 'Kassa Xodimi' : 
                    userInfo.username === 'admin' ? 'Administrator' : 
                    userInfo.username}
                 </h3>
-                <p className="text-xs text-slate-500 font-medium leading-tight">
-                  Kassir
+                <p className="text-xs font-medium flex items-center gap-1" style={{ color: '#a5b4fc' }}>
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                  Kassir • Faol
                 </p>
               </div>
             </div>
           </div>
           
-          {/* Logout Button - Smaller */}
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors text-xs font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-semibold"
+            style={{
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#fca5a5'
+            }}
             title="Kassa tizimidan chiqish"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" />
             Chiqish
           </button>
         </div>
@@ -256,18 +302,33 @@ export default function KassaLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:ml-0 h-full">
         {/* Top Header */}
-        <header className="bg-white border-b border-surface-200 px-4 lg:px-6 h-14 lg:h-16 flex items-center justify-between flex-shrink-0">
+        <header 
+          className="px-4 lg:px-6 h-14 lg:h-16 flex items-center justify-between flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 245, 255, 0.95) 100%)',
+            borderBottom: '1px solid rgba(91, 33, 182, 0.1)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 4px 20px -4px rgba(46, 16, 101, 0.08)'
+          }}
+        >
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-surface-100"
+            className="lg:hidden p-2.5 rounded-xl transition-colors"
+            style={{ background: 'rgba(91, 33, 182, 0.08)', color: '#5b21b6' }}
           >
             <Menu className="w-5 h-5" />
           </button>
           
-          <h2 className="text-lg lg:text-xl font-semibold text-surface-900">
-            {getPageTitle()}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg lg:text-xl font-bold" style={{ color: '#2e1065' }}>
+              {getPageTitle()}
+            </h2>
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
+              <span className="text-xs font-medium" style={{ color: '#6b7280' }}>Faol</span>
+            </div>
+          </div>
           
           {/* Install App Button */}
           <PWAInstallButton variant="navbar" />
@@ -282,20 +343,28 @@ export default function KassaLayout() {
       {/* Keldim/Ketdim UI */}
       {uiMode === 'idle' && (
         <div className="fixed inset-0 z-50 pointer-events-none">
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm" />
+          <div className="absolute inset-0" style={{ background: 'rgba(250, 245, 255, 0.7)', backdropFilter: 'blur(8px)' }} />
           <div className="absolute bottom-0 left-0 right-0 p-4">
             <div className="mx-auto max-w-md flex gap-4">
               <button
                 onClick={() => handleAttendance('arrived')}
                 disabled={sending !== null}
-                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg hover:bg-emerald-700 disabled:opacity-60"
+                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl text-white font-bold shadow-lg disabled:opacity-60 transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                  boxShadow: '0 8px 24px -4px rgba(6, 182, 212, 0.4)'
+                }}
               >
                 {sending === 'arrived' ? 'Yuborilmoqda...' : 'Keldim'}
               </button>
               <button
                 onClick={() => handleAttendance('left')}
                 disabled={sending !== null}
-                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl bg-rose-600 text-white font-bold shadow-lg hover:bg-rose-700 disabled:opacity-60"
+                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl text-white font-bold shadow-lg disabled:opacity-60 transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                  boxShadow: '0 8px 24px -4px rgba(220, 38, 38, 0.4)'
+                }}
               >
                 {sending === 'left' ? 'Yuborilmoqda...' : 'Ketdim'}
               </button>
@@ -308,14 +377,22 @@ export default function KassaLayout() {
           <button
             onClick={() => handleAttendance('arrived')}
             disabled={sending !== null}
-            className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-md hover:bg-emerald-700 disabled:opacity-60 transition-all"
+            className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+              boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
+            }}
           >
             {sending === 'arrived' ? '...' : 'Keldim'}
           </button>
           <button
             onClick={() => handleAttendance('left')}
             disabled={sending !== null}
-            className="px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold shadow-md hover:bg-rose-700 disabled:opacity-60 transition-all"
+            className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all"
+            style={{
+              background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+              boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.4)'
+            }}
           >
             {sending === 'left' ? '...' : 'Ketdim'}
           </button>

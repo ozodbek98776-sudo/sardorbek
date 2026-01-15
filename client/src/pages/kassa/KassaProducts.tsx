@@ -791,19 +791,23 @@ export default function KassaProducts() {
             <>
               <div className="hidden lg:block">
                 <div className="table-header">
-                  <div className="grid grid-cols-12 gap-4 px-6 py-4">
+                  <div className="grid grid-cols-16 gap-2 px-4 py-4">
                     <span className="table-header-cell col-span-1">Rasm</span>
-                    <span className="table-header-cell col-span-2">Kod</span>
+                    <span className="table-header-cell col-span-1">Kod</span>
                     <span className="table-header-cell col-span-2">Nomi</span>
-                    <span className="table-header-cell col-span-2">Oldingi narxi</span>
-                    <span className="table-header-cell col-span-2">Hozirgi narxi</span>
+                    <span className="table-header-cell col-span-1">Tan narxi</span>
+                    <span className="table-header-cell col-span-1">Dona narxi</span>
+                    <span className="table-header-cell col-span-1">Karobka</span>
+                    <span className="table-header-cell col-span-3">Chegirmalar</span>
+                    <span className="table-header-cell col-span-1">Oldingi</span>
+                    <span className="table-header-cell col-span-1">Hozirgi</span>
                     <span className="table-header-cell col-span-1">Miqdori</span>
                     <span className="table-header-cell col-span-2 text-center">Amallar</span>
                   </div>
                 </div>
                 <div className="divide-y divide-surface-100">
                   {filteredProducts.map(product => (
-                    <div key={product._id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-surface-50 transition-colors">
+                    <div key={product._id} className="grid grid-cols-16 gap-2 px-4 py-3 items-center hover:bg-surface-50 transition-colors">
                       <div className="col-span-1">
                         {getProductImage(product) ? (
                           <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
@@ -813,14 +817,58 @@ export default function KassaProducts() {
                           </div>
                         )}
                       </div>
-                      <div className="col-span-2">
-                        <span className="font-mono text-sm bg-surface-100 px-2 py-1 rounded-lg">{product.code}</span>
+                      <div className="col-span-1">
+                        <span className="font-mono text-xs bg-surface-100 px-1.5 py-0.5 rounded">{product.code}</span>
                       </div>
                       <div className="col-span-2">
-                        <p className="font-medium text-surface-900">{product.name}</p>
+                        <p className="font-medium text-surface-900 text-sm truncate">{product.name}</p>
                       </div>
-                      <div className="col-span-2">
-                        <p className={`font-semibold ${
+                      {/* Tan narxi */}
+                      <div className="col-span-1">
+                        <p className="font-semibold text-surface-700 text-sm">
+                          {formatNumber((product as any).costPrice || 0)}
+                        </p>
+                      </div>
+                      {/* Dona narxi */}
+                      <div className="col-span-1">
+                        <p className="font-semibold text-brand-600 text-sm">
+                          {formatNumber((product as any).unitPrice || product.price)}
+                        </p>
+                      </div>
+                      {/* Karobka narxi */}
+                      <div className="col-span-1">
+                        <p className="font-semibold text-orange-600 text-sm">
+                          {(product as any).boxPrice > 0 ? formatNumber((product as any).boxPrice) : '-'}
+                        </p>
+                      </div>
+                      {/* Chegirmalar */}
+                      <div className="col-span-3">
+                        <div className="flex flex-wrap gap-1">
+                          {(product as any).pricingTiers?.tier1?.discountPercent > 0 && (
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-bold">
+                              {(product as any).pricingTiers.tier1.minQuantity}-{(product as any).pricingTiers.tier1.maxQuantity}: {(product as any).pricingTiers.tier1.discountPercent}%
+                            </span>
+                          )}
+                          {(product as any).pricingTiers?.tier2?.discountPercent > 0 && (
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
+                              {(product as any).pricingTiers.tier2.minQuantity}-{(product as any).pricingTiers.tier2.maxQuantity}: {(product as any).pricingTiers.tier2.discountPercent}%
+                            </span>
+                          )}
+                          {(product as any).pricingTiers?.tier3?.discountPercent > 0 && (
+                            <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded text-[10px] font-bold">
+                              {(product as any).pricingTiers.tier3.minQuantity}+: {(product as any).pricingTiers.tier3.discountPercent}%
+                            </span>
+                          )}
+                          {!(product as any).pricingTiers?.tier1?.discountPercent && 
+                           !(product as any).pricingTiers?.tier2?.discountPercent && 
+                           !(product as any).pricingTiers?.tier3?.discountPercent && (
+                            <span className="text-surface-400 text-xs">-</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Oldingi narxi */}
+                      <div className="col-span-1">
+                        <p className={`font-semibold text-sm ${
                           (() => {
                             const oldPrice = (product as any).previousPrice || 0;
                             const newPrice = (product as any).currentPrice || product.price;
@@ -829,10 +877,9 @@ export default function KassaProducts() {
                         }`}>
                           {formatNumber((product as any).previousPrice || 0)}
                         </p>
-                        <p className="text-sm text-surface-500">so'm</p>
                       </div>
-                      <div className="col-span-2 relative">
-                        {/* Chegirma foizi tepada */}
+                      {/* Hozirgi narxi */}
+                      <div className="col-span-1 relative">
                         {(() => {
                           const oldPrice = (product as any).previousPrice || 0;
                           const newPrice = (product as any).currentPrice || product.price;
@@ -840,13 +887,13 @@ export default function KassaProducts() {
                             const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
                             if (discountPercent > 0) {
                               return (
-                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-red-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                <div className="absolute -top-2 -right-1 px-1 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold">
                                   -{discountPercent}%
                                 </div>
                               );
                             } else if (discountPercent < 0) {
                               return (
-                                <div className="absolute -top-3 -right-1 px-2 py-1 bg-green-500 text-white rounded-full text-xs font-bold shadow-sm z-10">
+                                <div className="absolute -top-2 -right-1 px-1 py-0.5 bg-green-500 text-white rounded text-[9px] font-bold">
                                   +{Math.abs(discountPercent)}%
                                 </div>
                               );
@@ -854,16 +901,15 @@ export default function KassaProducts() {
                           }
                           return null;
                         })()}
-                        <p className="font-semibold text-surface-900">{formatNumber((product as any).currentPrice || product.price)}</p>
-                        <p className="text-sm text-surface-500">so'm</p>
+                        <p className="font-semibold text-surface-900 text-sm">{formatNumber((product as any).currentPrice || product.price)}</p>
                       </div>
                       <div className="col-span-1">
-                        <span className={`font-semibold ${
+                        <span className={`font-semibold text-sm ${
                           product.quantity === 0 ? 'text-danger-600' :
                           product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
                         }`}>{product.quantity}</span>
                       </div>
-                      <div className="col-span-2 flex items-center justify-center gap-2">
+                      <div className="col-span-2 flex items-center justify-center gap-1">
                         <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
                           <QrCode className="w-4 h-4" />
                         </button>
@@ -976,48 +1022,52 @@ export default function KassaProducts() {
                         {/* Prices Grid */}
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="bg-surface-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Oldingi narxi</p>
-                            <p className={`font-bold text-sm ${
-                              (() => {
-                                const oldPrice = (product as any).previousPrice || 0;
-                                const newPrice = (product as any).currentPrice || product.price;
-                                return (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) ? 'line-through text-red-500' : 'text-surface-900';
-                              })()
-                            }`}>
-                              {formatNumber((product as any).previousPrice || 0)}
+                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
+                            <p className="font-bold text-sm text-surface-900">
+                              {formatNumber((product as any).costPrice || 0)}
                               <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
                             </p>
                           </div>
-                          <div className="bg-brand-50 rounded-xl p-2.5 relative">
-                            {/* Chegirma foizi tepada */}
-                            {(() => {
-                              const oldPrice = (product as any).previousPrice || 0;
-                              const newPrice = (product as any).currentPrice || product.price;
-                              if (oldPrice > 0 && newPrice > 0 && oldPrice !== newPrice) {
-                                const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
-                                if (discountPercent > 0) {
-                                  return (
-                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-red-500 text-white rounded text-[9px] font-bold shadow-sm">
-                                      -{discountPercent}%
-                                    </div>
-                                  );
-                                } else if (discountPercent < 0) {
-                                  return (
-                                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-green-500 text-white rounded text-[9px] font-bold shadow-sm">
-                                      +{Math.abs(discountPercent)}%
-                                    </div>
-                                  );
-                                }
-                              }
-                              return null;
-                            })()}
-                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Hozirgi narxi</p>
+                          <div className="bg-brand-50 rounded-xl p-2.5">
+                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Dona narxi</p>
                             <p className="font-bold text-brand-700 text-sm">
-                              {formatNumber((product as any).currentPrice || product.price)}
+                              {formatNumber((product as any).unitPrice || product.price)}
                               <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
                             </p>
                           </div>
                         </div>
+
+                        {/* Karobka narxi */}
+                        {(product as any).boxPrice > 0 && (
+                          <div className="bg-orange-50 rounded-xl p-2.5 mb-3">
+                            <p className="text-[10px] text-orange-600 uppercase tracking-wide mb-0.5">📦 Karobka narxi</p>
+                            <p className="font-bold text-orange-700 text-sm">
+                              {formatNumber((product as any).boxPrice)}
+                              <span className="text-[10px] text-orange-400 ml-0.5">so'm</span>
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Chegirma darajalari */}
+                        {(product as any).pricingTiers && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {(product as any).pricingTiers.tier1?.discountPercent > 0 && (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold border border-emerald-200">
+                                {(product as any).pricingTiers.tier1.minQuantity}-{(product as any).pricingTiers.tier1.maxQuantity} dona: {(product as any).pricingTiers.tier1.discountPercent}%
+                              </span>
+                            )}
+                            {(product as any).pricingTiers.tier2?.discountPercent > 0 && (
+                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold border border-blue-200">
+                                {(product as any).pricingTiers.tier2.minQuantity}-{(product as any).pricingTiers.tier2.maxQuantity} dona: {(product as any).pricingTiers.tier2.discountPercent}%
+                              </span>
+                            )}
+                            {(product as any).pricingTiers.tier3?.discountPercent > 0 && (
+                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-bold border border-purple-200">
+                                {(product as any).pricingTiers.tier3.minQuantity}+ dona: {(product as any).pricingTiers.tier3.discountPercent}%
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Additional Prices */}
                         {product.prices && (

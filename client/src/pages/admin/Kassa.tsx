@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Search, RotateCcw, Save, CreditCard, Trash2, X, 
-  Package, Banknote, Delete, AlertTriangle, User, ChevronDown, Wifi, WifiOff, RefreshCw
+  Package, Banknote, Delete, AlertTriangle, User, ChevronDown, Wifi, WifiOff, RefreshCw, ScanLine
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useOffline } from '../../hooks/useOffline';
+import { Html5Qrcode } from 'html5-qrcode';
 import { 
   cacheProducts, 
   getCachedProducts,
@@ -48,6 +49,12 @@ export default function Kassa() {
   // Pricing tier edit uchun state
   const [showPricingEdit, setShowPricingEdit] = useState(false);
   const [selectedItemForPricing, setSelectedItemForPricing] = useState<CartItem | null>(null);
+  
+  // QR Scanner states
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerReady, setScannerReady] = useState(false);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerRef = useRef<HTMLDivElement>(null);
   const [customMarkupPercent, setCustomMarkupPercent] = useState<number>(15);
 
   // Miqdorga qarab narx hisoblash funksiyasi
@@ -96,17 +103,97 @@ export default function Kassa() {
     if (!selectedItemForPricing) return;
     
     const basePrice = selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15; // Approximate base price
+    const originalPrice = Math.round(basePrice * 1.15); // Asl narx (15% qo'shimcha bilan)
     const newPrice = Math.round(basePrice * (1 + customMarkupPercent / 100));
+    const discount = originalPrice - newPrice;
     
     setCart(prev => prev.map(p => 
       p._id === selectedItemForPricing._id 
-        ? { ...p, price: newPrice, customMarkup: customMarkupPercent }
+        ? { ...p, price: newPrice, customMarkup: customMarkupPercent, originalPrice: originalPrice }
         : p
     ));
     
     setShowPricingEdit(false);
     setSelectedItemForPricing(null);
-    showAlert(`Narx yangilandi: ${customMarkupPercent}% qo'shimcha`, 'Muvaffaqiyat', 'success');
+    
+    if (discount > 0) {
+      showAlert(`Narx kelishtirildi: ${formatNumber(originalPrice)} → ${formatNumber(newPrice)} (${formatNumber(discount)} so'm chegirma)`, 'Muvaffaqiyat', 'success');
+    } else {
+      showAlert(`Narx yangilandi: ${customMarkupPercent}% qo'shimcha`, 'Muvaffaqiyat', 'success');
+    }
+  };
+
+  // QR Scanner funksiyalari
+  const startScanner = async () => {
+    setShowScanner(true);
+    setScannerReady(false);
+    
+    setTimeout(async () => {
+      try {
+        if (!scannerContainerRef.current) return;
+        
+        const html5QrCode = new Html5Qrcode("admin-qr-reader");
+        html5QrCodeRef.current = html5QrCode;
+        
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          async (decodedText) => {
+            // URL dan product ID ni ajratib olish
+            const match = decodedText.match(/\/product\/([a-zA-Z0-9]+)/);
+            if (match && match[1]) {
+              const productId = match[1];
+              
+              try {
+                const res = await api.get(`/products/public/${productId}`);
+                const product = res.data;
+                
+                if (product) {
+                  await stopScanner();
+                  addToCart(product);
+                  showAlert(`"${product.name}" savatchaga qo'shildi!`, 'Muvaffaqiyat', 'success');
+                }
+              } catch (err) {
+                showAlert('Mahsulot topilmadi', 'Xatolik', 'warning');
+              }
+            } else {
+              // Oddiy kod sifatida qidirish
+              const product = products.find(p => p.code === decodedText);
+              if (product) {
+                await stopScanner();
+                addToCart(product);
+                showAlert(`"${product.name}" savatchaga qo'shildi!`, 'Muvaffaqiyat', 'success');
+              } else {
+                showAlert(`"${decodedText}" kodi bo'yicha mahsulot topilmadi`, 'Xatolik', 'warning');
+              }
+            }
+          },
+          () => {}
+        );
+        
+        setScannerReady(true);
+      } catch (err) {
+        console.error('Skaner xatosi:', err);
+        showAlert('Kameraga ulanib bo\'lmadi', 'Xatolik', 'danger');
+        setShowScanner(false);
+      }
+    }, 100);
+  };
+
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current = null;
+      } catch (err) {
+        console.error('Skanerni to\'xtatishda xatolik:', err);
+      }
+    }
+    setShowScanner(false);
+    setScannerReady(false);
   };
 
   useEffect(() => {
@@ -270,7 +357,6 @@ export default function Kassa() {
     try {
       // Step 1: ALWAYS save locally first (safety - never lose sales)
       const offlineSale = await saveOfflineSale(saleData);
-      console.log('Sale saved locally:', offlineSale.id);
 
       // Step 2: Try to sync to server if online
       if (navigator.onLine) {
@@ -302,7 +388,6 @@ export default function Kassa() {
           }
         } catch (serverErr) {
           // Server failed - sale is saved locally, will sync later
-          console.log('Server sync failed, sale saved offline');
           showAlert('Chek offline saqlandi, keyinroq sinxronlanadi', 'Ogohlantirish', 'warning');
         }
       } else {
@@ -560,7 +645,23 @@ export default function Kassa() {
                       </div>
                       <div className="col-span-2 text-right">
                         <div className="space-y-1">
-                          <span className="text-sm text-surface-900">{formatNumber(item.price)}</span>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-sm text-surface-900">{formatNumber(item.price)}</span>
+                            {/* Kelishtirildi badge */}
+                            {item.customMarkup !== undefined && item.originalPrice && item.originalPrice > item.price && (
+                              <div className="flex flex-col items-end">
+                                <span className="text-[10px] text-orange-600 font-bold bg-orange-100 px-1.5 py-0.5 rounded">
+                                  🤝 Kelishtirildi
+                                </span>
+                                <span className="text-[10px] text-red-500 line-through">
+                                  {formatNumber(item.originalPrice)}
+                                </span>
+                                <span className="text-[10px] text-green-600 font-semibold">
+                                  -{formatNumber(item.originalPrice - item.price)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                           {/* Pricing tier ma'lumoti */}
                           {(() => {
                             const tier = getPricingTier(item.cartQuantity, item.customMarkup);
@@ -601,6 +702,14 @@ export default function Kassa() {
 
           {/* Bottom Actions */}
           <div className="flex items-center gap-3 mt-4">
+            {/* QR Skaner tugmasi */}
+            <button 
+              onClick={startScanner}
+              className="flex items-center gap-2 px-5 py-2.5 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+            >
+              <ScanLine className="w-4 h-4" />
+              Skaner
+            </button>
             {!isReturnMode && (
               <button 
                 onClick={() => { setShowSearch(true); setSearchResults(products); }}
@@ -1015,6 +1124,53 @@ export default function Kassa() {
               >
                 Saqlash
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-surface-200">
+              <div className="flex items-center gap-2">
+                <ScanLine className="w-5 h-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-surface-900">QR Skaner</h3>
+              </div>
+              <button
+                onClick={stopScanner}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-100 hover:bg-surface-200 transition-colors"
+              >
+                <X className="w-5 h-5 text-surface-600" />
+              </button>
+            </div>
+            
+            {/* Scanner Container */}
+            <div className="p-4">
+              <div 
+                id="admin-qr-reader" 
+                ref={scannerContainerRef}
+                className="w-full rounded-xl overflow-hidden bg-black"
+                style={{ minHeight: '300px' }}
+              />
+              
+              {!scannerReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <div className="text-center text-white">
+                    <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                    <p>Kamera yuklanmoqda...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Instructions */}
+            <div className="p-4 bg-surface-50 border-t border-surface-200">
+              <p className="text-sm text-surface-600 text-center">
+                📱 Mahsulot QR kodini kameraga ko'rsating
+              </p>
             </div>
           </div>
         </div>

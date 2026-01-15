@@ -26,52 +26,34 @@
   ],
   "icons": [
     {
-      "src": "/icon-72x72.svg",
-      "sizes": "72x72",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-96x96.svg",
-      "sizes": "96x96", 
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-128x128.svg",
-      "sizes": "128x128",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-144x144.svg",
-      "sizes": "144x144",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-152x152.svg",
-      "sizes": "152x152",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-192x192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-384x384.svg",
-      "sizes": "384x384",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-512x512.svg",
+      "src": "/o5sk1awh.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon.svg",
@@ -86,21 +68,21 @@
       "short_name": "Statistika",
       "description": "Biznes tahlillarini ko'rish",
       "url": "/admin",
-      "icons": [{ "src": "/icon-192x192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
     },
     {
       "name": "Mahsulotlar",
       "short_name": "Mahsulotlar", 
       "description": "Mahsulotlarni boshqarish",
       "url": "/admin/products",
-      "icons": [{ "src": "/icon-192x192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
     },
     {
       "name": "POS Tizimi",
       "short_name": "POS",
       "description": "Savdo nuqtasi",
       "url": "/cashier",
-      "icons": [{ "src": "/icon-192x192.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
     }
   ]
 }

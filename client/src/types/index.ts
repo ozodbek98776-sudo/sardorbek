@@ -13,7 +13,9 @@ export interface Product {
   code: string;
   name: string;
   description?: string;
-  costPrice?: number;
+  costPrice?: number; // Tan narxi
+  unitPrice?: number; // Dona narxi
+  boxPrice?: number; // Karobka narxi
   price: number;
   previousPrice?: number; // Oldingi narxi
   currentPrice?: number; // Hozirgi narxi
@@ -27,6 +29,13 @@ export interface Product {
   
   // O'lchov birliklari
   unit?: 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr';
+  
+  // Foizli chegirmalar (miqdorga qarab)
+  pricingTiers?: {
+    tier1?: { minQuantity: number; maxQuantity: number; discountPercent: number };
+    tier2?: { minQuantity: number; maxQuantity: number; discountPercent: number };
+    tier3?: { minQuantity: number; maxQuantity: number; discountPercent: number };
+  };
   
   // Rulon/Karobka uchun qo'shimcha ma'lumotlar
   unitConversion?: {
@@ -57,6 +66,7 @@ export interface CartItem extends Product {
     partner?: number; // Hamkor to'lovi miqdori
   };
   customMarkup?: number; // Qo'lda belgilangan foiz
+  originalPrice?: number; // Asl narx (kelishtirilganda)
 }
 
 export interface Receipt {

@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   code: { type: String, required: true, unique: true },
   name: { type: String, required: true },
-  costPrice: { type: Number, default: 0 },
+  description: { type: String, default: '' }, // Qisqacha tavsif
+  costPrice: { type: Number, default: 0 }, // Tan narxi
+  unitPrice: { type: Number, default: 0 }, // Dona narxi
+  boxPrice: { type: Number, default: 0 }, // Karobka narxi
   price: { type: Number, required: true }, // Base price (cost price)
   previousPrice: { type: Number, default: 0 }, // Oldingi narxi
   currentPrice: { type: Number, default: 0 }, // Hozirgi narxi
@@ -47,22 +50,22 @@ const productSchema = new mongoose.Schema({
     perRoll: { type: Number, default: 0 }, // Rulon narxi
     perBox: { type: Number, default: 0 } // Karobka narxi
   },
-  // Wholesale pricing tiers
+  // Wholesale pricing tiers - Foizli chegirmalar
   pricingTiers: {
-    tier1: { // 1-9 dona
+    tier1: { // 1-dan X gacha
       minQuantity: { type: Number, default: 1 },
-      maxQuantity: { type: Number, default: 9 },
-      markupPercent: { type: Number, default: 15 } // 15% qo'shimcha
+      maxQuantity: { type: Number, default: 5 },
+      discountPercent: { type: Number, default: 15 } // 15% chegirma
     },
-    tier2: { // 10-99 dona
-      minQuantity: { type: Number, default: 10 },
-      maxQuantity: { type: Number, default: 99 },
-      markupPercent: { type: Number, default: 13 } // 13% qo'shimcha
+    tier2: { // X dan Y gacha
+      minQuantity: { type: Number, default: 6 },
+      maxQuantity: { type: Number, default: 20 },
+      discountPercent: { type: Number, default: 13 } // 13% chegirma
     },
-    tier3: { // 100+ dona
-      minQuantity: { type: Number, default: 100 },
-      maxQuantity: { type: Number, default: null }, // cheksiz
-      markupPercent: { type: Number, default: 11 } // 11% qo'shimcha
+    tier3: { // Y dan Z gacha
+      minQuantity: { type: Number, default: 21 },
+      maxQuantity: { type: Number, default: 100 },
+      discountPercent: { type: Number, default: 11 } // 11% chegirma
     }
   },
   // Package/batch information
@@ -76,50 +79,58 @@ const productSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-// Miqdorga qarab narx hisoblash method
+// Miqdorga qarab narx hisoblash method (chegirma bilan)
 productSchema.methods.calculatePrice = function (quantity) {
-  const basePrice = this.price; // Base price (cost price)
-  let markupPercent = 15; // Default 15%
+  const basePrice = this.unitPrice || this.price; // Dona narxi
+  let discountPercent = 0; // Default chegirma yo'q
 
   // Pricing tier aniqlash
-  if (quantity >= 100) {
-    markupPercent = this.pricingTiers?.tier3?.markupPercent || 11;
-  } else if (quantity >= 10) {
-    markupPercent = this.pricingTiers?.tier2?.markupPercent || 13;
-  } else {
-    markupPercent = this.pricingTiers?.tier1?.markupPercent || 15;
+  const tier1 = this.pricingTiers?.tier1;
+  const tier2 = this.pricingTiers?.tier2;
+  const tier3 = this.pricingTiers?.tier3;
+
+  if (tier3 && quantity >= tier3.minQuantity) {
+    discountPercent = tier3.discountPercent || 11;
+  } else if (tier2 && quantity >= tier2.minQuantity) {
+    discountPercent = tier2.discountPercent || 13;
+  } else if (tier1 && quantity >= tier1.minQuantity) {
+    discountPercent = tier1.discountPercent || 15;
   }
 
-  // Narxni hisoblash
-  const finalPrice = basePrice * (1 + markupPercent / 100);
+  // Narxni hisoblash (chegirma bilan)
+  const finalPrice = basePrice * (1 - discountPercent / 100);
   return Math.round(finalPrice); // Yaxlitlash
 };
 
 // Pricing tier ma'lumotini olish method
 productSchema.methods.getPricingTier = function (quantity) {
-  if (quantity >= 100) {
+  const tier1 = this.pricingTiers?.tier1;
+  const tier2 = this.pricingTiers?.tier2;
+  const tier3 = this.pricingTiers?.tier3;
+
+  if (tier3 && quantity >= tier3.minQuantity) {
     return {
       tier: 'tier3',
-      name: '100+ dona',
-      markupPercent: this.pricingTiers?.tier3?.markupPercent || 11,
-      minQuantity: 100,
-      maxQuantity: null
+      name: `${tier3.minQuantity}+ dona`,
+      discountPercent: tier3.discountPercent || 11,
+      minQuantity: tier3.minQuantity,
+      maxQuantity: tier3.maxQuantity
     };
-  } else if (quantity >= 10) {
+  } else if (tier2 && quantity >= tier2.minQuantity) {
     return {
       tier: 'tier2',
-      name: '10-99 dona',
-      markupPercent: this.pricingTiers?.tier2?.markupPercent || 13,
-      minQuantity: 10,
-      maxQuantity: 99
+      name: `${tier2.minQuantity}-${tier2.maxQuantity} dona`,
+      discountPercent: tier2.discountPercent || 13,
+      minQuantity: tier2.minQuantity,
+      maxQuantity: tier2.maxQuantity
     };
   } else {
     return {
       tier: 'tier1',
-      name: '1-9 dona',
-      markupPercent: this.pricingTiers?.tier1?.markupPercent || 15,
-      minQuantity: 1,
-      maxQuantity: 9
+      name: `${tier1?.minQuantity || 1}-${tier1?.maxQuantity || 5} dona`,
+      discountPercent: tier1?.discountPercent || 15,
+      minQuantity: tier1?.minQuantity || 1,
+      maxQuantity: tier1?.maxQuantity || 5
     };
   }
 };

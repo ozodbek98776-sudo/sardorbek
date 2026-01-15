@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -34,40 +34,60 @@ export default function AlertModal({
   if (!isOpen) return null;
 
   const icons = {
-    info: <Info className="w-6 h-6 text-brand-600" />,
-    success: <CheckCircle className="w-6 h-6 text-success-600" />,
-    warning: <AlertTriangle className="w-6 h-6 text-warning-600" />,
-    danger: <AlertTriangle className="w-6 h-6 text-danger-600" />
+    info: <Info className="w-7 h-7 text-blue-600" />,
+    success: <CheckCircle className="w-7 h-7 text-emerald-600" />,
+    warning: <AlertTriangle className="w-7 h-7 text-amber-600" />,
+    danger: <AlertTriangle className="w-7 h-7 text-red-600" />
   };
 
   const colors = {
-    info: 'bg-brand-50', success: 'bg-success-50',
-    warning: 'bg-warning-50', danger: 'bg-danger-50'
+    info: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200',
+    success: 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200',
+    warning: 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200',
+    danger: 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
   };
 
   const btnColors = {
-    info: 'btn-primary', success: 'btn-success',
-    warning: 'btn-warning', danger: 'btn-danger'
+    info: 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30',
+    success: 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg shadow-emerald-500/30',
+    warning: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/30',
+    danger: 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-lg shadow-red-500/30'
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl relative z-10">
-        <div className="flex items-start gap-4 mb-4">
-          <div className={`w-12 h-12 ${colors[type]} rounded-xl flex items-center justify-center flex-shrink-0`}>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl relative z-10 border border-slate-200/50 animate-scale-in">
+        {/* Close button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className={`w-16 h-16 ${colors[type]} rounded-2xl flex items-center justify-center mb-4 border shadow-sm`}>
             {icons[type]}
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-surface-900 mb-1">{title}</h3>
-            <p className="text-surface-600">{message}</p>
-          </div>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
+          <p className="text-slate-600 text-sm leading-relaxed">{message}</p>
         </div>
+        
         <div className="flex gap-3">
           {showCancel && (
-            <button onClick={onClose} className="btn-secondary flex-1">{cancelText}</button>
+            <button 
+              onClick={onClose} 
+              className="flex-1 px-5 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-all duration-200"
+            >
+              {cancelText}
+            </button>
           )}
-          <button ref={confirmRef} onClick={onConfirm || onClose} className={`${btnColors[type]} flex-1`}>
+          <button 
+            ref={confirmRef} 
+            onClick={onConfirm || onClose} 
+            className={`flex-1 px-5 py-3 font-semibold rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${btnColors[type]}`}
+          >
             {confirmText}
           </button>
         </div>

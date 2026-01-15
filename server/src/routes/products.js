@@ -438,18 +438,51 @@ router.get('/public/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate('warehouse', 'name');
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
-    
+
+    // Asosiy dona narx (yoki baza narx)
+    const basePrice = product.unitPrice || product.price || 0;
+
+    // 3 ta chegirmali narxni hisoblash
+    let tierPrices = undefined;
+    const tiers = product.pricingTiers || {};
+
+    const buildTierPrice = (tier) => {
+      if (!tier) return null;
+      const minQ = tier.minQuantity || 0;
+      const maxQ = tier.maxQuantity || 0;
+      const discount = tier.discountPercent || 0;
+      const finalPrice = Math.round(basePrice * (1 - discount / 100));
+      return {
+        minQuantity: minQ,
+        maxQuantity: maxQ,
+        discountPercent: discount,
+        price: finalPrice
+      };
+    };
+
+    const tier1 = buildTierPrice(tiers.tier1);
+    const tier2 = buildTierPrice(tiers.tier2);
+    const tier3 = buildTierPrice(tiers.tier3);
+
+    if (tier1 || tier2 || tier3) {
+      tierPrices = { tier1, tier2, tier3 };
+    }
+
     // Faqat kerakli ma'lumotlarni qaytarish
     res.json({
       _id: product._id,
       code: product.code,
       name: product.name,
-      price: product.price,
+      description: product.description || '',
+      price: basePrice,
+      costPrice: product.costPrice,
       quantity: product.quantity,
       unit: product.unit,
       images: product.images,
+      dimensions: product.dimensions,
       warehouse: product.warehouse,
-      createdAt: product.createdAt
+      createdAt: product.createdAt,
+      ...(tierPrices ? { tierPrices } : {})
     });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });

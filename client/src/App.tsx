@@ -26,6 +26,7 @@ import KassaProducts from './pages/kassa/KassaProducts';
 import TelegramSettings from './pages/admin/TelegramSettings';
 import KassaLogin from './pages/KassaLogin';
 import ProductView from './pages/ProductView';
+import Snowfall from './components/Snowfall';
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?
 const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [isAuthorized, setIsAuthorized] = React.useState<boolean | null>(null);
   
   React.useEffect(() => {
     // Body ga kassa himoya class qo'shish
@@ -60,57 +62,44 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const checkKassaLogin = () => {
       try {
         const loginData = localStorage.getItem('kassaLoggedIn');
-        if (!loginData) {
-          // Agar autentifikatsiyadan o'tgan foydalanuvchi kassir bo'lsa, to'g'ridan kassa paneliga kirish
-          if (user && user.role === 'cashier') {
-            const fallbackData = { 
-              loggedIn: true, 
-              user: 'kassa', 
-              username: user.name, 
-              timestamp: Date.now(),
-              locked: true
-            };
-            localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
-          } else {
-            navigate('/kassa-login', { replace: true });
+        
+        // 1. Avval kassaLoggedIn localStorage'ni tekshirish
+        if (loginData) {
+          const parsed = JSON.parse(loginData);
+          if (parsed.loggedIn && parsed.user === 'kassa') {
+            // Session ni yangilash
+            const updatedData = { ...parsed, timestamp: Date.now() };
+            localStorage.setItem('kassaLoggedIn', JSON.stringify(updatedData));
+            setIsAuthorized(true);
+            window.history.pushState(null, '', window.location.href);
             return;
           }
         }
         
-        const parsed = JSON.parse(loginData as string);
-        if (!parsed.loggedIn || parsed.user !== 'kassa') {
-          if (user && user.role === 'cashier') {
-            const fallbackData = { 
-              loggedIn: true, 
-              user: 'kassa', 
-              username: user.name, 
-              timestamp: Date.now(),
-              locked: true
-            };
-            localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
-          } else {
-            navigate('/kassa-login', { replace: true });
-            return;
-          }
+        // 2. Agar kassaLoggedIn yo'q, lekin user cashier bo'lsa
+        if (user && user.role === 'cashier') {
+          const fallbackData = { 
+            loggedIn: true, 
+            user: 'kassa', 
+            username: user.name, 
+            timestamp: Date.now(),
+            locked: true
+          };
+          localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
+          setIsAuthorized(true);
+          window.history.pushState(null, '', window.location.href);
+          return;
         }
         
-        // Session ni doimiy yangilash - HECH QACHON EXPIRE BO'LMASIN
-        const updatedData = { ...parsed, timestamp: Date.now() };
-        localStorage.setItem('kassaLoggedIn', JSON.stringify(updatedData));
-        
-        // Browser back/forward tugmalarini bloklash
-        window.history.pushState(null, '', window.location.href);
+        // 3. Hech qanday autentifikatsiya yo'q - login sahifasiga yo'naltirish
+        setIsAuthorized(false);
+        navigate('/kassa-login', { replace: true });
         
       } catch (error) {
         console.error('Kassa login check error:', error);
-        // Xatolik bo'lsa ham kassa tizimida qolsin
-        const fallbackData = { 
-          loggedIn: true, 
-          user: 'kassa', 
-          username: 'Kassa', 
-          timestamp: Date.now() 
-        };
-        localStorage.setItem('kassaLoggedIn', JSON.stringify(fallbackData));
+        // Xatolik bo'lsa login sahifasiga yo'naltirish
+        setIsAuthorized(false);
+        navigate('/kassa-login', { replace: true });
       }
     };
     
@@ -212,7 +201,26 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [navigate]);
+  }, [navigate, user]);
+  
+  // Loading holati
+  if (isAuthorized === null) {
+    return (
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-brand-100 flex items-center justify-center">
+            <div className="spinner text-brand-600" />
+          </div>
+          <p className="text-surface-500 text-sm">Tekshirilmoqda...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Agar ruxsat berilmagan bo'lsa, hech narsa ko'rsatmaslik
+  if (!isAuthorized) {
+    return null;
+  }
   
   return <>{children}</>;
 };
@@ -243,7 +251,10 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          {/* ❄️ Qor animatsiyasi */}
+          <Snowfall />
+          
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

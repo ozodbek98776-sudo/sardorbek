@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
+import { FRONTEND_URL } from '../../config/api';
+import QRPrintLabel from '../../components/QRPrintLabel';
+import BatchQRPrint from '../../components/BatchQRPrint';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
 // Rasmlar uchun alohida URL
@@ -35,6 +38,9 @@ export default function Products() {
   const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showBatchQRModal, setShowBatchQRModal] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [productStats, setProductStats] = useState<ProductStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -46,9 +52,18 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    code: '', name: '', quantity: '',
+    code: '', name: '', description: '', quantity: '',
     previousPrice: '', 
     currentPrice: '', // Dona narxi
+    costPrice: '', // Tan narxi
+    unitPrice: '', // Dona narxi
+    boxPrice: '', // Karobka narxi
+    // Foizli chegirmalar
+    pricingTiers: {
+      tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
+      tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
+      tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
+    },
     unit: 'dona' as 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr',
     // O'lchamlar (sm/mm)
     dimensions: { width: '', height: '', length: '' },
@@ -74,6 +89,87 @@ export default function Products() {
   const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
   const [quantityInput, setQuantityInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadQR = () => {
+    if (!selectedProduct) return;
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = document.createElement('img');
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const checkCodeExists = async (code: string) => {
+    if (!code) return;
+    try {
+      const excludeId = editingProduct?._id || '';
+      const res = await api.get(`/products/check-code/${code}${excludeId ? `?excludeId=${excludeId}` : ''}`);
+      if (res.data.exists) {
+        setCodeError(`Kod "${code}" allaqachon mavjud`);
+      } else {
+        setCodeError('');
+      }
+    } catch (err) {
+      console.error('Error checking code:', err);
+    }
+  };
+
+  const printXprinterLabel = (product: Product) => {
+    const svg = document.getElementById('qr-code-svg');
+    if (!svg) {
+      return;
+    }
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = document.createElement('img');
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      if (!printWindow) return;
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>QR - ${product.name}</title>
+            <style>
+              body { margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
+              img { width: 260px; height: 260px; }
+            </style>
+          </head>
+          <body>
+            <img src="${dataUrl}" alt="QR Code" />
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
 
   useEffect(() => {
     fetchMainWarehouse();
@@ -187,9 +283,31 @@ export default function Products() {
       const data = {
         code: formData.code,
         name: formData.name,
-        price: Number(formData.currentPrice),
+        description: formData.description || '',
+        price: Number(formData.unitPrice) || Number(formData.currentPrice),
+        costPrice: Number(formData.costPrice) || 0,
+        unitPrice: Number(formData.unitPrice) || Number(formData.currentPrice) || 0,
+        boxPrice: Number(formData.boxPrice) || 0,
         previousPrice: Number(formData.previousPrice) || 0,
         currentPrice: Number(formData.currentPrice) || 0,
+        // Foizli chegirmalar
+        pricingTiers: {
+          tier1: {
+            minQuantity: Number(formData.pricingTiers.tier1.minQuantity) || 1,
+            maxQuantity: Number(formData.pricingTiers.tier1.maxQuantity) || 5,
+            discountPercent: Number(formData.pricingTiers.tier1.discountPercent) || 15
+          },
+          tier2: {
+            minQuantity: Number(formData.pricingTiers.tier2.minQuantity) || 6,
+            maxQuantity: Number(formData.pricingTiers.tier2.maxQuantity) || 20,
+            discountPercent: Number(formData.pricingTiers.tier2.discountPercent) || 13
+          },
+          tier3: {
+            minQuantity: Number(formData.pricingTiers.tier3.minQuantity) || 21,
+            maxQuantity: Number(formData.pricingTiers.tier3.maxQuantity) || 100,
+            discountPercent: Number(formData.pricingTiers.tier3.discountPercent) || 11
+          }
+        },
         quantity: finalQuantity,
         warehouse: mainWarehouse?._id,
         images,
@@ -211,9 +329,9 @@ export default function Products() {
           .filter(r => r.from && r.to && r.price)
           .map(r => ({ from: Number(r.from), to: Number(r.to), price: Number(r.price) })),
         prices: {
-          perUnit: Number(formData.currentPrice),
+          perUnit: Number(formData.unitPrice) || Number(formData.currentPrice),
           perRoll: Number(formData.pricePerRoll) || 0,
-          perBox: Number(formData.pricePerBox) || 0,
+          perBox: Number(formData.boxPrice) || Number(formData.pricePerBox) || 0,
           perKg: Number(formData.pricePerKg) || 0,
           perGram: Number(formData.pricePerGram) || 0
         }
@@ -243,29 +361,51 @@ export default function Products() {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    const p = product as any;
     setFormData({
       code: product.code,
       name: product.name,
-      previousPrice: String((product as any).previousPrice || 0),
-      currentPrice: String((product as any).currentPrice || product.price),
+      description: p.description || '',
+      previousPrice: String(p.previousPrice || 0),
+      currentPrice: String(p.currentPrice || product.price),
+      costPrice: String(p.costPrice || 0),
+      unitPrice: String(p.unitPrice || p.currentPrice || product.price),
+      boxPrice: String(p.boxPrice || 0),
+      pricingTiers: {
+        tier1: {
+          minQuantity: String(p.pricingTiers?.tier1?.minQuantity || 1),
+          maxQuantity: String(p.pricingTiers?.tier1?.maxQuantity || 5),
+          discountPercent: String(p.pricingTiers?.tier1?.discountPercent || 15)
+        },
+        tier2: {
+          minQuantity: String(p.pricingTiers?.tier2?.minQuantity || 6),
+          maxQuantity: String(p.pricingTiers?.tier2?.maxQuantity || 20),
+          discountPercent: String(p.pricingTiers?.tier2?.discountPercent || 13)
+        },
+        tier3: {
+          minQuantity: String(p.pricingTiers?.tier3?.minQuantity || 21),
+          maxQuantity: String(p.pricingTiers?.tier3?.maxQuantity || 100),
+          discountPercent: String(p.pricingTiers?.tier3?.discountPercent || 11)
+        }
+      },
       quantity: String(product.quantity),
       unit: product.unit || 'dona',
       dimensions: {
-        width: (product as any).dimensions?.width || '',
-        height: (product as any).dimensions?.height || '',
-        length: (product as any).dimensions?.length || ''
+        width: p.dimensions?.width || '',
+        height: p.dimensions?.height || '',
+        length: p.dimensions?.length || ''
       },
-      metersPerRoll: String((product as any).metersPerRoll || ''),
-      unitsPerBox: String((product as any).unitsPerBox || ''),
-      meterPriceRanges: (product as any).meterPriceRanges?.length > 0 
-        ? (product as any).meterPriceRanges.map((r: any) => ({ from: String(r.from || ''), to: String(r.to || ''), price: String(r.price || '') }))
+      metersPerRoll: String(p.metersPerRoll || ''),
+      unitsPerBox: String(p.unitsPerBox || ''),
+      meterPriceRanges: p.meterPriceRanges?.length > 0 
+        ? p.meterPriceRanges.map((r: any) => ({ from: String(r.from || ''), to: String(r.to || ''), price: String(r.price || '') }))
         : [{ from: '', to: '', price: '' }],
       pricePerRoll: String(product.prices?.perRoll || ''),
       pricePerBox: String(product.prices?.perBox || ''),
       pricePerKg: String(product.prices?.perKg || ''),
       pricePerGram: String(product.prices?.perGram || '')
     });
-    setImages((product as any).images || []);
+    setImages(p.images || []);
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setCodeError('');
     setShowPackageInput(false);
@@ -275,6 +415,40 @@ export default function Products() {
   const openQRModal = (product: Product) => {
     setSelectedProduct(product);
     setShowQRModal(true);
+  };
+
+  // Selection funksiyalari
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllProducts = () => {
+    if (selectedProducts.size === filteredProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredProducts.map(p => p._id)));
+    }
+  };
+
+  const openBatchQRPrint = () => {
+    if (selectedProducts.size === 0) {
+      showAlert('Kamida bitta mahsulot tanlang', 'Ogohlantirish', 'warning');
+      return;
+    }
+    setShowBatchQRModal(true);
+  };
+
+  const cancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedProducts(new Set());
   };
 
   // Mahsulot statistikasini ochish
@@ -317,8 +491,14 @@ export default function Products() {
     setShowModal(false);
     setEditingProduct(null);
     setFormData({ 
-      code: '', name: '', quantity: '',
+      code: '', name: '', description: '', quantity: '',
       previousPrice: '', currentPrice: '',
+      costPrice: '', unitPrice: '', boxPrice: '',
+      pricingTiers: {
+        tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
+        tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
+        tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
+      },
       unit: 'dona',
       dimensions: { width: '', height: '', length: '' },
       metersPerRoll: '',
@@ -358,8 +538,14 @@ export default function Products() {
     try {
       const res = await api.get('/products/next-code');
       setFormData({ 
-        code: res.data.code, name: '', quantity: '',
+        code: res.data.code, name: '', description: '', quantity: '',
         previousPrice: '', currentPrice: '',
+        costPrice: '', unitPrice: '', boxPrice: '',
+        pricingTiers: {
+          tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
+          tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
+          tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
+        },
         unit: 'dona',
         dimensions: { width: '', height: '', length: '' },
         metersPerRoll: '',
@@ -380,253 +566,14 @@ export default function Products() {
     setShowModal(true);
   };
 
-  const checkCodeExists = async (code: string) => {
-    if (!code) return;
-    try {
-      const excludeId = editingProduct?._id || '';
-      const res = await api.get(`/products/check-code/${code}${excludeId ? `?excludeId=${excludeId}` : ''}`);
-      if (res.data.exists) {
-        setCodeError(`Kod "${code}" allaqachon mavjud`);
-      } else {
-        setCodeError('');
-      }
-    } catch (err) {
-      console.error('Error checking code:', err);
-    }
-  };
-
-  const downloadQR = () => {
-    if (!selectedProduct) return;
-    const svg = document.getElementById('qr-code-svg');
-    if (!svg) return;
-    
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = document.createElement('img');
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-    
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-  };
-
-  // Xprinter uchun optimallashtirilgan print funksiyasi
-  const printXprinterLabel = async (product: Product) => {
-    const printWindow = window.open('', '_blank', 'width=400,height=400');
-    if (!printWindow) {
-      showAlert('Pop-up bloklangan. Iltimos, pop-up ga ruxsat bering.', 'Xatolik', 'danger');
-      return;
-    }
-
-    // QR code URL yaratish
-    const productUrl = `${window.location.origin}/product/${product._id}`;
-    
-    // O'lchamlarni olish (sm/mm)
-    const dimensions = (product as any).dimensions || {};
-    const width = dimensions.width || '';
-    const height = dimensions.height || '';
-    const length = dimensions.length || '';
-    
-    // O'lcham stringini yaratish
-    let sizeStr = '';
-    if (width && height) {
-      sizeStr = `${width}sm x ${height}mm`;
-    } else if (width) {
-      sizeStr = `${width}sm`;
-    } else if (height) {
-      sizeStr = `${height}mm`;
-    } else if (length) {
-      sizeStr = `${length}sm`;
-    }
-    
-    try {
-      const qrDataURL = await QRCode.toDataURL(productUrl, {
-        width: 300,
-        margin: 0,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#000000', light: '#FFFFFF' }
-      });
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Xprinter Label - ${product.name}</title>
-          <style>
-            /* Xprinter 58mm x 40mm label */
-            @page {
-              size: 58mm 40mm;
-              margin: 0;
-            }
-            
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              font-family: Arial, sans-serif;
-              background: #f0f0f0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-            }
-            
-            .label-container {
-              width: 58mm;
-              height: 40mm;
-              background: white;
-              padding: 1.5mm;
-              display: flex;
-              flex-direction: column;
-              border: 1px solid #ccc;
-            }
-            
-            /* Yuqori qism - QR (chap) va ma'lumotlar (o'ng) */
-            .top-section {
-              display: flex;
-              gap: 2mm;
-              flex: 1;
-            }
-            
-            .qr-code {
-              width: 22mm;
-              height: 22mm;
-              flex-shrink: 0;
-            }
-            
-            .qr-code img {
-              width: 100%;
-              height: 100%;
-              display: block;
-            }
-            
-            .info-section {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              justify-content: flex-start;
-              gap: 0.5mm;
-              padding-top: 1mm;
-            }
-            
-            .product-code {
-              font-size: 8pt;
-              font-weight: 600;
-              color: #333;
-            }
-            
-            .product-name {
-              font-size: 9pt;
-              font-weight: 700;
-              color: #000;
-              line-height: 1.1;
-              word-break: break-word;
-              text-transform: uppercase;
-              max-height: 10mm;
-              overflow: hidden;
-            }
-            
-            .product-size {
-              font-size: 8pt;
-              font-weight: 500;
-              color: #555;
-            }
-            
-            /* Pastda - KATTA NARX */
-            .price-section {
-              text-align: center;
-              padding: 1mm 0;
-              border-top: 0.5mm dashed #ccc;
-              margin-top: auto;
-            }
-            
-            .product-price {
-              font-size: 28pt;
-              font-weight: 900;
-              color: #000;
-              line-height: 1;
-              letter-spacing: -0.5px;
-            }
-            
-            .currency {
-              font-size: 10pt;
-              font-weight: 600;
-            }
-            
-            /* Print styles */
-            @media print {
-              body {
-                background: white;
-                min-height: auto;
-              }
-              
-              .label-container {
-                border: none;
-                box-shadow: none;
-              }
-              
-              .no-print {
-                display: none !important;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="label-container">
-            <div class="top-section">
-              <div class="qr-code">
-                <img src="${qrDataURL}" alt="QR Code" />
-              </div>
-              <div class="info-section">
-                <div class="product-code">Kod: ${product.code || product._id?.slice(-6) || ''}</div>
-                <div class="product-name">${product.name}</div>
-                ${sizeStr ? `<div class="product-size">${sizeStr}</div>` : ''}
-              </div>
-            </div>
-            <div class="price-section">
-              <div class="product-price">${formatNumber(product.price)} <span class="currency">so'm</span></div>
-            </div>
-          </div>
-          
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-                window.onafterprint = function() {
-                  window.close();
-                };
-              }, 300);
-            };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    } catch (error) {
-      console.error('QR code generation error:', error);
-      showAlert('QR kod yaratishda xatolik', 'Xatolik', 'danger');
-      printWindow.close();
-    }
-  };
-
   const stats = {
     total: products.length,
     lowStock: products.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
     outOfStock: products.filter(p => p.quantity === 0).length,
     totalValue: products.reduce((sum, p) => sum + (p.price * p.quantity), 0)
   };
+
+  // ... rest of the code remains the same ...
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -659,10 +606,47 @@ export default function Products() {
         showSearch 
         onSearch={setSearchQuery}
         actions={
-          <button onClick={openAddModal} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Yangi tovar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Selection Mode Toggle */}
+            {!selectionMode ? (
+              <button 
+                onClick={() => setSelectionMode(true)} 
+                className="btn-secondary"
+                title="Bir nechta QR chiqarish"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">Tanlash</span>
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={selectAllProducts} 
+                  className="btn-secondary text-xs"
+                >
+                  {selectedProducts.size === filteredProducts.length ? 'Bekor' : 'Barchasi'}
+                </button>
+                <button 
+                  onClick={openBatchQRPrint} 
+                  className="btn-primary"
+                  disabled={selectedProducts.size === 0}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span className="hidden sm:inline">QR ({selectedProducts.size})</span>
+                  <span className="sm:hidden">{selectedProducts.size}</span>
+                </button>
+                <button 
+                  onClick={cancelSelection} 
+                  className="btn-icon-sm bg-surface-200 hover:bg-surface-300"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            <button onClick={openAddModal} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Yangi tovar</span>
+            </button>
+          </div>
         }
       />
 
@@ -722,15 +706,36 @@ export default function Products() {
                     }
                   };
                   const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
+                  const isSelected = selectedProducts.has(product._id);
                   
                   return (
                     <div 
                       key={product._id} 
-                      className="bg-white rounded-xl sm:rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer"
-                      onClick={() => openStatsModal(product)}
+                      className={`bg-white rounded-xl sm:rounded-2xl border-2 hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer ${
+                        isSelected ? 'border-brand-500 ring-2 ring-brand-200' : 'border-surface-200 hover:border-brand-300'
+                      }`}
+                      onClick={() => selectionMode ? toggleProductSelection(product._id) : openStatsModal(product)}
                     >
                       {/* Image Section */}
                       <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-100 to-surface-50 overflow-hidden">
+                        {/* Selection Checkbox */}
+                        {selectionMode && (
+                          <div 
+                            className={`absolute top-2 left-2 z-20 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                              isSelected 
+                                ? 'bg-brand-500 text-white shadow-lg' 
+                                : 'bg-white/90 backdrop-blur border-2 border-surface-300'
+                            }`}
+                            onClick={(e) => { e.stopPropagation(); toggleProductSelection(product._id); }}
+                          >
+                            {isSelected && (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        )}
+                        
                         {getProductImage(product) ? (
                           <img src={getProductImage(product)!} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
@@ -820,13 +825,47 @@ export default function Products() {
                             </p>
                           </div>
                           <div className="bg-gradient-to-br from-brand-50 to-indigo-50 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-3 border border-brand-200">
-                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-600 uppercase tracking-wider font-semibold mb-0.5">Sotish</p>
+                            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-600 uppercase tracking-wider font-semibold mb-0.5">Dona narxi</p>
                             <p className="font-bold text-brand-700 text-[10px] sm:text-xs md:text-sm">
-                              {formatNumber(product.price)}
+                              {formatNumber((product as any).unitPrice || product.price)}
                               <span className="text-[8px] sm:text-[9px] md:text-[10px] text-brand-400 ml-0.5">so'm</span>
                             </p>
                           </div>
                         </div>
+
+                        {/* Karobka narxi */}
+                        {(product as any).boxPrice > 0 && (
+                          <div className="mb-1.5 sm:mb-2 md:mb-3">
+                            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-3 border border-orange-200">
+                              <p className="text-[8px] sm:text-[9px] md:text-[10px] text-orange-600 uppercase tracking-wider font-semibold mb-0.5">Karobka narxi</p>
+                              <p className="font-bold text-orange-700 text-[10px] sm:text-xs md:text-sm">
+                                {formatNumber((product as any).boxPrice)}
+                                <span className="text-[8px] sm:text-[9px] md:text-[10px] text-orange-400 ml-0.5">so'm</span>
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Chegirma darajalari */}
+                        {(product as any).pricingTiers && (
+                          <div className="flex flex-wrap gap-1 mb-1.5 sm:mb-2">
+                            {(product as any).pricingTiers.tier1?.discountPercent > 0 && (
+                              <span className="px-1 sm:px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[8px] sm:text-[9px] font-semibold border border-emerald-200">
+                                {(product as any).pricingTiers.tier1.minQuantity}-{(product as any).pricingTiers.tier1.maxQuantity}: {(product as any).pricingTiers.tier1.discountPercent}%
+                              </span>
+                            )}
+                            {(product as any).pricingTiers.tier2?.discountPercent > 0 && (
+                              <span className="px-1 sm:px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[8px] sm:text-[9px] font-semibold border border-blue-200">
+                                {(product as any).pricingTiers.tier2.minQuantity}-{(product as any).pricingTiers.tier2.maxQuantity}: {(product as any).pricingTiers.tier2.discountPercent}%
+                              </span>
+                            )}
+                            {(product as any).pricingTiers.tier3?.discountPercent > 0 && (
+                              <span className="px-1 sm:px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded text-[8px] sm:text-[9px] font-semibold border border-purple-200">
+                                {(product as any).pricingTiers.tier3.minQuantity}+: {(product as any).pricingTiers.tier3.discountPercent}%
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Additional Prices */}
                         {product.prices && (product.prices.perMeter > 0 || product.prices.perRoll > 0 || product.prices.perBox > 0 || product.prices.perKg > 0) && (
@@ -935,6 +974,19 @@ export default function Products() {
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
                   <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                 </div>
+              </div>
+
+              {/* Tavsif */}
+              <div>
+                <label className="text-sm font-medium text-surface-700 mb-2 block">Qisqacha tavsif (ixtiyoriy)</label>
+                <textarea 
+                  className="input min-h-[80px] resize-none" 
+                  placeholder="Mahsulot haqida qisqacha ma'lumot..."
+                  value={formData.description || ''}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  maxLength={500}
+                />
+                <p className="text-xs text-surface-400 mt-1">{(formData.description || '').length}/500</p>
               </div>
 
               {/* O'lchamlar (sm/mm) */}
@@ -1164,11 +1216,215 @@ export default function Products() {
               <div className="border-t border-surface-200 pt-4 mt-4">
                 <h4 className="text-sm font-semibold text-surface-900 mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-600" />
-                  Narxlar
+                  Narxlar (5 ta)
                 </h4>
                 
-                {/* Asosiy narx - birlikka qarab */}
+                {/* Tan narxi va Dona narxi */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">💰 Tan narxi (so'm)</label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.costPrice)}
+                      onChange={e => setFormData({...formData, costPrice: parseNumber(e.target.value)})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-surface-600 mb-1 block">🏷️ Dona narxi (so'm)</label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      placeholder="0"
+                      value={formatInputNumber(formData.unitPrice)}
+                      onChange={e => setFormData({...formData, unitPrice: parseNumber(e.target.value)})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Karobka narxi */}
                 <div className="mb-4">
+                  <label className="text-xs font-medium text-surface-600 mb-1 block">📦 Karobka narxi (so'm)</label>
+                  <input 
+                    type="text" 
+                    className="input" 
+                    placeholder="0"
+                    value={formatInputNumber(formData.boxPrice)}
+                    onChange={e => setFormData({...formData, boxPrice: parseNumber(e.target.value)})}
+                  />
+                </div>
+
+                {/* Foizli chegirmalar - 3 ta daraja */}
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                  <h5 className="text-xs font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                    🎯 Foizli chegirmalar (miqdorga qarab)
+                  </h5>
+                  
+                  {/* Tier 1 */}
+                  <div className="bg-white rounded-lg p-3 mb-2 border border-emerald-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">1-daraja</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="1"
+                        value={formData.pricingTiers.tier1.minQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier1: {...formData.pricingTiers.tier1, minQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-emerald-600">dan</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="5"
+                        value={formData.pricingTiers.tier1.maxQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier1: {...formData.pricingTiers.tier1, maxQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-emerald-600">gacha</span>
+                      <span className="text-xs text-emerald-600 mx-1">=</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center font-bold" 
+                        placeholder="15"
+                        value={formData.pricingTiers.tier1.discountPercent}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier1: {...formData.pricingTiers.tier1, discountPercent: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs font-bold text-emerald-700">%</span>
+                    </div>
+                  </div>
+
+                  {/* Tier 2 */}
+                  <div className="bg-white rounded-lg p-3 mb-2 border border-emerald-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">2-daraja</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="6"
+                        value={formData.pricingTiers.tier2.minQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier2: {...formData.pricingTiers.tier2, minQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-blue-600">dan</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="20"
+                        value={formData.pricingTiers.tier2.maxQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier2: {...formData.pricingTiers.tier2, maxQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-blue-600">gacha</span>
+                      <span className="text-xs text-blue-600 mx-1">=</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center font-bold" 
+                        placeholder="13"
+                        value={formData.pricingTiers.tier2.discountPercent}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier2: {...formData.pricingTiers.tier2, discountPercent: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs font-bold text-blue-700">%</span>
+                    </div>
+                  </div>
+
+                  {/* Tier 3 */}
+                  <div className="bg-white rounded-lg p-3 border border-emerald-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">3-daraja</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="21"
+                        value={formData.pricingTiers.tier3.minQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier3: {...formData.pricingTiers.tier3, minQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-purple-600">dan</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center" 
+                        placeholder="100"
+                        value={formData.pricingTiers.tier3.maxQuantity}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier3: {...formData.pricingTiers.tier3, maxQuantity: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs text-purple-600">gacha</span>
+                      <span className="text-xs text-purple-600 mx-1">=</span>
+                      <input 
+                        type="text" 
+                        className="input text-sm w-16 text-center font-bold" 
+                        placeholder="11"
+                        value={formData.pricingTiers.tier3.discountPercent}
+                        onChange={e => setFormData({
+                          ...formData, 
+                          pricingTiers: {
+                            ...formData.pricingTiers,
+                            tier3: {...formData.pricingTiers.tier3, discountPercent: e.target.value}
+                          }
+                        })}
+                      />
+                      <span className="text-xs font-bold text-purple-700">%</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-emerald-600 mt-2 italic">
+                    * Masalan: 1-5 dona = 15% chegirma, 6-20 dona = 13% chegirma, 21-100 dona = 11% chegirma
+                  </p>
+                </div>
+                
+                {/* Asosiy narx - birlikka qarab (eski) */}
+                <div className="mt-4 mb-4 hidden">
                   <label className="text-xs font-medium text-surface-600 mb-1 block">
                     {formData.unit === 'metr' ? '📏 Metr narxi' : 
                      formData.unit === 'rulon' ? '🎞️ Rulon narxi' : 
@@ -1184,7 +1440,6 @@ export default function Products() {
                     placeholder="0"
                     value={formatInputNumber(formData.currentPrice)}
                     onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})}
-                    required
                   />
                 </div>
 
@@ -1284,44 +1539,52 @@ export default function Products() {
       {showQRModal && selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="overlay" onClick={() => setShowQRModal(false)} />
-          <div className="modal w-full max-w-sm p-6 relative z-10">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-900">QR Kod - Xprinter</h3>
+          <div className="modal w-full max-w-md p-6 relative z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-white pb-2 -mt-2 pt-2 border-b border-surface-100">
+              <h3 className="text-lg font-semibold text-surface-900">QR Label - Xprinter</h3>
               <button onClick={() => setShowQRModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
             </div>
+            
             <div className="flex flex-col items-center">
-              {/* QR Code Preview */}
-              <div className="bg-white p-4 rounded-xl border border-surface-200 mb-4" id="qr-print-area">
-                <QRCodeSVG
-                  id="qr-code-svg"
-                  value={`${window.location.origin}/product/${selectedProduct._id}`}
-                  size={180}
-                  level="H"
-                  includeMargin
-                />
-              </div>
+              {/* QRPrintLabel komponenti */}
+              <QRPrintLabel
+                productId={selectedProduct._id}
+                code={selectedProduct.code}
+                name={selectedProduct.name}
+                price={selectedProduct.price}
+                unit={selectedProduct.unit}
+                dimensions={
+                  (selectedProduct as any).dimensions 
+                    ? [
+                        (selectedProduct as any).dimensions.width,
+                        (selectedProduct as any).dimensions.height,
+                        (selectedProduct as any).dimensions.length
+                      ].filter(Boolean).join(' × ')
+                    : ''
+                }
+                labelWidth={60}
+                labelHeight={40}
+                copies={1}
+                onPrint={() => setShowQRModal(false)}
+              />
               
-              {/* Product Info */}
-              <div className="text-center mb-4 w-full">
-                <p className="font-bold text-lg text-surface-900 mb-1">{selectedProduct.name}</p>
-                <p className="text-sm text-surface-600 font-mono bg-surface-100 px-3 py-1 rounded-lg inline-block mb-2">
-                  ID: {selectedProduct.code}
-                </p>
-                <p className="text-xl font-bold text-brand-600">{formatNumber(selectedProduct.price)} so'm</p>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-3 w-full">
-                <button onClick={downloadQR} className="btn-secondary flex-1">
+              {/* Eski QR Preview (yuklab olish uchun) */}
+              <div className="mt-6 pt-6 border-t border-surface-200 w-full">
+                <p className="text-sm font-medium text-surface-700 mb-3 text-center">Katta QR (yuklab olish uchun)</p>
+                <div className="flex justify-center mb-4">
+                  <div className="bg-white p-3 rounded-xl border border-surface-200">
+                    <QRCodeSVG
+                      id="qr-code-svg"
+                      value={`${FRONTEND_URL}/product/${selectedProduct._id}`}
+                      size={150}
+                      level="H"
+                      includeMargin
+                    />
+                  </div>
+                </div>
+                <button onClick={downloadQR} className="btn-secondary w-full">
                   <Download className="w-4 h-4" />
-                  Yuklab olish
-                </button>
-                <button 
-                  onClick={() => printXprinterLabel(selectedProduct)}
-                  className="btn-primary flex-1"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print (Xprinter)
+                  PNG yuklab olish
                 </button>
               </div>
               
@@ -1329,9 +1592,9 @@ export default function Products() {
               <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700 w-full">
                 <p className="font-medium mb-1">📋 Xprinter sozlamalari:</p>
                 <ul className="space-y-0.5">
-                  <li>• Qog'oz: 58mm x 40mm</li>
+                  <li>• Label o'lchami: 40mm x 30mm</li>
+                  <li>• QR o'lchami: 20mm x 20mm</li>
                   <li>• Margins: None</li>
-                  <li>• Scale: 100%</li>
                 </ul>
               </div>
             </div>
@@ -1656,6 +1919,18 @@ export default function Products() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Batch QR Print Modal */}
+      {showBatchQRModal && (
+        <BatchQRPrint
+          products={products.filter(p => selectedProducts.has(p._id))}
+          onClose={() => {
+            setShowBatchQRModal(false);
+            setSelectionMode(false);
+            setSelectedProducts(new Set());
+          }}
+        />
       )}
     </div>
   );
