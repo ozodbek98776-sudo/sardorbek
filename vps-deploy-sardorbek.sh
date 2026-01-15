@@ -79,8 +79,14 @@ if ! command -v pm2 &> /dev/null; then
     npm install -g pm2
 fi
 
-pm2 delete $APP_NAME 2>/dev/null || true
-pm2 start src/index.js --name "$APP_NAME"
+# Agar allaqachon ishga tushgan bo'lsa restart, aks holda start
+if pm2 describe $APP_NAME > /dev/null 2>&1; then
+    echo "♻️ Mavjud process qayta ishga tushirilmoqda..."
+    pm2 restart $APP_NAME
+else
+    echo "🆕 Yangi process ishga tushirilmoqda..."
+    pm2 start src/index.js --name "$APP_NAME"
+fi
 pm2 save
 
 # 8. Nginx konfiguratsiya
