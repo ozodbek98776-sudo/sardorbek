@@ -713,6 +713,180 @@
 }
 
 /* ============================================
+   📱 MOBILE RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+/* Mobile-first responsive adjustments */
+@media (max-width: 640px) {
+  /* Cards */
+  .card {
+    @apply p-3 rounded-xl;
+  }
+  
+  .stat-card {
+    @apply p-3 rounded-xl;
+  }
+  
+  .stat-value {
+    @apply text-lg;
+  }
+  
+  .stat-label {
+    @apply text-xs;
+  }
+  
+  .stat-icon {
+    @apply w-10 h-10 rounded-lg;
+  }
+  
+  /* Buttons */
+  .btn-md {
+    @apply px-3 py-2 text-xs;
+    min-height: 40px;
+  }
+  
+  .btn-lg {
+    @apply px-4 py-3 text-sm;
+    min-height: 48px;
+  }
+  
+  /* Inputs */
+  .input {
+    @apply px-3 py-2.5 text-sm rounded-lg;
+    min-height: 42px;
+  }
+  
+  /* Modal */
+  .modal {
+    @apply rounded-xl p-4 mx-2;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  /* Tables - horizontal scroll */
+  .table-container {
+    @apply overflow-x-auto -mx-3 px-3;
+  }
+  
+  /* Product cards */
+  .product-card {
+    @apply rounded-xl;
+  }
+  
+  /* Navigation */
+  .nav-item {
+    @apply px-3 py-2.5 text-sm;
+  }
+  
+  /* Header */
+  .header-title {
+    @apply text-lg;
+  }
+}
+
+/* Small phones */
+@media (max-width: 360px) {
+  .card {
+    @apply p-2;
+  }
+  
+  .stat-card {
+    @apply p-2;
+  }
+  
+  .stat-value {
+    @apply text-base;
+  }
+  
+  .btn-md {
+    @apply px-2 py-1.5 text-xs;
+    min-height: 36px;
+  }
+  
+  .modal {
+    @apply p-3 mx-1;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .stat-card {
+    @apply p-4;
+  }
+  
+  .stat-value {
+    @apply text-2xl;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .card-hover:hover {
+    transform: none;
+  }
+  
+  .btn-primary:hover,
+  .btn-secondary:hover {
+    transform: none;
+  }
+  
+  /* Active states instead */
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+  
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Fix for iOS input zoom */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Bottom navigation safe area */
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Prevent content from being hidden behind bottom nav */
+.main-content-with-bottom-nav {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+}
+
+/* Mobile modal improvements */
+@media (max-width: 640px) {
+  .overlay {
+    padding: 0.5rem;
+  }
+  
+  .modal {
+    width: calc(100% - 1rem);
+    max-width: none;
+    margin: 0 auto;
+  }
+  
+  /* Full-screen modal on mobile */
+  .modal-fullscreen-mobile {
+    position: fixed;
+    inset: 0;
+    border-radius: 0;
+    max-height: 100vh;
+    width: 100%;
+  }
+}
+
+/* ============================================
    ❄️ QOR ANIMATSIYASI - Snowfall Effect
    ============================================ */
 .snowfall-container {
