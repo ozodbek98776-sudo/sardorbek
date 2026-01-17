@@ -192,6 +192,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/stats', auth, async (req, res) => {
   try {
     const { type } = req.query;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -226,7 +227,7 @@ router.post('/', auth, authorize('admin', 'cashier'), async (req, res) => {
       dueDate,
       description,
       collateral,
-      status: 'pending_approval',
+      status: 'approved',
       createdBy: req.user._id
     };
 
@@ -239,11 +240,17 @@ router.post('/', auth, authorize('admin', 'cashier'), async (req, res) => {
     const debt = new Debt(debtData);
     await debt.save();
 
+    // Darhol mijozning umumiy qarzini yangilash (faqat receivable qarzlar uchun)
+    if (debt.type === 'receivable' && debt.customer) {
+      await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: debt.amount } });
+    }
+
     if (debt.customer) {
       await debt.populate('customer', 'name phone');
     }
 
-    if (type !== 'payable' && debt.customer) {
+    // Mijozga xabar yuborish
+    if (debt.type === 'receivable' && debt.customer) {
       try {
         await telegramService.sendDebtNotification({
           customerName: debt.customer.name,
@@ -259,45 +266,6 @@ router.post('/', auth, authorize('admin', 'cashier'), async (req, res) => {
     }
 
     res.status(201).json(debt);
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
-router.post('/:id/payment', auth, authorize('admin', 'cashier'), async (req, res) => {
-  try {
-    const { amount, method } = req.body;
-    const debt = await Debt.findById(req.params.id);
-    if (!debt) return res.status(404).json({ message: 'Qarz topilmadi' });
-
-    debt.payments.push({ amount, method });
-    debt.paidAmount += amount;
-
-    if (debt.paidAmount >= debt.amount) {
-      debt.status = 'paid';
-    }
-
-    await debt.save();
-
-    if (debt.type === 'receivable' && debt.customer) {
-      await Customer.findByIdAndUpdate(debt.customer, { $inc: { debt: -amount } });
-    }
-
-    await debt.populate('customer', 'name phone');
-
-    if (debt.customer) {
-      try {
-        await telegramService.sendPaymentNotification({
-          customerName: debt.customer.name,
-          amount: amount,
-          remainingDebt: debt.amount - debt.paidAmount
-        });
-      } catch (telegramError) {
-        console.error('Telegram notification error:', telegramError);
-      }
-    }
-
-    res.json(debt);
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }

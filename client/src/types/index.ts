@@ -102,6 +102,8 @@ export interface Debt {
   type: 'receivable' | 'payable';
   description?: string;
   collateral?: string;
+  extensionCount?: number;
+  lastExtensionAt?: string;
   payments: Payment[];
   items?: DebtItem[];
   createdAt: string;

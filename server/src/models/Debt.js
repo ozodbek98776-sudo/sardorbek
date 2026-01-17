@@ -25,6 +25,8 @@ const debtSchema = new mongoose.Schema({
   collateral: { type: String }, // Garov - what was left as collateral
   items: [debtItemSchema], // Qarz berilgan mahsulotlar
   payments: [paymentSchema],
+  extensionCount: { type: Number, default: 0 }, // Necha marta muddat berilgan
+  lastExtensionAt: { type: Date }, // Oxirgi marta qachon muddat berilgan
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 

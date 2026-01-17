@@ -81,7 +81,7 @@ export default function Debts() {
       } else {
         await api.post('/debts', data);
         // Yangi qarz qo'shilganda xabar berish
-        showAlert('Qarz muvaffaqiyatli qo\'shildi va tasdiqlashni kutmoqda', 'Muvaffaqiyat', 'success');
+        showAlert('Qarz muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       fetchDebts();
       fetchStats();
@@ -200,10 +200,10 @@ export default function Debts() {
   });
 
   const statItems = [
-    { label: 'Tasdiqlangan', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
-    { label: "Bugun to'lanadigan", value: stats.today, icon: Calendar, color: 'brand', filter: 'today' },
+    { label: 'Aktiv qarzlar', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
     { label: "To'langan", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
     { label: "Muddati o'tgan", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
+    { label: 'Qora ro\'yxat', value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
     { label: 'Jami qarz', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
   ];
 
@@ -257,9 +257,9 @@ export default function Debts() {
               >
                 <ArrowUpRight className="w-4 h-4" />
                 Men qarzdorman
-            </button>
+              </button>
+            </div>
           </div>
-        </div>
         )}
 
         {/* Stats */}
@@ -307,8 +307,8 @@ export default function Debts() {
                 {filteredDebts.map(debt => {
                   const isPaid = debt.status === 'paid';
                   const isOverdue = debt.status === 'overdue';
-                  const isPending = debt.status === 'pending_approval';
                   const isApproved = debt.status === 'approved';
+                  const isBlacklist = debt.status === 'blacklist';
                   const remaining = debt.amount - debt.paidAmount;
                   const paidPercent = Math.round((debt.paidAmount / debt.amount) * 100);
                   
@@ -331,12 +331,14 @@ export default function Debts() {
                   const borderColor = isUrgent ? 'border-red-400 ring-2 ring-red-200' : 
                                      isWarning ? 'border-orange-400 ring-2 ring-orange-200' : 
                                      isCaution ? 'border-amber-400 ring-1 ring-amber-200' : 
+                                     isBlacklist ? 'border-slate-700 ring-2 ring-slate-400' :
                                      'border-surface-200 hover:border-brand-300';
                   
                   return (
                     <div key={debt._id} className={`bg-white rounded-2xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
                       {/* Header with Avatar and Status */}
                       <div className={`relative p-4 ${
+                        isBlacklist ? 'bg-gradient-to-br from-slate-800 to-slate-900' :
                         isUrgent ? 'bg-gradient-to-br from-red-100 to-rose-100' :
                         isWarning ? 'bg-gradient-to-br from-orange-50 to-amber-50' :
                         isCaution ? 'bg-gradient-to-br from-amber-50 to-yellow-50' :
@@ -360,6 +362,7 @@ export default function Debts() {
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                              isBlacklist ? 'bg-gradient-to-br from-slate-900 to-black' :
                               isUrgent ? 'bg-gradient-to-br from-red-500 to-rose-600' :
                               isWarning ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
                               isCaution ? 'bg-gradient-to-br from-amber-400 to-yellow-500' :
@@ -367,7 +370,7 @@ export default function Debts() {
                                 ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
                                 : 'bg-gradient-to-br from-red-400 to-rose-500'
                             }`}>
-                              <User className="w-6 h-6 text-white" />
+                              <User className={`w-6 h-6 ${isBlacklist ? 'text-amber-300' : 'text-white'}`} />
                             </div>
                             <div className="min-w-0">
                               <h4 className="font-bold text-surface-900 truncate text-sm sm:text-base">{getDebtorName(debt)}</h4>
@@ -382,14 +385,18 @@ export default function Debts() {
                           
                           {/* Status Badge */}
                           <div className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold flex items-center gap-1.5 ${
-                            isApproved ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200' : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200'
+                            isBlacklist
+                              ? 'bg-gradient-to-r from-slate-900 to-black text-amber-300 shadow-lg shadow-slate-500'
+                              : isApproved
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200'
+                                : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200'
                           }`}>
-                            {isApproved ? <CheckCircle2 className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                            {isBlacklist ? <AlertTriangle className="w-3 h-3" /> : isApproved ? <CheckCircle2 className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
                             <span>
-                              {isPaid ? "To'langan" :
+                              {isBlacklist ? 'Qora ro\'yxat' :
+                               isPaid ? "To'langan" :
                                isOverdue ? "Muddati o'tgan" : 
-                               isPending ? 'Kutilmoqda' : 
-                               isApproved ? 'Tasdiqlangan' : 'Jarayonda'}
+                               isApproved ? 'Aktiv' : 'Jarayonda'}
                             </span>
                           </div>
                         </div>
@@ -455,26 +462,65 @@ export default function Debts() {
 
                         {/* Actions */}
                         <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100">
-                          {isPending ? (
-                            <>
-                              <button 
-                                onClick={() => handleApprove(debt._id)} 
-                                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                                Tasdiqlash
-                              </button>
-                              <button 
-                                onClick={() => handleReject(debt._id)} 
-                                className="flex items-center gap-1.5 px-3 py-2 bg-red-100 text-red-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-red-200 transition-all"
-                              >
-                                <X className="w-4 h-4" />
-                                Rad
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              {!isPaid && !isPending && (
+                          <>
+                              {/* Muddati berish va Bo'ldi tugmalari - faqat admin va faqat to'lanmagan qarzlar uchun */}
+                              {isAdmin && !isPaid && (
+                                <>
+                                  {debt.extensionCount === undefined || debt.extensionCount < 3 ? (
+                                    <button
+                                      onClick={async () => {
+                                        const input = prompt("Necha kun muddat berilsin?");
+                                        if (!input) return;
+                                        const days = parseInt(input, 10);
+                                        if (Number.isNaN(days) || days <= 0) return;
+                                        try {
+                                          await api.post(`/debts/${debt._id}/extend`, { days });
+                                          fetchDebts();
+                                          fetchStats();
+                                        } catch (err: any) {
+                                          console.error('Error extending debt:', err);
+                                          showAlert(err.response?.data?.message || 'Muddat berishda xatolik', 'Xatolik', 'danger');
+                                        }
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-2 bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
+                                    >
+                                      <Calendar className="w-4 h-4" />
+                                      Muddati berish
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    onClick={async () => {
+                                      const confirmed = await showConfirm(
+                                        "Bu qarzni to'landi deb belgilaysizmi? Qoldiq summa nol bo'ladi.",
+                                        "Bo'ldi"
+                                      );
+                                      if (!confirmed) return;
+                                      try {
+                                        const remainingAmount = debt.amount - debt.paidAmount;
+                                        if (remainingAmount > 0) {
+                                          await api.post(`/debts/${debt._id}/payment`, {
+                                            amount: remainingAmount,
+                                            method: 'cash'
+                                          });
+                                        }
+                                        fetchDebts();
+                                        fetchStats();
+                                        showAlert("Qarz to'landi deb belgilandi", 'Muvaffaqiyat', 'success');
+                                      } catch (err: any) {
+                                        console.error('Error marking debt as paid:', err);
+                                        showAlert(err.response?.data?.message || "Qarz to'landi deb belgilashda xatolik", 'Xatolik', 'danger');
+                                      }
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Bo'ldi
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Oddiy to'lov tugmasi (bo'lib-bo'lib to'lash uchun) */}
+                              {!isPaid && (
                                 <button 
                                   onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
                                   className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
@@ -483,20 +529,33 @@ export default function Debts() {
                                   To'lov
                                 </button>
                               )}
-                              <button 
-                                onClick={() => openEditModal(debt)} 
-                                className="p-2 bg-surface-100 text-surface-600 rounded-xl hover:bg-brand-100 hover:text-brand-600 transition-all"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(debt._id)} 
-                                className="p-2 bg-surface-100 text-surface-600 rounded-xl hover:bg-red-100 hover:text-red-600 transition-all"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
+
+                              {/* Qora ro'yxatdan chiqarish tugmasi - faqat admin uchun */}
+                              {isAdmin && isBlacklist && (
+                                <button
+                                  onClick={async () => {
+                                    const confirmed = await showConfirm(
+                                      "Ushbu mijozni qora ro'yxatdan chiqarasizmi?",
+                                      "Qora ro'yxatdan chiqarish"
+                                    );
+                                    if (!confirmed) return;
+                                    try {
+                                      await api.post(`/debts/${debt._id}/remove-blacklist`);
+                                      fetchDebts();
+                                      fetchStats();
+                                      showAlert("Mijoz qora ro'yxatdan chiqarildi", 'Muvaffaqiyat', 'success');
+                                    } catch (err: any) {
+                                      console.error('Error removing from blacklist:', err);
+                                      showAlert(err.response?.data?.message || "Qora ro'yxatdan chiqarishda xatolik", 'Xatolik', 'danger');
+                                    }
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 text-amber-300 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-900 transition-all"
+                                >
+                                  <AlertTriangle className="w-4 h-4" />
+                                  Qora ro'yxatdan chiqarish
+                                </button>
+                              )}
+                          </>
                         </div>
                       </div>
                     </div>
@@ -551,7 +610,7 @@ export default function Debts() {
                   <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-amber-700">
                     <p className="font-medium mb-1">Diqqat!</p>
-                    <p>Qo'shilgan qarz darhol mijozning umumiy qarziga qo'shilmaydi. Avval admin tomonidan tasdiqlanishi kerak.</p>
+                    <p>Qo'shilgan qarz darhol mijozning umumiy qarziga qo'shiladi. Shuning uchun ma'lumotlarni diqqat bilan kiriting.</p>
                   </div>
                 </div>
               </div>

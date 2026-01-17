@@ -8,43 +8,71 @@ class POSTelegramBot {
     this.adminChatId = process.env.POS_ADMIN_CHAT_ID;
     this.isReconnecting = false;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
+    this.maxReconnectAttempts = 5;
+    this.pollingEnabled = false;
 
     if (!this.token) {
       console.error('❌ POS_TELEGRAM_BOT_TOKEN topilmadi .env faylida');
       return;
     }
 
-    // Bot yaratish - polling rejimida
+    // Bot yaratish
     this.initBot();
   }
 
   // Bot ni ishga tushirish
-  initBot() {
+  async initBot() {
     try {
-      this.bot = new TelegramBot(this.token, { 
-        polling: {
-          interval: 1000,
-          autoStart: true,
-          params: {
-            timeout: 30
+      // Avval eski polling ni to'xtatish (agar mavjud bo'lsa)
+      if (this.bot) {
+        try {
+          await this.bot.stopPolling();
+        } catch (e) {}
+      }
+
+      // Production da polling o'chirilgan holda bot yaratish
+      // Faqat xabar yuborish uchun ishlatiladi
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      if (isProduction) {
+        // Production da polling o'chirilgan - faqat xabar yuborish uchun
+        this.bot = new TelegramBot(this.token, { polling: false });
+        this.pollingEnabled = false;
+        console.log('🤖 POS Telegram Bot ishga tushdi (faqat xabar yuborish rejimi - production)');
+      } else {
+        // Development da polling yoqilgan
+        this.bot = new TelegramBot(this.token, { 
+          polling: {
+            interval: 2000,
+            autoStart: true,
+            params: {
+              timeout: 30
+            }
           }
-        }
-      });
+        });
+        this.pollingEnabled = true;
+        console.log('🤖 POS Telegram Bot ishga tushdi (polling rejimida - development)');
+        
+        // Event handlerlarni o'rnatish (faqat development da)
+        this.setupHandlers();
+      }
 
-      console.log('🤖 POS Telegram Bot ishga tushdi (polling rejimida)');
-
-      // Event handlerlarni o'rnatish
-      this.setupHandlers();
       this.reconnectAttempts = 0;
     } catch (error) {
       console.error('❌ Bot yaratishda xatolik:', error);
-      this.scheduleReconnect();
+      if (process.env.NODE_ENV !== 'production') {
+        this.scheduleReconnect();
+      }
     }
   }
 
-  // Qayta ulanishni rejalashtirish
+  // Qayta ulanishni rejalashtirish (faqat development uchun)
   scheduleReconnect() {
+    // Production da qayta ulanish kerak emas
+    if (process.env.NODE_ENV === 'production') {
+      return;
+    }
+
     if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts) {
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('❌ Maksimal qayta ulanish urinishlari tugadi');
