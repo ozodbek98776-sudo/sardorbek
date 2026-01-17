@@ -98,7 +98,14 @@ server {
 
     client_max_body_size 50M;
 
+    # Static fayllar
     location / {
+        root $APP_DIR/server/public;
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # API so'rovlari
+    location /api {
         proxy_pass http://localhost:$PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -113,6 +120,7 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # Uploads
     location /uploads {
         alias $APP_DIR/server/uploads;
         expires 30d;
@@ -126,6 +134,19 @@ ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
 
 # Nginx test va reload
 nginx -t && systemctl reload nginx
+
+# 9. SSL sertifikat o'rnatish (Let's Encrypt)
+echo "🔒 SSL sertifikat o'rnatilmoqda..."
+if ! command -v certbot &> /dev/null; then
+    apt install -y certbot python3-certbot-nginx
+fi
+
+# Certbot bilan SSL o'rnatish
+certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN --redirect
+
+# SSL auto-renewal
+systemctl enable certbot.timer
+systemctl start certbot.timer
 
 echo ""
 echo "✅ =================================="
