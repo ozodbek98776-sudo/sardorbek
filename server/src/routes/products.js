@@ -370,11 +370,12 @@ router.get('/scan-qr/:code', auth, async (req, res) => {
   }
 });
 
-// Upload images for product
-router.post('/upload-images', auth, authorize('admin'), upload.array('images', 8), async (req, res) => {
+// Upload images for product - admin va kassa uchun
+router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array('images', 8), async (req, res) => {
   try {
     console.log('📸 Rasm upload so\'rovi keldi');
     console.log('Files:', req.files?.length || 0);
+    console.log('User role:', req.user?.role);
     
     if (!req.files || req.files.length === 0) {
       console.log('❌ Rasm fayllar topilmadi');
@@ -386,6 +387,9 @@ router.post('/upload-images', auth, authorize('admin'), upload.array('images', 8
     // Compress images using sharp (if available)
     const imagePaths = [];
     const sharpLib = getSharp();
+    
+    // Kim yuklayotganini aniqlash
+    const uploadedBy = req.user?.role === 'cashier' ? 'cashier' : 'admin';
     
     if (sharpLib) {
       for (const file of req.files) {
@@ -421,18 +425,30 @@ router.post('/upload-images', auth, authorize('admin'), upload.array('images', 8
           const compressedSize = fs.statSync(inputPath).size;
           console.log(`✅ Rasm siqildi: ${file.filename} (${(compressedSize / 1024).toFixed(2)} KB)`);
           
-          imagePaths.push(`/uploads/products/${file.filename}`);
+          imagePaths.push({
+            path: `/uploads/products/${file.filename}`,
+            uploadedBy: uploadedBy,
+            uploadedAt: new Date()
+          });
         } catch (compressionError) {
           console.error(`⚠️ Rasm siqishda xatolik: ${file.filename}`, compressionError);
           // Agar siqish xatosi bo'lsa, asl rasmni saqlab qolish
-          imagePaths.push(`/uploads/products/${file.filename}`);
+          imagePaths.push({
+            path: `/uploads/products/${file.filename}`,
+            uploadedBy: uploadedBy,
+            uploadedAt: new Date()
+          });
         }
       }
     } else {
       // Sharp not available - use original files
       console.log('⚠️ Sharp module not available, using original images');
       for (const file of req.files) {
-        imagePaths.push(`/uploads/products/${file.filename}`);
+        imagePaths.push({
+          path: `/uploads/products/${file.filename}`,
+          uploadedBy: uploadedBy,
+          uploadedAt: new Date()
+        });
       }
     }
     
@@ -445,18 +461,57 @@ router.post('/upload-images', auth, authorize('admin'), upload.array('images', 8
   }
 });
 
-// Delete image
-router.delete('/delete-image', auth, authorize('admin'), async (req, res) => {
+// Delete image - admin va kassa uchun (kassa faqat o'z rasmlarini o'chirishi mumkin)
+router.delete('/delete-image', auth, authorize('admin', 'cashier'), async (req, res) => {
   try {
-    const { imagePath } = req.body;
+    const { imagePath, productId } = req.body;
     if (!imagePath) return res.status(400).json({ message: 'Rasm yo\'li ko\'rsatilmagan' });
 
+    // Agar productId berilgan bo'lsa, mahsulotdan ham o'chirish
+    if (productId) {
+      // Mahsulotni topish
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Mahsulot topilmadi' });
+      }
+
+      // Rasmni topish
+      const imageIndex = product.images.findIndex(img => {
+        // Eski format (string) yoki yangi format (object)
+        const imgPath = typeof img === 'string' ? img : img.path;
+        return imgPath === imagePath;
+      });
+
+      if (imageIndex === -1) {
+        return res.status(404).json({ message: 'Rasm topilmadi' });
+      }
+
+      const imageToDelete = product.images[imageIndex];
+      const uploadedBy = typeof imageToDelete === 'string' ? 'admin' : imageToDelete.uploadedBy;
+
+      // Agar kassa bo'lsa, faqat o'z rasmlarini o'chirishi mumkin
+      if (req.user.role === 'cashier' && uploadedBy !== 'cashier') {
+        return res.status(403).json({ message: 'Siz faqat o\'zingiz yuklagan rasmlarni o\'chirishingiz mumkin' });
+      }
+
+      // Rasmni mahsulotdan o'chirish
+      product.images.splice(imageIndex, 1);
+      await product.save();
+      console.log(`✅ Rasm mahsulotdan o'chirildi: ${imagePath}`);
+    }
+
+    // Rasmni fayldan o'chirish
     const fullPath = path.join(__dirname, '../..', imagePath);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
+      console.log(`✅ Rasm fayl o'chirildi: ${imagePath}`);
+    } else {
+      console.log(`⚠️ Rasm fayl topilmadi: ${fullPath}`);
     }
-    res.json({ message: 'Rasm o\'chirildi' });
+
+    res.json({ message: 'Rasm o\'chirildi', success: true });
   } catch (error) {
+    console.error('❌ Rasm o\'chirishda xatolik:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -793,7 +848,7 @@ router.get('/:id', auth, async (req, res) => {
 
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, ...rest } = req.body;
+    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, images, ...rest } = req.body;
 
     // Auto-generate code if not provided
     let productCode = code;
@@ -833,6 +888,23 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       }
     }
 
+    // Rasmlarni to'g'ri formatga o'tkazish
+    let formattedImages = [];
+    if (images && Array.isArray(images)) {
+      formattedImages = images.map(img => {
+        // Agar string bo'lsa, object ga o'tkazish
+        if (typeof img === 'string') {
+          return {
+            path: img,
+            uploadedBy: 'admin',
+            uploadedAt: new Date()
+          };
+        }
+        // Agar object bo'lsa, to'g'ridan-to'g'ri qaytarish
+        return img;
+      });
+    }
+
     // Prepare product data
     const productData = {
       ...rest,
@@ -841,7 +913,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       isMainWarehouse,
       createdBy: req.user._id,
       costPriceInDollar: costPriceInDollar || 0,
-      dollarRate: dollarRate || 12500
+      dollarRate: dollarRate || 12500,
+      images: formattedImages
     };
 
     // Add package information if provided
@@ -855,7 +928,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       warehouse: finalWarehouse,
       isMainWarehouse,
       quantity: productData.quantity,
-      price: productData.price
+      price: productData.price,
+      imagesCount: formattedImages.length
     });
 
     const product = new Product(productData);
@@ -866,7 +940,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       code: product.code,
       name: product.name,
       isMainWarehouse: product.isMainWarehouse,
-      warehouse: product.warehouse
+      warehouse: product.warehouse,
+      imagesCount: product.images?.length || 0
     });
     
     // Populate warehouse before returning
@@ -884,11 +959,37 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       // QR code xatosi bo'lsa ham mahsulot saqlanadi
     }
     
-    console.log(`✅ Yangi tovar qo'shildi: ${product.name} (${product.code}), isMainWarehouse: ${product.isMainWarehouse}`);
+    console.log(`✅ Yangi tovar qo'shildi: ${product.name} (${product.code}), isMainWarehouse: ${product.isMainWarehouse}, images: ${product.images?.length || 0}`);
     res.status(201).json(product);
   } catch (error) {
     console.error('Product creation error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Kassa uchun - faqat rasmlarni yangilash
+router.put('/:id/images', auth, authorize('admin', 'cashier'), async (req, res) => {
+  try {
+    const { images } = req.body;
+    
+    if (!images || !Array.isArray(images)) {
+      return res.status(400).json({ message: 'Rasmlar ro\'yxati talab qilinadi' });
+    }
+    
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { images },
+      { new: true }
+    ).populate('warehouse');
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Tovar topilmadi' });
+    }
+    
+    res.json(product);
+  } catch (error) {
+    console.error('Image update error:', error);
+    res.status(500).json({ message: 'Rasmlarni yangilashda xatolik', error: error.message });
   }
 });
 

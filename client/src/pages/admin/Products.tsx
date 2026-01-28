@@ -43,6 +43,7 @@ export default function Products() {
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showBatchQRModal, setShowBatchQRModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -81,7 +82,7 @@ export default function Products() {
 
   // Modal ochilganda body scroll ni to'xtatish
   useEffect(() => {
-    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showQuantityModal) {
+    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showQuantityModal || showImageModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -91,7 +92,7 @@ export default function Products() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showQuantityModal]);
+  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showQuantityModal, showImageModal]);
   const [formData, setFormData] = useState({
     code: '', name: '', description: '', quantity: '',
     previousPrice: '', 
@@ -519,7 +520,8 @@ export default function Products() {
 
   const getProductImage = (product: any) => {
     if (product.images && product.images.length > 0) {
-      return `${UPLOADS_URL}${product.images[0]}`;
+      const imagePath = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path;
+      return `${UPLOADS_URL}${imagePath}`;
     }
     return null;
   };
@@ -660,41 +662,49 @@ export default function Products() {
       } else {
         const response = await api.post('/products', data);
         logger.log('Tovar serverdan qaytdi:', response.data);
+        logger.log('Tovar rasmlar:', response.data.images);
         
-        // 1 sekund kutib, keyin UI ga qo'shish
-        setTimeout(() => {
-          if (response.data && response.data._id) {
-            // Warehouse ma'lumotlarini populate qilish
-            const productWithWarehouse = {
-              ...response.data,
-              warehouse: response.data.warehouse || mainWarehouse
-            };
-            
-            // Yangi maxsulotni qo'shib, sorting qilish
-            setProducts(prev => {
-              const updated = [...prev, productWithWarehouse];
-              // Numeric sorting qilish
-              updated.sort((a, b) => {
-                const codeA = parseInt(a.code) || 0;
-                const codeB = parseInt(b.code) || 0;
-                if (codeA === 0 && codeB === 0) {
-                  return String(a.code).localeCompare(String(b.code));
-                }
-                return codeA - codeB;
-              });
-              return updated;
+        // Darhol UI ga qo'shish (1 sekund kutmasdan)
+        if (response.data && response.data._id) {
+          // Warehouse ma'lumotlarini populate qilish
+          const productWithWarehouse = {
+            ...response.data,
+            warehouse: response.data.warehouse || mainWarehouse,
+            // Rasmlarni to'g'ri ko'chirish
+            images: response.data.images || images || []
+          };
+          
+          logger.log('UI ga qo\'shilayotgan tovar:', {
+            _id: productWithWarehouse._id,
+            name: productWithWarehouse.name,
+            images: productWithWarehouse.images,
+            imagesCount: productWithWarehouse.images?.length || 0
+          });
+          
+          // Yangi maxsulotni qo'shib, sorting qilish
+          setProducts(prev => {
+            const updated = [...prev, productWithWarehouse];
+            // Numeric sorting qilish
+            updated.sort((a, b) => {
+              const codeA = parseInt(a.code) || 0;
+              const codeB = parseInt(b.code) || 0;
+              if (codeA === 0 && codeB === 0) {
+                return String(a.code).localeCompare(String(b.code));
+              }
+              return codeA - codeB;
             });
-            logger.log('Yangi tovar 1 sekunddan keyin UI ga qo\'shildi:', response.data.name);
-            
-            // Qidiruv va filter o'chirish - barcha maxsulotlarni ko'rish uchun
-            setSearchQuery('');
-            setStockFilter('all');
-          }
-        }, 1000); // 1 sekund kutish
+            return updated;
+          });
+          logger.log('Yangi tovar darhol UI ga qo\'shildi:', response.data.name);
+          
+          // Qidiruv va filter o'chirish - barcha maxsulotlarni ko'rish uchun
+          setSearchQuery('');
+          setStockFilter('all');
+        }
       }
       
       closeModal();
-      showAlert(editingProduct ? 'Tovar yangilandi' : 'Tovar qo\'shildi (1 sekunddan keyin ko\'rinadi)', 'Muvaffaqiyat', 'success');
+      showAlert(editingProduct ? 'Tovar yangilandi' : 'Tovar qo\'shildi', 'Muvaffaqiyat', 'success');
     } catch (err: any) {
       logger.error('Error adding/updating product:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Xatolik yuz berdi';
@@ -806,6 +816,10 @@ export default function Products() {
     } else {
       setSelectedProducts(new Set(filteredProducts.map(p => p._id)));
     }
+  };
+
+  const toggleSelectAll = () => {
+    selectAllProducts();
   };
 
   const openBatchQRPrint = () => {
@@ -1098,6 +1112,7 @@ export default function Products() {
                   <tbody className="divide-y divide-surface-100">
                     {filteredProducts.map(product => {
                       const isSelected = selectedProducts.has(product._id);
+                      const productImage = getProductImage(product);
                       
                       return (
                         <tr 
@@ -1121,10 +1136,37 @@ export default function Products() {
                             <span className="font-mono text-sm font-semibold text-surface-900">#{product.code}</span>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="font-medium text-sm text-surface-900">{product.name}</div>
-                            {product.description && (
-                              <div className="text-xs text-surface-500 mt-0.5 line-clamp-1">{product.description}</div>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {/* Rasm - har doim ko'rsatish (placeholder yoki haqiqiy rasm) */}
+                              <div 
+                                className="w-10 h-10 rounded-lg overflow-hidden border border-surface-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-brand-500 transition-all bg-surface-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (productImage) {
+                                    setSelectedProduct(product);
+                                    setShowImageModal(true);
+                                  }
+                                }}
+                              >
+                                {productImage ? (
+                                  <img 
+                                    src={productImage} 
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-100 to-surface-200">
+                                    <Package className="w-5 h-5 text-surface-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm text-surface-900 truncate">{product.name}</div>
+                                {product.description && (
+                                  <div className="text-xs text-surface-500 mt-0.5 line-clamp-1">{product.description}</div>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-3 py-3">
                             <div className="text-sm font-bold text-brand-700">
@@ -2327,6 +2369,59 @@ export default function Products() {
                 <p className="text-sm">Statistika topilmadi</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal - Rasm kattalashtirish */}
+      {showImageModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-all duration-300" 
+            onClick={() => setShowImageModal(false)} 
+          />
+          
+          {/* Modal Content */}
+          <div className="relative z-10 max-w-4xl w-full max-h-[90vh] animate-scale-in">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-12 right-0 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center transition-all hover:rotate-90 group"
+            >
+              <X className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
+            </button>
+            
+            {/* Image Container */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+              <div className="p-4 bg-gradient-to-r from-brand-600 to-purple-600">
+                <h3 className="text-lg font-bold text-white">{selectedProduct.name}</h3>
+                <p className="text-sm text-white/80">#{selectedProduct.code}</p>
+              </div>
+              
+              <div className="p-4 max-h-[70vh] overflow-y-auto">
+                {selectedProduct.images && selectedProduct.images.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    {selectedProduct.images.map((img: any, idx: number) => {
+                      const imagePath = typeof img === 'string' ? img : img.path;
+                      return (
+                        <img
+                          key={idx}
+                          src={`${UPLOADS_URL}${imagePath}`}
+                          alt={`${selectedProduct.name} - ${idx + 1}`}
+                          className="w-full h-auto rounded-lg shadow-lg"
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-surface-400">
+                    <Package className="w-16 h-16 mb-4" />
+                    <p>Rasm mavjud emas</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

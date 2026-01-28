@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
   Package, Banknote, Delete, RefreshCw, Printer,
-  DollarSign, Smartphone
+  DollarSign, Smartphone, Upload
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -941,7 +941,7 @@ export default function KassaMain() {
                         {/* Mahsulot rasmi yoki icon */}
                         {product.images && product.images.length > 0 ? (
                           <img 
-                            src={`${import.meta.env.VITE_UPLOADS_URL || 'http://localhost:8000'}${product.images[0]}`}
+                            src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
                             alt={product.name}
                             className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover ${
                               product.quantity === 0 ? 'opacity-50 grayscale' : ''
@@ -1414,7 +1414,7 @@ export default function KassaMain() {
                   {/* Mahsulot rasmi yoki icon */}
                   {product.images && product.images.length > 0 ? (
                     <img 
-                      src={`${import.meta.env.VITE_UPLOADS_URL || 'http://localhost:8000'}${product.images[0]}`}
+                      src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
                       alt={product.name}
                       className={`w-12 h-12 rounded-xl object-cover flex-shrink-0 ${
                         product.quantity === 0 ? 'opacity-50 grayscale' : ''
@@ -1754,7 +1754,7 @@ export default function KassaMain() {
                     <div className="relative w-full aspect-square mb-3 rounded-lg overflow-hidden bg-surface-50">
                       {product.images && product.images.length > 0 ? (
                         <img 
-                          src={`${import.meta.env.VITE_UPLOADS_URL || 'http://localhost:8000'}${product.images[0]}`}
+                          src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           onError={(e) => {

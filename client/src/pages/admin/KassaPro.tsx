@@ -213,6 +213,21 @@ export default function KassaPro() {
   const itemCount = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
 
   const addToCart = (product: Product) => {
+    // Mahsulot miqdorini tekshirish
+    if (product.quantity <= 0) {
+      showAlert(`${product.name} tugagan! Mavjud emas.`, 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    // Savatchadagi miqdorni tekshirish
+    const existingInCart = cart.find(p => p._id === product._id);
+    const currentCartQuantity = existingInCart ? existingInCart.cartQuantity : 0;
+    
+    if (currentCartQuantity >= product.quantity) {
+      showAlert(`${product.name} - maksimal miqdor: ${product.quantity}`, 'Ogohlantirish', 'warning');
+      return;
+    }
+
     setCart(prev => {
       const existing = prev.find(p => p._id === product._id);
       if (existing) {
@@ -238,6 +253,13 @@ export default function KassaPro() {
     if (quantity <= 0) {
       removeFromCart(id);
     } else {
+      // Mahsulot miqdorini tekshirish
+      const product = products.find(p => p._id === id);
+      if (product && quantity > product.quantity) {
+        showAlert(`${product.name} - maksimal miqdor: ${product.quantity}`, 'Ogohlantirish', 'warning');
+        return;
+      }
+      
       setCart(prev => prev.map(p => p._id === id ? {...p, cartQuantity: quantity} : p));
     }
   };
@@ -429,6 +451,178 @@ export default function KassaPro() {
     setTimeout(() => {
       printWindow.print();
     }, 250);
+  };
+
+  const printQRCodes = async (products: Product[]) => {
+    const printWindow = window.open('', '_blank', 'width=600,height=400');
+    if (!printWindow) {
+      alert('Popup bloklangan. Iltimos, popup ga ruxsat bering.');
+      return;
+    }
+
+    // QR kodlarni generatsiya qilish
+    const qrPromises = products.map(async (product) => {
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const productUrl = `${window.location.origin}/product/${product._id}`;
+        const dataUrl = await QRCode.toDataURL(productUrl, {
+          width: 300,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+        return { product, qrDataUrl: dataUrl };
+      } catch (err) {
+        console.error('QR generation error:', err);
+        return { product, qrDataUrl: '' };
+      }
+    });
+
+    const qrData = await Promise.all(qrPromises);
+
+    // Label HTML yaratish
+    let labelsHtml = '';
+    qrData.forEach(({ product, qrDataUrl }) => {
+      labelsHtml += `
+        <div class="label">
+          <div class="top-section">
+            <div class="qr-box">
+              <img src="${qrDataUrl}" alt="QR" class="qr-code" />
+            </div>
+            <div class="info-box">
+              <div class="product-code">Kod: ${product.code}</div>
+              <div class="product-name">${product.name}</div>
+            </div>
+          </div>
+          <div class="bottom-section">
+            <div class="price-box">
+              <span class="price-value">${formatNumber(product.price)}</span>
+              <span class="price-currency">so'm</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>QR Label</title>
+        <style>
+          @page {
+            size: 60mm 40mm;
+            margin: 0;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .label {
+            width: 60mm;
+            height: 40mm;
+            padding: 2mm;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+          }
+          .label:last-child {
+            page-break-after: auto;
+          }
+          .top-section {
+            display: flex;
+            gap: 2mm;
+            flex: 1;
+          }
+          .qr-box {
+            width: 22mm;
+            height: 22mm;
+            flex-shrink: 0;
+          }
+          .qr-code {
+            width: 22mm;
+            height: 22mm;
+            display: block;
+            image-rendering: pixelated;
+          }
+          .info-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          }
+          .product-code {
+            font-size: 7pt;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 1mm;
+          }
+          .product-name {
+            font-size: 9pt;
+            font-weight: 700;
+            color: #000;
+            line-height: 1.2;
+            text-transform: uppercase;
+            word-break: break-word;
+          }
+          .bottom-section {
+            margin-top: 1.5mm;
+          }
+          .price-box {
+            padding: 1.5mm;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 1mm;
+          }
+          .price-value {
+            font-size: 14pt;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: -0.5px;
+          }
+          .price-currency {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #000;
+            margin-left: 1mm;
+          }
+          @media print {
+            body { background: white; }
+          }
+          @media screen {
+            body { background: #e5e7eb; padding: 10mm; }
+            .label { 
+              margin-bottom: 5mm;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              border: 1px solid #ddd;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${labelsHtml}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); }
+            }, 200);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const saveReceipt = () => {
@@ -662,10 +856,28 @@ export default function KassaPro() {
                         <button
                           key={product._id}
                           onClick={() => { addToCart(product); setShowSearch(false); setSearchQuery(''); }}
-                          className="w-full flex items-center gap-2 sm:gap-4 p-2 sm:p-4 hover:bg-slate-50 transition-colors text-left"
+                          disabled={product.quantity <= 0}
+                          className={`w-full flex items-center gap-2 sm:gap-4 p-2 sm:p-4 hover:bg-slate-50 transition-colors text-left ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                            {product.quantity <= 0 && (
+                              <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                                <span className="text-white text-[8px] font-bold">TUGAGAN</span>
+                              </div>
+                            )}
+                            {product.images && product.images.length > 0 ? (
+                              <img 
+                                src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${product.images[0]}`}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement!.innerHTML = '<svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                }}
+                              />
+                            ) : (
+                              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">{product.name}</p>
@@ -673,7 +885,9 @@ export default function KassaPro() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="font-bold text-brand-600 text-xs sm:text-sm">{formatNumber(product.price)} so'm</p>
-                            <p className="text-[10px] sm:text-xs text-slate-500">{product.quantity} ta</p>
+                            <p className={`text-[10px] sm:text-xs font-semibold ${product.quantity <= 0 ? 'text-red-600' : product.quantity <= 10 ? 'text-orange-600' : 'text-green-600'}`}>
+                              {product.quantity} ta
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -694,18 +908,71 @@ export default function KassaPro() {
               >
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
                   {displayedProducts.map(product => (
-                    <button
+                    <div
                       key={product._id}
-                      onClick={() => addToCart(product)}
-                      className="group bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 hover:border-brand-300 hover:shadow-lg transition-all p-2 sm:p-4 text-left"
+                      className="group bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 hover:border-brand-300 hover:shadow-lg transition-all p-2 sm:p-4 relative"
                     >
-                      <div className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform overflow-hidden">
-                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
-                      </div>
-                      <p className="font-semibold text-slate-900 text-[10px] sm:text-sm truncate">{product.name}</p>
-                      <p className="text-[9px] sm:text-xs text-slate-500 mb-1 sm:mb-2">{product.code}</p>
-                      <p className="font-bold text-brand-600 text-[10px] sm:text-sm">{formatNumber(product.price)} so'm</p>
-                    </button>
+                      {/* QR Print tugmasi - chiroyli dizayn */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          printQRCodes([product]);
+                        }}
+                        className="absolute top-2 right-2 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 z-10 group/qr"
+                        title="QR code chiqarish"
+                      >
+                        <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white drop-shadow-lg" />
+                        {/* Tooltip */}
+                        <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover/qr:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          QR Print
+                        </span>
+                      </button>
+
+                      {/* Mahsulot kartasi - click qilish mumkin */}
+                      <button
+                        onClick={() => addToCart(product)}
+                        disabled={product.quantity <= 0}
+                        className={`w-full text-left ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">
+                          {/* Tugagan belgisi */}
+                          {product.quantity <= 0 && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                              <div className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                TUGAGAN
+                              </div>
+                            </div>
+                          )}
+                          
+                          {product.images && product.images.length > 0 ? (
+                            <img 
+                              src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${product.images[0]}`}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Rasm yuklanmasa, default icon ko'rsatish
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                              }}
+                            />
+                          ) : (
+                            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
+                          )}
+                        </div>
+                        <p className="font-semibold text-slate-900 text-[10px] sm:text-sm truncate">{product.name}</p>
+                        <p className="text-[9px] sm:text-xs text-slate-500 mb-1 sm:mb-2">{product.code}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-brand-600 text-[10px] sm:text-sm">{formatNumber(product.price)} so'm</p>
+                          {product.quantity <= 0 ? (
+                            <span className="text-[9px] sm:text-xs text-red-600 font-semibold">0 ta</span>
+                          ) : product.quantity <= 10 ? (
+                            <span className="text-[9px] sm:text-xs text-orange-600 font-semibold">{product.quantity} ta</span>
+                          ) : (
+                            <span className="text-[9px] sm:text-xs text-green-600 font-semibold">{product.quantity} ta</span>
+                          )}
+                        </div>
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

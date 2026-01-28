@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus, Ruler, Box, Scale, RotateCcw } from 'lucide-react';
+import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus, Ruler, Box, Scale, RotateCcw, Scan } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -18,6 +18,8 @@ export default function KassaProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
+  const [displayCount, setDisplayCount] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,10 @@ export default function KassaProducts() {
     customHeight: ''
   });
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [showImageUploadModal, setShowImageUploadModal] = useState(false);
+  const [uploadingProductId, setUploadingProductId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const productsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchMainWarehouse();
@@ -74,6 +79,28 @@ export default function KassaProducts() {
       fetchProducts();
     }
   }, [mainWarehouse]);
+
+  // Mahsulotlar yuklanganida displayedProducts ni yangilash
+  useEffect(() => {
+    setDisplayedProducts(filteredProducts.slice(0, displayCount));
+  }, [filteredProducts, displayCount]);
+
+  // Infinite scroll uchun
+  useEffect(() => {
+    const container = productsContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Foydalanuvchi pastga yaqinlashganda keyingi 20 ta mahsulotni yuklash
+      if (scrollHeight - scrollTop <= clientHeight * 1.5 && displayCount < filteredProducts.length) {
+        setDisplayCount(prev => Math.min(prev + 20, filteredProducts.length));
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [displayCount, filteredProducts.length]);
 
   // Route o'zgarganda ma'lumotlarni yangilash
   useEffect(() => {
@@ -114,6 +141,7 @@ export default function KassaProducts() {
     }
     
     setFilteredProducts(filtered);
+    setDisplayCount(20); // Reset display count when filter changes
   }, [products, searchTerm, stockFilter]);
 
   const fetchMainWarehouse = async () => {
@@ -136,7 +164,8 @@ export default function KassaProducts() {
     try {
       setLoading(true);
       
-      const res = await api.get('/products?mainOnly=true');
+      // Fetch all products without limit
+      const res = await api.get('/products?mainOnly=true&limit=10000');
       // Handle both paginated and non-paginated responses
       const productsData = res.data.data || res.data;
       setProducts(Array.isArray(productsData) ? productsData : []);
@@ -145,6 +174,153 @@ export default function KassaProducts() {
       showAlert('Tovarlarni yuklashda xatolik yuz berdi', 'Xatolik', 'danger');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement('img');
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Resize if larger than 1920px
+          if (width > 1920 || height > 1920) {
+            const ratio = Math.min(1920 / width, 1920 / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas to blob failed'));
+            },
+            'image/jpeg',
+            0.8
+          );
+        };
+        img.onerror = () => reject(new Error('Image load failed'));
+      };
+      reader.onerror = () => reject(new Error('File read failed'));
+    });
+  };
+
+  const handleImageUploadForProduct = async (productId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const product = products.find(p => p._id === productId);
+    if (!product) return;
+
+    const currentImages = (product as any).images || [];
+    const remainingSlots = 8 - currentImages.length;
+    
+    if (remainingSlots <= 0) {
+      showAlert('Maksimum 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validFiles = Array.from(files).filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        showAlert(`${file.name} - noto'g'ri format. Faqat JPG, PNG, WebP qabul qilinadi`, 'Xatolik', 'warning');
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    const filesToUpload = validFiles.slice(0, remainingSlots);
+    const formDataUpload = new FormData();
+
+    setUploading(true);
+    setUploadingProductId(productId);
+    
+    try {
+      // Compress each image before uploading
+      for (const file of filesToUpload) {
+        try {
+          const compressedBlob = await compressImage(file);
+          formDataUpload.append('images', compressedBlob, file.name);
+        } catch (compressionError) {
+          console.warn(`Image compression failed for ${file.name}, uploading original:`, compressionError);
+          // If compression fails, upload original
+          formDataUpload.append('images', file);
+        }
+      }
+      
+      // Upload images to server
+      const res = await api.post('/products/upload-images', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const newImages = [...currentImages, ...res.data.images];
+      
+      // Update product with new images using the kassa-specific route
+      const updatedProduct = await api.put(`/products/${productId}/images`, {
+        images: newImages
+      });
+      
+      // Update only this product in the state (no need to fetch all products)
+      setProducts(prevProducts => 
+        prevProducts.map(p => 
+          p._id === productId ? { ...p, images: newImages } : p
+        )
+      );
+      
+      showAlert(`${res.data.images.length} ta rasm muvaffaqiyatli yuklandi!`, 'Muvaffaqiyat', 'success');
+    } catch (err: any) {
+      console.error('Error uploading images:', err);
+      const errorMsg = err.response?.data?.message || 'Rasmlarni yuklashda xatolik';
+      showAlert(errorMsg, 'Xatolik', 'danger');
+    } finally {
+      setUploading(false);
+      setUploadingProductId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteImageFromProduct = async (productId: string, imagePath: string) => {
+    const confirmed = await showConfirm(
+      "Rasmni o'chirishni tasdiqlaysizmi? Faqat siz yuklagan rasmlarni o'chirishingiz mumkin.",
+      "O'chirish"
+    );
+    if (!confirmed) return;
+
+    try {
+      // Rasmni serverdan o'chirish
+      const res = await api.delete('/products/delete-image', {
+        data: { imagePath, productId }
+      });
+
+      // State'ni yangilash
+      setProducts(prevProducts =>
+        prevProducts.map(p =>
+          p._id === productId ? { ...p, images: res.data.images } : p
+        )
+      );
+
+      showAlert('Rasm o\'chirildi', 'Muvaffaqiyat', 'success');
+    } catch (err: any) {
+      console.error('Error deleting image:', err);
+      const errorMsg = err.response?.data?.message || 'Rasmni o\'chirishda xatolik';
+      showAlert(errorMsg, 'Xatolik', 'danger');
     }
   };
 
@@ -475,6 +651,178 @@ export default function KassaProducts() {
     }
   };
   
+  const printQRCodes = async (products: Product[]) => {
+    const printWindow = window.open('', '_blank', 'width=600,height=400');
+    if (!printWindow) {
+      alert('Popup bloklangan. Iltimos, popup ga ruxsat bering.');
+      return;
+    }
+
+    // QR kodlarni generatsiya qilish
+    const qrPromises = products.map(async (product) => {
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const productUrl = `${window.location.origin}/product/${product._id}`;
+        const dataUrl = await QRCode.toDataURL(productUrl, {
+          width: 300,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+        return { product, qrDataUrl: dataUrl };
+      } catch (err) {
+        console.error('QR generation error:', err);
+        return { product, qrDataUrl: '' };
+      }
+    });
+
+    const qrData = await Promise.all(qrPromises);
+
+    // Label HTML yaratish
+    let labelsHtml = '';
+    qrData.forEach(({ product, qrDataUrl }) => {
+      labelsHtml += `
+        <div class="label">
+          <div class="top-section">
+            <div class="qr-box">
+              <img src="${qrDataUrl}" alt="QR" class="qr-code" />
+            </div>
+            <div class="info-box">
+              <div class="product-code">Kod: ${product.code}</div>
+              <div class="product-name">${product.name}</div>
+            </div>
+          </div>
+          <div class="bottom-section">
+            <div class="price-box">
+              <span class="price-value">${formatNumber(product.price)}</span>
+              <span class="price-currency">so'm</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>QR Label</title>
+        <style>
+          @page {
+            size: 60mm 40mm;
+            margin: 0;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .label {
+            width: 60mm;
+            height: 40mm;
+            padding: 2mm;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+          }
+          .label:last-child {
+            page-break-after: auto;
+          }
+          .top-section {
+            display: flex;
+            gap: 2mm;
+            flex: 1;
+          }
+          .qr-box {
+            width: 22mm;
+            height: 22mm;
+            flex-shrink: 0;
+          }
+          .qr-code {
+            width: 22mm;
+            height: 22mm;
+            display: block;
+            image-rendering: pixelated;
+          }
+          .info-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          }
+          .product-code {
+            font-size: 7pt;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 1mm;
+          }
+          .product-name {
+            font-size: 9pt;
+            font-weight: 700;
+            color: #000;
+            line-height: 1.2;
+            text-transform: uppercase;
+            word-break: break-word;
+          }
+          .bottom-section {
+            margin-top: 1.5mm;
+          }
+          .price-box {
+            padding: 1.5mm;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 1mm;
+          }
+          .price-value {
+            font-size: 14pt;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: -0.5px;
+          }
+          .price-currency {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #000;
+            margin-left: 1mm;
+          }
+          @media print {
+            body { background: white; }
+          }
+          @media screen {
+            body { background: #e5e7eb; padding: 10mm; }
+            .label { 
+              margin-bottom: 5mm;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              border: 1px solid #ddd;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${labelsHtml}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); }
+            }, 200);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handlePrint = async () => {
     if (!selectedProduct) return;
     
@@ -715,7 +1063,8 @@ export default function KassaProducts() {
 
   const getProductImage = (product: any) => {
     if (product.images && product.images.length > 0) {
-      return `${UPLOADS_URL}${product.images[0]}`;
+      const imagePath = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path;
+      return `${UPLOADS_URL}${imagePath}`;
     }
     return null;
   };
@@ -738,10 +1087,6 @@ export default function KassaProducts() {
             <h2 className="text-lg font-semibold text-surface-900">Tovarlar (Asosiy ombor)</h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <button onClick={openAddModal} className="btn-primary">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Yangi tovar</span>
-            </button>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -754,22 +1099,27 @@ export default function KassaProducts() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
+        {/* Compact Stats - Admin Products ga o'xshash */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStockFilter(stat.filter)}
-              className={`stat-card ${stat.filter ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${
-                stockFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
+              className={`bg-white rounded-lg sm:rounded-xl border-2 transition-all ${
+                stat.filter ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : ''
+              } ${
+                stockFilter === stat.filter ? 'border-brand-500 shadow-md' : 'border-surface-200'
               }`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className={`stat-icon bg-${stat.color}-50`}>
-                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+              <div className="p-2 sm:p-2.5 md:p-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
+                    <stat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-${stat.color}-600`} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-surface-500 font-medium">{stat.label}</p>
                 </div>
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-surface-900">{stat.value}</p>
               </div>
-              <p className="stat-value">{stat.value}</p>
-              <p className="stat-label">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -798,16 +1148,15 @@ export default function KassaProducts() {
                 <Package className="w-8 h-8 text-surface-400" />
               </div>
               <h3 className="text-lg font-semibold text-surface-900 mb-2">Tovarlar topilmadi</h3>
-              <p className="text-surface-500 text-center max-w-md mb-6">
-                {searchTerm ? 'Qidiruv bo\'yicha tovarlar topilmadi' : 'Birinchi tovarni qo\'shing'}
+              <p className="text-surface-500 text-center max-w-md">
+                {searchTerm ? 'Qidiruv bo\'yicha tovarlar topilmadi' : 'Tovarlar mavjud emas'}
               </p>
-              <button onClick={openAddModal} className="btn-primary">Tovar qo'shish</button>
             </div>
           ) : (
             <>
               <div className="hidden lg:block">
                 <div className="table-header">
-                  <div className="grid grid-cols-16 gap-2 px-4 py-4">
+                  <div className="grid grid-cols-14 gap-2 px-4 py-4">
                     <span className="table-header-cell col-span-1">Rasm</span>
                     <span className="table-header-cell col-span-1">Kod</span>
                     <span className="table-header-cell col-span-2">Nomi</span>
@@ -818,18 +1167,64 @@ export default function KassaProducts() {
                     <span className="table-header-cell col-span-1">Oldingi</span>
                     <span className="table-header-cell col-span-1">Hozirgi</span>
                     <span className="table-header-cell col-span-1">Miqdori</span>
-                    <span className="table-header-cell col-span-2 text-center">Amallar</span>
                   </div>
                 </div>
-                <div className="divide-y divide-surface-100">
+                {/* Scrollable table body */}
+                <div className="max-h-[calc(100vh-400px)] overflow-y-auto divide-y divide-surface-100">
                   {filteredProducts.map(product => (
-                    <div key={product._id} className="grid grid-cols-16 gap-2 px-4 py-3 items-center hover:bg-surface-50 transition-colors">
+                    <div key={product._id} className="grid grid-cols-14 gap-2 px-4 py-3 items-center hover:bg-surface-50 transition-colors relative">
                       <div className="col-span-1">
                         {getProductImage(product) ? (
-                          <img src={getProductImage(product)!} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+                          <div className="relative">
+                            <img 
+                              src={getProductImage(product)!} 
+                              alt={product.name} 
+                              className="w-10 h-10 rounded-lg object-cover cursor-pointer hover:scale-110 transition-transform"
+                              onClick={() => {
+                                setSelectedImage(getProductImage(product));
+                                setShowImageModal(true);
+                              }}
+                            />
+                            {/* Rasm yuklash tugmasi - juda kichik */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUploadingProductId(product._id);
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={uploading && uploadingProductId === product._id}
+                              className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                              title="Rasm yuklash"
+                            >
+                              {uploading && uploadingProductId === product._id ? (
+                                <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Upload className="w-2 h-2 text-white" />
+                              )}
+                            </button>
+                          </div>
                         ) : (
-                          <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
-                            <Image className="w-5 h-5 text-surface-400" />
+                          <div className="relative">
+                            <div className="w-10 h-10 bg-surface-100 rounded-lg flex items-center justify-center">
+                              <Image className="w-5 h-5 text-surface-400" />
+                            </div>
+                            {/* Rasm yuklash tugmasi - juda kichik */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUploadingProductId(product._id);
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={uploading && uploadingProductId === product._id}
+                              className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                              title="Rasm yuklash"
+                            >
+                              {uploading && uploadingProductId === product._id ? (
+                                <div className="w-2 h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Upload className="w-2 h-2 text-white" />
+                              )}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -925,224 +1320,102 @@ export default function KassaProducts() {
                           product.quantity <= (product.minStock || 100) ? 'text-warning-600' : 'text-success-600'
                         }`}>{product.quantity}</span>
                       </div>
-                      <div className="col-span-2 flex items-center justify-center gap-1">
-                        <button onClick={() => openQRModal(product)} className="btn-icon-sm hover:bg-surface-200" title="QR kod">
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openPrintModal(product)} className="btn-icon-sm hover:bg-blue-100 hover:text-blue-600" title="Print">
-                          <Printer className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openEditModal(product)} className="btn-icon-sm hover:bg-brand-100 hover:text-brand-600">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(product._id)} className="btn-icon-sm hover:bg-danger-100 hover:text-danger-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="lg:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4">
-                {filteredProducts.map(product => {
-                  const unit = product.unit || 'dona';
-                  const hasConversion = product.unitConversion?.enabled;
-                  const getUnitLabel = (u?: string) => {
-                    switch (u) {
-                      case 'metr': return 'm';
-                      case 'rulon': return 'rulon';
-                      case 'karobka': return 'quti';
-                      case 'gram': return 'g';
-                      case 'kg': return 'kg';
-                      case 'litr': return 'L';
-                      default: return 'dona';
-                    }
-                  };
-                  const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
-                  
-                  return (
-                    <div key={product._id} className="bg-white rounded-2xl border border-surface-200 hover:border-brand-300 hover:shadow-lg transition-all duration-300 overflow-hidden group">
-                      {/* Image Section - Rasm bor bo'lsa ko'rsatish, yo'q bo'lsa icon */}
-                      <div 
-                        className="relative aspect-square bg-gradient-to-br from-brand-50 to-brand-100 overflow-hidden cursor-pointer"
-                        onClick={() => {
-                          if (getProductImage(product)) {
-                            setSelectedImage(getProductImage(product));
-                            setShowImageModal(true);
-                          }
-                        }}
+              <div className="lg:hidden">
+                {/* Kassa POS style products grid - 20 tadan yuklanish */}
+                <div 
+                  ref={productsContainerRef}
+                  className="max-h-[calc(100vh-300px)] overflow-y-auto p-3 sm:p-4"
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
+                    {displayedProducts.map(product => (
+                      <div
+                        key={product._id}
+                        className="group bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 hover:border-brand-300 hover:shadow-lg transition-all p-2 sm:p-4 relative"
                       >
-                        {getProductImage(product) ? (
-                          <img 
-                            src={getProductImage(product)!} 
-                            alt={product.name} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                            onError={(e) => {
-                              // Rasm yuklanmasa, icon ko'rsatish
-                              e.currentTarget.style.display = 'none';
-                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                              if (fallback) fallback.classList.remove('hidden');
+                        {/* Mahsulot kartasi */}
+                        <div className="w-full">
+                          <div 
+                            className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform overflow-hidden cursor-pointer relative"
+                            onClick={() => {
+                              if (product.images && product.images.length > 0) {
+                                const imagePath = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path;
+                                setSelectedImage(`${UPLOADS_URL}${imagePath}`);
+                                setShowImageModal(true);
+                              }
                             }}
-                          />
-                        ) : null}
-                        <div className={`${getProductImage(product) ? 'hidden' : ''} w-full h-full flex items-center justify-center`}>
-                          <div className="w-20 h-20 bg-white/80 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-lg">
-                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-10 h-10 text-brand-600" /> :
-                             unit === 'karobka' ? <Box className="w-10 h-10 text-brand-600" /> :
-                             unit === 'gram' || unit === 'kg' ? <Scale className="w-10 h-10 text-brand-600" /> :
-                             <Package className="w-10 h-10 text-brand-600" />}
+                          >
+                            {product.images && product.images.length > 0 ? (
+                              <>
+                                <img 
+                                  src={`${UPLOADS_URL}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Rasm yuklanmasa, default icon ko'rsatish
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement!.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              <Package className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
+                            )}
                           </div>
-                        </div>
-                        
-                        {/* Hover overlay - rasmni kattalashtirish uchun */}
-                        {getProductImage(product) && (
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <div className="bg-white/90 backdrop-blur-sm rounded-full p-2">
-                              <Search className="w-5 h-5 text-brand-600" />
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Stock Badge */}
-                        <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          stockStatus === 'danger' ? 'bg-red-500 text-white' : 
-                          stockStatus === 'warning' ? 'bg-amber-500 text-white' : 
-                          'bg-emerald-500 text-white'
-                        }`}>
-                          {stockStatus === 'danger' ? 'Tugagan' : stockStatus === 'warning' ? 'Kam qoldi' : 'Mavjud'}
-                        </div>
-
-                        {/* Code Badge */}
-                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs font-mono text-white">
-                          #{product.code}
-                        </div>
-
-                        {/* Quick Actions */}
-                        <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openQRModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-brand-600 hover:bg-white transition-colors shadow-sm">
-                            <QrCode className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => openPrintModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-blue-600 hover:bg-white transition-colors shadow-sm">
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => openEditModal(product)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-amber-600 hover:bg-white transition-colors shadow-sm">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(product._id)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center text-surface-600 hover:text-red-600 hover:bg-white transition-colors shadow-sm">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Content Section */}
-                      <div className="p-4">
-                        {/* Name */}
-                        <h3 className="font-semibold text-surface-900 text-base mb-3 line-clamp-2 min-h-[2.5rem]">
-                          {product.name}
-                        </h3>
-
-                        {/* Quantity with Unit */}
-                        <div className="flex items-center gap-2 mb-3 flex-wrap">
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${
-                            stockStatus === 'danger' ? 'bg-red-50 text-red-700' : 
-                            stockStatus === 'warning' ? 'bg-amber-50 text-amber-700' : 
-                            'bg-emerald-50 text-emerald-700'
-                          }`}>
-                            {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-3.5 h-3.5" /> :
-                             unit === 'karobka' ? <Box className="w-3.5 h-3.5" /> :
-                             unit === 'gram' || unit === 'kg' ? <Scale className="w-3.5 h-3.5" /> :
-                             <Package className="w-3.5 h-3.5" />}
-                            <span>{formatNumber(product.quantity)} {getUnitLabel(unit)}</span>
+                          <p className="font-semibold text-slate-900 text-[10px] sm:text-sm truncate">{product.name}</p>
+                          
+                          {/* Kod va rasm yuklash tugmasi - bir qatorda */}
+                          <div className="flex items-center gap-1.5 mb-1 sm:mb-2">
+                            <p className="text-[9px] sm:text-xs text-slate-500">{product.code}</p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUploadingProductId(product._id);
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={uploading && uploadingProductId === product._id}
+                              className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                              title="Rasm yuklash"
+                            >
+                              {uploading && uploadingProductId === product._id ? (
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 border border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Upload className="w-1.5 h-1.5 sm:w-2 sm:h-2 text-white" />
+                              )}
+                            </button>
                           </div>
                           
-                          {/* Conversion info */}
-                          {hasConversion && product.unitConversion && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-xs text-purple-700">
-                              <RotateCcw className="w-3 h-3" />
-                              <span>= {formatNumber(product.unitConversion.totalBaseUnits)} {getUnitLabel(product.unitConversion.baseUnit)}</span>
-                            </div>
-                          )}
+                          <p className="font-bold text-brand-600 text-[10px] sm:text-sm">{formatNumber(product.price)} so'm</p>
+                          <p className="text-[9px] sm:text-xs text-slate-500 mt-1">Mavjud: {product.quantity} ta</p>
                         </div>
-
-                        {/* Prices Grid */}
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="bg-surface-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
-                            <p className="font-bold text-sm text-surface-900">
-                              {formatNumber((product as any).costPrice || 0)}
-                              <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
-                            </p>
-                          </div>
-                          <div className="bg-brand-50 rounded-xl p-2.5">
-                            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Dona narxi</p>
-                            <p className="font-bold text-brand-700 text-sm">
-                              {formatNumber((product as any).unitPrice || product.price)}
-                              <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Karobka narxi */}
-                        {(product as any).boxPrice > 0 && (
-                          <div className="bg-orange-50 rounded-xl p-2.5 mb-3">
-                            <p className="text-[10px] text-orange-600 uppercase tracking-wide mb-0.5">📦 Karobka narxi</p>
-                            <p className="font-bold text-orange-700 text-sm">
-                              {formatNumber((product as any).boxPrice)}
-                              <span className="text-[10px] text-orange-400 ml-0.5">so'm</span>
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Chegirma darajalari */}
-                        {(product as any).pricingTiers && (
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {(product as any).pricingTiers.tier1?.discountPercent > 0 && (
-                              <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold border border-emerald-200">
-                                {(product as any).pricingTiers.tier1.minQuantity}-{(product as any).pricingTiers.tier1.maxQuantity} dona: {(product as any).pricingTiers.tier1.discountPercent}%
-                              </span>
-                            )}
-                            {(product as any).pricingTiers.tier2?.discountPercent > 0 && (
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold border border-blue-200">
-                                {(product as any).pricingTiers.tier2.minQuantity}-{(product as any).pricingTiers.tier2.maxQuantity} dona: {(product as any).pricingTiers.tier2.discountPercent}%
-                              </span>
-                            )}
-                            {(product as any).pricingTiers.tier3?.discountPercent > 0 && (
-                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-bold border border-purple-200">
-                                {(product as any).pricingTiers.tier3.minQuantity}+ dona: {(product as any).pricingTiers.tier3.discountPercent}%
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Additional Prices */}
-                        {product.prices && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {product.prices.perMeter > 0 && (
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perMeter)}/m
-                              </span>
-                            )}
-                            {product.prices.perRoll > 0 && (
-                              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perRoll)}/rulon
-                              </span>
-                            )}
-                            {product.prices.perBox > 0 && (
-                              <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perBox)}/quti
-                              </span>
-                            )}
-                            {product.prices.perKg > 0 && (
-                              <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
-                                {formatNumber(product.prices.perKg)}/kg
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
+                    ))}
+                  </div>
+                  
+                  {/* Loading indicator for infinite scroll */}
+                  {displayCount < filteredProducts.length && (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+                
+                {/* Hidden file input for image upload */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    if (uploadingProductId) {
+                      handleImageUploadForProduct(uploadingProductId, e);
+                    }
+                  }}
+                  className="hidden"
+                />
               </div>
             </>
           )}

@@ -376,13 +376,6 @@ export default function KassaReceipts() {
                   <Printer className="w-4 h-4" />
                   <span>Print</span>
                 </button>
-                <button
-                  onClick={() => handleDelete(receipt._id)}
-                  className="flex-1 flex items-center justify-center gap-1 sm:gap-2 p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs sm:text-sm font-medium"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>O'chirish</span>
-                </button>
               </div>
             </div>
           ))}

@@ -39,11 +39,12 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
 
       if (res.data.success && res.data.product) {
         console.log('✅ QR Scanner: Mahsulot topildi', res.data.product);
-        setSuccess(`${res.data.product.name} topildi!`);
+        const product = res.data.product;
+        setSuccess(`${product.name} topildi! Mavjud: ${product.quantity} ta`);
         
         // Mahsulotni kassaga qo'shish
         setTimeout(() => {
-          onScan(res.data.product);
+          onScan(product);
           setManualCode('');
           setSuccess('');
           

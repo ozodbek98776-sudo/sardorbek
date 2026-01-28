@@ -504,13 +504,6 @@ export default function KassaDebts() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleDeleteDebt(debt)}
-                          className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
-                          title="Qarzni o'chirish"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -568,13 +561,6 @@ export default function KassaDebts() {
                               title="Qarz ma'lumotlarini ko'rish"
                             >
                               <Eye className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteDebt(debt)}
-                              className="p-2 text-danger-600 hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
-                              title="Qarzni o'chirish"
-                            >
-                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

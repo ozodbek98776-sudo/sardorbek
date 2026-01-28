@@ -966,7 +966,8 @@ router.post('/', auth, async (req, res) => {
       customer,
       status: isHelper ? 'pending' : 'completed',
       isReturn: isReturn || false,
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      receiptType: isHelper ? 'helper_receipt' : 'direct_sale' // Xodim cheki yoki to'g'ridan-to'g'ri sotuv
     });
 
     if (!isHelper) {

@@ -14,7 +14,11 @@ const productSchema = new mongoose.Schema({
   warehouse: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
   isMainWarehouse: { type: Boolean, default: false },
   category: String,
-  images: [{ type: String }], // Array of image paths
+  images: [{ 
+    path: { type: String, required: true }, // Rasm yo'li
+    uploadedBy: { type: String, enum: ['admin', 'cashier'], default: 'admin' }, // Kim yuklagan
+    uploadedAt: { type: Date, default: Date.now } // Qachon yuklangan
+  }], // Array of image objects with metadata
   minStock: { type: Number, default: 50 },
 
   // Mahsulot o'lchamlari (sm/mm)

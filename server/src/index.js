@@ -5,8 +5,9 @@ const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
 
-// Telegram Bot import qilish
-// const { createPOSBot } = require('./telegram.bot');
+// Telegram Botlar import qilish
+const POSTelegramBot = require('./telegram.bot');
+const DebtTelegramBot = require('./debt.bot');
 
 const authRoutes = require('./routes/auth');
 const kassaAuthRoutes = require('./routes/kassaAuth');
@@ -144,16 +145,27 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
     console.log('⚡ MongoDB ulandi - SUPER TEZKOR sozlamalar!');
     console.log('📊 Pool: 20 max, 5 min, zlib compression');
 
-    // Telegram Bot ishga tushirish (hozircha o'chirilgan)
-    // try {
-    //   const posBot = createPOSBot();
-    //   if (posBot) {
-    //     await posBot.getBotInfo(); // Bot ma'lumotlarini ko'rsatish
-    //     console.log('✅ POS Telegram Bot muvaffaqiyatli ishga tushdi');
-    //   }
-    // } catch (botError) {
-    //   console.error('❌ Telegram Bot ishga tushirishda xatolik:', botError);
-    // }
+    // Telegram Botlar ishga tushirish
+    try {
+      // POS Bot (cheklar uchun)
+      const posBot = new POSTelegramBot();
+      if (posBot && posBot.bot) {
+        console.log('✅ POS Telegram Bot muvaffaqiyatli ishga tushdi');
+      }
+
+      // Qarz Bot (qarzlar uchun)
+      const debtBot = new DebtTelegramBot();
+      if (debtBot && debtBot.bot) {
+        console.log('✅ Qarz Telegram Bot muvaffaqiyatli ishga tushdi');
+      }
+
+      // Botlarni global qilish (boshqa joylardan foydalanish uchun)
+      global.posBot = posBot;
+      global.debtBot = debtBot;
+    } catch (botError) {
+      console.error('❌ Telegram Botlar ishga tushirishda xatolik:', botError.message);
+      console.log('⚠️  Botlar ishlamasa ham server ishlaydi');
+    }
 
     // Drop old indexes to fix unique constraint issues
     try {

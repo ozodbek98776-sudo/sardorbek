@@ -563,9 +563,5 @@ function getPOSBot() {
   return botInstance;
 }
 
-// Export
-module.exports = {
-  createPOSBot,
-  getPOSBot,
-  POSTelegramBot
-};
+// Export - faqat class
+module.exports = POSTelegramBot;

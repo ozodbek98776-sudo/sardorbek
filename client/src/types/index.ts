@@ -9,6 +9,12 @@ export interface User {
   createdAt: string;
 }
 
+export interface ProductImage {
+  path: string;
+  uploadedBy: 'admin' | 'cashier';
+  uploadedAt: string;
+}
+
 export interface Product {
   _id: string;
   code: string;
@@ -25,7 +31,7 @@ export interface Product {
   isMainWarehouse?: boolean;
   category?: string;
   image?: string;
-  images?: string[];
+  images?: (string | ProductImage)[]; // Eski format (string) yoki yangi format (object)
   minStock?: number;
   
   // O'lchov birliklari
