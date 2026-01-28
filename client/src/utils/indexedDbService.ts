@@ -284,12 +284,25 @@ export const getUnsyncedSales = async (): Promise<OfflineSale[]> => {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([STORES.SALES], 'readonly');
     const store = transaction.objectStore(STORES.SALES);
-    const index = store.index('synced');
-    // Use getAllKeys with a range instead of getAll with IDBKeyRange.only()
-    const request = index.getAll(false);
+    const results: OfflineSale[] = [];
 
-    request.onsuccess = () => {
-      resolve(request.result || []);
+    // Use cursor to iterate through all records
+    const request = store.openCursor();
+
+    request.onsuccess = (event) => {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+      
+      if (cursor) {
+        const sale = cursor.value as OfflineSale;
+        // Check if synced is false or undefined (not synced yet)
+        if (sale.synced === false || sale.synced === undefined) {
+          results.push(sale);
+        }
+        cursor.continue();
+      } else {
+        // No more entries
+        resolve(results);
+      }
     };
 
     request.onerror = () => {

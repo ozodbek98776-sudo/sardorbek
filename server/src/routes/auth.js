@@ -5,45 +5,79 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register route
+// Admin mavjudligini tekshirish (authentication talab qilmaydi)
+router.get('/check-admin', async (req, res) => {
+  try {
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    res.json({ 
+      hasAdmin: adminCount > 0,
+      count: adminCount 
+    });
+  } catch (error) {
+    console.error('Check admin error:', error);
+    res.status(500).json({ 
+      hasAdmin: true, // Xatolik bo'lsa, login sahifasiga yo'naltirish
+      error: error.message 
+    });
+  }
+});
+
+// Register route - Faqat birinchi admin uchun
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, role = 'admin' } = req.body;
+    const { name, login, phone, password } = req.body;
     
-    // Telefon raqam allaqachon mavjudligini tekshirish
-    const existingUser = await User.findOne({ phone });
+    // Admin mavjudligini tekshirish
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    if (adminCount > 0) {
+      return res.status(403).json({ 
+        message: 'Admin allaqachon mavjud. Ro\'yxatdan o\'tish yopiq.' 
+      });
+    }
+    
+    // Login yoki telefon allaqachon mavjudligini tekshirish
+    const existingUser = await User.findOne({ 
+      $or: [
+        { login: login },
+        { phone: phone }
+      ]
+    });
+    
     if (existingUser) {
-      return res.status(400).json({ message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' });
+      return res.status(400).json({ 
+        message: 'Bu login yoki telefon raqam allaqachon ro\'yxatdan o\'tgan' 
+      });
     }
 
-    // Birinchi foydalanuvchi admin bo'ladi
-    const userCount = await User.countDocuments();
-    const userRole = userCount === 0 ? 'admin' : role;
-
-    // Yangi foydalanuvchi yaratish
+    // Birinchi admin yaratish
     const user = new User({
       name,
+      login,
       phone,
       password,
-      role: userRole
+      role: 'admin'
     });
 
     await user.save();
+    
+    console.log('✅ Birinchi admin yaratildi:', login);
 
     // Token yaratish
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
     res.status(201).json({ 
-      message: 'Ro\'yxatdan o\'tish muvaffaqiyatli',
+      message: 'Admin muvaffaqiyatli yaratildi',
       token, 
       user: { 
         _id: user._id, 
-        name: user.name, 
+        name: user.name,
+        login: user.login,
         phone: user.phone, 
         role: user.role 
       } 
     });
   } catch (error) {
+    console.error('Register error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -52,68 +86,49 @@ router.post('/login', async (req, res) => {
   try {
     const { login, password } = req.body;
     
-    // Avval MongoDB dan foydalanuvchini qidirish (login yoki phone)
-    let user = await User.findOne({ 
+    console.log('🔐 Login attempt:', login);
+    
+    // MongoDB dan foydalanuvchini qidirish (login yoki phone)
+    const user = await User.findOne({ 
       $or: [
         { login: login },
         { phone: login }
       ]
     });
     
-    // Agar topilsa va parol to'g'ri bo'lsa
-    if (user) {
-      const isMatch = await user.comparePassword(password);
-      if (isMatch) {
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        return res.json({ 
-          token, 
-          user: { 
-            _id: user._id, 
-            name: user.name,
-            login: user.login,
-            phone: user.phone, 
-            role: user.role 
-          } 
-        });
-      }
+    if (!user) {
+      console.log('❌ User not found');
+      return res.status(400).json({ message: 'Login yoki parol noto\'g\'ri' });
     }
     
-    // Agar MongoDB da topilmasa, environment variables dan tekshirish (faqat birinchi marta)
-    const adminLogin = process.env.ADMIN_LOGIN || 'Admin321';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123';
+    console.log('✅ User found:', user.login || user.phone);
     
-    if (login === adminLogin && password === adminPassword) {
-      // Admin user yaratish (faqat birinchi marta)
-      let admin = await User.findOne({ login: adminLogin });
-      
-      if (!admin) {
-        admin = new User({
-          name: 'Admin',
-          login: adminLogin,
-          password: adminPassword,
-          role: 'admin'
-        });
-        await admin.save();
-        console.log('✅ Admin user MongoDB ga saqlandi:', adminLogin);
-      }
-      
-      const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ 
-        token, 
-        user: { 
-          _id: admin._id, 
-          name: admin.name,
-          login: admin.login,
-          phone: admin.phone, 
-          role: admin.role 
-        } 
-      });
+    // Parolni tekshirish
+    const isMatch = await user.comparePassword(password);
+    console.log('🔐 Password match:', isMatch);
+    
+    if (!isMatch) {
+      console.log('❌ Password incorrect');
+      return res.status(400).json({ message: 'Login yoki parol noto\'g\'ri' });
     }
     
-    // Agar hech narsa topilmasa
-    return res.status(400).json({ message: 'Login yoki parol noto\'g\'ri' });
+    // Token yaratish
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    
+    console.log('✅ Login successful');
+    
+    res.json({ 
+      token, 
+      user: { 
+        _id: user._id, 
+        name: user.name,
+        login: user.login,
+        phone: user.phone, 
+        role: user.role 
+      } 
+    });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -161,8 +176,15 @@ router.put('/admin/credentials', auth, async (req, res) => {
   try {
     const { currentPassword, newLogin, newPassword } = req.body;
     
+    console.log('🔐 Admin credentials update request:');
+    console.log('   User ID:', req.user._id);
+    console.log('   User Role:', req.user.role);
+    console.log('   Current Password provided:', !!currentPassword);
+    console.log('   New Login:', newLogin);
+    console.log('   New Password provided:', !!newPassword);
     // Faqat admin o'zgartirishi mumkin
     if (req.user.role !== 'admin') {
+      console.log('❌ Access denied: User is not admin');
       return res.status(403).json({ 
         success: false,
         message: 'Faqat admin o\'z login va parolini o\'zgartirishi mumkin' 
@@ -171,15 +193,21 @@ router.put('/admin/credentials', auth, async (req, res) => {
     
     const user = await User.findById(req.user._id);
     if (!user) {
+      console.log('❌ User not found in database');
       return res.status(404).json({ 
         success: false,
         message: 'Foydalanuvchi topilmadi' 
       });
     }
     
+    console.log('✅ User found:', user.login);
+    
     // Joriy parolni tekshirish
     const isMatch = await user.comparePassword(currentPassword);
+    console.log('🔐 Password match:', isMatch);
+    
     if (!isMatch) {
+      console.log('❌ Current password is incorrect');
       return res.status(400).json({ 
         success: false,
         message: 'Joriy parol noto\'g\'ri' 
@@ -188,31 +216,39 @@ router.put('/admin/credentials', auth, async (req, res) => {
     
     // Yangi login tekshirish (agar o'zgartirilsa)
     if (newLogin && newLogin !== user.login) {
+      console.log('🔄 Checking if new login is available:', newLogin);
       const existingUser = await User.findOne({ 
         login: newLogin, 
         _id: { $ne: user._id } 
       });
       
       if (existingUser) {
+        console.log('❌ Login already taken');
         return res.status(400).json({ 
           success: false,
           message: 'Bu login allaqachon band' 
         });
       }
       
+      console.log('✅ Updating login from', user.login, 'to', newLogin);
       user.login = newLogin;
     }
     
     // Yangi parolni o'rnatish
     if (newPassword) {
+      console.log('✅ Updating password');
       user.password = newPassword;
     }
     
+    console.log('💾 Saving user to database...');
     await user.save();
+    console.log('✅ User saved successfully');
     
     // Yangi token yaratish
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    console.log('✅ New token generated');
     
+    console.log('📤 Sending response with updated user data');
     res.json({
       success: true,
       message: 'Login va parol muvaffaqiyatli o\'zgartirildi',
@@ -225,7 +261,7 @@ router.put('/admin/credentials', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Admin credentials update error:', error);
+    console.error('❌ Admin credentials update error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Server xatosi', 

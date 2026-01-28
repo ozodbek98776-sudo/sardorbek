@@ -10,12 +10,17 @@ router.post('/kassa', async (req, res) => {
   try {
     const { name, phone, email, address } = req.body;
 
-    console.log(`Yangi mijoz qo'shish: ${name} - ${phone}`);
+    console.log(`📝 Yangi mijoz qo'shish so'rovi:`);
+    console.log(`   - Ism: ${name}`);
+    console.log(`   - Telefon: ${phone}`);
+    console.log(`   - Email: ${email || 'yo\'q'}`);
+    console.log(`   - Manzil: ${address || 'yo\'q'}`);
 
     // Telefon raqami mavjudligini tekshirish
     if (phone) {
       const existingCustomer = await Customer.findOne({ phone });
       if (existingCustomer) {
+        console.log(`⚠️ Bu telefon raqami bilan mijoz allaqachon mavjud: ${existingCustomer.name}`);
         return res.status(400).json({
           message: 'Bu telefon raqami bilan mijoz allaqachon mavjud',
           existingCustomer: {
@@ -38,7 +43,10 @@ router.post('/kassa', async (req, res) => {
 
     await customer.save();
 
-    console.log(`Yangi mijoz yaratildi: ${customer.name} (ID: ${customer._id})`);
+    console.log(`✅ Yangi mijoz yaratildi:`);
+    console.log(`   - ID: ${customer._id}`);
+    console.log(`   - Ism: ${customer.name}`);
+    console.log(`   - Telefon: ${customer.phone}`);
 
     res.status(201).json({
       success: true,
@@ -55,7 +63,9 @@ router.post('/kassa', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Mijoz qo\'shishda xatolik:', error);
+    console.error('❌ Mijoz qo\'shishda xatolik:', error);
+    console.error('Xatolik tafsilotlari:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Mijoz qo\'shishda xatolik yuz berdi',

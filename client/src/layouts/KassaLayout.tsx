@@ -147,6 +147,7 @@ export default function KassaLayout() {
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/kassa' || path === '/kassa/') return 'Kassa';
+    if (path === '/kassa/receipts') return 'Cheklar';
     if (path === '/kassa/clients') return 'Mijozlar';
     if (path === '/kassa/products') return 'Tovarlar';
     return 'Kassa';
@@ -213,6 +214,7 @@ export default function KassaLayout() {
           <div className="space-y-1.5">
             {[
               { path: '/kassa', label: 'Kassa', icon: Calculator },
+              { path: '/kassa/receipts', label: 'Cheklar', icon: FileText },
               { path: '/kassa/clients', label: 'Mijozlar', icon: Users },
               { path: '/kassa/debts', label: 'Qarz daftarcha', icon: FileText },
               { path: '/kassa/products', label: 'Tovarlar', icon: Package }

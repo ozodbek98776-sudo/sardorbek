@@ -6,7 +6,12 @@
     "build": "cd client && npm install && npm run build",
     "start": "cd server && npm start",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
-    "install-all": "cd server && npm install && cd ../client && npm install"
+    "install-all": "cd server && npm install && cd ../client && npm install",
+    "get-admin": "node get-admin-credentials.js",
+    "reset-password": "node reset-admin-password.js",
+    "reset-all-admins": "node reset-all-admins.js",
+    "diagnose": "node diagnose-images-qr.js",
+    "fix-qr": "node fix-qr-codes.js"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -16,6 +21,10 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "axios": "^1.13.3",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.2.3",
+    "mongoose": "^9.1.5",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.5"
   }

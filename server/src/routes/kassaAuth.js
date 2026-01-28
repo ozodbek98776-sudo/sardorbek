@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const KassaSession = require('../models/KassaSession');
 const User = require('../models/User');
 
@@ -21,70 +22,47 @@ router.post('/login', async (req, res) => {
     const KASSA_LOGIN = process.env.KASSA_LOGIN || 'kassachi';
     const KASSA_PASSWORD = process.env.KASSA_PASSWORD || 'kassa321';
 
+    let user = null;
+    let isKassaUser = false;
+
     // Maxfiy login va parol bilan tekshirish
     if (username === KASSA_LOGIN && password === KASSA_PASSWORD) {
-      // Eski sessionlarni o'chirish
-      await KassaSession.deleteMany({
-        username: username,
-        $or: [
-          { isActive: false },
-          { expiresAt: { $lt: new Date() } }
-        ]
-      });
+      isKassaUser = true;
+      // Maxfiy kassa user uchun virtual user yaratish
+      user = {
+        _id: 'kassa-user',
+        name: 'Kassa',
+        role: 'cashier',
+        login: username
+      };
+    } else {
+      // Database dan tekshirish
+      user = await User.findOne({ login: username });
 
-      // Yangi session yaratish
-      const sessionToken = crypto.randomBytes(32).toString('hex');
-      const ipAddress = req.ip || req.connection.remoteAddress || '';
-      const userAgent = req.get('User-Agent') || '';
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Noto\'g\'ri login yoki parol'
+        });
+      }
 
-      const session = new KassaSession({
-        username: username,
-        sessionToken: sessionToken,
-        ipAddress: ipAddress,
-        userAgent: userAgent,
-        isActive: true
-      });
+      // Parolni tekshirish
+      const isMatch = await user.comparePassword(password);
+      
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Noto\'g\'ri login yoki parol'
+        });
+      }
 
-      await session.save();
-
-      return res.json({
-        success: true,
-        message: 'Muvaffaqiyatli login',
-        data: {
-          sessionToken: sessionToken,
-          username: 'Kassa',
-          loginTime: session.loginTime,
-          expiresAt: session.expiresAt
-        }
-      });
-    }
-
-    // Agar maxfiy login emas bo'lsa, database dan tekshirish
-    const user = await User.findOne({ login: username });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Noto\'g\'ri login yoki parol'
-      });
-    }
-
-    // Parolni tekshirish
-    const isMatch = await user.comparePassword(password);
-    
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Noto\'g\'ri login yoki parol'
-      });
-    }
-
-    // Faqat cashier va helper ruxsat etiladi
-    if (!['cashier', 'helper'].includes(user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Kassa paneliga kirish ruxsati yo\'q'
-      });
+      // Faqat cashier va helper ruxsat etiladi
+      if (!['cashier', 'helper'].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Kassa paneliga kirish ruxsati yo\'q'
+        });
+      }
     }
 
     // Eski sessionlarni o'chirish
@@ -111,9 +89,27 @@ router.post('/login', async (req, res) => {
 
     await session.save();
 
+    // JWT token yaratish
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        role: user.role,
+        name: user.name
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
     res.json({
       success: true,
       message: 'Muvaffaqiyatli login',
+      token: token, // JWT token qo'shildi
+      user: {
+        _id: user._id,
+        name: user.name,
+        role: user.role,
+        login: user.login
+      },
       data: {
         sessionToken: sessionToken,
         username: user.name,

@@ -535,6 +535,76 @@ router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, r
   }
 });
 
+// Kassa paneli uchun cheklar ro'yxati - hodimlar tomonidan yaratilgan cheklar
+router.get('/kassa', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, startDate, endDate } = req.query;
+
+    // Faqat kassir va admin ko'rishi mumkin
+    if (!['cashier', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Ruxsat etilmagan' });
+    }
+
+    // Date filter
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.createdAt.$lte = end;
+      }
+    }
+
+    // Hodimlar tomonidan yaratilgan cheklar
+    const receipts = await Receipt.find({
+      receiptType: 'helper_receipt',
+      ...dateFilter
+    })
+      .populate('createdBy', 'name role')
+      .populate('items.product', 'name code')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .lean();
+
+    const total = await Receipt.countDocuments({
+      receiptType: 'helper_receipt',
+      ...dateFilter
+    });
+
+    // Format data for kassa panel
+    const formattedReceipts = receipts.map(receipt => ({
+      _id: receipt._id,
+      receiptNumber: receipt.receiptNumber || `CHK-${receipt._id.toString().slice(-6).toUpperCase()}`,
+      items: receipt.items.map(item => ({
+        product: {
+          _id: item.product?._id || item.product,
+          name: item.name,
+          code: item.code || ''
+        },
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: receipt.total,
+      paymentMethod: receipt.paymentMethod || 'cash',
+      customer: receipt.customer || null,
+      createdBy: {
+        name: receipt.createdBy?.name || 'Noma\'lum',
+        role: receipt.createdBy?.role || 'helper'
+      },
+      createdAt: receipt.createdAt,
+      status: receipt.status || 'completed'
+    }));
+
+    res.json(formattedReceipts);
+  } catch (error) {
+    console.error('Kassa receipts error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Barcha xodimlar cheklari - CARD VIEW
 router.get('/all-helper-receipts', auth, authorize('admin'), async (req, res) => {
   try {
@@ -704,6 +774,67 @@ router.delete('/helper-receipt/:id', auth, authorize('admin'), async (req, res) 
   }
 });
 
+// Chekni o'chirish - Kassa va Admin uchun
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Faqat kassir va admin ruxsat etiladi
+    if (!['cashier', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Ruxsat etilmagan' });
+    }
+
+    // Chekni topish
+    const receipt = await Receipt.findById(id);
+    
+    if (!receipt) {
+      return res.status(404).json({ message: 'Chek topilmadi' });
+    }
+
+    // Faqat helper_receipt turini o'chirish mumkin
+    if (receipt.receiptType !== 'helper_receipt') {
+      return res.status(403).json({ message: 'Faqat xodim chekini o\'chirish mumkin' });
+    }
+
+    // Mahsulot miqdorlarini qaytarish (rollback)
+    for (const item of receipt.items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { quantity: item.quantity } }
+      );
+    }
+
+    // Agar xodimga bonus berilgan bo'lsa, uni qaytarish
+    if (receipt.helperId) {
+      const helper = await require('../models/User').findById(receipt.helperId);
+      if (helper && helper.bonusPercentage > 0) {
+        const bonusAmount = (receipt.total * helper.bonusPercentage) / 100;
+        
+        await require('../models/User').findByIdAndUpdate(receipt.helperId, {
+          $inc: {
+            totalEarnings: -receipt.total,
+            totalBonus: -bonusAmount
+          }
+        });
+
+        console.log(`Xodim ${helper.name} dan ${bonusAmount} so'm bonus ayrildi`);
+      }
+    }
+
+    // Chekni o'chirish
+    await Receipt.findByIdAndDelete(id);
+
+    res.json({ 
+      success: true, 
+      message: 'Chek muvaffaqiyatli o\'chirildi'
+    });
+
+  } catch (error) {
+    console.error('Delete receipt error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const { status } = req.query;
@@ -789,17 +920,33 @@ router.post('/bulk', auth, authorize('admin', 'cashier'), async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { items, total, paymentMethod, customer, isReturn } = req.body;
+    console.log('📥 POST /receipts so\'rovi keldi');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User:', req.user);
+    
+    const { items, total, paidAmount, cashAmount, cardAmount, paymentMethod, customer, isReturn } = req.body;
     const isHelper = req.user.role === 'helper';
+
+    // To'langan summani hisoblash
+    const actualPaidAmount = paidAmount || total;
+    const debtAmount = total - actualPaidAmount;
+
+    console.log(`💰 To'lov ma'lumotlari:`);
+    console.log(`   - Jami: ${total} so'm`);
+    console.log(`   - To'langan: ${actualPaidAmount} so'm`);
+    console.log(`   - Qarz: ${debtAmount} so'm`);
+    console.log(`   - Mijoz ID: ${customer || 'yo\'q'}`);
 
     // Check stock availability before sale (not for returns)
     if (!isReturn && !isHelper) {
       for (const item of items) {
         const product = await Product.findById(item.product);
         if (!product) {
+          console.error(`❌ Mahsulot topilmadi: ${item.product}`);
           return res.status(400).json({ message: `Tovar topilmadi: ${item.name}` });
         }
         if (product.quantity < item.quantity) {
+          console.error(`❌ Yetarli mahsulot yo'q: ${product.name}`);
           return res.status(400).json({
             message: `Yetarli tovar yo'q: ${item.name}. Mavjud: ${product.quantity}, So'ralgan: ${item.quantity}`
           });
@@ -807,9 +954,14 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    console.log('✅ Mahsulot tekshiruvi muvaffaqiyatli');
+
     const receipt = new Receipt({
       items,
       total,
+      paidAmount: actualPaidAmount,
+      cashAmount: cashAmount || 0,
+      cardAmount: cardAmount || 0,
       paymentMethod,
       customer,
       status: isHelper ? 'pending' : 'completed',
@@ -826,6 +978,90 @@ router.post('/', auth, async (req, res) => {
     }
 
     await receipt.save();
+    console.log(`✅ Chek saqlandi: ${receipt._id}`);
+
+    // Agar qarz bo'lsa va mijoz tanlangan bo'lsa, qarzni yaratish yoki yangilash
+    if (debtAmount > 0 && customer && !isReturn) {
+      try {
+        const Debt = require('../models/Debt');
+        
+        console.log(`📝 Qarz yaratish boshlandi:`);
+        console.log(`   - Mijoz ID: ${customer}`);
+        console.log(`   - Qarz summasi: ${debtAmount} so'm`);
+        console.log(`   - Jami summa: ${total} so'm`);
+        console.log(`   - To'langan: ${actualPaidAmount} so'm`);
+        
+        // Mijozni tekshirish
+        const customerData = await Customer.findById(customer);
+        if (!customerData) {
+          console.error(`❌ Mijoz topilmadi: ${customer}`);
+          throw new Error('Mijoz topilmadi');
+        }
+        console.log(`✅ Mijoz topildi: ${customerData.name} (${customerData.phone})`);
+        
+        // Mijozning mavjud qarzini tekshirish
+        const existingDebts = await Debt.find({
+          customer: customer,
+          status: { $in: ['pending', 'approved', 'pending_approval'] }
+        }).sort({ createdAt: -1 });
+
+        console.log(`📊 Mavjud qarzlar soni: ${existingDebts.length}`);
+
+        if (existingDebts && existingDebts.length > 0) {
+          // Mavjud qarzga qo'shish
+          const existingDebt = existingDebts[0];
+          const oldAmount = existingDebt.amount;
+          existingDebt.amount += debtAmount;
+          existingDebt.description = `${existingDebt.description}\nChek #${receipt.receiptNumber || receipt._id}: +${debtAmount} so'm`;
+          await existingDebt.save();
+          
+          console.log(`✅ Mavjud qarzga qo'shildi: ${oldAmount} + ${debtAmount} = ${existingDebt.amount} so'm`);
+        } else {
+          // Yangi qarz yaratish - dueDate 30 kun keyingi sana
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30); // 30 kun muddat
+          
+          console.log(`📅 Qarz muddati: ${dueDate.toLocaleDateString('uz-UZ')}`);
+          
+          const newDebt = new Debt({
+            customer: customer,
+            amount: debtAmount,
+            paidAmount: 0,
+            dueDate: dueDate,
+            originalDueDate: dueDate,
+            description: `Chek #${receipt.receiptNumber || receipt._id} uchun qarz`,
+            type: 'receivable',
+            status: 'approved', // Avtomatik tasdiqlangan
+            createdBy: req.user._id
+          });
+          await newDebt.save();
+          
+          console.log(`✅ Yangi qarz yaratildi:`);
+          console.log(`   - Qarz ID: ${newDebt._id}`);
+          console.log(`   - Summa: ${debtAmount} so'm`);
+          console.log(`   - Muddat: ${dueDate.toLocaleDateString('uz-UZ')}`);
+          console.log(`   - Status: ${newDebt.status}`);
+        }
+
+        // Mijozning umumiy qarzini yangilash
+        const customerBefore = await Customer.findById(customer);
+        const oldDebt = customerBefore.debt || 0;
+        
+        await Customer.findByIdAndUpdate(customer, {
+          $inc: { debt: debtAmount }
+        });
+        
+        const customerAfter = await Customer.findById(customer);
+        console.log(`✅ Mijoz qarzi yangilandi: ${oldDebt} + ${debtAmount} = ${customerAfter.debt} so'm`);
+        console.log(`✅ Qarz yaratish muvaffaqiyatli tugadi!`);
+
+      } catch (debtError) {
+        console.error('❌ Qarz yaratishda xatolik:', debtError);
+        console.error('Xatolik tafsilotlari:', debtError.message);
+        console.error('Stack:', debtError.stack);
+        // Qarz yaratish xatosi chek yaratishni to'xtatmasin
+      }
+    }
 
     // Send telegram notification if customer is selected
     if (customer && !isReturn) {
@@ -845,8 +1081,13 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    console.log('✅ Chek muvaffaqiyatli yaratildi va javob yuborilmoqda');
     res.status(201).json(receipt);
   } catch (error) {
+    console.error('❌❌❌ POST /receipts XATOSI ❌❌❌');
+    console.error('Xato:', error);
+    console.error('Xato xabari:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

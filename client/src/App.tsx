@@ -20,6 +20,7 @@ import HelperLayout from './layouts/HelperLayout';
 import HelperScanner from './pages/helper/Scanner';
 import KassaLayout from './layouts/KassaLayout';
 import KassaMain from './pages/kassa/KassaMain';
+import KassaReceipts from './pages/kassa/KassaReceipts';
 import KassaClients from './pages/kassa/KassaClients';
 import KassaDebts from './pages/kassa/KassaDebts';
 import KassaProducts from './pages/kassa/KassaProducts';
@@ -212,8 +213,28 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const RoleRedirect = () => {
   const { user, loading } = useAuth();
+  const [checkingAdmin, setCheckingAdmin] = React.useState(true);
+  const [hasAdmin, setHasAdmin] = React.useState(false);
   
-  if (loading) {
+  React.useEffect(() => {
+    const checkAdminExists = async () => {
+      try {
+        // Backend dan admin borligini tekshirish
+        const response = await fetch('http://localhost:8000/api/auth/check-admin');
+        const data = await response.json();
+        setHasAdmin(data.hasAdmin);
+      } catch (error) {
+        console.error('Admin check error:', error);
+        setHasAdmin(true); // Xatolik bo'lsa, login sahifasiga yo'naltirish
+      } finally {
+        setCheckingAdmin(false);
+      }
+    };
+    
+    checkAdminExists();
+  }, []);
+  
+  if (loading || checkingAdmin) {
     return (
       <div className="min-h-screen bg-surface-50 flex items-center justify-center">
         <div className="text-center">
@@ -224,6 +245,11 @@ const RoleRedirect = () => {
         </div>
       </div>
     );
+  }
+  
+  // Agar admin yo'q bo'lsa, ro'yxatdan o'tish sahifasiga yo'naltirish
+  if (!hasAdmin && !user) {
+    return <Navigate to="/register" />;
   }
   
   if (!user) return <Navigate to="/login" />;
@@ -247,6 +273,7 @@ function App() {
             {/* Kassa Routes - TO'LIQ HIMOYALANGAN */}
             <Route path="/kassa" element={<KassaProtectedRoute><KassaLayout /></KassaProtectedRoute>}>
               <Route index element={<KassaMain />} />
+              <Route path="receipts" element={<KassaReceipts />} />
               <Route path="clients" element={<KassaClients />} />
               <Route path="debts" element={<KassaDebts />} />
               <Route path="products" element={<KassaProducts />} />

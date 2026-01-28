@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Bell, Settings, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, Bell, Settings, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
@@ -24,9 +24,16 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
+
+  const handleLogout = () => {
+    if (window.confirm('Tizimdan chiqmoqchimisiz?')) {
+      logout();
+      navigate('/login');
+    }
+  };
 
   // Menu ochilganda body scroll ni to'xtatish
   useEffect(() => {
@@ -68,13 +75,15 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
           </button>
 
           {/* Title */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0 flex-shrink">
-            <img 
-              src="/o5sk1awh.png" 
-              alt="Logo" 
-              className="h-8 w-auto max-h-8"
-            />
-            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 truncate">{title}</h1>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
+            <div className="flex flex-col items-center gap-1">
+              <img 
+                src="/o5sk1awh.png" 
+                alt="Logo" 
+                className="h-7 w-auto max-h-7 sm:h-8 sm:max-h-8 rounded-xl border-2 border-slate-200"
+              />
+              <h1 className="text-[10px] sm:text-xs font-bold text-slate-700 whitespace-nowrap">{title}</h1>
+            </div>
             <div className="hidden md:flex items-center gap-2">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-xs text-slate-500 font-medium">{t('header.live')}</span>
@@ -124,8 +133,20 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
             )}
 
             {/* Settings - hidden on very small screens */}
-            <button className="hidden sm:block p-1.5 sm:p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200">
+            <button 
+              onClick={() => navigate('/admin/settings')}
+              className="hidden sm:block p-1.5 sm:p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200"
+            >
               <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+
+            {/* Logout Button */}
+            <button 
+              onClick={handleLogout}
+              className="flex items-center justify-center p-1.5 sm:p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-all duration-200"
+              title="Chiqish"
+            >
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             
             {/* Custom Actions */}
@@ -150,7 +171,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-                    <img src="/o5sk1awh.png" alt="Logo" className="w-8 h-8" />
+                    <img src="/o5sk1awh.png" alt="Logo" className="w-8 h-8 rounded-lg border-2 border-white/30" />
                   </div>
                   <div>
                     <h2 className="text-white font-bold text-lg">Sardor Furnitura</h2>
@@ -197,13 +218,22 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
                 <p className="text-xs text-surface-500 text-center mb-2">
                   {user?.name || 'Foydalanuvchi'}
                 </p>
-                <p className="text-xs text-surface-400 text-center">
+                <p className="text-xs text-surface-400 text-center mb-4">
                   {new Date().toLocaleDateString('uz-UZ', { 
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
                   })}
                 </p>
+                
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-medium">Chiqish</span>
+                </button>
               </div>
             </div>
           </div>

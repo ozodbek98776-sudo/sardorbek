@@ -246,10 +246,20 @@ export default function Products() {
       const productsData = response.data.data || [];
       const pagination = response.data.pagination || {};
       
-      const validProducts = productsData.filter((p: Product) => p && p._id && p.name && p.code !== undefined);
+      // Yumshoq validatsiya - faqat _id va name majburiy
+      const validProducts = productsData.filter((p: Product) => {
+        if (!p || !p._id) return false;
+        if (!p.name || p.name.trim() === '') return false;
+        return true;
+      });
+      
+      const invalidCount = productsData.length - validProducts.length;
+      if (invalidCount > 0) {
+        console.warn(`⚠️ Sahifa ${page}: ${invalidCount} ta invalid mahsulot o'tkazib yuborildi`);
+      }
       
       const loadTime = performance.now() - startTime;
-      console.log(`⚡ Sahifa ${page}: ${validProducts.length} ta maxsulot ${Math.round(loadTime)}ms da yuklandi`);
+      console.log(`⚡ Sahifa ${page}: ${validProducts.length}/${productsData.length} ta maxsulot ${Math.round(loadTime)}ms da yuklandi`);
       console.log(`📊 Pagination: Sahifa ${pagination.page}/${pagination.pages}, Jami: ${pagination.total}`);
       
       // Agar birinchi sahifa bo'lsa, yangi array yaratish
@@ -303,38 +313,51 @@ export default function Products() {
       
       // 500ms kutib, keyin qolgan sahifalarni yuklash
       const timer = setTimeout(async () => {
+        setLoadingMore(true); // Loading flag ni o'rnatish
+        
         for (let page = 2; page <= totalPages; page++) {
           console.log(`📥 Sahifa ${page}/${totalPages} yuklanmoqda...`);
-          await fetchProducts(page);
-          // Har bir sahifa orasida 200ms kutish
-          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          try {
+            const response = await api.get(`/products?page=${page}&limit=20&t=${Date.now()}`);
+            const productsData = response.data.data || [];
+            
+            // Yumshoq validatsiya
+            const validProducts = productsData.filter((p: Product) => {
+              if (!p || !p._id) return false;
+              if (!p.name || p.name.trim() === '') return false;
+              return true;
+            });
+            
+            // Faqat yangi mahsulotlarni qo'shish (dublikat oldini olish)
+            setProducts(prev => {
+              const existingIds = new Set(prev.map(p => p._id));
+              const newProducts = validProducts.filter((p: Product) => !existingIds.has(p._id));
+              return [...prev, ...newProducts];
+            });
+            
+            setCurrentPage(page);
+            
+            // Har bir sahifa orasida 200ms kutish
+            await new Promise(resolve => setTimeout(resolve, 200));
+          } catch (err) {
+            console.error(`❌ Sahifa ${page} yuklashda xatolik:`, err);
+          }
         }
+        
+        setLoadingMore(false);
         console.log(`✅ Barcha ${totalPages} ta sahifa yuklandi!`);
       }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [currentPage, totalPages, loadingMore, fetchProducts]);
+  }, [currentPage, totalPages, loadingMore]);
 
-  // Scroll handler - keyingi sahifani yuklash
+  // Scroll handler - DISABLED (background loading ishlatilmoqda)
   const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) {
-      console.log('❌ Scroll container topilmadi');
-      return;
-    }
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const scrollPercentage = (scrollTop / (scrollHeight - clientHeight)) * 100;
-
-    console.log(`📜 Scroll: ${scrollPercentage.toFixed(1)}%, Sahifa: ${currentPage}/${totalPages}, Loading: ${loadingMore}`);
-
-    // 70% ga yetganda keyingi sahifani yuklash (80% dan past qildik)
-    if (scrollPercentage > 70 && !loadingMore && currentPage < totalPages) {
-      console.log(`✅ Keyingi sahifa yuklanmoqda: ${currentPage + 1}`);
-      fetchProducts(currentPage + 1);
-    }
-  }, [loadingMore, currentPage, totalPages, fetchProducts]);
+    // Scroll handler o'chirilgan - background loading ishlatilmoqda
+    return;
+  }, []);
 
   // Qidiruv yoki filter o'zgarganda - birinchi sahifaga qaytish
   useEffect(() => {
@@ -944,7 +967,7 @@ export default function Products() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 pb-20 lg:pb-0">
       {AlertComponent}
       <Header 
-        title="Tovarlar (Asosiy ombor)"
+        title="Tovarlar"
         showSearch 
         onSearch={setSearchQuery}
         actions={
@@ -1047,60 +1070,6 @@ export default function Products() {
             </div>
           ) : (
             <>
-              {/* Loading Info Bar - Professional & Informative */}
-              <div className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-surface-50 to-surface-100 border-b border-surface-200">
-                <div className="flex items-center justify-between text-xs sm:text-sm">
-                  {/* Left: Progress Info */}
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-600" />
-                      <span className="font-semibold text-surface-900">
-                        {products.length}
-                      </span>
-                      <span className="text-surface-500">/</span>
-                      <span className="text-surface-600">
-                        {filteredProducts.length || '...'} ta
-                      </span>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    {filteredProducts.length > 0 && (
-                      <div className="hidden sm:flex items-center gap-2">
-                        <div className="w-24 h-1.5 bg-surface-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-brand-500 to-brand-600 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min((products.length / totalProducts) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-surface-500 font-medium">
-                          {totalProducts > 0 ? Math.round((products.length / totalProducts) * 100) : 0}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Right: Status */}
-                  <div>
-                    {loadingMore && (
-                      <span className="flex items-center gap-1.5 sm:gap-2 text-brand-600 font-medium">
-                        <div className="animate-spin rounded-full h-3 w-3 sm:h-3.5 sm:w-3.5 border-2 border-brand-600 border-t-transparent"></div>
-                        <span className="hidden sm:inline">Yuklanmoqda...</span>
-                        <span className="sm:hidden">...</span>
-                      </span>
-                    )}
-                    {currentPage >= totalPages && filteredProducts.length > 0 && !loadingMore && (
-                      <span className="flex items-center gap-1 text-green-600 font-medium">
-                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span className="hidden sm:inline">Hammasi yuklandi</span>
-                        <span className="sm:hidden">✓</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
               {/* List View - Rasimsiz, Tez */}
               <div 
                 ref={scrollContainerRef}
@@ -1122,37 +1091,20 @@ export default function Products() {
                       )}
                       <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Kod</th>
                       <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Nomi</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Miqdor</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Tan narxi</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Dona narxi</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Holat</th>
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Narxi</th>
                       <th className="px-3 py-3 text-right text-xs font-semibold text-surface-600 uppercase">Amallar</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-surface-100">
                     {filteredProducts.map(product => {
-                      const unit = product.unit || 'dona';
-                      const getUnitLabel = (u?: string) => {
-                        switch (u) {
-                          case 'metr': return 'm';
-                          case 'rulon': return 'rulon';
-                          case 'karobka': return 'quti';
-                          case 'gram': return 'g';
-                          case 'kg': return 'kg';
-                          case 'litr': return 'L';
-                          default: return 'dona';
-                        }
-                      };
-                      const stockStatus = product.quantity === 0 ? 'danger' : product.quantity <= (product.minStock || 50) ? 'warning' : 'success';
                       const isSelected = selectedProducts.has(product._id);
                       
                       return (
                         <tr 
                           key={product._id}
-                          className={`hover:bg-surface-50 transition-colors cursor-pointer ${
+                          className={`hover:bg-surface-50 transition-colors ${
                             isSelected ? 'bg-brand-50' : ''
                           }`}
-                          onClick={() => selectionMode ? toggleProductSelection(product._id) : openStatsModal(product)}
                         >
                           {selectionMode && (
                             <td className="px-3 py-3">
@@ -1175,43 +1127,10 @@ export default function Products() {
                             )}
                           </td>
                           <td className="px-3 py-3">
-                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                              stockStatus === 'danger' ? 'bg-red-50 text-red-700 border border-red-200' : 
-                              stockStatus === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 
-                              'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            }`}>
-                              {unit === 'metr' || unit === 'rulon' ? <Ruler className="w-3 h-3" /> :
-                               unit === 'karobka' ? <Box className="w-3 h-3" /> :
-                               unit === 'gram' || unit === 'kg' ? <Scale className="w-3 h-3" /> :
-                               <Package className="w-3 h-3" />}
-                              <span>{product.quantity} {getUnitLabel(unit)}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="text-sm font-semibold text-surface-900">
-                              {formatNumber((product as any).costPrice || 0)}
-                              <span className="text-xs text-surface-400 ml-1">so'm</span>
-                            </div>
-                            {(product as any).costPriceInDollar > 0 && (
-                              <div className="text-xs text-surface-500 mt-0.5">
-                                ≈ ${formatNumber((product as any).costPriceInDollar)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-3">
                             <div className="text-sm font-bold text-brand-700">
                               {formatNumber((product as any).unitPrice || product.price)}
                               <span className="text-xs text-brand-400 ml-1">so'm</span>
                             </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
-                              stockStatus === 'danger' ? 'bg-red-100 text-red-700' : 
-                              stockStatus === 'warning' ? 'bg-amber-100 text-amber-700' : 
-                              'bg-emerald-100 text-emerald-700'
-                            }`}>
-                              {stockStatus === 'danger' ? '❌ Tugagan' : stockStatus === 'warning' ? '⚠️ Kam' : '✓ Mavjud'}
-                            </span>
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex items-center justify-end gap-1">
@@ -2069,9 +1988,12 @@ export default function Products() {
 
       {/* Quantity Adjustment Modal */}
       {showQuantityModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="overlay" onClick={() => setShowQuantityModal(false)} />
-          <div className="modal w-full max-w-sm p-6 relative z-10">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setShowQuantityModal(false)} 
+          />
+          <div className="modal w-full max-w-sm p-6 relative z-[71]">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-surface-900">
                 {quantityMode === 'add' ? "Miqdor qo'shish" : "Miqdor ayirish"}

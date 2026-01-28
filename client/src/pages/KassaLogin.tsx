@@ -23,6 +23,12 @@ export default function KassaLogin() {
       });
       
       if (response.data.success) {
+        // JWT token ni saqlash
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
+        
+        // Kassa session ma'lumotlarini saqlash
         const loginData = {
           loggedIn: true,
           timestamp: Date.now(),

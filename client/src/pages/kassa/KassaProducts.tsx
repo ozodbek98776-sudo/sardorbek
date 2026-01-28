@@ -1151,27 +1151,27 @@ export default function KassaProducts() {
 
       {/* Add/Edit Product Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 pt-4 sm:p-4">
           <div className="overlay" onClick={closeModal} />
-          <div className="modal w-full max-w-lg p-6 relative z-10 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-900">{editingProduct ? 'Tovarni tahrirlash' : 'Yangi tovar'}</h3>
+          <div className="modal w-full sm:max-w-lg p-4 sm:p-6 relative z-10 max-h-[calc(100vh-120px)] sm:max-h-[85vh] overflow-y-auto rounded-2xl">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 sticky top-0 bg-white pb-3 border-b border-surface-200 -mx-4 sm:-mx-6 px-4 sm:px-6 z-10">
+              <h3 className="text-base sm:text-lg font-semibold text-surface-900">{editingProduct ? 'Tovarni tahrirlash' : 'Yangi tovar'}</h3>
               <button onClick={closeModal} className="btn-icon-sm"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Image Upload */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Rasmlar (max 8)</label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Rasmlar (max 8)</label>
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-2">
                   {images.map((img, idx) => (
                     <div key={idx} className="relative aspect-square">
                       <img src={`${UPLOADS_URL}${img}`} alt="" className="w-full h-full object-cover rounded-lg" />
                       <button
                         type="button"
                         onClick={() => removeImage(img)}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-danger-500 text-white rounded-full flex items-center justify-center"
+                        className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-danger-500 text-white rounded-full flex items-center justify-center"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       </button>
                     </div>
                   ))}
@@ -1183,11 +1183,11 @@ export default function KassaProducts() {
                       className="aspect-square border-2 border-dashed border-surface-300 rounded-lg flex flex-col items-center justify-center hover:border-brand-500 hover:bg-brand-50 transition-colors"
                     >
                       {uploading ? (
-                        <div className="spinner w-5 h-5 text-brand-600" />
+                        <div className="spinner w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
                       ) : (
                         <>
-                          <Upload className="w-5 h-5 text-surface-400 mb-1" />
-                          <span className="text-xs text-surface-500">Yuklash</span>
+                          <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-surface-400 mb-0.5 sm:mb-1" />
+                          <span className="text-[10px] sm:text-xs text-surface-500">Yuklash</span>
                         </>
                       )}
                     </button>
@@ -1203,56 +1203,56 @@ export default function KassaProducts() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Kod</label>
+                  <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Kod</label>
                   <input 
                     type="text" 
-                    className={`input ${codeError ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20' : ''}`}
+                    className={`input text-sm sm:text-base py-2 sm:py-2.5 ${codeError ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20' : ''}`}
                     placeholder="1" 
                     value={formData.code} 
                     onChange={e => setFormData({...formData, code: e.target.value})}
                     onBlur={e => checkCodeExists(e.target.value)}
                     required 
                   />
-                  {codeError && <p className="text-sm text-danger-600 mt-1">{codeError}</p>}
+                  {codeError && <p className="text-xs sm:text-sm text-danger-600 mt-1">{codeError}</p>}
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Miqdori</label>
+                  <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Miqdori</label>
                   {editingProduct ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 px-4 py-3 bg-surface-100 rounded-xl text-center font-semibold text-surface-900">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <div className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-surface-100 rounded-xl text-center font-semibold text-surface-900 text-sm sm:text-base">
                         {formatNumber(formData.quantity || 0)}
                       </div>
-                      <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon bg-success-100 text-success-600 hover:bg-success-200">
-                        <Plus className="w-5 h-5" />
+                      <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon bg-success-100 text-success-600 hover:bg-success-200 w-8 h-8 sm:w-10 sm:h-10">
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
-                      <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon bg-danger-100 text-danger-600 hover:bg-danger-200">
-                        <Minus className="w-5 h-5" />
+                      <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon bg-danger-100 text-danger-600 hover:bg-danger-200 w-8 h-8 sm:w-10 sm:h-10">
+                        <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   ) : (
-                    <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.quantity)} onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} required />
+                    <input type="text" className="input text-sm sm:text-base py-2 sm:py-2.5" placeholder="0" value={formatInputNumber(formData.quantity)} onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} required />
                   )}
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Nomi</label>
-                <input type="text" className="input" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Nomi</label>
+                <input type="text" className="input text-sm sm:text-base py-2 sm:py-2.5" placeholder="Tovar nomi" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
               </div>
               
               {/* Oldingi va hozirgi narxlar */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Oldingi narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.previousPrice)} onChange={e => setFormData({...formData, previousPrice: parseNumber(e.target.value)})} />
+                  <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Oldingi narxi (so'm)</label>
+                  <input type="text" className="input text-sm sm:text-base py-2 sm:py-2.5" placeholder="0" value={formatInputNumber(formData.previousPrice)} onChange={e => setFormData({...formData, previousPrice: parseNumber(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">Hozirgi narxi (so'm)</label>
-                  <input type="text" className="input" placeholder="0" value={formatInputNumber(formData.currentPrice)} onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})} required />
+                  <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Hozirgi narxi (so'm)</label>
+                  <input type="text" className="input text-sm sm:text-base py-2 sm:py-2.5" placeholder="0" value={formatInputNumber(formData.currentPrice)} onChange={e => setFormData({...formData, currentPrice: parseNumber(e.target.value)})} required />
                   {/* Chegirma foizi ko'rsatish */}
                   {formData.previousPrice && formData.currentPrice && Number(formData.previousPrice) > 0 && Number(formData.currentPrice) > 0 && (
-                    <div className="mt-2">
+                    <div className="mt-1.5 sm:mt-2">
                       {(() => {
                         const oldPrice = Number(formData.previousPrice);
                         const newPrice = Number(formData.currentPrice);
@@ -1260,16 +1260,16 @@ export default function KassaProducts() {
                         
                         if (discountPercent > 0) {
                           return (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-green-700">{discountPercent}% chegirma</span>
+                            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-green-50 rounded-lg">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-xs sm:text-sm font-medium text-green-700">{discountPercent}% chegirma</span>
                             </div>
                           );
                         } else if (discountPercent < 0) {
                           return (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-red-700">{Math.abs(discountPercent)}% qimmatroq</span>
+                            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-50 rounded-lg">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-xs sm:text-sm font-medium text-red-700">{Math.abs(discountPercent)}% qimmatroq</span>
                             </div>
                           );
                         }
@@ -1396,9 +1396,9 @@ export default function KassaProducts() {
                 </div>
               </div>
               
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={closeModal} className="btn-secondary flex-1">Bekor qilish</button>
-                <button type="submit" className="btn-primary flex-1" disabled={!!codeError}>Saqlash</button>
+              <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 sticky bottom-0 bg-white pb-safe -mx-4 sm:-mx-6 px-4 sm:px-6 border-t border-surface-200 mt-4 z-10">
+                <button type="button" onClick={closeModal} className="btn-secondary flex-1 text-sm sm:text-base py-2.5 sm:py-3">Bekor qilish</button>
+                <button type="submit" className="btn-primary flex-1 text-sm sm:text-base py-2.5 sm:py-3" disabled={!!codeError}>Saqlash</button>
               </div>
             </form>
           </div>

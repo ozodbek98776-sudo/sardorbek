@@ -137,32 +137,32 @@ export default function KassaModern() {
         
         {/* LEFT SIDE - Products Search & Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="bg-white border-b border-slate-200 px-4 py-4 lg:px-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Kassa
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">Tez va oson savdo</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-semibold">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  {new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+          {/* Header - Clean & Modern Design */}
+          <div className="bg-white border-b border-slate-200 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+            {/* Title Section - Centered & Beautiful */}
+            <div className="flex items-center justify-center mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-purple-600 to-blue-600 flex items-center justify-center shadow-xl">
+                  <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
+                </div>
+                <div className="text-center">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+                    Kassa (POS)
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">Professional Sotish Tizimi</p>
                 </div>
               </div>
             </div>
 
-            {/* Search Bar */}
+            {/* Search Bar - Full Width with Beautiful Design */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tovar qidirish (kod yoki nom)..."
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all text-base"
+                placeholder="Mahsulot qidirish..."
+                className="w-full pl-11 sm:pl-12 pr-4 py-3 sm:py-3.5 bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-slate-200 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all text-sm sm:text-base font-medium placeholder:text-slate-400 shadow-sm"
                 autoFocus
               />
             </div>
@@ -314,26 +314,26 @@ export default function KassaModern() {
           </div>
         </div>
 
-        {/* RIGHT SIDE - Cart & Checkout */}
-        <div className="w-full lg:w-[420px] bg-white border-l border-slate-200 flex flex-col shadow-2xl">
-          {/* Cart Header */}
-          <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
+        {/* RIGHT SIDE - Cart & Checkout - Mobile Optimized */}
+        <div className="w-full lg:w-[420px] bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col shadow-2xl">
+          {/* Cart Header - Compact on Mobile */}
+          <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-900">Savat</h2>
-                  <p className="text-xs text-slate-500">{itemCount} ta mahsulot</p>
+                  <h2 className="font-bold text-slate-900 text-sm sm:text-base">Savat</h2>
+                  <p className="text-[10px] sm:text-xs text-slate-500">{itemCount} ta mahsulot</p>
                 </div>
               </div>
               {cart.length > 0 && (
                 <button
                   onClick={() => setCart([])}
-                  className="p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
             </div>

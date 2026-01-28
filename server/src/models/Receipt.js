@@ -16,7 +16,7 @@ const cartItemSchema = new mongoose.Schema({
 const receiptSchema = new mongoose.Schema({
   items: [cartItemSchema],
   total: { type: Number, required: true },
-  paymentMethod: { type: String, enum: ['cash', 'card', 'click'], default: 'cash' },
+  paymentMethod: { type: String, enum: ['cash', 'card', 'click', 'mixed'], default: 'cash' },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'completed'], default: 'completed' },
   isReturn: { type: Boolean, default: false },
@@ -28,6 +28,8 @@ const receiptSchema = new mongoose.Schema({
   receiptType: { type: String, enum: ['sale', 'helper_receipt'], default: 'sale' }, // Chek turi
   // To'lov ma'lumotlari
   paidAmount: { type: Number, default: 0 }, // To'langan summa
+  cashAmount: { type: Number, default: 0 }, // Naqd pul summasi
+  cardAmount: { type: Number, default: 0 }, // Karta summasi
   remainingAmount: { type: Number, default: 0 }, // Qoldiq summa
   receiptNumber: { type: String }, // Chek raqami
   metadata: {

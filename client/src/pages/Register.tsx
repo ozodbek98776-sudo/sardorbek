@@ -8,6 +8,7 @@ import api from '../utils/api';
 export default function Register() {
   const [formData, setFormData] = useState({
     name: '',
+    login: '',
     phone: '',
     password: '',
     confirmPassword: ''
@@ -46,15 +47,15 @@ export default function Register() {
       const rawPhone = getRawPhone(formData.phone);
       await api.post('/auth/register', {
         name: formData.name,
+        login: formData.login,
         phone: rawPhone,
-        password: formData.password,
-        role: 'admin' // Birinchi ro'yxatdan o'tgan foydalanuvchi admin bo'ladi
+        password: formData.password
       });
       
       // Ro'yxatdan o'tgandan keyin login sahifasiga yo'naltirish
       navigate('/login', { 
         state: { 
-          message: 'Ro\'yxatdan o\'tish muvaffaqiyatli! Endi tizimga kirishingiz mumkin.' 
+          message: 'Admin muvaffaqiyatli yaratildi! Endi tizimga kirishingiz mumkin.' 
         } 
       });
     } catch (err: any) {
@@ -132,6 +133,26 @@ export default function Register() {
                   placeholder="Ismingizni kiriting"
                   value={formData.name}
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full pl-12 pr-4 py-4 text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Login
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Login kiriting (masalan: admin123)"
+                  value={formData.login}
+                  onChange={e => setFormData(prev => ({ ...prev, login: e.target.value }))}
                   className="w-full pl-12 pr-4 py-4 text-slate-900 bg-slate-50 border border-slate-200 rounded-2xl placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white"
                   required
                 />

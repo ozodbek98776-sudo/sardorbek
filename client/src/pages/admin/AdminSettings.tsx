@@ -183,22 +183,36 @@ export default function AdminSettings() {
     
     setLoading(true);
     
+    console.log('🔐 Admin credentials update - Frontend');
+    console.log('   Current Password:', formData.currentPassword ? '***' : 'empty');
+    console.log('   New Login:', formData.newLogin);
+    console.log('   New Password:', formData.newPassword ? '***' : 'empty');
+    
     try {
+      console.log('📤 Sending request to /auth/admin/credentials');
       const response = await api.put('/auth/admin/credentials', {
         currentPassword: formData.currentPassword,
         newLogin: formData.newLogin,
         newPassword: formData.newPassword || undefined
       });
       
+      console.log('📥 Response received:', response.data);
+      
       if (response.data.success) {
+        console.log('✅ Success response');
+        
         // Yangi token ni saqlash
         if (response.data.token) {
+          console.log('💾 Saving new token to localStorage');
           localStorage.setItem('token', response.data.token);
+          console.log('✅ Token saved');
         }
         
         // User ma'lumotlarini yangilash
         if (response.data.user) {
+          console.log('👤 Updating user context:', response.data.user);
           updateUser(response.data.user);
+          console.log('✅ User context updated');
         }
         
         showAlert('Login va parol muvaffaqiyatli o\'zgartirildi', 'Muvaffaqiyat', 'success');
@@ -210,9 +224,12 @@ export default function AdminSettings() {
           newPassword: '',
           confirmPassword: ''
         });
+        
+        console.log('✅ Form cleared');
       }
     } catch (error: any) {
-      console.error('Admin credentials update error:', error);
+      console.error('❌ Admin credentials update error:', error);
+      console.error('   Error response:', error.response?.data);
       const errorMsg = error.response?.data?.message || 'Login va parolni o\'zgartirishda xatolik';
       showAlert(errorMsg, 'Xatolik', 'danger');
     } finally {

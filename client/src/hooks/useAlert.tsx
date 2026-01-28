@@ -11,12 +11,13 @@ interface AlertState {
   showCancel: boolean;
   confirmText: string;
   onConfirm?: () => void;
+  onClose?: () => void;
 }
 
 export function useAlert() {
   const [state, setState] = useState<AlertState>({
     isOpen: false, title: '', message: '', type: 'info',
-    showCancel: false, confirmText: 'OK'
+    showCancel: false, confirmText: 'OK', onClose: undefined
   });
 
   const showAlert = useCallback((
@@ -39,24 +40,41 @@ export function useAlert() {
     type: AlertType = 'warning'
   ) => {
     return new Promise<boolean>((resolve) => {
+      const handleConfirm = () => {
+        setState(s => ({ ...s, isOpen: false }));
+        resolve(true);
+      };
+      
+      const handleClose = () => {
+        setState(s => ({ ...s, isOpen: false }));
+        resolve(false);
+      };
+      
       setState({
-        isOpen: true, title, message, type,
-        showCancel: true, confirmText: 'Ha',
-        onConfirm: () => { setState(s => ({ ...s, isOpen: false })); resolve(true); }
+        isOpen: true,
+        title,
+        message,
+        type,
+        showCancel: true,
+        confirmText: 'Ha',
+        onConfirm: handleConfirm,
+        onClose: handleClose
       });
-      const originalOnClose = () => { setState(s => ({ ...s, isOpen: false })); resolve(false); };
-      setState(s => ({ ...s, onClose: originalOnClose }));
     });
   }, []);
 
   const closeAlert = useCallback(() => {
-    setState(s => ({ ...s, isOpen: false }));
-  }, []);
+    if (state.onClose) {
+      state.onClose();
+    } else {
+      setState(s => ({ ...s, isOpen: false }));
+    }
+  }, [state.onClose]);
 
   const AlertComponent = (
     <AlertModal
       isOpen={state.isOpen}
-      onClose={closeAlert}
+      onClose={state.onClose || closeAlert}
       onConfirm={state.onConfirm}
       title={state.title}
       message={state.message}

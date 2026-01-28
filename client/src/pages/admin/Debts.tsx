@@ -200,11 +200,11 @@ export default function Debts() {
   });
 
   const statItems = [
-    { label: 'Aktiv qarzlar', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
-    { label: "To'langan", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
-    { label: "Muddati o'tgan", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
-    { label: 'Qora ro\'yxat', value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
-    { label: 'Jami qarz', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
+    { label: 'AKTIV', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
+    { label: "TO'LANGAN", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
+    { label: "MUDDATI O'TGAN", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
+    { label: 'QORA RO\'YXAT', value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
+    { label: 'JAMI QARZ', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
   ];
 
   const getDebtorName = (debt: Debt) => {
@@ -262,23 +262,76 @@ export default function Debts() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
+        {/* Stats - Dashboard bilan bir xil dizayn */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStatusFilter(stat.filter)}
-              className={`stat-card ${stat.filter ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${
-                statusFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
-              }`}
+              className={`group relative ${stat.filter ? 'cursor-pointer' : ''}`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`stat-icon bg-${stat.color}-50`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+              {/* Glass Card with Gradient Border - Fixed Height */}
+              <div className={`relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] overflow-hidden h-[140px] sm:h-[160px] flex flex-col ${
+                statusFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
+              }`}>
+                {/* Animated Gradient Background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${
+                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
+                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
+                  'from-purple-500 to-purple-600'
+                } opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700`} />
+                
+                {/* Decorative Glow Effect */}
+                <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${
+                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
+                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
+                  'from-purple-500 to-purple-600'
+                } opacity-[0.08] rounded-full blur-3xl group-hover:opacity-[0.15] group-hover:scale-125 transition-all duration-700`} />
+                
+                {/* Top Border Accent */}
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
+                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
+                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
+                  'from-purple-500 to-purple-600'
+                } opacity-60 group-hover:opacity-100 transition-all duration-500`} />
+                
+                {/* Content */}
+                <div className="relative z-10 flex flex-col h-full">
+                  {/* Icon */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${
+                      stat.color === 'success' ? 'bg-gradient-to-br from-emerald-100 to-emerald-50' :
+                      stat.color === 'danger' ? 'bg-gradient-to-br from-red-100 to-red-50' :
+                      'bg-gradient-to-br from-purple-100 to-purple-50'
+                    }`}>
+                      <stat.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                        stat.color === 'success' ? 'text-emerald-600' :
+                        stat.color === 'danger' ? 'text-red-600' :
+                        'text-purple-600'
+                      }`} />
+                    </div>
+                  </div>
+                  
+                  {/* Value */}
+                  <div className="flex-1 flex flex-col justify-end">
+                    <p className={`text-lg sm:text-xl lg:text-2xl font-extrabold mb-0.5 transition-all duration-500 group-hover:scale-105 ${
+                      stat.color === 'success' ? 'text-emerald-600' :
+                      stat.color === 'danger' ? 'text-red-600' :
+                      'text-purple-600'
+                    }`}>
+                      {stat.value}
+                    </p>
+                    
+                    {/* Label */}
+                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider leading-tight">
+                      {stat.label}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Shimmer Effect on Hover */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
               </div>
-              <p className="stat-value">{stat.value}</p>
-              <p className="stat-label">{stat.label}</p>
             </div>
           ))}
         </div>
