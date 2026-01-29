@@ -1029,6 +1029,21 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       dollarRate: dollarRate || 12500
     };
 
+    // Update images if provided (support both string and object formats)
+    if (Array.isArray(req.body.images)) {
+      const formattedImages = req.body.images.map(img => {
+        if (typeof img === 'string') {
+          return {
+            path: img,
+            uploadedBy: 'admin',
+            uploadedAt: new Date()
+          };
+        }
+        return img;
+      });
+      updateData.images = formattedImages;
+    }
+
     // Add package information if provided
     if (packageInfo) {
       const product = await Product.findById(req.params.id);

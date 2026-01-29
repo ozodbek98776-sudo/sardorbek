@@ -83,15 +83,13 @@ export default function KassaReceipts() {
       <head>
         <title>Chek #${receipt.receiptNumber}</title>
         <style>
-          @page { size: 80mm auto; margin: 5mm; }
-          @media print {
-            body { width: 70mm; }
-          }
+          @page { size: 80mm auto; margin: 0; }
+          @media print { html, body { width: 80mm; margin: 0; padding: 0; height: auto; overflow: visible; } }
           body { 
             font-family: Arial, sans-serif; 
             margin: 0; 
-            padding: 10px;
-            max-width: 70mm;
+            padding: 0;
+            max-width: 80mm;
             font-size: 16px;
           }
           .header { 
@@ -127,8 +125,11 @@ export default function KassaReceipts() {
           table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin: 15px 0; 
+            margin: 15px 0;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
+          thead, tbody, tr, td, th { page-break-inside: avoid; break-inside: avoid; }
           th { 
             background: #f5f5f5; 
             padding: 10px 8px; 

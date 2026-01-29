@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, RotateCcw, Save, CreditCard, Trash2, X, 
-  Package, Banknote, Delete, AlertTriangle, User, ChevronDown, Wifi, WifiOff, RefreshCw, ScanLine,
-  ShoppingCart, Plus, Minus, DollarSign, Receipt, Clock, TrendingUp, Scan
+  Package2, Banknote, Delete, AlertTriangle, User, UserCircle, ChevronDown, Wifi, WifiOff, RefreshCw, ScanLine,
+  ShoppingCart, Plus, Minus, DollarSign, Receipt, Clock, TrendingUp, Scan, Menu, Home, Users, FileText
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
+import { UPLOADS_URL } from '../../config/api';
 import { useAlert } from '../../hooks/useAlert';
 import { useOffline } from '../../hooks/useOffline';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -27,8 +29,10 @@ interface SavedReceipt {
 }
 
 export default function KassaPro() {
+  const navigate = useNavigate();
   const { showAlert, AlertComponent } = useAlert();
   const { isOnline, pendingCount, isSyncing, manualSync } = useOffline();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
   const [displayCount, setDisplayCount] = useState(20);
@@ -664,8 +668,17 @@ export default function KassaPro() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center justify-between">
-          {/* Left: Title */}
+          {/* Left: Hamburger + Title */}
           <div className="flex items-center gap-3">
+            {/* Hamburger Button - Only on mobile */}
+            <button 
+              onClick={() => setMenuOpen(true)}
+              className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors active:scale-95 flex-shrink-0 flex sm:hidden"
+              title="Menyuni ochish"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500 via-purple-600 to-blue-600 flex items-center justify-center shadow-xl">
               <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
             </div>
@@ -867,16 +880,19 @@ export default function KassaPro() {
                             )}
                             {product.images && product.images.length > 0 ? (
                               <img 
-                                src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${product.images[0]}`}
+                                src={`${UPLOADS_URL}${product.images[0]}`}
                                 alt={product.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
-                                  e.currentTarget.parentElement!.innerHTML = '<svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML = '<svg class="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                  }
                                 }}
                               />
                             ) : (
-                              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
+                              <Package2 className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -894,7 +910,7 @@ export default function KassaPro() {
                     </div>
                   ) : (
                     <div className="p-6 sm:p-8 text-center text-slate-500">
-                      <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
+                      <Package2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
                       <p className="text-xs sm:text-sm">Mahsulot topilmadi</p>
                     </div>
                   )}
@@ -946,17 +962,20 @@ export default function KassaPro() {
                           
                           {product.images && product.images.length > 0 ? (
                             <img 
-                              src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${product.images[0]}`}
+                              src={`${UPLOADS_URL}${product.images[0]}`}
                               alt={product.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 // Rasm yuklanmasa, default icon ko'rsatish
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                }
                               }}
                             />
                           ) : (
-                            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
+                            <Package2 className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
                           )}
                         </div>
                         <p className="font-semibold text-slate-900 text-[10px] sm:text-sm truncate">{product.name}</p>
@@ -1234,6 +1253,94 @@ export default function KassaPro() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile Menu Panel - Only on mobile */}
+      {menuOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] sm:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+          
+          {/* Menu Panel - LEFT SIDE - Only on mobile */}
+          <div className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white z-[70] shadow-2xl animate-slide-in-left sm:hidden">
+            {/* Menu Header */}
+            <div className="bg-gradient-to-r from-brand-500 to-brand-600 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                    <img src="/o5sk1awh.png" alt="Logo" className="w-8 h-8 rounded-lg border-2 border-white/30" />
+                  </div>
+                  <div>
+                    <h2 className="text-white font-bold text-lg">Sardor Furnitura</h2>
+                    <p className="text-brand-100 text-xs">Mebel furniturasi</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setMenuOpen(false)}
+                  className="p-2 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Menu Items */}
+            <div className="p-4 space-y-2">
+              <button 
+                onClick={() => { navigate('/'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <Home className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Bosh sahifa</span>
+              </button>
+              <button 
+                onClick={() => { navigate('/admin/products'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <Package2 className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Mahsulotlar</span>
+              </button>
+              <button 
+                onClick={() => { setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-brand-50 text-brand-700 transition-colors text-left"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span className="font-medium">Kassa (POS)</span>
+              </button>
+              <button 
+                onClick={() => { navigate('/admin/customers'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <Users className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Mijozlar</span>
+              </button>
+              <button 
+                onClick={() => { navigate('/admin/debts'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <FileText className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Qarzlar</span>
+              </button>
+              <button 
+                onClick={() => { navigate('/admin/staff-receipts'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <Receipt className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Cheklar</span>
+              </button>
+              <button 
+                onClick={() => { navigate('/admin/helpers'); setMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left"
+              >
+                <UserCircle className="w-5 h-5 text-slate-600" />
+                <span className="font-medium text-slate-700">Hodimlar</span>
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

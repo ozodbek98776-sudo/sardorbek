@@ -543,7 +543,7 @@ export default function Debts() {
                                           showAlert(err.response?.data?.message || 'Muddat berishda xatolik', 'Xatolik', 'danger');
                                         }
                                       }}
-                                      className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[120px] whitespace-nowrap bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
+                                      className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[100px] sm:min-w-[120px] whitespace-nowrap bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
                                     >
                                       <Calendar className="w-4 h-4" />
                                       Muddati berish
@@ -572,7 +572,7 @@ export default function Debts() {
                                         showAlert(err.response?.data?.message || "Qarz to'landi deb belgilashda xatolik", 'Xatolik', 'danger');
                                       }
                                     }}
-                                    className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                    className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[80px] sm:min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                     Bo'ldi
@@ -584,7 +584,7 @@ export default function Debts() {
                               {!isPaid && (
                                 <button 
                                   onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                  className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[80px] sm:min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
                                 >
                                   <DollarSign className="w-4 h-4" />
                                   To'lov

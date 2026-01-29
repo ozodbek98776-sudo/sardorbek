@@ -65,39 +65,54 @@ const PaymentBreakdownForm = ({ item, selectedCustomer, onSave, onCancel }: Paym
           <label className="block text-sm font-medium text-surface-700 mb-2">
             Naqd pul
           </label>
-          <input
-            type="text"
-            value={formatInputNumber(cash.toString())}
-            onChange={(e) => handleAmountChange(e.target.value, 'cash')}
-            className="w-full px-4 py-3 text-lg font-semibold border-2 border-success-200 rounded-xl focus:outline-none focus:border-success-500 focus:ring-4 focus:ring-success-500/10 bg-success-50"
-            placeholder="0"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Banknote className="h-5 w-5 text-success-600" />
+            </div>
+            <input
+              type="text"
+              value={formatInputNumber(cash.toString())}
+              onChange={(e) => handleAmountChange(e.target.value, 'cash')}
+              className="w-full pl-10 pr-4 py-3 text-lg font-semibold border-2 border-success-200 rounded-xl focus:outline-none focus:border-success-500 focus:ring-4 focus:ring-success-500/10 bg-success-50"
+              placeholder="0"
+            />
+          </div>
         </div>
         
         <div>
           <label className="block text-sm font-medium text-surface-700 mb-2">
             Click
           </label>
-          <input
-            type="text"
-            value={formatInputNumber(click.toString())}
-            onChange={(e) => handleAmountChange(e.target.value, 'click')}
-            className="w-full px-4 py-3 text-lg font-semibold border-2 border-purple-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 bg-purple-50"
-            placeholder="0"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Smartphone className="h-5 w-5 text-purple-600" />
+            </div>
+            <input
+              type="text"
+              value={formatInputNumber(click.toString())}
+              onChange={(e) => handleAmountChange(e.target.value, 'click')}
+              className="w-full pl-10 pr-4 py-3 text-lg font-semibold border-2 border-purple-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 bg-purple-50"
+              placeholder="0"
+            />
+          </div>
         </div>
         
         <div>
           <label className="block text-sm font-medium text-surface-700 mb-2">
             Plastik karta
           </label>
-          <input
-            type="text"
-            value={formatInputNumber(card.toString())}
-            onChange={(e) => handleAmountChange(e.target.value, 'card')}
-            className="w-full px-4 py-3 text-lg font-semibold border-2 border-brand-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 bg-brand-50"
-            placeholder="0"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <CreditCard className="h-5 w-5 text-brand-600" />
+            </div>
+            <input
+              type="text"
+              value={formatInputNumber(card.toString())}
+              onChange={(e) => handleAmountChange(e.target.value, 'card')}
+              className="w-full pl-10 pr-4 py-3 text-lg font-semibold border-2 border-brand-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 bg-brand-50"
+              placeholder="0"
+            />
+          </div>
         </div>
       </div>
       
@@ -1748,7 +1763,7 @@ export default function KassaMain() {
                   <button
                     key={product._id}
                     onClick={() => addToCart(product)}
-                    className="flex flex-col bg-white border border-surface-200 rounded-xl hover:shadow-lg hover:border-brand-300 transition-all p-3 text-left group"
+                    className="flex flex-col bg-white border border-surface-200 rounded-xl hover:shadow-lg hover:border-brand-300 hover:-translate-y-1 transition-all p-3 text-left group"
                   >
                     {/* Mahsulot rasmi */}
                     <div className="relative w-full aspect-square mb-3 rounded-lg overflow-hidden bg-surface-50">

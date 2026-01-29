@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import AdminLayout from './layouts/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import Kassa from './pages/admin/Kassa';
+import KassaPro from './pages/admin/KassaPro';
 import Products from './pages/admin/Products';
 import Warehouses from './pages/admin/Warehouses';
 import Customers from './pages/admin/Customers';
@@ -28,7 +29,7 @@ import TelegramSettings from './pages/admin/TelegramSettings';
 import AdminSettings from './pages/admin/AdminSettings';
 import KassaLogin from './pages/KassaLogin';
 import ProductView from './pages/ProductView';
-import AIAssistant from './pages/admin/AIAssistant';
+
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
   const { user, loading } = useAuth();
@@ -283,6 +284,7 @@ function App() {
             <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="kassa" element={<Kassa />} />
+              <Route path="kassa-pro" element={<KassaPro />} />
               <Route path="products" element={<Products />} />
               <Route path="warehouses" element={<Warehouses />} />
               <Route path="customers" element={<Customers />} />
@@ -293,7 +295,7 @@ function App() {
               <Route path="staff-receipts" element={<StaffReceipts />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="telegram-settings" element={<TelegramSettings />} />
-              <Route path="ai-assistant" element={<AIAssistant />} />
+
             </Route>
 
             {/* Cashier Routes */}

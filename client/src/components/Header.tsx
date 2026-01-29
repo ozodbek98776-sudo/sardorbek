@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Bell, Settings, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut } from 'lucide-react';
+import { Search, ChevronDown, Bell, Settings, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut, Receipt } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
@@ -67,7 +67,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     { icon: ShoppingCart, label: 'Kassa', path: '/admin/kassa' },
     { icon: Users, label: 'Mijozlar', path: '/admin/customers' },
     { icon: FileText, label: 'Qarzlar', path: '/admin/debts' },
-    { icon: FileText, label: 'Cheklar', path: '/admin/staff-receipts' },
+    { icon: Receipt, label: 'Cheklar', path: '/admin/staff-receipts' },
     { icon: UserCircle, label: 'Hodimlar', path: '/admin/helpers' },
   ];
 
@@ -75,14 +75,14 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     <>
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
         <div className="px-1.5 sm:px-3 md:px-4 lg:px-6 h-10 sm:h-12 md:h-14 flex items-center justify-between gap-1 sm:gap-2 md:gap-3 lg:gap-4">
-          {/* Sidebar Toggle Button - Strelka icon */}
+          {/* Sidebar Toggle Button - Hamburger icon */}
           <button 
             onClick={() => setMenuOpen(true)}
             className="p-0.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors active:scale-95 flex-shrink-0 flex items-center justify-center"
             style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
             title="Menyuni ochish"
           >
-            <ChevronRight className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
+            <Menu className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
           </button>
 
           {/* Logo removed - space for other elements */}

@@ -9,6 +9,13 @@ export const API_BASE_URL = envApiUrl || (isDevelopment
   ? 'http://localhost:8000/api'
   : '/api'); // Production da relative path ishlatish
 
+// Uploads URL for images
+export const UPLOADS_URL = envApiUrl 
+  ? `${envApiUrl.replace('/api', '')}/uploads/`
+  : (isDevelopment 
+    ? 'http://localhost:8000/uploads/'
+    : '/uploads/');
+
 export const WS_URL = isDevelopment
   ? 'ws://localhost:8000'
   : `wss://${window.location.host}`;
