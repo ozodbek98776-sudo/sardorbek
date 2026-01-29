@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Package, ArrowLeft, Tag, Box, Phone, MapPin, Clock, ChevronRight, Percent, ShoppingBag, Menu, X, Home, ShoppingCart, Users, BarChart3, Settings, Package2, Warehouse, FileText, UserCircle, QrCode } from 'lucide-react';
 import axios from 'axios';
 import { formatNumber } from '../utils/format';
+import { UPLOADS_URL } from '../config/api';
 
 // API URL
 const API_URL = (import.meta as any).env?.VITE_API_URL || '/api';
-// Rasmlar uchun URL
-const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || '';
 
 interface TierPrice {
   minQuantity: number;

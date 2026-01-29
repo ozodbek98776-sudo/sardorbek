@@ -7,10 +7,7 @@ import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
 import QRCode from 'qrcode';
-
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
-// Rasmlar uchun alohida URL
-const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000';
+import { UPLOADS_URL } from '../../config/api';
 
 export default function KassaProducts() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
