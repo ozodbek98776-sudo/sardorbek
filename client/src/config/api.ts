@@ -9,12 +9,12 @@ export const API_BASE_URL = envApiUrl || (isDevelopment
   ? 'http://localhost:8000/api'
   : '/api'); // Production da relative path ishlatish
 
-// Uploads URL for images
+// Uploads URL for images - path allaqachon /uploads/ bilan boshlanadi
 export const UPLOADS_URL = envApiUrl 
-  ? `${envApiUrl.replace('/api', '')}/uploads/`
+  ? envApiUrl.replace('/api', '')
   : (isDevelopment 
-    ? 'http://localhost:8000/uploads/'
-    : `${window.location.protocol}//${window.location.host}/uploads/`);
+    ? 'http://localhost:8000'
+    : `${window.location.protocol}//${window.location.host}`);
 
 export const WS_URL = isDevelopment
   ? 'ws://localhost:8000'
