@@ -25,7 +25,7 @@ interface Product {
   costPrice?: number;
   quantity: number;
   unit?: string;
-  images?: string[];
+  images?: (string | { path: string; uploadedBy?: string; uploadedAt?: string })[];
   dimensions?: {
     width?: string;
     height?: string;
@@ -250,7 +250,7 @@ export default function ProductView() {
           {product.images && product.images.length > 0 ? (
             <div className="aspect-square bg-white">
               <img 
-                src={`${UPLOADS_URL}${product.images[0]}`} 
+                src={`${UPLOADS_URL}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`} 
                 alt={product.name}
                 className="w-full h-full object-cover"
               />

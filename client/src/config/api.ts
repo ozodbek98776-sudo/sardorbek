@@ -14,7 +14,7 @@ export const UPLOADS_URL = envApiUrl
   ? `${envApiUrl.replace('/api', '')}/uploads/`
   : (isDevelopment 
     ? 'http://localhost:8000/uploads/'
-    : '/uploads/');
+    : `${window.location.protocol}//${window.location.host}/uploads/`);
 
 export const WS_URL = isDevelopment
   ? 'ws://localhost:8000'
@@ -26,5 +26,6 @@ export const FRONTEND_URL = envFrontendUrl || (isDevelopment
   : `https://${window.location.host}`);
 
 console.log('API Base URL:', API_BASE_URL);
-console.log('Frontend URL:', FRONTEND_URL);
+console.log('Uploads URL:', UPLOADS_URL);
 console.log('Environment:', isDevelopment ? 'Development' : 'Production');
+console.log('envApiUrl:', envApiUrl);

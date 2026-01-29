@@ -29,7 +29,7 @@ import TelegramSettings from './pages/admin/TelegramSettings';
 import AdminSettings from './pages/admin/AdminSettings';
 import KassaLogin from './pages/KassaLogin';
 import ProductView from './pages/ProductView';
-
+import SwipeNavigator from './components/SwipeNavigator';
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
   const { user, loading } = useAuth();
@@ -264,6 +264,7 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <SwipeNavigator />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -295,7 +296,6 @@ function App() {
               <Route path="staff-receipts" element={<StaffReceipts />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="telegram-settings" element={<TelegramSettings />} />
-
             </Route>
 
             {/* Cashier Routes */}

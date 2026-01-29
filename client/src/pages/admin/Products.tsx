@@ -12,8 +12,8 @@ import QRPrintLabel from '../../components/QRPrintLabel';
 import BatchQRPrint from '../../components/BatchQRPrint';
 import logger from '../../utils/logger';
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
-const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:5000';
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
+const UPLOADS_URL = (import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000';
 
 // Statistika interfeysi
 interface ProductStats {
@@ -539,7 +539,23 @@ export default function Products() {
 
   const getProductImage = (product: any) => {
     if (product.images && product.images.length > 0) {
-      const imagePath = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path;
+      let imagePath = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path;
+      
+      // Agar imagePath to'liq URL bo'lsa (http:// yoki https:// bilan boshlansa), faqat path qismini olish
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        try {
+          const url = new URL(imagePath);
+          imagePath = url.pathname; // Faqat /uploads/products/... qismini olish
+        } catch (e) {
+          console.warn('Invalid image URL:', imagePath);
+        }
+      }
+      
+      // Agar imagePath / bilan boshlanmasa, qo'shish
+      if (!imagePath.startsWith('/')) {
+        imagePath = '/' + imagePath;
+      }
+      
       return `${UPLOADS_URL}${imagePath}`;
     }
     return null;
@@ -1291,27 +1307,47 @@ export default function Products() {
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Rasmlar (max 8 ta - JPG, PNG, WebP)</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 sm:gap-2 mb-1 sm:mb-2">
-                  {images.map((img, idx) => (
-                    <div key={idx} className="relative aspect-square group bg-surface-100 rounded-lg overflow-hidden">
-                      <img 
-                        src={`${UPLOADS_URL}${img}`} 
-                        alt={`Rasm ${idx + 1}`} 
-                        loading="lazy"
-                        className="w-full h-full object-cover" 
-                      />
-                      {/* Delete button - rasm ichida, o'ng yuqori burchakda */}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(img)}
-                        className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-6 h-6 sm:w-7 sm:h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
-                        title="Rasmni o'chirish"
-                      >
-                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
-                      </button>
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none" />
-                    </div>
-                  ))}
+                  {images.map((img, idx) => {
+                    // img string yoki object bo'lishi mumkin - path ni olish
+                    let imagePath = typeof img === 'string' ? img : img.path;
+                    
+                    // Agar imagePath to'liq URL bo'lsa, faqat path qismini olish
+                    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                      try {
+                        const url = new URL(imagePath);
+                        imagePath = url.pathname;
+                      } catch (e) {
+                        console.warn('Invalid image URL:', imagePath);
+                      }
+                    }
+                    
+                    // Agar imagePath / bilan boshlanmasa, qo'shish
+                    if (!imagePath.startsWith('/')) {
+                      imagePath = '/' + imagePath;
+                    }
+                    
+                    return (
+                      <div key={idx} className="relative aspect-square group bg-surface-100 rounded-lg overflow-hidden">
+                        <img 
+                          src={`${UPLOADS_URL}${imagePath}`} 
+                          alt={`Rasm ${idx + 1}`} 
+                          loading="lazy"
+                          className="w-full h-full object-cover" 
+                        />
+                        {/* Delete button - rasm ichida, o'ng yuqori burchakda */}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(imagePath)}
+                          className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-6 h-6 sm:w-7 sm:h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
+                          title="Rasmni o'chirish"
+                        >
+                          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
+                        </button>
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none" />
+                      </div>
+                    );
+                  })}
                   {images.length < 8 && (
                     <button
                       type="button"

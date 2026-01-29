@@ -179,30 +179,25 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             /* X Printer uchun maxsus print sozlamalari */
             @media print {
               @page {
-                margin: 0;
-                size: 80mm auto; /* Uzunligi avtomatik */
-              }
-              
-              html, body {
+                size: 80mm auto;
                 margin: 0;
                 padding: 0;
-                width: 100%;
+              }
+              
+              body {
                 background: white;
-                height: auto;
-                overflow: visible;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 0;
+                margin: 0;
+                width: 80mm;
               }
               
               .receipt-text {
                 width: 100%;
-                font-family: 'Courier New', monospace;
-                font-size: 11px;
                 font-weight: bold;
-                white-space: pre-wrap;
+                font-size: 11px;
                 padding: 2mm;
-                page-break-inside: avoid; /* Sahifalab bo'linishni oldini olish */
-                break-inside: avoid;
-                display: block;
-                column-count: 1; /* Ustunlarga bo'linishni oldini olish */
               }
             }
           </style>

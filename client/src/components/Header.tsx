@@ -75,10 +75,10 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     <>
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
         <div className="px-1.5 sm:px-3 md:px-4 lg:px-6 h-10 sm:h-12 md:h-14 flex items-center justify-between gap-1 sm:gap-2 md:gap-3 lg:gap-4">
-          {/* Sidebar Toggle Button - Hamburger icon */}
+          {/* Sidebar Toggle Button - Hamburger icon - Only visible on mobile/tablet */}
           <button 
             onClick={() => setMenuOpen(true)}
-            className="p-0.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors active:scale-95 flex-shrink-0 flex items-center justify-center"
+            className="lg:hidden p-0.5 rounded bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors active:scale-95 flex-shrink-0 flex items-center justify-center"
             style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
             title="Menyuni ochish"
           >

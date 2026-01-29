@@ -462,8 +462,10 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
 });
 
 // Delete image - admin va kassa uchun (kassa faqat o'z rasmlarini o'chirishi mumkin)
-router.delete('/delete-image', async (req, res) => {
+router.delete('/delete-image', auth, async (req, res) => {
   console.log('🔍 DELETE /delete-image request received');
+  console.log('User:', req.user);
+  console.log('Body:', req.body);
   try {
     const { imagePath, productId } = req.body;
     if (!imagePath) return res.status(400).json({ message: 'Rasm yo\'li ko\'rsatilmagan' });
@@ -999,7 +1001,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     console.log('🔍 PUT /:id request received for ID:', req.params.id);
     console.log('Request body keys:', Object.keys(req.body));
     console.log('Images field:', req.body.images);
-    const { warehouse, code, packageInfo, ...rest } = req.body;
+    const { warehouse, code, packageInfo, images, ...rest } = req.body;
 
     // Check if code already exists (excluding current product)
     if (code) {
@@ -1018,6 +1020,23 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       }
     }
 
+    // Rasmlarni to'g'ri formatga o'tkazish
+    let formattedImages = undefined;
+    if (images && Array.isArray(images)) {
+      formattedImages = images.map(img => {
+        // Agar string bo'lsa, object ga o'tkazish
+        if (typeof img === 'string') {
+          return {
+            path: img,
+            uploadedBy: 'admin',
+            uploadedAt: new Date()
+          };
+        }
+        // Agar object bo'lsa, to'g'ridan-to'g'ri qaytarish
+        return img;
+      });
+    }
+
     // Prepare update data
     const { costPriceInDollar, dollarRate, ...updateRest } = rest;
     const updateData = { 
@@ -1029,18 +1048,8 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       dollarRate: dollarRate || 12500
     };
 
-    // Update images if provided (support both string and object formats)
-    if (Array.isArray(req.body.images)) {
-      const formattedImages = req.body.images.map(img => {
-        if (typeof img === 'string') {
-          return {
-            path: img,
-            uploadedBy: 'admin',
-            uploadedAt: new Date()
-          };
-        }
-        return img;
-      });
+    // Agar rasmlar bo'lsa, qo'shish
+    if (formattedImages) {
       updateData.images = formattedImages;
     }
 

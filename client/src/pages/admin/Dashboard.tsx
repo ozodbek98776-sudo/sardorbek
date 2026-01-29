@@ -229,7 +229,7 @@ export default function Dashboard() {
                     </div>
                     
                     {/* Value & Label - Bottom Aligned */}
-                    <div className="mt-auto space-y-2">
+                    <div className="mt-auto space-y-1.5">
                       {/* Large Value */}
                       <div className="flex items-baseline gap-1.5 flex-wrap">
                         <h3 className={`text-3xl font-bold ${stat.textColor} leading-none tracking-tight`}>
@@ -243,7 +243,7 @@ export default function Dashboard() {
                       </div>
                       
                       {/* Label */}
-                      <p className="text-base font-medium text-slate-600 leading-tight">
+                      <p className="text-xs sm:text-sm font-medium text-slate-600 leading-tight">
                         {stat.label}
                       </p>
                     </div>

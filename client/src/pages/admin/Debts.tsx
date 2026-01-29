@@ -479,51 +479,50 @@ export default function Debts() {
                       </div>
 
                       {/* Content */}
-                      <div className="p-4">
+                      <div className="p-3 sm:p-4">
                         {/* Amount Cards */}
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="bg-surface-50 rounded-xl p-3 border border-surface-100">
-                            <p className="text-[10px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-1">Jami qarz</p>
-                            <p className="font-bold text-surface-900 text-sm sm:text-base">{formatNumber(debt.amount)}</p>
-                            <p className="text-[10px] text-surface-400">so'm</p>
+                        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                          <div className="bg-surface-50 rounded-xl p-1.5 sm:p-3 border border-surface-100">
+                            <p className="text-[9px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-0.5 sm:mb-1">Jami qarz</p>
+                            <p className="font-bold text-surface-900 text-xs sm:text-base">{formatNumber(debt.amount)}</p>
+                            <p className="text-[9px] text-surface-400">so'm</p>
                           </div>
-                          <div className={`rounded-xl p-3 border ${
+                          <div className={`rounded-xl p-1.5 sm:p-3 border ${
                             debtType === 'receivable' 
                               ? 'bg-emerald-50 border-emerald-200' 
                               : 'bg-red-50 border-red-200'
                           }`}>
-                            <p className="text-[10px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-1">Qoldiq</p>
-                            <p className={`font-bold text-sm sm:text-base ${
+                            <p className="text-[9px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-0.5 sm:mb-1">Qoldiq</p>
+                            <p className={`font-bold text-xs sm:text-base ${
                               debtType === 'receivable' ? 'text-emerald-600' : 'text-red-600'
                             }`}>{formatNumber(remaining)}</p>
-                            <p className="text-[10px] text-surface-400">so'm</p>
+                            <p className="text-[9px] text-surface-400">so'm</p>
                           </div>
                         </div>
 
                         {/* Due Date & Collateral */}
-                        <div className="flex items-center justify-between mb-3 text-xs sm:text-sm">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5 text-surface-600">
-                              <Calendar className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-between mb-2 sm:mb-3 text-[10px] sm:text-sm">
+                          <div className="flex flex-col gap-0.5 sm:gap-1">
+                            <div className="flex items-center gap-1 sm:gap-1.5 text-surface-600">
+                              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                               <span>{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
                             </div>
                             {/* Muddat berilgan kunlar */}
                             {debt.extensionDays > 0 && (
-                              <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded-md text-blue-700 text-[10px] font-medium border border-blue-200">
-                                📅 {debt.extensionDays} kun muddat berilgan
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded-md text-blue-700 text-[9px] sm:text-[10px] font-medium border border-blue-200">
+                                📅 {debt.extensionDays} kun muddat
                               </div>
                             )}
                           </div>
                           {debtType === 'receivable' && debt.collateral && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 rounded-lg text-amber-700 text-[10px] sm:text-xs font-medium border border-amber-200">
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded-lg text-amber-700 text-[9px] sm:text-[10px] font-medium border border-amber-200 max-w-[100px] truncate">
                               🔒 {debt.collateral}
                             </div>
                           )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100">
-                          <>
+                        <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-2 sm:pt-3 border-t border-surface-100 flex-wrap">
                               {/* Muddati berish va Bo'ldi tugmalari - faqat admin va faqat to'lanmagan qarzlar uchun */}
                               {isAdmin && !isPaid && (
                                 <>
@@ -543,10 +542,10 @@ export default function Debts() {
                                           showAlert(err.response?.data?.message || 'Muddat berishda xatolik', 'Xatolik', 'danger');
                                         }
                                       }}
-                                      className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[100px] sm:min-w-[120px] whitespace-nowrap bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
+                                      className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-amber-100 text-amber-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-amber-200 transition-all whitespace-nowrap"
                                     >
-                                      <Calendar className="w-4 h-4" />
-                                      Muddati berish
+                                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                      <span>Muddat</span>
                                     </button>
                                   ) : null}
                                   <button
@@ -572,10 +571,10 @@ export default function Debts() {
                                         showAlert(err.response?.data?.message || "Qarz to'landi deb belgilashda xatolik", 'Xatolik', 'danger');
                                       }
                                     }}
-                                    className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[80px] sm:min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                    className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-emerald-200 transition-all whitespace-nowrap"
                                   >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Bo'ldi
+                                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                    <span>Bo'ldi</span>
                                   </button>
                                 </>
                               )}
@@ -584,10 +583,10 @@ export default function Debts() {
                               {!isPaid && (
                                 <button 
                                   onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                  className="flex items-center gap-1.5 px-3 py-2 h-9 min-w-[80px] sm:min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-emerald-200 transition-all whitespace-nowrap"
                                 >
-                                  <DollarSign className="w-4 h-4" />
-                                  To'lov
+                                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span>To'lov</span>
                                 </button>
                               )}
 
@@ -610,13 +609,13 @@ export default function Debts() {
                                       showAlert(err.response?.data?.message || "Qora ro'yxatdan chiqarishda xatolik", 'Xatolik', 'danger');
                                     }
                                   }}
-                                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 text-amber-300 rounded-xl text-xs sm:text-sm font-semibold hover:bg-slate-900 transition-all"
+                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 text-amber-300 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-slate-900 transition-all whitespace-nowrap"
                                 >
-                                  <AlertTriangle className="w-4 h-4" />
-                                  Qora ro'yxatdan chiqarish
+                                  <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="hidden sm:inline">Qora ro'yxatdan chiqarish</span>
+                                  <span className="sm:hidden">Chiqarish</span>
                                 </button>
                               )}
-                          </>
                         </div>
                       </div>
                     </div>

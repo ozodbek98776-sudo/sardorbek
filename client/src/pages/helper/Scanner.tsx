@@ -297,6 +297,8 @@ export default function HelperScanner() {
           quantity: item.cartQuantity
         })),
         total,
+        paymentMethod: 'cash', // Default payment method
+        paidAmount: total, // To'liq to'langan
         status: 'pending'
       });
       showAlert(`Chek ${selectedCustomer.name} uchun saqlandi!`, 'Muvaffaqiyat', 'success');
