@@ -30,108 +30,29 @@ class POSTelegramBot {
         } catch (e) {}
       }
 
-      // Production da polling o'chirilgan holda bot yaratish
+      // DOIM polling o'chirilgan holda bot yaratish
       // Faqat xabar yuborish uchun ishlatiladi
-      const isProduction = process.env.NODE_ENV === 'production';
-      
-      if (isProduction) {
-        // Production da polling o'chirilgan - faqat xabar yuborish uchun
-        this.bot = new TelegramBot(this.token, { polling: false });
-        this.pollingEnabled = false;
-        console.log('🤖 POS Telegram Bot ishga tushdi (faqat xabar yuborish rejimi - production)');
-      } else {
-        // Development da polling yoqilgan
-        this.bot = new TelegramBot(this.token, { 
-          polling: {
-            interval: 2000,
-            autoStart: true,
-            params: {
-              timeout: 30
-            }
-          }
-        });
-        this.pollingEnabled = true;
-        console.log('🤖 POS Telegram Bot ishga tushdi (polling rejimida - development)');
-        
-        // Event handlerlarni o'rnatish (faqat development da)
-        this.setupHandlers();
-      }
+      this.bot = new TelegramBot(this.token, { polling: false });
+      this.pollingEnabled = false;
+      console.log('🤖 POS Telegram Bot ishga tushdi (faqat xabar yuborish rejimi)');
 
       this.reconnectAttempts = 0;
     } catch (error) {
       console.error('❌ Bot yaratishda xatolik:', error);
-      if (process.env.NODE_ENV !== 'production') {
-        this.scheduleReconnect();
-      }
     }
   }
 
-  // Qayta ulanishni rejalashtirish (faqat development uchun)
+  // Qayta ulanishni rejalashtirish - O'CHIRILGAN
   scheduleReconnect() {
-    // Production da qayta ulanish kerak emas
-    if (process.env.NODE_ENV === 'production') {
-      return;
-    }
-
-    if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts) {
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('❌ Maksimal qayta ulanish urinishlari tugadi');
-      }
-      return;
-    }
-
-    this.isReconnecting = true;
-    this.reconnectAttempts++;
-    
-    const delay = Math.min(5000 * this.reconnectAttempts, 60000); // Max 60 sekund
-    console.log(`🔄 Telegram Bot qayta ulanish ${this.reconnectAttempts}/${this.maxReconnectAttempts} (${delay/1000}s keyin)...`);
-
-    setTimeout(() => {
-      this.isReconnecting = false;
-      if (this.bot) {
-        try {
-          this.bot.stopPolling();
-        } catch (e) {}
-      }
-      this.initBot();
-    }, delay);
+    // Polling o'chirilgan, qayta ulanish kerak emas
+    return;
   }
 
-  // Barcha event handlerlarni o'rnatish
+  // Barcha event handlerlarni o'rnatish - O'CHIRILGAN
   setupHandlers() {
-    // /start komandasi
-    this.bot.onText(/\/start/, (msg) => {
-      this.handleStartCommand(msg);
-    });
-
-    // Kontakt (telefon raqam) qabul qilish
-    this.bot.on('contact', (msg) => {
-      this.handleContact(msg);
-    });
-
-    // Oddiy matn xabarlari
-    this.bot.on('message', (msg) => {
-      // Faqat oddiy matn xabarlarini qayta ishlash (komanda va kontakt emas)
-      if (!msg.text?.startsWith('/') && !msg.contact) {
-        this.handleTextMessage(msg);
-      }
-    });
-
-    // Xatoliklarni ushlash
-    this.bot.on('error', (error) => {
-      console.error('❌ Telegram Bot xatosi:', error.message || error);
-    });
-
-    // Polling xatoliklarini ushlash va qayta ulanish
-    this.bot.on('polling_error', (error) => {
-      const errorCode = error.code || error.cause?.code;
-      console.error('❌ Telegram Bot polling xatosi:', errorCode, error.message || '');
-      
-      // Tarmoq xatoliklari uchun qayta ulanish
-      if (errorCode === 'EFATAL' || errorCode === 'ECONNRESET' || errorCode === 'ETIMEDOUT' || errorCode === 'ENOTFOUND') {
-        this.scheduleReconnect();
-      }
-    });
+    // Polling o'chirilgan, event handlerlar kerak emas
+    console.log('ℹ️  Event handlerlar o\'chirilgan (polling o\'chirilgan)');
+    return;
   }
 
   // /start komandasi - telefon raqam so'rash

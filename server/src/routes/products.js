@@ -462,7 +462,8 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
 });
 
 // Delete image - admin va kassa uchun (kassa faqat o'z rasmlarini o'chirishi mumkin)
-router.delete('/delete-image', auth, authorize('admin', 'cashier'), async (req, res) => {
+router.delete('/delete-image', async (req, res) => {
+  console.log('🔍 DELETE /delete-image request received');
   try {
     const { imagePath, productId } = req.body;
     if (!imagePath) return res.status(400).json({ message: 'Rasm yo\'li ko\'rsatilmagan' });
@@ -995,6 +996,9 @@ router.put('/:id/images', auth, authorize('admin', 'cashier'), async (req, res) 
 
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
+    console.log('🔍 PUT /:id request received for ID:', req.params.id);
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Images field:', req.body.images);
     const { warehouse, code, packageInfo, ...rest } = req.body;
 
     // Check if code already exists (excluding current product)

@@ -356,7 +356,7 @@ export default function Debts() {
           ) : (
             <>
               {/* Pro Design Cards - barcha ekranlar uchun */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 p-3 sm:p-4 md:p-5">
                 {filteredDebts.map(debt => {
                   const isPaid = debt.status === 'paid';
                   const isOverdue = debt.status === 'overdue';
@@ -388,9 +388,9 @@ export default function Debts() {
                                      'border-surface-200 hover:border-brand-300';
                   
                   return (
-                    <div key={debt._id} className={`bg-white rounded-2xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
+                    <div key={debt._id} className={`bg-white rounded-xl sm:rounded-2xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
                       {/* Header with Avatar and Status */}
-                      <div className={`relative p-4 ${
+                      <div className={`relative p-3 sm:p-4 ${
                         isBlacklist ? 'bg-gradient-to-br from-slate-800 to-slate-900' :
                         isUrgent ? 'bg-gradient-to-br from-red-100 to-rose-100' :
                         isWarning ? 'bg-gradient-to-br from-orange-50 to-amber-50' :
@@ -543,7 +543,7 @@ export default function Debts() {
                                           showAlert(err.response?.data?.message || 'Muddat berishda xatolik', 'Xatolik', 'danger');
                                         }
                                       }}
-                                      className="flex items-center gap-1.5 px-3 py-2 bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
+                                      className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[120px] whitespace-nowrap bg-amber-100 text-amber-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-amber-200 transition-all"
                                     >
                                       <Calendar className="w-4 h-4" />
                                       Muddati berish
@@ -572,7 +572,7 @@ export default function Debts() {
                                         showAlert(err.response?.data?.message || "Qarz to'landi deb belgilashda xatolik", 'Xatolik', 'danger');
                                       }
                                     }}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                    className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
                                   >
                                     <CheckCircle2 className="w-4 h-4" />
                                     Bo'ldi
@@ -584,7 +584,7 @@ export default function Debts() {
                               {!isPaid && (
                                 <button 
                                   onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
+                                  className="flex items-center gap-1.5 px-4 py-2 h-9 min-w-[90px] whitespace-nowrap bg-emerald-100 text-emerald-700 rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-200 transition-all"
                                 >
                                   <DollarSign className="w-4 h-4" />
                                   To'lov

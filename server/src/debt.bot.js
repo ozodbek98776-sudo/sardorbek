@@ -20,41 +20,19 @@ class DebtTelegramBot {
   // Bot ni ishga tushirish
   async initBot() {
     try {
-      // Production da polling o'chirilgan - faqat xabar yuborish uchun
-      const isProduction = process.env.NODE_ENV === 'production';
-      
-      if (isProduction) {
-        this.bot = new TelegramBot(this.token, { polling: false });
-        console.log('🤖 Qarz Telegram Bot ishga tushdi (faqat xabar yuborish - production)');
-      } else {
-        this.bot = new TelegramBot(this.token, { 
-          polling: {
-            interval: 2000,
-            autoStart: true,
-            params: { timeout: 30 }
-          }
-        });
-        console.log('🤖 Qarz Telegram Bot ishga tushdi (polling - development)');
-        this.setupHandlers();
-      }
+      // DOIM polling o'chirilgan - faqat xabar yuborish uchun
+      this.bot = new TelegramBot(this.token, { polling: false });
+      console.log('🤖 Qarz Telegram Bot ishga tushdi (faqat xabar yuborish rejimi)');
     } catch (error) {
       console.error('❌ Qarz Bot yaratishda xatolik:', error);
     }
   }
 
-  // Event handlerlar
+  // Event handlerlar - O'CHIRILGAN
   setupHandlers() {
-    this.bot.onText(/\/start/, (msg) => {
-      this.handleStartCommand(msg);
-    });
-
-    this.bot.on('error', (error) => {
-      console.error('❌ Qarz Bot xatosi:', error.message || error);
-    });
-
-    this.bot.on('polling_error', (error) => {
-      console.error('❌ Qarz Bot polling xatosi:', error.message || '');
-    });
+    // Polling o'chirilgan, event handlerlar kerak emas
+    console.log('ℹ️  Qarz Bot event handlerlar o\'chirilgan (polling o\'chirilgan)');
+    return;
   }
 
   // /start komandasi

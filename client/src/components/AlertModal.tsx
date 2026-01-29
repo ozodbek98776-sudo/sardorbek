@@ -34,10 +34,10 @@ export default function AlertModal({
   if (!isOpen) return null;
 
   const icons = {
-    info: <Info className="w-7 h-7 text-blue-600" />,
-    success: <CheckCircle className="w-7 h-7 text-emerald-600" />,
-    warning: <AlertTriangle className="w-7 h-7 text-amber-600" />,
-    danger: <AlertTriangle className="w-7 h-7 text-red-600" />
+    info: <Info className="w-10 h-10 text-blue-600" />,
+    success: <CheckCircle className="w-10 h-10 text-emerald-600" />,
+    warning: <AlertTriangle className="w-10 h-10 text-amber-600" />,
+    danger: <AlertTriangle className="w-10 h-10 text-red-600" />
   };
 
   const colors = {
@@ -57,28 +57,28 @@ export default function AlertModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-0">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10" onClick={onClose} />
-      <div className="bg-white rounded-t-2xl sm:rounded-3xl w-full sm:w-auto max-w-sm p-4 sm:p-6 shadow-2xl relative z-10 border border-slate-200/50 animate-scale-in">
+      <div className="bg-white rounded-t-2xl sm:rounded-3xl w-full sm:w-auto max-w-3xl p-8 sm:p-10 shadow-2xl relative z-10 border border-slate-200/50 animate-scale-in">
         {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+          className="absolute top-5 right-5 p-2.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
         
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className={`w-16 h-16 ${colors[type]} rounded-2xl flex items-center justify-center mb-4 border shadow-sm`}>
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className={`w-20 h-20 ${colors[type]} rounded-2xl flex items-center justify-center mb-6 border shadow-sm`}>
             {icons[type]}
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">{title}</h3>
-          <p className="text-sm text-slate-600 leading-relaxed">{message}</p>
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-3">{title}</h3>
+          <p className="text-base text-slate-600 leading-relaxed">{message}</p>
         </div>
         
-        <div className="flex flex-col-reverse sm:flex-row gap-3">
+        <div className="flex flex-col-reverse sm:flex-row gap-4">
           {showCancel && (
             <button 
               onClick={onClose} 
-              className="flex-1 px-4 sm:px-5 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-all duration-200"
+              className="flex-1 px-5 sm:px-6 py-4 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-all duration-200"
             >
               {cancelText}
             </button>
@@ -86,7 +86,7 @@ export default function AlertModal({
           <button 
             ref={confirmRef} 
             onClick={onConfirm || onClose} 
-            className={`flex-1 px-4 sm:px-5 py-3 font-semibold rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${btnColors[type]}`}
+            className={`flex-1 px-5 sm:px-6 py-4 font-semibold rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${btnColors[type]}`}
           >
             {confirmText}
           </button>

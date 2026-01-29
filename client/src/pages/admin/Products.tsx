@@ -497,7 +497,13 @@ export default function Products() {
       const res = await api.post('/products/upload-images', formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setImages([...images, ...res.data.images]);
+      const uploadedImages = (res.data.images || []).map((img: any) =>
+        typeof img === 'string' ? img : img.path
+      );
+      setImages([
+        ...images.map((img: any) => (typeof img === 'string' ? img : img.path)),
+        ...uploadedImages
+      ]);
       showAlert(`${res.data.images.length} ta rasm muvaffaqiyatli yuklandi`, 'Muvaffaqiyat', 'success');
     } catch (err) {
       logger.error('Error uploading images:', err);
@@ -510,11 +516,24 @@ export default function Products() {
 
   const removeImage = async (imagePath: string) => {
     try {
-      await api.delete('/products/delete-image', { data: { imagePath } });
-      setImages(images.filter(img => img !== imagePath));
-    } catch (err) {
+      const productId = editingProduct?._id;
+      console.log('🗑️ Removing image:', { imagePath, productId });
+      await api.delete('/products/delete-image', {
+        data: {
+          imagePath,
+          productId: productId || undefined
+        }
+      });
+      setImages(
+        images
+          .map((img: any) => (typeof img === 'string' ? img : img.path))
+          .filter(path => path !== imagePath)
+      );
+      showAlert('Rasm o\'chirildi', 'Muvaffaqiyat', 'success');
+    } catch (err: any) {
       logger.error('Error deleting image:', err);
-      showAlert('Rasmni o\'chirishda xatolik', 'Xatolik', 'danger');
+      const msg = err.response?.data?.message || err.message || 'Rasmni o\'chirishda xatolik';
+      showAlert(msg, 'Xatolik', 'danger');
     }
   };
 
@@ -785,7 +804,11 @@ export default function Products() {
       pricePerKg: String(product.prices?.perKg || ''),
       pricePerGram: String(product.prices?.perGram || '')
     });
-    setImages(p.images || []);
+    setImages(
+      (p.images || []).map((img: any) =>
+        typeof img === 'string' ? img : img.path
+      )
+    );
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setCodeError('');
     setShowPackageInput(false);
@@ -985,55 +1008,60 @@ export default function Products() {
         showSearch 
         onSearch={setSearchQuery}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Refresh Button */}
             <button 
               onClick={() => fetchProducts()} 
-              className="btn-secondary"
+              className="flex items-center justify-center p-0.5 rounded bg-purple-50 hover:bg-purple-100 text-purple-600 hover:text-purple-700 transition-all duration-200 flex-shrink-0"
+              style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
               title="Tovarlarni qayta yuklash"
             >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Yangilash</span>
+              <RotateCcw className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
             </button>
             
             {/* Selection Mode Toggle */}
             {!selectionMode ? (
               <button 
                 onClick={() => setSelectionMode(true)} 
-                className="btn-secondary"
+                className="flex items-center justify-center p-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-all duration-200 flex-shrink-0"
+                style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
                 title="Bir nechta QR chiqarish"
               >
-                <CheckSquare className="w-4 h-4" />
-                <span className="hidden sm:inline">Tanlash</span>
+                <CheckSquare className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
               </button>
             ) : (
               <>
                 <button 
                   onClick={selectAllProducts} 
-                  className="btn-secondary text-xs"
+                  className="flex items-center justify-center px-2 py-0.5 rounded text-xs bg-purple-50 hover:bg-purple-100 text-purple-600 hover:text-purple-700 transition-all duration-200 flex-shrink-0 font-medium"
+                  style={{ height: '24px', minHeight: '24px' }}
                 >
                   {selectedProducts.size === filteredProducts.length ? 'Bekor' : 'Barchasi'}
                 </button>
                 <button 
                   onClick={openBatchQRPrint} 
-                  className="btn-primary"
+                  className="flex items-center justify-center gap-1 px-2 py-0.5 rounded text-xs bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 flex-shrink-0 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ height: '24px', minHeight: '24px' }}
                   disabled={selectedProducts.size === 0}
                 >
-                  <Printer className="w-4 h-4" />
-                  <span className="hidden sm:inline">QR ({selectedProducts.size})</span>
-                  <span className="sm:hidden">{selectedProducts.size}</span>
+                  <Printer className="w-3 h-3" style={{ width: '12px', height: '12px' }} />
+                  <span>{selectedProducts.size}</span>
                 </button>
                 <button 
                   onClick={cancelSelection} 
-                  className="btn-icon-sm bg-surface-200 hover:bg-surface-300"
+                  className="flex items-center justify-center p-0.5 rounded bg-surface-200 hover:bg-surface-300 transition-all duration-200 flex-shrink-0"
+                  style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px' }}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" style={{ width: '12px', height: '12px' }} />
                 </button>
               </>
             )}
-            <button onClick={openAddModal} className="btn-primary">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Yangi tovar</span>
+            <button 
+              onClick={openAddModal} 
+              className="flex items-center justify-center p-0.5 rounded bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 flex-shrink-0"
+              style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
+            >
+              <Plus className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
             </button>
           </div>
         }
@@ -1084,131 +1112,118 @@ export default function Products() {
             </div>
           ) : (
             <>
-              {/* List View - Rasimsiz, Tez */}
+              {/* Card List View - One per row, Minimalist & Professional */}
               <div 
                 ref={scrollContainerRef}
-                className="overflow-y-auto"
+                className="overflow-y-auto p-2 sm:p-3 md:p-4"
                 style={{ maxHeight: 'calc(100vh - 250px)' }}
               >
-                <table className="w-full">
-                  <thead className="bg-surface-50 sticky top-0 z-10">
-                    <tr className="border-b-2 border-surface-200">
-                      {selectionMode && (
-                        <th className="px-3 py-3 text-left">
-                          <input
-                            type="checkbox"
-                            checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
-                            onChange={toggleSelectAll}
-                            className="w-4 h-4 rounded border-surface-300"
-                          />
-                        </th>
-                      )}
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Kod</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Nomi</th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-surface-600 uppercase">Narxi</th>
-                      <th className="px-3 py-3 text-right text-xs font-semibold text-surface-600 uppercase">Amallar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-100">
-                    {filteredProducts.map(product => {
-                      const isSelected = selectedProducts.has(product._id);
-                      const productImage = getProductImage(product);
-                      
-                      return (
-                        <tr 
-                          key={product._id}
-                          className={`hover:bg-surface-50 transition-colors ${
-                            isSelected ? 'bg-brand-50' : ''
-                          }`}
-                        >
-                          {selectionMode && (
-                            <td className="px-3 py-3">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleProductSelection(product._id)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-4 h-4 rounded border-surface-300"
+                <div className="space-y-2 sm:space-y-3">
+                  {filteredProducts.map(product => {
+                    const isSelected = selectedProducts.has(product._id);
+                    const productImage = getProductImage(product);
+                    
+                    return (
+                      <div 
+                        key={product._id}
+                        className={`group relative bg-white rounded-lg sm:rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                          isSelected 
+                            ? 'border-brand-500 shadow-md' 
+                            : 'border-slate-200 hover:border-brand-300'
+                        }`}
+                      >
+                        {/* Action Buttons - O'ng yuqori burchakda */}
+                        <div className="absolute top-1 right-1 flex items-center gap-0.5 z-10">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openQRModal(product); }} 
+                            className="w-3.5 h-3.5 bg-purple-50 hover:bg-purple-100 rounded-full transition-all duration-200 text-purple-600 flex items-center justify-center hover:scale-110"
+                            title="QR kod"
+                          >
+                            <QrCode className="w-2.5 h-2.5" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openEditModal(product); }} 
+                            className="w-3.5 h-3.5 bg-amber-50 hover:bg-amber-100 rounded-full transition-all duration-200 text-amber-600 flex items-center justify-center hover:scale-110"
+                            title="Tahrirlash"
+                          >
+                            <Edit className="w-2.5 h-2.5" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} 
+                            className="w-3.5 h-3.5 bg-red-50 hover:bg-red-100 rounded-full transition-all duration-200 text-red-600 flex items-center justify-center hover:scale-110"
+                            title="O'chirish"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+
+                        {/* Selection Checkbox - Chap yuqori burchak */}
+                        {selectionMode && (
+                          <div className="absolute top-2 left-2 z-10">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleProductSelection(product._id)}
+                              className="w-4 h-4 sm:w-5 sm:h-5 rounded border-2 cursor-pointer"
+                            />
+                          </div>
+                        )}
+
+                        {/* 320px: Vertical layout, Larger: Horizontal */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-2 sm:p-4">
+                          {/* Product Image */}
+                          <div 
+                            className="relative w-full sm:w-24 h-32 sm:h-24 rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 cursor-pointer flex-shrink-0"
+                            onClick={() => {
+                              if (productImage) {
+                                setSelectedProduct(product);
+                                setShowImageModal(true);
+                              }
+                            }}
+                          >
+                            {productImage ? (
+                              <img 
+                                src={productImage} 
+                                alt={product.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               />
-                            </td>
-                          )}
-                          <td className="px-3 py-3">
-                            <span className="font-mono text-sm font-semibold text-surface-900">#{product.code}</span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center gap-2">
-                              {/* Rasm - har doim ko'rsatish (placeholder yoki haqiqiy rasm) */}
-                              <div 
-                                className="w-10 h-10 rounded-lg overflow-hidden border border-surface-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-brand-500 transition-all bg-surface-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (productImage) {
-                                    setSelectedProduct(product);
-                                    setShowImageModal(true);
-                                  }
-                                }}
-                              >
-                                {productImage ? (
-                                  <img 
-                                    src={productImage} 
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-100 to-surface-200">
-                                    <Package className="w-5 h-5 text-surface-400" />
-                                  </div>
-                                )}
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-surface-900 truncate">{product.name}</div>
-                                {product.description && (
-                                  <div className="text-xs text-surface-500 mt-0.5 line-clamp-1">{product.description}</div>
-                                )}
-                              </div>
+                            )}
+                          </div>
+
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-0 px-2 pb-2 sm:p-0">
+                            {/* Code Badge */}
+                            <div className="text-[10px] sm:text-xs font-mono text-slate-500 mb-1">
+                              #{product.code}
                             </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="text-sm font-bold text-brand-700">
-                              {formatNumber((product as any).unitPrice || product.price)}
-                              <span className="text-xs text-brand-400 ml-1">so'm</span>
+                            
+                            {/* Name */}
+                            <h3 className="font-semibold text-sm sm:text-lg text-slate-900 mb-1 sm:mb-2 line-clamp-2">
+                              {product.name}
+                            </h3>
+
+                            {/* Price */}
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xl sm:text-2xl font-bold text-brand-600">
+                                {formatNumber((product as any).unitPrice || product.price)}
+                              </span>
+                              <span className="text-xs sm:text-sm text-slate-500">so'm</span>
                             </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); openQRModal(product); }} 
-                                className="p-2 hover:bg-brand-50 rounded-lg transition-colors text-surface-600 hover:text-brand-600"
-                                title="QR kod"
-                              >
-                                <QrCode className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); openEditModal(product); }} 
-                                className="p-2 hover:bg-amber-50 rounded-lg transition-colors text-surface-600 hover:text-amber-600"
-                                title="Tahrirlash"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} 
-                                className="p-2 hover:bg-red-50 rounded-lg transition-colors text-surface-600 hover:text-red-600"
-                                title="O'chirish"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 
                 {/* End indicator */}
                 {currentPage >= totalPages && !loadingMore && filteredProducts.length > 0 && (
-                  <div className="flex justify-center items-center py-6 border-t border-surface-100">
-                    <div className="text-surface-400 text-sm">
+                  <div className="flex justify-center items-center py-6 mt-4">
+                    <div className="text-slate-400 text-sm">
                       ✅ Barcha maxsulotlar yuklandi ({totalProducts} ta)
                     </div>
                   </div>
@@ -1220,7 +1235,7 @@ export default function Products() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
           {/* Backdrop with blur - orqa fon */}
           <div 
             className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-md transition-all duration-300" 
@@ -1666,20 +1681,21 @@ export default function Products() {
                 </div>
 
                 {/* Foizli chegirmalar - 3 ta daraja */}
-                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2 border border-emerald-200">
-                  <h5 className="text-[10px] font-semibold text-emerald-800 mb-1.5 flex items-center gap-1">
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-2.5 border border-emerald-200 shadow-sm">
+                  <h5 className="text-[11px] font-semibold text-emerald-800 mb-2 flex items-center gap-1">
                     🎯 Chegirmalar
                   </h5>
                   
                   {/* Tier 1 */}
-                  <div className="bg-white rounded p-1.5 mb-1 border border-emerald-100">
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">1</span>
+                  <div className="bg-white rounded-2xl p-2 mb-1.5 border border-emerald-100 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">1</span>
+                      <span className="text-[9px] text-emerald-500 font-medium">Birinci daraja</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-[10px] justify-center">
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center" 
+                        className="input text-xs w-14 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="1"
                         value={formData.pricingTiers.tier1.minQuantity}
                         onChange={e => setFormData({
@@ -1690,10 +1706,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] text-emerald-600">-</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">-</span>
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center" 
+                        className="input text-xs w-14 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="5"
                         value={formData.pricingTiers.tier1.maxQuantity}
                         onChange={e => setFormData({
@@ -1704,10 +1720,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] text-emerald-600">=</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">=</span>
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center font-bold" 
+                        className="input text-xs w-16 h-9 text-center font-bold rounded-2xl border-indigo-300 bg-indigo-50/60 text-indigo-700 focus:border-indigo-500 focus:ring-indigo-200" 
                         placeholder="15"
                         value={formData.pricingTiers.tier1.discountPercent}
                         onChange={e => setFormData({
@@ -1718,19 +1734,20 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] font-bold text-emerald-700">%</span>
+                      <span className="text-[11px] font-bold text-indigo-600">%</span>
                     </div>
                   </div>
 
                   {/* Tier 2 */}
-                  <div className="bg-white rounded p-1.5 mb-1 border border-emerald-100">
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">2</span>
+                  <div className="bg-white rounded-2xl p-2 mb-1.5 border border-blue-100 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">2</span>
+                      <span className="text-[9px] text-blue-500 font-medium">Ikkinchi daraja</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-[10px] justify-center">
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center" 
+                        className="input text-xs w-14 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="6"
                         value={formData.pricingTiers.tier2.minQuantity}
                         onChange={e => setFormData({
@@ -1741,10 +1758,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] text-blue-600">-</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">-</span>
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center" 
+                        className="input text-xs w-14 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="20"
                         value={formData.pricingTiers.tier2.maxQuantity}
                         onChange={e => setFormData({
@@ -1755,10 +1772,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] text-blue-600">=</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">=</span>
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center font-bold" 
+                        className="input text-xs w-16 h-9 text-center font-bold rounded-2xl border-indigo-300 bg-indigo-50/60 text-indigo-700 focus:border-indigo-500 focus:ring-indigo-200" 
                         placeholder="13"
                         value={formData.pricingTiers.tier2.discountPercent}
                         onChange={e => setFormData({
@@ -1769,19 +1786,20 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-[9px] font-bold text-blue-700">%</span>
+                      <span className="text-[11px] font-bold text-indigo-600">%</span>
                     </div>
                   </div>
 
                   {/* Tier 3 */}
-                  <div className="bg-white rounded p-1.5 border border-emerald-100">
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">3</span>
+                  <div className="bg-white rounded-2xl p-2 border border-purple-100 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">3</span>
+                      <span className="text-[9px] text-purple-500 font-medium">Uchinchi daraja</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-[10px] justify-center">
                       <input 
                         type="text" 
-                        className="input text-xs w-12 text-center" 
+                        className="input text-xs w-14 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="21"
                         value={formData.pricingTiers.tier3.minQuantity}
                         onChange={e => setFormData({
@@ -1792,10 +1810,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-xs text-purple-600">dan</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">-</span>
                       <input 
                         type="text" 
-                        className="input text-sm w-16 text-center" 
+                        className="input text-xs w-16 h-9 text-center rounded-2xl border-violet-200 bg-violet-50/40 focus:border-violet-400 focus:ring-violet-200" 
                         placeholder="100"
                         value={formData.pricingTiers.tier3.maxQuantity}
                         onChange={e => setFormData({
@@ -1806,11 +1824,10 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-xs text-purple-600">gacha</span>
-                      <span className="text-xs text-purple-600 mx-1">=</span>
+                      <span className="text-[11px] text-violet-500 font-semibold">=</span>
                       <input 
                         type="text" 
-                        className="input text-sm w-16 text-center font-bold" 
+                        className="input text-xs w-16 h-9 text-center font-bold rounded-2xl border-indigo-300 bg-indigo-50/60 text-indigo-700 focus:border-indigo-500 focus:ring-indigo-200" 
                         placeholder="11"
                         value={formData.pricingTiers.tier3.discountPercent}
                         onChange={e => setFormData({
@@ -1821,7 +1838,7 @@ export default function Products() {
                           }
                         })}
                       />
-                      <span className="text-xs font-bold text-purple-700">%</span>
+                      <span className="text-[11px] font-bold text-indigo-600">%</span>
                     </div>
                   </div>
 
@@ -1867,7 +1884,6 @@ export default function Products() {
                             setFormData({...formData, meterPriceRanges: newRanges});
                           }}
                         />
-                        <span className="text-xs text-blue-600">dan</span>
                         <input 
                           type="text" 
                           className="input text-sm w-16" 
@@ -1879,7 +1895,6 @@ export default function Products() {
                             setFormData({...formData, meterPriceRanges: newRanges});
                           }}
                         />
-                        <span className="text-xs text-blue-600">gacha</span>
                         <input 
                           type="text" 
                           className="input text-sm flex-1" 
@@ -1963,7 +1978,7 @@ export default function Products() {
       )}
 
       {showQRModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="overlay -z-10" onClick={() => setShowQRModal(false)} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between mb-6 sticky top-0 bg-white pb-2 -mt-2 pt-2 border-b border-surface-100">
@@ -2098,7 +2113,7 @@ export default function Products() {
 
       {/* Product Statistics Modal - Compact & Professional */}
       {showStatsModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
           <div className="overlay" onClick={() => setShowStatsModal(false)} />
           <div className="modal w-full max-w-3xl p-4 sm:p-5 relative z-50 max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
             {/* Header - Compact with Image */}
@@ -2375,7 +2390,7 @@ export default function Products() {
 
       {/* Image Modal - Rasm kattalashtirish */}
       {showImageModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-all duration-300" 

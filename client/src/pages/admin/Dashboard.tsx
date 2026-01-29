@@ -70,42 +70,50 @@ export default function Dashboard() {
   const mainStats = [
     { 
       icon: DollarSign, 
-      label: 'dashboard.totalRevenue', 
+      label: 'Umumiy daromad', 
       value: formatNumber(stats.totalRevenue || 0), 
       suffix: "UZS", 
       color: 'from-emerald-500 to-emerald-600',
-      bgColor: 'bg-emerald-50',
+      accentColor: 'bg-emerald-500',
+      iconBg: 'bg-emerald-100',
+      iconColor: 'text-emerald-600',
       textColor: 'text-emerald-600',
       trend: '+12.5%',
       trendUp: true
     },
     { 
       icon: TrendingUp, 
-      label: period === 'today' ? 'dashboard.todaySales' : 'dashboard.weeklySales', 
+      label: period === 'today' ? 'Bugungi savdo' : 'Haftalik savdo', 
       value: formatNumber(period === 'today' ? (stats.todaySales || 0) : (stats.weekSales || 0)), 
       suffix: "UZS", 
       color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
+      accentColor: 'bg-blue-500',
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-600',
       textColor: 'text-blue-600',
       trend: '+8.2%',
       trendUp: true
     },
     { 
       icon: ShoppingCart, 
-      label: 'dashboard.totalOrders', 
+      label: 'Jami buyurtmalar', 
       value: (stats.totalReceipts || 0).toString(), 
       color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50',
+      accentColor: 'bg-purple-500',
+      iconBg: 'bg-purple-100',
+      iconColor: 'text-purple-600',
       textColor: 'text-purple-600',
       trend: '+15.3%',
       trendUp: true
     },
     { 
       icon: Activity, 
-      label: "dashboard.peakHour", 
+      label: "Eng yuqori soat", 
       value: stats.peakHour || '-', 
       color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50',
+      accentColor: 'bg-orange-500',
+      iconBg: 'bg-orange-100',
+      iconColor: 'text-orange-600',
       textColor: 'text-orange-600',
       trend: '',
       trendUp: true
@@ -116,17 +124,21 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100">
       <Header title={t('dashboard.title')} />
       
-      <div className="p-3 sm:p-4 lg:p-6 space-y-5 sm:space-y-6 pb-20 lg:pb-6 max-w-7xl mx-auto">
-        {/* Header Section - Enhanced */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5">
-          <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-purple-900 via-purple-700 to-purple-600 bg-clip-text text-transparent leading-tight">
+      {/* Main Container - Mobile First with Safe Margins */}
+      <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 md:py-6 space-y-4 sm:space-y-5 md:space-y-6 pb-24 lg:pb-8 max-w-7xl mx-auto">
+        
+        {/* Page Header - Improved Mobile Layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 animate-fade-in">
+          <div className="space-y-1">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-900 via-purple-700 to-purple-600 bg-clip-text text-transparent leading-tight">
               {t('dashboard.overview')}
             </h2>
-            <p className="text-slate-600 text-xs sm:text-sm lg:text-base font-medium">{t('dashboard.description')}</p>
+            <p className="text-slate-600 text-xs sm:text-sm font-medium">{t('dashboard.description')}</p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Period Selector - Glass Design */}
+          
+          {/* Controls - Better Mobile Spacing */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Period Selector - Glass Morphism */}
             <div className="flex p-1 bg-white/90 backdrop-blur-xl rounded-xl shadow-lg border border-white/20">
               <button 
                 onClick={() => setPeriod('today')}
@@ -149,103 +161,91 @@ export default function Dashboard() {
                 {t('dashboard.thisWeek')}
               </button>
             </div>
-            {/* Refresh Button - Glass Design */}
+            
+            {/* Refresh Button - Larger Touch Target */}
             <button 
               onClick={fetchStats} 
-              className="p-2.5 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+              className="p-2.5 sm:p-3 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 text-slate-600 hover:text-slate-900 hover:bg-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
               title={t('dashboard.refresh')}
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
         {loading ? (
+          /* Loading Skeletons - Improved Animation */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {[1,2,3,4].map(i => (
-              <div key={i} className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-xl border border-white/20 overflow-hidden">
-                <div className="animate-pulse space-y-4">
-                  {/* Icon Skeleton */}
+              <div key={i} className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-xl border border-white/20 overflow-hidden min-h-[140px] sm:min-h-[160px]">
+                <div className="animate-pulse space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl" />
-                    <div className="w-12 h-6 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg" />
+                    <div className="w-12 h-5 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg" />
                   </div>
-                  {/* Text Skeleton */}
                   <div className="space-y-2">
                     <div className="h-8 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg w-3/4" />
                     <div className="h-4 bg-gradient-to-br from-slate-200 to-slate-300 rounded w-1/2" />
                   </div>
                 </div>
-                {/* Shimmer Effect */}
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
               </div>
             ))}
           </div>
         ) : (
           <>
-            {/* Main Stats - Modern Premium Design */}
+            {/* Statistics Cards - Equal Height Design */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {mainStats.map((stat, i) => (
-                <div key={i} className="group relative h-full">
-                  {/* Glass Card with Gradient Border - Fixed Height */}
-                  <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] overflow-hidden h-[160px] sm:h-[180px] flex flex-col">
-                    {/* Animated Gradient Background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700`} />
+                <div 
+                  key={i} 
+                  className="group relative animate-slide-up"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  {/* Clean Card Design - Fixed Equal Height */}
+                  <div className="relative bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden h-[200px] flex flex-col">
                     
-                    {/* Decorative Glow Effect */}
-                    <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${stat.color} opacity-[0.08] rounded-full blur-3xl group-hover:opacity-[0.15] group-hover:scale-125 transition-all duration-700`} />
+                    {/* Top Colored Accent Bar */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${stat.accentColor}`} />
                     
-                    {/* Top Border Accent */}
-                    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.color} opacity-60 group-hover:opacity-100 transition-all duration-500`} />
-                    
-                    <div className="relative z-10 flex flex-col h-full">
-                      {/* Icon & Trend Badge */}
-                      <div className="flex items-start justify-between mb-3 sm:mb-4">
-                        {/* Icon with Pulse Effect */}
-                        <div className="relative">
-                          <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} rounded-xl blur-md opacity-40 group-hover:opacity-60 transition-all duration-500`} />
-                          <div className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
-                            <stat.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
-                          </div>
+                    {/* Header Row - Icon and Trend */}
+                    <div className="flex items-start justify-between mb-auto">
+                      {/* Icon */}
+                      <div className={`w-16 h-16 rounded-2xl ${stat.iconBg} flex items-center justify-center flex-shrink-0`}>
+                        <stat.icon className={`w-8 h-8 ${stat.iconColor}`} />
+                      </div>
+                      
+                      {/* Trend Badge */}
+                      {stat.trend && (
+                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          stat.trendUp 
+                            ? 'bg-emerald-50 text-emerald-700' 
+                            : 'bg-red-50 text-red-700'
+                        }`}>
+                          {stat.trendUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                          <span>{stat.trend}</span>
                         </div>
-                        
-                        {/* Trend Badge */}
-                        {stat.trend && (
-                          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold shadow-md backdrop-blur-sm ${
-                            stat.trendUp 
-                              ? 'bg-emerald-50/80 text-emerald-700 border border-emerald-200/60' 
-                              : 'bg-red-50/80 text-red-700 border border-red-200/60'
-                          }`}>
-                            {stat.trendUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                            <span>{stat.trend}</span>
-                          </div>
+                      )}
+                    </div>
+                    
+                    {/* Value & Label - Bottom Aligned */}
+                    <div className="mt-auto space-y-2">
+                      {/* Large Value */}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <h3 className={`text-3xl font-bold ${stat.textColor} leading-none tracking-tight`}>
+                          {stat.value}
+                        </h3>
+                        {stat.suffix && (
+                          <span className="text-xs font-semibold text-slate-400 uppercase">
+                            {stat.suffix}
+                          </span>
                         )}
                       </div>
                       
-                      {/* Value & Label - Flex grow to fill remaining space */}
-                      <div className="flex-1 flex flex-col justify-end space-y-1">
-                        {/* Value with Gradient Text */}
-                        <div className="flex items-baseline gap-1 flex-wrap">
-                          <h3 className={`text-xl sm:text-2xl font-extrabold bg-gradient-to-br ${stat.color} bg-clip-text text-transparent leading-none tracking-tight`}>
-                            {stat.value}
-                          </h3>
-                          {stat.suffix && (
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                              {stat.suffix}
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Label with Icon Color */}
-                        <p className={`${stat.textColor} font-semibold text-xs leading-tight`}>
-                          {t(stat.label)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Shine Effect on Hover */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      {/* Label */}
+                      <p className="text-base font-medium text-slate-600 leading-tight">
+                        {stat.label}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -254,26 +254,28 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Charts Section - Enhanced Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-          {/* Revenue Chart - Premium Glass Design */}
-          <div className="xl:col-span-2 relative group">
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-5 sm:p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+        {/* Charts Section - Mobile Optimized Stack */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+          
+          {/* Revenue Chart - Full Width on Mobile */}
+          <div className="xl:col-span-2 relative group animate-slide-up" style={{ animationDelay: '400ms' }}>
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 md:p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              
               {/* Decorative Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-purple-50/30 opacity-50" />
               
-              {/* Header */}
-              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+              {/* Header - Better Mobile Layout */}
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between mb-5 sm:mb-6 gap-3">
                 <div className="flex items-center gap-3">
                   {/* Icon with Glow */}
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl blur-md opacity-40" />
-                    <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                      <BarChart3 className="w-6 h-6 text-white drop-shadow-lg" />
+                    <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                      <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-lg" />
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent truncate">
                       {period === 'today' ? 'Bugungi daromad' : 'Haftalik daromad'}
                     </h3>
                     <p className="text-slate-600 text-xs sm:text-sm font-medium">
@@ -281,14 +283,14 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200/50 shadow-sm">
-                  <div className="w-2.5 h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-pulse" />
-                  <span className="text-xs text-blue-700 font-bold">Savdo</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 sm:py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200/50 shadow-sm flex-shrink-0">
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-pulse" />
+                  <span className="text-xs sm:text-sm text-blue-700 font-bold">Savdo</span>
                 </div>
               </div>
               
-              {/* Chart */}
-              <div className="relative z-10 h-64 sm:h-72 rounded-xl overflow-hidden">
+              {/* Chart - Responsive Height */}
+              <div className="relative z-10 h-56 sm:h-64 md:h-72 rounded-xl overflow-hidden">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -384,52 +386,53 @@ export default function Dashboard() {
                   <div className="flex flex-col items-center justify-center h-full text-slate-400">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl blur-xl opacity-50" />
-                      <div className="relative w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                        <BarChart3 className="w-10 h-10 text-slate-400" />
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
+                        <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
                       </div>
                     </div>
-                    <p className="font-bold text-slate-600 text-lg">Ma'lumot mavjud emas</p>
-                    <p className="text-slate-400 mt-2 text-center text-sm max-w-xs">Analitikani ko'rish uchun savdo qilishni boshlang</p>
+                    <p className="font-bold text-slate-600 text-base sm:text-lg">Ma'lumot mavjud emas</p>
+                    <p className="text-slate-400 mt-2 text-center text-xs sm:text-sm max-w-xs px-4">Analitikani ko'rish uchun savdo qilishni boshlang</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Top Products - Premium Glass Design */}
-          <div className="relative group">
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-5 sm:p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+          {/* Top Products - Full Width on Mobile */}
+          <div className="relative group animate-slide-up" style={{ animationDelay: '500ms' }}>
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 md:p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 overflow-hidden">
+              
               {/* Decorative Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-purple-50/30 via-transparent to-pink-50/30 opacity-50" />
               
-              {/* Header */}
-              <div className="relative z-10 flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
+              {/* Header - Better Mobile Layout */}
+              <div className="relative z-10 flex items-center justify-between mb-5 sm:mb-6">
+                <div className="flex items-center gap-3 min-w-0">
                   {/* Icon with Glow */}
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl blur-md opacity-40" />
-                    <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
-                      <Package className="w-6 h-6 text-white drop-shadow-lg" />
+                    <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+                      <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-lg" />
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">Top mahsulotlar</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent truncate">Top mahsulotlar</h3>
                     <p className="text-slate-600 text-xs sm:text-sm font-medium">Eng ko'p sotilganlar</p>
                   </div>
                 </div>
               </div>
               
-              {/* Content */}
+              {/* Content - Better Touch Targets */}
               <div className="relative z-10">
                 {topProducts.length > 0 ? (
                   <div className="space-y-3">
                     {topProducts.map((product, index) => (
                       <div 
                         key={product._id}
-                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-slate-50 to-white rounded-xl border border-slate-200 hover:shadow-md transition-all"
+                        className="flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-white rounded-xl border border-slate-200 hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
                       >
-                        {/* Rank */}
-                        <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                        {/* Rank Badge */}
+                        <div className={`flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center font-bold text-sm sm:text-base ${
                           index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-500 text-white shadow-lg' :
                           index === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white shadow-md' :
                           'bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md'
@@ -439,27 +442,28 @@ export default function Dashboard() {
                         
                         {/* Product Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900 text-sm truncate">{product._id}</p>
-                          <p className="text-xs text-slate-500">{product.totalSold} ta sotildi</p>
+                          <p className="font-semibold text-slate-900 text-sm sm:text-base truncate">{product._id}</p>
+                          <p className="text-xs sm:text-sm text-slate-500">{product.totalSold} ta sotildi</p>
                         </div>
                         
-                        {/* Sales Count */}
+                        {/* Revenue */}
                         <div className="text-right flex-shrink-0">
-                          <p className="font-bold text-purple-600 text-sm">{formatNumber(product.revenue)} so'm</p>
+                          <p className="font-bold text-purple-600 text-sm sm:text-base">{formatNumber(product.revenue)}</p>
+                          <p className="text-[10px] sm:text-xs text-slate-400">so'm</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+                  <div className="flex flex-col items-center justify-center h-48 sm:h-56 text-slate-400">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl blur-xl opacity-50" />
-                      <div className="relative w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                        <Clock className="w-10 h-10 text-slate-400" />
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
+                        <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" />
                       </div>
                     </div>
-                    <p className="font-bold text-slate-600 text-lg">Ma'lumot yo'q</p>
-                    <p className="text-slate-400 mt-2 text-center text-sm max-w-xs px-4">Hali sotuvlar amalga oshirilmagan</p>
+                    <p className="font-bold text-slate-600 text-base sm:text-lg">Ma'lumot yo'q</p>
+                    <p className="text-slate-400 mt-2 text-center text-xs sm:text-sm max-w-xs px-4">Hali sotuvlar amalga oshirilmagan</p>
                   </div>
                 )}
               </div>
