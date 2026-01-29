@@ -499,4 +499,237 @@ router.delete('/admin/kassa-users/:id', auth, async (req, res) => {
   }
 });
 
+// ==================== XODIMLARNI (HELPERS) BOSHQARISH ====================
+
+// Barcha xodimlarni olish
+router.get('/admin/helpers', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Faqat admin uchun' 
+      });
+    }
+    
+    const helpers = await User.find({ role: 'helper' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      users: helpers
+    });
+  } catch (error) {
+    console.error('Get helpers error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server xatosi', 
+      error: error.message 
+    });
+  }
+});
+
+// Yangi xodim yaratish
+router.post('/admin/helpers', auth, async (req, res) => {
+  try {
+    console.log('📝 Yangi xodim yaratish so\'rovi:', req.body);
+    
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Faqat admin xodim yarata oladi' 
+      });
+    }
+    
+    const { name, login, phone, password } = req.body;
+    
+    // Validatsiya
+    if (!name || !login || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Ism, login va parol majburiy' 
+      });
+    }
+    
+    if (password.length < 4) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Parol kamida 4 ta belgidan iborat bo\'lishi kerak' 
+      });
+    }
+    
+    // Login mavjudligini tekshirish
+    const existingUser = await User.findOne({ login });
+    if (existingUser) {
+      console.log('❌ Login allaqachon mavjud:', login);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Bu login allaqachon band' 
+      });
+    }
+    
+    // Telefon mavjudligini tekshirish (agar berilgan bo'lsa)
+    if (phone) {
+      const existingPhone = await User.findOne({ phone });
+      if (existingPhone) {
+        console.log('❌ Telefon allaqachon mavjud:', phone);
+        return res.status(400).json({ 
+          success: false,
+          message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' 
+        });
+      }
+    }
+    
+    // Yangi xodim yaratish
+    const helper = new User({
+      name,
+      login,
+      phone: phone || '',
+      password,
+      role: 'helper',
+      createdBy: req.user._id
+    });
+    
+    await helper.save();
+    console.log('✅ Xodim yaratildi:', helper.login);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Xodim muvaffaqiyatli yaratildi',
+      user: {
+        _id: helper._id,
+        name: helper.name,
+        login: helper.login,
+        phone: helper.phone,
+        role: helper.role,
+        createdAt: helper.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('❌ Create helper error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server xatosi', 
+      error: error.message 
+    });
+  }
+});
+
+// Xodimni o'zgartirish
+router.put('/admin/helpers/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Faqat admin xodimni o\'zgartira oladi' 
+      });
+    }
+    
+    const { name, login, phone, password } = req.body;
+    const helper = await User.findById(req.params.id);
+    
+    if (!helper || helper.role !== 'helper') {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Xodim topilmadi' 
+      });
+    }
+    
+    // Login o'zgartirilsa, mavjudligini tekshirish
+    if (login && login !== helper.login) {
+      const existingUser = await User.findOne({ 
+        login, 
+        _id: { $ne: helper._id } 
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Bu login allaqachon band' 
+        });
+      }
+      
+      helper.login = login;
+    }
+    
+    // Telefon o'zgartirilsa, mavjudligini tekshirish
+    if (phone && phone !== helper.phone) {
+      const existingPhone = await User.findOne({ 
+        phone, 
+        _id: { $ne: helper._id } 
+      });
+      
+      if (existingPhone) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' 
+        });
+      }
+      
+      helper.phone = phone;
+    }
+    
+    // Ma'lumotlarni yangilash
+    if (name) helper.name = name;
+    if (password) helper.password = password;
+    
+    await helper.save();
+    
+    res.json({
+      success: true,
+      message: 'Xodim muvaffaqiyatli o\'zgartirildi',
+      user: {
+        _id: helper._id,
+        name: helper.name,
+        login: helper.login,
+        phone: helper.phone,
+        role: helper.role,
+        createdAt: helper.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Update helper error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server xatosi', 
+      error: error.message 
+    });
+  }
+});
+
+// Xodimni o'chirish
+router.delete('/admin/helpers/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Faqat admin xodimni o\'chira oladi' 
+      });
+    }
+    
+    const helper = await User.findById(req.params.id);
+    
+    if (!helper || helper.role !== 'helper') {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Xodim topilmadi' 
+      });
+    }
+    
+    await User.findByIdAndDelete(req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Xodim muvaffaqiyatli o\'chirildi'
+    });
+  } catch (error) {
+    console.error('Delete helper error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server xatosi', 
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

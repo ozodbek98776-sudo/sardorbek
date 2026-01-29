@@ -75,8 +75,8 @@ export default function Helpers() {
 
   const fetchHelpers = async () => {
     try {
-      const res = await api.get('/users/helpers');
-      setHelpers(res.data);
+      const res = await api.get('/auth/admin/helpers');
+      setHelpers(res.data.users || res.data);
     } catch (err) { console.error('Error fetching helpers:', err); }
     finally { setLoading(false); }
   };
@@ -126,7 +126,7 @@ export default function Helpers() {
       };
       
       if (editingUser) {
-        await api.put(`/users/${editingUser._id}`, data);
+        await api.put(`/auth/admin/helpers/${editingUser._id}`, data);
         // Local state ni yangilash - tez
         setHelpersStats(helpersStats.map(h => 
           h._id === editingUser._id 
@@ -174,7 +174,7 @@ export default function Helpers() {
     
     setDeletingId(helper._id);
     try {
-      await api.delete(`/users/${helper._id}`);
+      await api.delete(`/auth/admin/helpers/${helper._id}`);
       
       // Local state ni yangilash - tez
       setHelpersStats(helpersStats.filter(h => h._id !== helper._id));
@@ -235,28 +235,29 @@ export default function Helpers() {
         name: addHelperData.name,
         login: addHelperData.login,
         phone: getRawPhone(addHelperData.phone),
-        password: addHelperData.password,
-        role: addHelperData.role,
-        ...(addHelperData.role === 'cashier' && { bonusPercentage: addHelperData.bonusPercentage })
+        password: addHelperData.password
       };
       
-      const response = await api.post('/users', data);
+      console.log('📤 Xodim yaratish so\'rovi:', data);
+      const response = await api.post('/auth/admin/helpers', data);
+      console.log('✅ Server javobi:', response.data);
       
-      // Yangi yordamchini local state ga qo'shish (sekin API call o'rniga)
+      // Yangi xodimni local state ga qo'shish
       const newHelper = {
-        _id: response.data._id,
-        name: response.data.name,
-        role: response.data.role,
+        _id: response.data.user._id,
+        name: response.data.user.name,
+        login: response.data.user.login,
+        phone: response.data.user.phone,
+        role: response.data.user.role,
         receiptCount: 0,
         totalAmount: 0,
-        bonusPercentage: response.data.bonusPercentage || 0,
         totalEarnings: 0,
         totalBonus: 0
       };
       
       setHelpersStats([...helpersStats, newHelper]);
       
-      showAlert('Yordamchi muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
+      showAlert('Xodim muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       
       // 2 sekunddan keyin modal yopiladi
       setTimeout(() => {

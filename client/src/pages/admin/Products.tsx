@@ -282,7 +282,11 @@ export default function Products() {
             total: pagination.total || 0,
             lowStock: validProducts.filter((p: Product) => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
             outOfStock: validProducts.filter((p: Product) => p.quantity === 0).length,
-            totalValue: validProducts.reduce((sum: number, p: Product) => sum + ((p.price || 0) * (p.quantity || 0)), 0)
+            totalValue: validProducts.reduce((sum: number, p: Product) => {
+              // unitPrice, currentPrice yoki price dan birini olish
+              const price = (p as any).unitPrice || (p as any).currentPrice || p.price || 0;
+              return sum + (price * (p.quantity || 0));
+            }, 0)
           };
           setOverallStats(stats);
         }, { timeout: 2000 });
@@ -305,7 +309,21 @@ export default function Products() {
     
     // Birinchi sahifani yuklash
     fetchProducts(1);
+    
+    // Umumiy statistikani serverdan olish
+    fetchOverallStats();
   }, [fetchProducts]);
+
+  // Umumiy statistikani serverdan olish
+  const fetchOverallStats = async () => {
+    try {
+      const response = await api.get('/products/overall-stats');
+      console.log('📊 Server statistikasi:', response.data);
+      setOverallStats(response.data);
+    } catch (err) {
+      console.error('Statistikani yuklashda xatolik:', err);
+    }
+  };
 
   // Birinchi sahifa yuklangandan keyin, qolgan sahifalarni background da yuklash
   useEffect(() => {
@@ -740,6 +758,9 @@ export default function Products() {
       
       closeModal();
       showAlert(editingProduct ? 'Tovar yangilandi' : 'Tovar qo\'shildi', 'Muvaffaqiyat', 'success');
+      
+      // Statistikani yangilash
+      fetchOverallStats();
     } catch (err: any) {
       logger.error('Error adding/updating product:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Xatolik yuz berdi';
@@ -763,6 +784,9 @@ export default function Products() {
       logger.log('Tovar UI dan o\'chirildi:', id);
       
       showAlert('Tovar o\'chirildi', 'Muvaffaqiyat', 'success');
+      
+      // Statistikani yangilash
+      fetchOverallStats();
     } catch (err) {
       logger.error('Error deleting product:', err);
       showAlert('Tovarni o\'chirishda xatolik', 'Xatolik', 'danger');

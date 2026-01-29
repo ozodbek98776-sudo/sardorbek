@@ -426,10 +426,13 @@ router.get('/helpers-stats', auth, authorize('admin'), async (req, res) => {
     // Stats map qilish
     const statsMap = {};
     receiptsStats.forEach(stat => {
-      statsMap[stat._id.toString()] = {
-        receiptCount: stat.receiptCount,
-        totalAmount: stat.totalAmount
-      };
+      // stat._id null bo'lishi mumkin, tekshirish kerak
+      if (stat._id) {
+        statsMap[stat._id.toString()] = {
+          receiptCount: stat.receiptCount,
+          totalAmount: stat.totalAmount
+        };
+      }
     });
 
     // Barcha kassirlarni olish
@@ -1068,13 +1071,24 @@ router.post('/', auth, async (req, res) => {
     if (customer && !isReturn) {
       try {
         const customerData = await Customer.findById(customer);
-        if (customerData) {
-          await telegramService.sendPurchaseNotification(
-            customerData,
-            items,
+        if (customerData && customerData.telegramChatId) {
+          // Chek ma'lumotlarini tayyorlash
+          const receiptData = {
+            customer: customerData,
+            items: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price
+            })),
             total,
-            paymentMethod
-          );
+            paymentMethod,
+            receiptNumber: receipt.receiptNumber,
+            paidAmount,
+            remainingAmount
+          };
+          
+          // POS Bot orqali chek yuborish
+          await telegramService.sendReceiptToCustomerViaPOSBot(receiptData);
         }
       } catch (telegramError) {
         console.error('Telegram notification error:', telegramError);

@@ -467,6 +467,12 @@ router.delete('/delete-image', auth, async (req, res) => {
   console.log('User:', req.user);
   console.log('Body:', req.body);
   try {
+    // req.user mavjudligini tekshirish
+    if (!req.user) {
+      console.error('❌ req.user undefined - auth middleware ishlamadi');
+      return res.status(401).json({ message: 'Avtorizatsiya talab qilinadi' });
+    }
+
     const { imagePath, productId } = req.body;
     if (!imagePath) return res.status(400).json({ message: 'Rasm yo\'li ko\'rsatilmagan' });
 
@@ -529,8 +535,24 @@ router.get('/overall-stats', auth, async (req, res) => {
       total: allProducts.length,
       lowStock: allProducts.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
       outOfStock: allProducts.filter(p => p.quantity === 0).length,
-      totalValue: allProducts.reduce((sum, p) => sum + ((p.price || 0) * (p.quantity || 0)), 0)
+      totalValue: allProducts.reduce((sum, p) => {
+        // unitPrice, currentPrice yoki price dan birini olish
+        const price = p.unitPrice || p.currentPrice || p.price || 0;
+        return sum + (price * (p.quantity || 0));
+      }, 0)
     };
+    
+    console.log('📊 Overall stats calculated:', {
+      total: stats.total,
+      totalValue: stats.totalValue,
+      sampleProduct: allProducts[0] ? {
+        name: allProducts[0].name,
+        unitPrice: allProducts[0].unitPrice,
+        currentPrice: allProducts[0].currentPrice,
+        price: allProducts[0].price,
+        quantity: allProducts[0].quantity
+      } : null
+    });
     
     res.json(stats);
   } catch (error) {
