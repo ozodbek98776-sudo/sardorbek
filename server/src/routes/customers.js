@@ -211,10 +211,26 @@ router.put('/:id', auth, async (req, res) => {
 
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndDelete(req.params.id);
+    const customer = await Customer.findById(req.params.id);
     if (!customer) return res.status(404).json({ message: 'Mijoz topilmadi' });
-    res.json({ message: 'Mijoz o\'chirildi' });
+    
+    // Mijozning barcha qarzlarini o'chirish
+    const Debt = require('../models/Debt');
+    const deletedDebts = await Debt.deleteMany({ customer: req.params.id });
+    
+    console.log(`🗑️ Mijoz o'chirilmoqda: ${customer.name}`);
+    console.log(`   - Mijoz ID: ${req.params.id}`);
+    console.log(`   - O'chirilgan qarzlar soni: ${deletedDebts.deletedCount}`);
+    
+    // Mijozni o'chirish
+    await Customer.findByIdAndDelete(req.params.id);
+    
+    res.json({ 
+      message: 'Mijoz va uning barcha qarzlari o\'chirildi',
+      deletedDebtsCount: deletedDebts.deletedCount
+    });
   } catch (error) {
+    console.error('❌ Mijozni o\'chirishda xatolik:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

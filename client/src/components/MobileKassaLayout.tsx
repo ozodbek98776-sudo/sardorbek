@@ -148,7 +148,7 @@ export const MobilePaymentModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end 2xs:items-center xs:items-center sm:items-center">
+    <div className="fixed inset-0 bg-black/50 z-[100] flex items-end 2xs:items-center xs:items-center sm:items-center">
       <div className="
         bg-white w-full 2xs:w-full xs:w-full sm:w-full md:w-auto
         rounded-t-2xl 2xs:rounded-t-xl xs:rounded-t-xl sm:rounded-2xl

@@ -206,6 +206,11 @@ export default function KassaMain() {
   const [selectedItemForPricing, setSelectedItemForPricing] = useState<CartItem | null>(null);
   const [customMarkupPercent, setCustomMarkupPercent] = useState<number>(15);
   
+  // Mahsulot qadini o'zgartirish uchun state
+  const [showQuantityEdit, setShowQuantityEdit] = useState(false);
+  const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
+  const [newQuantity, setNewQuantity] = useState<string>('');
+  
   // To'lov modal uchun yangi state
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [paymentAmounts, setPaymentAmounts] = useState<{cash: number; click: number; card: number}>({
@@ -691,6 +696,52 @@ export default function KassaMain() {
 
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item._id !== id));
+  };
+
+  // Mahsulot qadini o'zgartirish funksiyasi
+  const handleQuantityEdit = (product: Product) => {
+    setSelectedProductForEdit(product);
+    setNewQuantity(product.quantity.toString());
+    setShowQuantityEdit(true);
+  };
+
+  const handleQuantityUpdate = async () => {
+    if (!selectedProductForEdit) return;
+    
+    const qty = parseInt(newQuantity);
+    if (isNaN(qty) || qty < 0) {
+      showAlert('Noto\'g\'ri miqdor kiritildi', 'Xatolik', 'danger');
+      return;
+    }
+
+    try {
+      // Serverga yangilash so'rovi
+      await api.put(`/products/${selectedProductForEdit._id}`, {
+        quantity: qty
+      });
+
+      // Local state ni yangilash
+      setProducts(prev => prev.map(p => 
+        p._id === selectedProductForEdit._id ? { ...p, quantity: qty } : p
+      ));
+
+      // Agar mahsulot savatchada bo'lsa, uni ham yangilash kerak
+      setCart(prev => prev.map(item => {
+        if (item._id === selectedProductForEdit._id && item.cartQuantity > qty) {
+          // Agar savatchadagi miqdor yangi qaddan ko'p bo'lsa, kamaytiramiz
+          return { ...item, cartQuantity: qty };
+        }
+        return item;
+      }));
+
+      showAlert('Mahsulot qadi yangilandi', 'Muvaffaqiyat', 'success');
+      setShowQuantityEdit(false);
+      setSelectedProductForEdit(null);
+      setNewQuantity('');
+    } catch (err: any) {
+      console.error('Error updating quantity:', err);
+      showAlert(err.response?.data?.message || 'Qadni yangilashda xatolik', 'Xatolik', 'danger');
+    }
   };
 
   const handleSearch = async (query: string) => {
@@ -1471,6 +1522,17 @@ export default function KassaMain() {
                           {product.quantity > 0 ? `${product.quantity} ta` : 'TUGAGAN'}
                         </span>
                       )}
+                      {/* Qad o'zgartirish tugmasi - faqat admin uchun */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuantityEdit(product);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700 hover:bg-brand-200 transition-colors"
+                        title="Qadni o'zgartirish"
+                      >
+                        ✏️
+                      </button>
                     </div>
                   </div>
                   
@@ -1726,7 +1788,7 @@ export default function KassaMain() {
 
       {/* Search Modal */}
       {showSearch && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-20 px-4">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-20 px-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowSearch(false)} />
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden max-h-[90vh] sm:max-h-none">
             <div className="p-4 border-b border-surface-100">
@@ -1815,7 +1877,7 @@ export default function KassaMain() {
 
       {/* Customer Selection Modal */}
       {showCustomerModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-20 px-4">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-20 px-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowCustomerModal(false)} />
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden max-h-[90vh] sm:max-h-none">
             <div className="p-4 border-b border-surface-100">
@@ -1888,7 +1950,7 @@ export default function KassaMain() {
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowPayment(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
             <div className="text-center mb-4 sm:mb-6">
@@ -2127,7 +2189,7 @@ export default function KassaMain() {
 
       {/* Payment Breakdown Modal - Har bir tovar uchun to'lov turlarini tanlash */}
       {showPaymentBreakdown && selectedItemForPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => {
             setShowPaymentBreakdown(false);
             setSelectedItemForPayment(null);
@@ -2186,26 +2248,26 @@ export default function KassaMain() {
 
       {/* Pricing Edit Modal - Foizni o'zgartirish */}
       {showPricingEdit && selectedItemForPricing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => {
             setShowPricingEdit(false);
             setSelectedItemForPricing(null);
           }} />
-          <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
-            <div className="mb-6">
-              <h3 className="text-lg sm:text-xl font-semibold text-surface-900 mb-2">Foizni o'zgartirish</h3>
-              <div className="bg-surface-50 rounded-lg p-3 mb-4">
-                <p className="text-sm font-medium text-surface-700 mb-1">{selectedItemForPricing.name}</p>
-                <p className="text-xs text-surface-500 font-mono mb-2">Kod: {selectedItemForPricing.code}</p>
-                <p className="text-sm text-surface-600">
+          <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-2xl relative z-10">
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-surface-900 mb-2">Foizni o'zgartirish</h3>
+              <div className="bg-surface-50 rounded-lg p-2.5 mb-3">
+                <p className="text-xs font-medium text-surface-700 mb-1">{selectedItemForPricing.name}</p>
+                <p className="text-[10px] text-surface-500 font-mono mb-1.5">Kod: {selectedItemForPricing.code}</p>
+                <p className="text-xs text-surface-600">
                   Miqdor: {selectedItemForPricing.cartQuantity} ta
                 </p>
               </div>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-2">
+                <label className="block text-xs font-medium text-surface-700 mb-1.5">
                   Qo'shimcha foiz (%)
                 </label>
                 <input
@@ -2215,18 +2277,18 @@ export default function KassaMain() {
                   min="0"
                   max="100"
                   step="0.1"
-                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-base font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   placeholder="15"
                 />
               </div>
               
               {/* Tezkor foiz tugmalari */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[5, 10, 15, 20].map(percent => (
                   <button
                     key={percent}
                     onClick={() => setCustomMarkupPercent(percent)}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
                       customMarkupPercent === percent
                         ? 'bg-brand-500 text-white'
                         : 'bg-surface-100 text-surface-700 hover:bg-surface-200'
@@ -2239,14 +2301,14 @@ export default function KassaMain() {
               
               {/* Narx ko'rsatish */}
               {selectedItemForPricing && (
-                <div className="bg-brand-50 rounded-lg p-3">
-                  <div className="flex justify-between items-center text-sm mb-1">
+                <div className="bg-brand-50 rounded-lg p-2.5">
+                  <div className="flex justify-between items-center text-xs mb-1">
                     <span className="text-surface-600">Yangi narx (1 ta):</span>
                     <span className="font-semibold text-brand-600">
                       {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)))} so'm
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-surface-600">Jami summa:</span>
                     <span className="font-bold text-brand-700">
                       {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)) * selectedItemForPricing.cartQuantity)} so'm
@@ -2256,19 +2318,92 @@ export default function KassaMain() {
               )}
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 mt-4">
               <button
                 onClick={() => {
                   setShowPricingEdit(false);
                   setSelectedItemForPricing(null);
                 }}
-                className="flex-1 py-3 px-4 bg-surface-100 text-surface-700 rounded-xl font-medium hover:bg-surface-200 transition-colors"
+                className="flex-1 py-2 px-3 bg-surface-100 text-surface-700 rounded-lg font-medium hover:bg-surface-200 transition-colors text-sm"
               >
                 Bekor qilish
               </button>
               <button
                 onClick={saveCustomPricing}
-                className="flex-1 py-3 px-4 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 transition-colors"
+                className="flex-1 py-2 px-3 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors text-sm"
+              >
+                Saqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quantity Edit Modal - Mahsulot qadini o'zgartirish */}
+      {showQuantityEdit && selectedProductForEdit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40" onClick={() => {
+            setShowQuantityEdit(false);
+            setSelectedProductForEdit(null);
+            setNewQuantity('');
+          }} />
+          <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-2xl relative z-10">
+            <h3 className="text-base font-bold text-surface-900 mb-3">
+              Mahsulot qadini o'zgartirish
+            </h3>
+            
+            <div className="space-y-3">
+              {/* Mahsulot ma'lumotlari */}
+              <div className="bg-surface-50 rounded-lg p-3">
+                <p className="text-xs text-surface-600 mb-1">Mahsulot:</p>
+                <p className="font-semibold text-sm text-surface-900">{selectedProductForEdit.name}</p>
+                <p className="text-[10px] text-surface-500 mt-1">Kod: {selectedProductForEdit.code}</p>
+              </div>
+
+              {/* Hozirgi qad */}
+              <div className="bg-blue-50 rounded-lg p-2">
+                <p className="text-xs text-blue-600 mb-1">Hozirgi qad:</p>
+                <p className="text-xl font-bold text-blue-700">{selectedProductForEdit.quantity} ta</p>
+              </div>
+
+              {/* Yangi qad kiritish */}
+              <div>
+                <label className="block text-xs font-medium text-surface-700 mb-1.5">
+                  Yangi qad:
+                </label>
+                <input
+                  type="number"
+                  value={newQuantity}
+                  onChange={(e) => setNewQuantity(e.target.value)}
+                  className="w-full px-3 py-2 text-base font-semibold border-2 border-brand-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
+                  placeholder="Yangi qadni kiriting"
+                  min="0"
+                  autoFocus
+                />
+              </div>
+
+              {/* Ogohlantirish */}
+              <div className="bg-warning-50 border border-warning-200 rounded-lg p-2">
+                <p className="text-[10px] text-warning-700">
+                  ⚠️ Diqqat: Mahsulot qadi o'zgartirilganda, agar savatchada bu mahsulot bo'lsa va yangi qad savatchadagi miqdordan kam bo'lsa, savatchadagi miqdor ham kamaytiriladi.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowQuantityEdit(false);
+                  setSelectedProductForEdit(null);
+                  setNewQuantity('');
+                }}
+                className="flex-1 py-2 px-3 bg-surface-100 text-surface-700 rounded-lg font-medium hover:bg-surface-200 transition-colors text-sm"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleQuantityUpdate}
+                className="flex-1 py-2 px-3 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors text-sm"
               >
                 Saqlash
               </button>
@@ -2277,4 +2412,5 @@ export default function KassaMain() {
         </div>
       )}
     </div>
-  );}
+  );
+}

@@ -132,7 +132,7 @@ export const MobileModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="overlay fixed inset-0 z-50 flex items-end 2xs:items-center xs:items-center sm:items-center">
+    <div className="overlay fixed inset-0 z-[100] flex items-end 2xs:items-center xs:items-center sm:items-center">
       <div className="modal 2xs:w-full 2xs:rounded-t-2xl xs:w-full xs:rounded-t-2xl sm:w-auto sm:rounded-2xl 2xs:max-h-[90vh] xs:max-h-[90vh]">
         {title && (
           <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">

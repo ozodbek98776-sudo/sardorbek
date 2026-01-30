@@ -456,6 +456,48 @@ router.post('/:id/extend', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Noma'lum mijozli qarzlarni o'chirish (faqat admin)
+router.delete('/cleanup/unknown', auth, authorize('admin'), async (req, res) => {
+  try {
+    console.log('🗑️ Noma\'lum mijozli qarzlar o\'chirilmoqda...');
+    
+    // customer maydoni null yoki mavjud bo'lmagan qarzlarni topish
+    const unknownDebts = await Debt.find({
+      $or: [
+        { customer: null },
+        { customer: { $exists: false } }
+      ]
+    });
+
+    console.log(`📊 Topildi: ${unknownDebts.length} ta noma'lum mijozli qarz`);
+
+    if (unknownDebts.length === 0) {
+      return res.json({ 
+        message: 'Noma\'lum mijozli qarzlar yo\'q',
+        deletedCount: 0
+      });
+    }
+
+    // Qarzlarni o'chirish
+    const result = await Debt.deleteMany({
+      $or: [
+        { customer: null },
+        { customer: { $exists: false } }
+      ]
+    });
+
+    console.log(`✅ ${result.deletedCount} ta noma'lum qarz o'chirildi`);
+
+    res.json({ 
+      message: `${result.deletedCount} ta noma'lum qarz o'chirildi`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('❌ Noma\'lum qarzlarni o\'chirishda xatolik:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Qarzga to'lov qilish
 router.post('/:id/payment', auth, async (req, res) => {
   try {

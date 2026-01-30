@@ -57,25 +57,26 @@
     }
   }
 
-  /* Binafsha scrollbar */
+  /* Binafsha scrollbar - KATTAROQ */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 14px;
+    height: 14px;
   }
 
   ::-webkit-scrollbar-track {
     background: #ede9fe;
-    border-radius: 4px;
+    border-radius: 7px;
   }
 
   ::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%);
-    border-radius: 4px;
-    border: 1px solid #c4b5fd;
+    border-radius: 7px;
+    border: 2px solid #c4b5fd;
   }
 
   ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%);
+    border: 2px solid #a78bfa;
   }
 
   ::selection {
@@ -109,7 +110,7 @@
     @apply bg-white/95 rounded-2xl p-6 shadow-lg;
     border: 1px solid rgba(139, 92, 246, 0.15);
     backdrop-filter: blur(10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s ease;
   }
 
   .card-hover {
@@ -146,7 +147,7 @@
      ============================================ */
   .btn {
     @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.1s ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     min-height: 44px;
@@ -307,7 +308,7 @@
     background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
     border: 1.5px solid #ddd6fe;
     box-shadow: inset 0 2px 4px rgba(109, 40, 217, 0.05);
-    transition: all 0.25s ease;
+    transition: all 0.1s ease;
     font-size: 16px;
     min-height: 44px;
   }
@@ -401,7 +402,7 @@
     border-radius: 1.25rem;
     padding: 1.5rem;
     box-shadow: 0 4px 20px -4px rgba(109, 40, 217, 0.1);
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
   }
 
   .stat-card:hover {
@@ -431,7 +432,7 @@
   .nav-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl font-medium;
     color: #71717a;
-    transition: all 0.25s ease;
+    transition: all 0.1s ease;
     -webkit-tap-highlight-color: transparent;
     min-height: 44px;
   }
@@ -599,7 +600,7 @@
   .bottom-nav-item {
     @apply flex flex-col items-center justify-center py-2 px-3;
     color: #a1a1aa;
-    transition: all 0.25s ease;
+    transition: all 0.1s ease;
     min-height: 56px;
   }
 
@@ -630,7 +631,7 @@
     border: 1px solid rgba(139, 92, 246, 0.1);
     border-radius: 1.25rem;
     overflow: hidden;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s ease;
   }
 
   .product-card:hover {
@@ -667,22 +668,22 @@
   @keyframes scaleIn {
     from { 
       opacity: 0; 
-      transform: scale(0.95); 
+      transform: scale3d(0.98, 0.98, 1); 
     }
     to { 
       opacity: 1; 
-      transform: scale(1); 
+      transform: scale3d(1, 1, 1); 
     }
   }
 
   @keyframes slideUp {
     from { 
       opacity: 0; 
-      transform: translateY(20px); 
+      transform: translate3d(0, 10px, 0); 
     }
     to { 
       opacity: 1; 
-      transform: translateY(0); 
+      transform: translate3d(0, 0, 0); 
     }
   }
 
@@ -702,22 +703,22 @@
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translateY(30px);
+      transform: translate3d(0, 15px, 0);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate3d(0, 0, 0);
     }
   }
 
   @keyframes modalSlideUp {
     from {
       opacity: 0;
-      transform: translateY(30px) scale(0.95);
+      transform: translate3d(0, 10px, 0) scale3d(0.98, 0.98, 1);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
     }
   }
 
@@ -780,11 +781,17 @@
   }
 
   .animate-slide-up {
-    animation: slideUp 0.4s ease-out;
+    animation: slideUp 0.15s ease-out;
   }
 
   .animate-fadeIn {
-    animation: fadeIn 0.5s ease-out;
+    animation: fadeIn 0.1s ease-out;
+    will-change: opacity;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.1s ease-out;
+    will-change: transform, opacity;
   }
 
   /* ============================================
@@ -797,6 +804,78 @@
 
   body.kassa-protected {
     overflow: hidden;
+  }
+
+  /* ============================================
+     👆 SWIPE NAVIGATION - Professional Touch
+     ============================================ */
+  
+  /* Smooth page transitions for swipe navigation */
+  .page-transition {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+  }
+
+  /* Swipe feedback indicator - optional visual feedback */
+  .swipe-indicator {
+    position: fixed;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+  }
+
+  .swipe-indicator.active {
+    opacity: 1;
+    transform: translateY(-50%) translateX(10px);
+  }
+
+  /* Prevent text selection during swipe */
+  .swiping {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  /* Smooth scroll behavior for mobile */
+  @media (max-width: 768px) {
+    html {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Optimize touch interactions */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    /* Allow text selection in inputs */
+    input, textarea {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+  }
+
+  /* iOS-style bounce effect prevention during swipe */
+  body.no-bounce {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
   }
 }
 
@@ -1476,7 +1555,7 @@
 
 .kassa-numpad-btn {
   @apply flex items-center justify-center rounded-lg text-sm font-bold;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.1s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 40px;
 }
@@ -1987,13 +2066,13 @@
    ============================================ */
 
 .transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease;
 }
 
 .transition-fast {
-  transition: all 0.15s ease-out;
+  transition: all 0.1s ease;
 }
 
 .transition-slow {
-  transition: all 0.5s ease-out;
+  transition: all 0.2s ease;
 }

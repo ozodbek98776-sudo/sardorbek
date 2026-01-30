@@ -19,9 +19,9 @@ export const formatReceiptData = (data: ReceiptData): string => {
 
   let receipt = '';
   
-  // Header - Professional kassa cheki kabi (58mm uchun qisqa)
+  // Header - Professional kassa cheki kabi (58mm uchun qisqa) - O'RTAGA TEKISLANGAN
   receipt += '========================\n';
-  receipt += '   SARDOR FURNITURA    \n';
+  receipt += 'SARDOR FURNITURA\n';
   receipt += '========================\n';
   receipt += '\n';
   receipt += `CHK: ${receiptNumber}\n`;
@@ -39,10 +39,10 @@ export const formatReceiptData = (data: ReceiptData): string => {
   let totalOriginalPrice = 0;
   let totalCurrentPrice = 0;
   
-  // Items - Oddiy va tushunarli
+  // Items - Oddiy va tushunarli - CHAP TOMONGA TEKISLANGAN (mahsulot ma'lumotlari)
   data.items.forEach((item, index) => {
     receipt += `${index + 1}. ${item.name}\n`;
-    receipt += `    ${item.code}\n`;
+    receipt += `   ${item.code}\n`;
     
     // Oldingi va hozirgi narxlarni ko'rsatish
     const previousPrice = (item as any).previousPrice;
@@ -54,8 +54,8 @@ export const formatReceiptData = (data: ReceiptData): string => {
     
     if (previousPrice && previousPrice > 0 && previousPrice !== currentPrice) {
       const discountPercent = Math.round(((previousPrice - currentPrice) / previousPrice) * 100);
-      receipt += `    OLDINGI: ${formatNumber(previousPrice)} so'm\n`;
-      receipt += `    HOZIRGI: ${formatNumber(currentPrice)} so'm`;
+      receipt += `   OLDINGI: ${formatNumber(previousPrice)}\n`;
+      receipt += `   HOZIRGI: ${formatNumber(currentPrice)}`;
       if (discountPercent > 0) {
         receipt += ` (-${discountPercent}%)\n`;
       } else if (discountPercent < 0) {
@@ -64,24 +64,25 @@ export const formatReceiptData = (data: ReceiptData): string => {
         receipt += '\n';
       }
     } else {
-      receipt += `    NARXI: ${formatNumber(item.price)} so'm\n`;
+      receipt += `   NARXI: ${formatNumber(item.price)}\n`;
     }
     
-    receipt += `    ${item.cartQuantity} x ${formatNumber(currentPrice)}\n`;
-    receipt += `    = ${formatNumber(currentPrice * item.cartQuantity)} so'm\n`;
+    receipt += `   ${item.cartQuantity} x ${formatNumber(currentPrice)}\n`;
+    receipt += `   = ${formatNumber(currentPrice * item.cartQuantity)}\n`;
     receipt += '\n';
   });
   
   receipt += '------------------------\n';
   
-  // Total - Katta va aniq (58mm uchun qisqa)
-  receipt += `JAMI: ${formatNumber(data.total)} SO'M\n`;
+  // Total - Katta va aniq (58mm uchun qisqa) - O'RTAGA TEKISLANGAN
+  receipt += `JAMI: ${formatNumber(data.total)}\n`;
   
   // Umumiy chegirma foizini ko'rsatish (58mm uchun qisqa)
   if (totalOriginalPrice > totalCurrentPrice) {
     const totalDiscount = totalOriginalPrice - totalCurrentPrice;
     const totalDiscountPercent = Math.round((totalDiscount / totalOriginalPrice) * 100);
-    receipt += `CHEGIRMA: ${formatNumber(totalDiscount)} SO'M (${totalDiscountPercent}%)\n`;
+    receipt += `CHEGIRMA: ${formatNumber(totalDiscount)}\n`;
+    receipt += `(${totalDiscountPercent}%)\n`;
   }
   
   // To'lov turlari bo'yicha breakdown (58mm uchun qisqa)
@@ -89,9 +90,9 @@ export const formatReceiptData = (data: ReceiptData): string => {
   const totalClick = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
   const totalCard = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
   
-  if (totalCash > 0) receipt += `NAQT: ${formatNumber(totalCash)} SO'M\n`;
-  if (totalClick > 0) receipt += `CLICK: ${formatNumber(totalClick)} SO'M\n`;
-  if (totalCard > 0) receipt += `KARTA: ${formatNumber(totalCard)} SO'M\n`;
+  if (totalCash > 0) receipt += `NAQT: ${formatNumber(totalCash)}\n`;
+  if (totalClick > 0) receipt += `CLICK: ${formatNumber(totalClick)}\n`;
+  if (totalCard > 0) receipt += `KARTA: ${formatNumber(totalCard)}\n`;
   
   receipt += `TO'LOV: ${data.paymentMethod === 'cash' ? 'NAQD' : data.paymentMethod === 'click' ? 'CLICK' : 'KARTA'}\n`;
   
@@ -108,12 +109,12 @@ export const formatReceiptData = (data: ReceiptData): string => {
   }
   
   receipt += '========================\n';
-  receipt += '  XARIDINGIZ UCHUN     \n';
-  receipt += '      RAHMAT!          \n';
+  receipt += 'XARIDINGIZ UCHUN\n';
+  receipt += 'RAHMAT!\n';
   receipt += '========================\n';
   receipt += '\n';
   receipt += '⚠️ VAZVRAT CHEKSIZ ⚠️\n';
-  receipt += '  QABUL QILINMAYDI  \n';
+  receipt += 'QABUL QILINMAYDI\n';
   receipt += '========================\n';
   
   return receipt;
@@ -164,7 +165,11 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
               color: #000;
               background: white;
               padding: 0;
-              margin: 0;
+              margin: 0 auto;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              width: 100%;
             }
             
             .receipt-text {
@@ -174,6 +179,9 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
               font-weight: bold;
               word-break: break-word;
               padding: 5px;
+              text-align: center;
+              width: 58mm;
+              margin: 0 auto;
             }
             
             /* X Printer uchun maxsus print sozlamalari */
@@ -189,15 +197,20 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
                 font-size: 10px;
                 font-weight: bold;
                 padding: 0;
-                margin: 0;
+                margin: 0 auto;
                 width: 58mm;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
               }
               
               .receipt-text {
-                width: 100%;
+                width: 58mm;
                 font-weight: bold;
                 font-size: 10px;
                 padding: 2mm;
+                text-align: center;
+                margin: 0 auto;
               }
             }
           </style>

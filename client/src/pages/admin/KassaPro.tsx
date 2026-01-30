@@ -149,6 +149,31 @@ export default function KassaPro() {
     }
   };
 
+  // Mahsulot rasmini to'g'ri formatda olish
+  const getProductImage = (product: Product) => {
+    if (product.images && product.images.length > 0) {
+      let imagePath = typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).path;
+      
+      // Agar imagePath to'liq URL bo'lsa, faqat path qismini olish
+      if (imagePath && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
+        try {
+          const url = new URL(imagePath);
+          imagePath = url.pathname;
+        } catch (e) {
+          console.warn('Invalid image URL:', imagePath);
+        }
+      }
+      
+      // Agar imagePath / bilan boshlanmasa, qo'shish
+      if (imagePath && !imagePath.startsWith('/')) {
+        imagePath = '/' + imagePath;
+      }
+      
+      return imagePath ? `${UPLOADS_URL}${imagePath}` : null;
+    }
+    return null;
+  };
+
   const fetchCustomers = async () => {
     try {
       // Auth talab qilmaydigan endpoint
@@ -1002,7 +1027,7 @@ export default function KassaPro() {
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 overflow-hidden">
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white">
               <h3 className="text-xl font-bold">To'lov</h3>
@@ -1208,7 +1233,7 @@ export default function KassaPro() {
 
       {/* Saved Receipts Modal */}
       {showSavedReceipts && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-96 overflow-hidden flex flex-col">
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white flex items-center justify-between">
               <h3 className="text-xl font-bold">Saqlangan Cheklar</h3>
@@ -1260,7 +1285,7 @@ export default function KassaPro() {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] sm:hidden"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] sm:hidden"
             onClick={() => setMenuOpen(false)}
           />
           

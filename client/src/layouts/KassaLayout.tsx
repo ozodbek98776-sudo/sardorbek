@@ -186,17 +186,17 @@ export default function KassaLayout() {
         >
           <div className="flex items-center gap-3">
             <div 
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
                 boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
               }}
             >
-              <Calculator className="w-5 h-5 text-white" />
+              <img src="/o5sk1awh.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white">Sardor Furnitura</h1>
-              <p className="text-xs font-medium" style={{ color: '#c4b5fd' }}>Kassa tizimi</p>
+              <span className="font-bold text-lg text-white tracking-wide" style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.5px' }}>Sardor</span>
+              <p className="text-sm font-semibold tracking-wider" style={{ color: '#c4b5fd', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1.5px' }}>FURNITURA</p>
             </div>
           </div>
           {/* Mobile Close Button */}

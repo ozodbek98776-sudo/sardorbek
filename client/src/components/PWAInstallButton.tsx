@@ -119,7 +119,7 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
   };
 
   const IOSInstructions = () => (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-700/50 relative overflow-hidden">
         {/* Glow effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent rounded-3xl"></div>

@@ -10,6 +10,7 @@ interface AlertState {
   type: AlertType;
   showCancel: boolean;
   confirmText: string;
+  autoClose: boolean; // Avtomatik yopilish
   onConfirm?: () => void;
   onClose?: () => void;
 }
@@ -17,7 +18,7 @@ interface AlertState {
 export function useAlert() {
   const [state, setState] = useState<AlertState>({
     isOpen: false, title: '', message: '', type: 'info',
-    showCancel: false, confirmText: 'OK', onClose: undefined
+    showCancel: false, confirmText: 'OK', autoClose: false, onClose: undefined
   });
 
   const showAlert = useCallback((
@@ -26,9 +27,17 @@ export function useAlert() {
     type: AlertType = 'info'
   ) => {
     return new Promise<void>((resolve) => {
+      // Success va info alertlarni ko'rsatmaslik - faqat resolve qilish
+      if (type === 'success' || type === 'info') {
+        resolve();
+        return;
+      }
+      
+      // Faqat warning va danger alertlarni ko'rsatish
       setState({
         isOpen: true, title, message, type,
         showCancel: false, confirmText: 'OK',
+        autoClose: false,
         onConfirm: () => { setState(s => ({ ...s, isOpen: false })); resolve(); }
       });
     });
@@ -57,6 +66,7 @@ export function useAlert() {
         type,
         showCancel: true,
         confirmText: 'Ha',
+        autoClose: false, // Confirm uchun avtomatik yopilish yo'q
         onConfirm: handleConfirm,
         onClose: handleClose
       });
@@ -81,6 +91,7 @@ export function useAlert() {
       type={state.type}
       showCancel={state.showCancel}
       confirmText={state.confirmText}
+      autoClose={state.autoClose}
     />
   );
 

@@ -576,7 +576,7 @@ export default function KassaDebts() {
 
       {/* New Debt Modal - Mijoz tanlash va qarz qo'shish */}
       {showNewDebtModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => resetModal()} />
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-6xl shadow-2xl relative z-10 max-h-[95vh] sm:max-h-[90vh] flex flex-col">
             {/* Modal Header */}
@@ -1116,7 +1116,7 @@ export default function KassaDebts() {
 
       {/* View Debt Modal */}
       {showViewModal && selectedDebt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={closeViewModal} />
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
@@ -1235,7 +1235,7 @@ export default function KassaDebts() {
 
       {/* Delete Debt Modal */}
       {showDeleteModal && selectedDebt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={closeDeleteModal} />
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10">
             {/* Modal Header */}
@@ -1305,97 +1305,84 @@ export default function KassaDebts() {
 
       {/* New Customer Modal */}
       {showNewCustomerModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={resetNewCustomerForm} />
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-surface-200 bg-gradient-to-r from-success-50 to-green-50 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-success-500 to-success-600 rounded-lg flex items-center justify-center shadow-lg">
-                  <Plus className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between p-4 border-b border-surface-200 bg-gradient-to-r from-success-50 to-green-50 rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-success-500 to-success-600 rounded-lg flex items-center justify-center shadow-lg">
+                  <Plus className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-surface-900">Yangi mijoz qo'shish</h3>
-                  <p className="text-sm text-surface-600">Mijoz ma'lumotlarini kiriting</p>
+                  <h3 className="text-base font-semibold text-surface-900">Yangi mijoz</h3>
+                  <p className="text-xs text-surface-600">Mijoz ma'lumotlari</p>
                 </div>
               </div>
               <button
                 onClick={resetNewCustomerForm}
-                className="w-10 h-10 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-surface-400 hover:text-surface-600 hover:bg-white/50 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-2">
-                  Mijoz ismi *
+                <label className="block text-xs font-medium text-surface-700 mb-1.5">
+                  Ism *
                 </label>
                 <input
                   type="text"
                   value={newCustomerForm.name}
                   onChange={e => setNewCustomerForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
-                  placeholder="Mijoz ismini kiriting"
+                  className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
+                  placeholder="Mijoz ismi"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-2">
-                  Telefon raqami *
+                <label className="block text-xs font-medium text-surface-700 mb-1.5">
+                  Telefon *
                 </label>
                 <input
                   type="tel"
                   value={newCustomerForm.phone}
                   onChange={e => setNewCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
-                  placeholder="+998 90 123 45 67"
+                  className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
+                  placeholder="+998 (XX) XXX-XX-XX"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-2">
-                  Email (ixtiyoriy)
-                </label>
-                <input
-                  type="email"
-                  value={newCustomerForm.email}
-                  onChange={e => setNewCustomerForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20"
-                  placeholder="mijoz@email.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-surface-700 mb-2">
-                  Manzil (ixtiyoriy)
+                <label className="block text-xs font-medium text-surface-700 mb-1.5">
+                  Viloyat
                 </label>
                 <textarea
                   value={newCustomerForm.address}
                   onChange={e => setNewCustomerForm(prev => ({ ...prev, address: e.target.value }))}
-                  className="w-full px-4 py-3 border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20 resize-none"
-                  rows={3}
-                  placeholder="Mijoz manzilini kiriting"
+                  className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:border-success-500 focus:ring-2 focus:ring-success-500/20 resize-none"
+                  rows={2}
+                  placeholder="Viloyatni tanlang"
                 />
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-surface-200 bg-surface-50/50">
+            <div className="flex justify-end gap-2 p-4 border-t border-surface-200 bg-surface-50/50">
               <button
                 onClick={resetNewCustomerForm}
-                className="px-6 py-2 text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-xs font-medium text-surface-600 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors"
               >
                 Bekor qilish
               </button>
               <button
                 onClick={handleNewCustomer}
                 disabled={!newCustomerForm.name.trim() || !newCustomerForm.phone.trim()}
-                className="px-6 py-2 bg-gradient-to-r from-success-500 to-success-600 text-white rounded-lg hover:from-success-600 hover:to-success-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-xs font-medium bg-gradient-to-r from-success-500 to-success-600 text-white rounded-lg hover:from-success-600 hover:to-success-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Mijoz qo'shish
+                Saqlash
               </button>
             </div>
           </div>

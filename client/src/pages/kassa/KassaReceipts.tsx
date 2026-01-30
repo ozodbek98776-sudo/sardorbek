@@ -69,11 +69,11 @@ export default function KassaReceipts() {
 
     const itemsHtml = receipt.items.map((item, index) => `
       <tr>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 16px;">${index + 1}</td>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 16px;">${item.product.name}</td>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; font-size: 16px;">${item.quantity}</td>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; font-size: 16px;">${formatNumber(item.price)}</td>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; font-size: 16px;">${formatNumber(item.price * item.quantity)}</td>
+        <td style="padding: 8px 4px; border-bottom: 1px dashed #ddd; text-align: center; font-size: 14px;">${index + 1}</td>
+        <td style="padding: 8px 4px; border-bottom: 1px dashed #ddd; font-size: 14px;">${item.product.name}</td>
+        <td style="padding: 8px 4px; border-bottom: 1px dashed #ddd; text-align: center; font-size: 14px;">${item.quantity}</td>
+        <td style="padding: 8px 4px; border-bottom: 1px dashed #ddd; text-align: right; font-size: 14px;">${formatNumber(item.price)}</td>
+        <td style="padding: 8px 4px; border-bottom: 1px dashed #ddd; text-align: right; font-weight: bold; font-size: 14px;">${formatNumber(item.price * item.quantity)}</td>
       </tr>
     `).join('');
 
@@ -83,119 +83,121 @@ export default function KassaReceipts() {
       <head>
         <title>Chek #${receipt.receiptNumber}</title>
         <style>
-          @page { size: 80mm auto; margin: 5mm; }
+          @page { size: 80mm auto; margin: 0; }
           @media print {
-            body { width: 70mm; }
+            body { width: 80mm; margin: 0; }
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           }
           body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 10px;
-            max-width: 70mm;
-            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            width: 80mm;
+            padding: 10mm 5mm;
+            background: white;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
           }
           .header { 
             text-align: center; 
-            margin-bottom: 20px; 
-            border-bottom: 2px solid #333; 
-            padding-bottom: 15px; 
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed #000;
           }
           .header h1 { 
-            margin: 0 0 8px 0; 
-            color: #333; 
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
           }
-          .header p { 
-            margin: 5px 0; 
-            color: #666; 
-            font-size: 15px;
+          .header .subtitle { 
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
           }
-          .info { 
-            margin-bottom: 15px; 
-            font-size: 15px;
-          }
-          .info-row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin: 8px 0;
-            line-height: 1.4;
-          }
-          .info-row strong {
+          .header .receipt-number { 
+            font-size: 14px;
             font-weight: bold;
+            margin-top: 8px;
           }
           table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin: 15px 0; 
+            margin: 15px 0;
           }
           th { 
-            background: #f5f5f5; 
-            padding: 10px 8px; 
+            padding: 8px 4px;
             text-align: left; 
-            border-bottom: 2px solid #333;
-            font-size: 15px;
+            border-bottom: 2px solid #000;
+            font-size: 12px;
             font-weight: bold;
+            text-transform: uppercase;
           }
-          .total { 
-            margin-top: 20px; 
-            text-align: right; 
-            font-size: 22px; 
+          th.center { text-align: center; }
+          th.right { text-align: right; }
+          .total-section { 
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px dashed #000;
+          }
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+          }
+          .total-label {
+            font-size: 16px;
             font-weight: bold;
-            padding: 15px 0;
-            border-top: 2px solid #333;
+            text-transform: uppercase;
+          }
+          .total-amount {
+            font-size: 20px;
+            font-weight: bold;
           }
           .footer { 
-            margin-top: 30px; 
-            text-align: center; 
-            color: #666; 
-            font-size: 14px; 
-            border-top: 1px solid #ddd; 
-            padding-top: 15px; 
+            margin-top: 20px;
+            padding-top: 15px;
+            text-align: center;
+            border-top: 2px dashed #000;
+          }
+          .footer p {
+            font-size: 11px;
+            color: #666;
+            margin: 3px 0;
+          }
+          .thank-you {
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 10px;
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>Sardor Furnitura</h1>
-          <p>Mebel furniturasi</p>
-          <p style="font-size: 16px; font-weight: bold;">Chek #${receipt.receiptNumber}</p>
-        </div>
-        
-        <div class="info">
-          <div class="info-row">
-            <span><strong>Sana:</strong> ${new Date(receipt.createdAt).toLocaleString('uz-UZ', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric',
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}</span>
+          <!-- Logo -->
+          <div style="margin-bottom: 8px;">
+            <img src="/o5sk1awh.png" alt="Logo" style="width: 40px; height: 40px; display: block; margin: 0 auto; border-radius: 6px;" />
           </div>
-          <div class="info-row">
-            <span><strong>Sotuvchi:</strong> ${receipt.createdBy.name}</span>
-          </div>
-          ${receipt.customer ? `
-            <div class="info-row">
-              <span><strong>Mijoz:</strong> ${receipt.customer.name}</span>
-            </div>
-            <div class="info-row">
-              <span><strong>Telefon:</strong> ${receipt.customer.phone}</span>
-            </div>
-          ` : ''}
-          <div class="info-row">
-            <span><strong>To'lov turi:</strong> ${receipt.paymentMethod === 'cash' ? 'Naqd' : receipt.paymentMethod === 'card' ? 'Karta' : 'Qarz'}</span>
-          </div>
+          <h1>SARDOR FURNITURA</h1>
+          <div class="subtitle">Mebel furniturasi</div>
+          <div class="receipt-number">Chek #${receipt.receiptNumber}</div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th style="width: 30px;">№</th>
+              <th style="width: 25px;" class="center">№</th>
               <th>Mahsulot</th>
-              <th style="width: 50px; text-align: center;">Soni</th>
-              <th style="width: 80px; text-align: right;">Narxi</th>
-              <th style="width: 90px; text-align: right;">Jami</th>
+              <th style="width: 35px;" class="center">Soni</th>
+              <th style="width: 60px;" class="right">Narxi</th>
+              <th style="width: 70px;" class="right">Jami</th>
             </tr>
           </thead>
           <tbody>
@@ -203,13 +205,16 @@ export default function KassaReceipts() {
           </tbody>
         </table>
 
-        <div class="total">
-          <p style="margin: 0;">JAMI: ${formatNumber(receipt.totalAmount)} so'm</p>
+        <div class="total-section">
+          <div class="total-row">
+            <span class="total-label">JAMI:</span>
+            <span class="total-amount">${formatNumber(receipt.totalAmount)} so'm</span>
+          </div>
         </div>
 
         <div class="footer">
-          <p style="margin: 5px 0;">Xaridingiz uchun rahmat!</p>
-          <p style="margin: 5px 0;">Sardor Furnitura - Sifatli mebel furniturasi</p>
+          <p class="thank-you">Xaridingiz uchun rahmat!</p>
+          <p>Sardor Furnitura - Sifatli mebel furniturasi</p>
         </div>
       </body>
       </html>
@@ -302,8 +307,9 @@ export default function KassaReceipts() {
           <p className="text-sm sm:text-base text-surface-500">Hali hech qanday chek yaratilmagan</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:gap-4">
-          {receipts.map((receipt) => (
+        <div className="max-h-[calc(100vh-180px)] overflow-y-auto">
+          <div className="grid gap-3 sm:gap-4 pr-1">
+            {receipts.map((receipt) => (
             <div key={receipt._id} className="bg-white rounded-xl shadow-sm p-3 sm:p-4 hover:shadow-md transition-shadow">
               {/* Receipt Header */}
               <div className="flex items-center gap-2 sm:gap-3 mb-3">
@@ -379,12 +385,13 @@ export default function KassaReceipts() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
       {/* Detail Modal */}
       {showDetailModal && selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-surface-200 p-4 sm:p-6">
               <div className="flex items-center justify-between">

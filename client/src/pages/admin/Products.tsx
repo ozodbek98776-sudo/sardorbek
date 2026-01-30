@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -281,11 +281,34 @@ export default function Products() {
             lowStock: validProducts.filter((p: Product) => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
             outOfStock: validProducts.filter((p: Product) => p.quantity === 0).length,
             totalValue: validProducts.reduce((sum: number, p: Product) => {
-              // unitPrice, currentPrice yoki price dan birini olish
-              const price = (p as any).unitPrice || (p as any).currentPrice || p.price || 0;
+              // Narxni aniqlash - eng to'g'ri narxni tanlash
+              let price = 0;
+              
+              // 1. currentPrice (hozirgi narx) - eng yuqori prioritet
+              if ((p as any).currentPrice && (p as any).currentPrice > 0) {
+                price = (p as any).currentPrice;
+              }
+              // 2. unitPrice (dona narxi)
+              else if ((p as any).unitPrice && (p as any).unitPrice > 0) {
+                price = (p as any).unitPrice;
+              }
+              // 3. price (asosiy narx)
+              else if (p.price && p.price > 0) {
+                price = p.price;
+              }
+              // 4. boxPrice (karobka narxi) - agar dona narxi yo'q bo'lsa
+              else if ((p as any).boxPrice && (p as any).boxPrice > 0 && (p as any).unitsPerBox && (p as any).unitsPerBox > 0) {
+                price = (p as any).boxPrice / (p as any).unitsPerBox; // Dona narxini hisoblash
+              }
+              // 5. previousPrice (oldingi narx) - oxirgi variant
+              else if ((p as any).previousPrice && (p as any).previousPrice > 0) {
+                price = (p as any).previousPrice;
+              }
+              
               return sum + (price * (p.quantity || 0));
             }, 0)
           };
+          console.log('💰 Client-side jami qiymat:', stats.totalValue);
           setOverallStats(stats);
         }, { timeout: 2000 });
       }
@@ -308,18 +331,33 @@ export default function Products() {
     // Birinchi sahifani yuklash
     fetchProducts(1);
     
-    // Umumiy statistikani serverdan olish
-    fetchOverallStats();
+    // Umumiy statistikani background da yuklash (1 soniyadan keyin)
+    const statsTimer = setTimeout(() => {
+      fetchOverallStats();
+    }, 1000);
+    
+    return () => clearTimeout(statsTimer);
   }, [fetchProducts]);
 
   // Umumiy statistikani serverdan olish
   const fetchOverallStats = async () => {
+    if (statsLoading) return; // Agar allaqachon yuklanayotgan bo'lsa, qayta yuklash kerak emas
+    
+    setStatsLoading(true);
     try {
+      console.log('📊 Statistika yuklanmoqda...');
       const response = await api.get('/products/overall-stats');
       console.log('📊 Server statistikasi:', response.data);
+      console.log('💰 Jami qiymat:', response.data.totalValue);
       setOverallStats(response.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Statistikani yuklashda xatolik:', err);
+      // Timeout bo'lsa, foydalanuvchiga xabar berish
+      if (err.code === 'ECONNABORTED') {
+        console.warn('⚠️ Statistika yuklash juda uzoq davom etdi, keyinroq qayta uriniladi');
+      }
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -739,11 +777,34 @@ export default function Products() {
       });
       
       if (editingProduct) {
-        await api.put(`/products/${editingProduct._id}`, data);
+        const response = await api.put(`/products/${editingProduct._id}`, data);
         logger.log('Tovar yangilandi:', editingProduct._id);
-        // Tahrirlash bo'lsa, 1 sekund kutib, keyin yangilash
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await fetchProducts();
+        
+        // Darhol UI da yangilash (serverdan qayta yuklamasdan)
+        if (response.data && response.data._id) {
+          const updatedProduct = {
+            ...response.data,
+            warehouse: response.data.warehouse || mainWarehouse,
+            images: response.data.images || images || []
+          };
+          
+          setProducts(prev => {
+            const updated = prev.map(p => 
+              p._id === editingProduct._id ? updatedProduct : p
+            );
+            // Sorting qilish
+            updated.sort((a, b) => {
+              const codeA = parseInt(a.code) || 0;
+              const codeB = parseInt(b.code) || 0;
+              if (codeA === 0 && codeB === 0) {
+                return String(a.code).localeCompare(String(b.code));
+              }
+              return codeA - codeB;
+            });
+            return updated;
+          });
+          logger.log('Tovar darhol UI da yangilandi:', response.data.name);
+        }
       } else {
         const response = await api.post('/products', data);
         logger.log('Tovar serverdan qaytdi:', response.data);
@@ -930,6 +991,94 @@ export default function Products() {
     setSelectedProducts(new Set());
   };
 
+  // Copy product - mahsulotni nusxalash (modal ochib, ma'lumotlarni to'ldirish)
+  const copyProduct = async (product: Product) => {
+    try {
+      // ⚡ Darhol modalni ochish
+      setShowModal(true);
+      setEditingProduct(null); // Yangi mahsulot sifatida
+      
+      const p = product as any;
+      
+      // Dollar kursini o'rnatish
+      setDollarRate(p.dollarRate || 12500);
+      
+      // ⚡ Background da keyingi kodni olish
+      const nextCodePromise = api.get('/products/next-code');
+      
+      // Mahsulot ma'lumotlarini to'ldirish (kod bundan mustasno)
+      setFormData({
+        code: '', // Keyingi kod background da yuklanadi
+        name: product.name, // Asl nom
+        description: p.description || '',
+        previousPrice: String(p.previousPrice || 0),
+        currentPrice: String(p.currentPrice || product.price),
+        costPrice: String(p.costPrice || 0),
+        costPriceInDollar: String(p.costPriceInDollar || 0),
+        unitPrice: String(p.unitPrice || p.currentPrice || product.price),
+        boxPrice: String(p.boxPrice || 0),
+        pricingTiers: {
+          tier1: {
+            minQuantity: String(p.pricingTiers?.tier1?.minQuantity || 1),
+            maxQuantity: String(p.pricingTiers?.tier1?.maxQuantity || 5),
+            discountPercent: String(p.pricingTiers?.tier1?.discountPercent || 15)
+          },
+          tier2: {
+            minQuantity: String(p.pricingTiers?.tier2?.minQuantity || 6),
+            maxQuantity: String(p.pricingTiers?.tier2?.maxQuantity || 20),
+            discountPercent: String(p.pricingTiers?.tier2?.discountPercent || 13)
+          },
+          tier3: {
+            minQuantity: String(p.pricingTiers?.tier3?.minQuantity || 21),
+            maxQuantity: String(p.pricingTiers?.tier3?.maxQuantity || 100),
+            discountPercent: String(p.pricingTiers?.tier3?.discountPercent || 11)
+          }
+        },
+        quantity: '0', // Miqdorni 0 dan boshlash
+        unit: product.unit || 'dona',
+        dimensions: {
+          width: p.dimensions?.width || '',
+          height: p.dimensions?.height || '',
+          length: p.dimensions?.length || ''
+        },
+        metersPerRoll: String(p.metersPerRoll || ''),
+        unitsPerBox: String(p.unitsPerBox || ''),
+        meterPriceRanges: p.meterPriceRanges?.length > 0 
+          ? p.meterPriceRanges.map((r: any) => ({ from: String(r.from || ''), to: String(r.to || ''), price: String(r.price || '') }))
+          : [{ from: '', to: '', price: '' }],
+        pricePerRoll: String(product.prices?.perRoll || ''),
+        pricePerBox: String(product.prices?.perBox || ''),
+        pricePerKg: String(product.prices?.perKg || ''),
+        pricePerGram: String(product.prices?.perGram || '')
+      });
+      
+      // Rasmlarni nusxalash
+      setImages(
+        (p.images || []).map((img: any) =>
+          typeof img === 'string' ? img : img.path
+        )
+      );
+      
+      setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+      setCodeError('');
+      setShowPackageInput(false);
+      
+      // ⚡ Background da keyingi kodni olish va o'rnatish
+      try {
+        const res = await nextCodePromise;
+        setFormData(prev => ({ ...prev, code: res.data.code }));
+      } catch (err) {
+        logger.error('Error getting next code:', err);
+        showAlert('Keyingi kodni olishda xatolik', 'Xatolik', 'danger');
+      }
+      
+      showAlert('Mahsulot nusxalandi. Kerakli o\'zgarishlarni kiriting va saqlang.', 'Muvaffaqiyat', 'success');
+    } catch (err) {
+      logger.error('Error copying product:', err);
+      showAlert('Mahsulotni nusxalashda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
   // Mahsulot statistikasini ochish
   const openStatsModal = async (product: Product, period: string = '7') => {
     setSelectedProduct(product);
@@ -1025,36 +1174,42 @@ export default function Products() {
   };
 
   const openAddModal = async () => {
-    try {
-      const res = await api.get('/products/next-code');
-      setFormData({ 
-        code: res.data.code, name: '', description: '', quantity: '',
-        previousPrice: '', currentPrice: '',
-        costPrice: '', costPriceInDollar: '', unitPrice: '', boxPrice: '',
-        pricingTiers: {
-          tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
-          tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
-          tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
-        },
-        unit: 'dona',
-        dimensions: { width: '', height: '', length: '' },
-        metersPerRoll: '',
-        unitsPerBox: '',
-        meterPriceRanges: [{ from: '', to: '', price: '' }],
-        pricePerRoll: '',
-        pricePerBox: '',
-        pricePerKg: '',
-        pricePerGram: ''
-      });
-    } catch (err) {
-      logger.error('Error getting next code:', err);
-      showAlert('Keyingi kodni olishda xatolik', 'Xatolik', 'danger');
-    }
+    // ⚡ Darhol modalni ochish - UI tezkor bo'lishi uchun
+    setShowModal(true);
+    
+    // Default qiymatlarni o'rnatish
+    setFormData({ 
+      code: '', name: '', description: '', quantity: '',
+      previousPrice: '', currentPrice: '',
+      costPrice: '', costPriceInDollar: '', unitPrice: '', boxPrice: '',
+      pricingTiers: {
+        tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
+        tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
+        tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
+      },
+      unit: 'dona',
+      dimensions: { width: '', height: '', length: '' },
+      metersPerRoll: '',
+      unitsPerBox: '',
+      meterPriceRanges: [{ from: '', to: '', price: '' }],
+      pricePerRoll: '',
+      pricePerBox: '',
+      pricePerKg: '',
+      pricePerGram: ''
+    });
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setImages([]);
     setCodeError('');
     setShowPackageInput(false);
-    setShowModal(true);
+    
+    // ⚡ Background da keyingi kodni olish
+    try {
+      const res = await api.get('/products/next-code');
+      setFormData(prev => ({ ...prev, code: res.data.code }));
+    } catch (err) {
+      logger.error('Error getting next code:', err);
+      showAlert('Keyingi kodni olishda xatolik', 'Xatolik', 'danger');
+    }
   };
 
   const stats = useMemo(() => ({
@@ -1141,7 +1296,7 @@ export default function Products() {
       />
 
       <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6">
-        {/* Compact Stats - Kichik va Professional */}
+        {/* Compact Stats - O'rtacha o'lcham, kichik shrift */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
           {statItems.map((stat, i) => (
             <div 
@@ -1158,9 +1313,9 @@ export default function Products() {
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
                     <stat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-${stat.color}-600`} />
                   </div>
-                  <p className="text-[10px] sm:text-xs text-surface-500 font-medium">{stat.label}</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-surface-500 font-medium">{stat.label}</p>
                 </div>
-                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-surface-900">{stat.value}</p>
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-surface-900">{stat.value}</p>
               </div>
             </div>
           ))}
@@ -1208,22 +1363,29 @@ export default function Products() {
                         {/* Action Buttons - O'ng yuqori burchakda */}
                         <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10">
                           <button 
+                            onClick={(e) => { e.stopPropagation(); copyProduct(product); }} 
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-50 hover:bg-blue-100 rounded-lg transition-none text-blue-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            title="Mahsulotni nusxalash"
+                          >
+                            <Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                          </button>
+                          <button 
                             onClick={(e) => { e.stopPropagation(); openQRModal(product); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-50 hover:bg-purple-100 rounded-lg transition-all duration-200 text-purple-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-50 hover:bg-purple-100 rounded-lg transition-none text-purple-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="QR kod"
                           >
                             <QrCode className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); openEditModal(product); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all duration-200 text-amber-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-50 hover:bg-amber-100 rounded-lg transition-none text-amber-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="Tahrirlash"
                           >
                             <Edit className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 hover:bg-red-100 rounded-lg transition-all duration-200 text-red-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 hover:bg-red-100 rounded-lg transition-none text-red-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="O'chirish"
                           >
                             <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
@@ -1274,9 +1436,14 @@ export default function Products() {
                               #{product.code}
                             </div>
                             
-                            {/* Name */}
+                            {/* Name with optional description suffix */}
                             <h3 className="font-semibold text-base sm:text-lg md:text-xl text-slate-900 mb-1.5 sm:mb-2 line-clamp-2">
                               {product.name}
+                              {(product as any).description && (product as any).description.trim() && (
+                                <span className="text-base sm:text-lg md:text-xl font-semibold text-slate-900 ml-1.5">
+                                  {(product as any).description}
+                                </span>
+                              )}
                             </h3>
 
                             {/* Price */}
@@ -1308,19 +1475,21 @@ export default function Products() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           {/* Backdrop with blur - orqa fon */}
           <div 
-            className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-md transition-all duration-300" 
-            onClick={closeModal} 
+            className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-sm transition-opacity duration-100" 
+            onClick={closeModal}
+            style={{ animation: 'fadeIn 0.1s ease-out' }}
           />
           
           {/* Modal oyna - professional design */}
           <form 
             onSubmit={handleSubmit} 
-            className="relative z-10 bg-white rounded-3xl w-full max-w-xs sm:max-w-sm md:max-w-2xl max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border border-white/20 animate-scaleIn transform transition-all duration-300"
+            className="relative z-10 bg-white rounded-3xl w-full max-w-xs sm:max-w-sm md:max-w-2xl max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border border-white/20 transform"
             style={{
-              animation: 'modalSlideUp 0.3s ease-out'
+              animation: 'modalSlideUp 0.1s ease-out',
+              willChange: 'transform, opacity'
             }}
           >
             {/* Header - Gradient with animation */}
@@ -1389,7 +1558,9 @@ export default function Products() {
                           src={`${UPLOADS_URL}${imagePath}`} 
                           alt={`Rasm ${idx + 1}`} 
                           loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover" 
+                          style={{ contentVisibility: 'auto' }}
                         />
                         {/* Delete button - rasm ichida, o'ng yuqori burchakda */}
                         <button
@@ -1459,9 +1630,9 @@ export default function Products() {
                 </div>
               </div>
 
-              {/* Tavsif */}
+              {/* Izoh */}
               <div>
-                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Qisqacha tavsif (ixtiyoriy)</label>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Qisqacha izoh (ixtiyoriy)</label>
                 <textarea 
                   className="input min-h-[60px] sm:min-h-[80px] resize-none text-sm" 
                   placeholder="Mahsulot haqida qisqacha ma'lumot..."
@@ -2071,7 +2242,7 @@ export default function Products() {
       )}
 
       {showQRModal && selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="overlay -z-10" onClick={() => setShowQRModal(false)} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between mb-6 sticky top-0 bg-white pb-2 -mt-2 pt-2 border-b border-surface-100">
@@ -2138,7 +2309,7 @@ export default function Products() {
 
       {/* Quantity Adjustment Modal */}
       {showQuantityModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div 
             className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
             onClick={() => setShowQuantityModal(false)} 
@@ -2206,7 +2377,7 @@ export default function Products() {
 
       {/* Product Statistics Modal - Compact & Professional */}
       {showStatsModal && selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
           <div className="overlay" onClick={() => setShowStatsModal(false)} />
           <div className="modal w-full max-w-3xl p-4 sm:p-5 relative z-50 max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
             {/* Header - Compact with Image */}
@@ -2483,14 +2654,14 @@ export default function Products() {
 
       {/* Image Modal - Rasm kattalashtirish */}
       {showImageModal && selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
+          {/* Backdrop - orqada */}
           <div 
             className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-all duration-300" 
             onClick={() => setShowImageModal(false)} 
           />
           
-          {/* Modal Content */}
+          {/* Modal Content - oldinda */}
           <div className="relative z-10 max-w-4xl w-full max-h-[90vh] animate-scale-in">
             {/* Close Button */}
             <button

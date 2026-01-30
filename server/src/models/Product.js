@@ -154,5 +154,7 @@ productSchema.index({ isMainWarehouse: 1, code: 1 }); // Compound index - juda t
 productSchema.index({ category: 1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ name: 'text', code: 'text' }); // Text search index
+productSchema.index({ quantity: 1 }); // Quantity index - statistika uchun
+productSchema.index({ price: 1, quantity: 1 }); // Compound index - totalValue hisoblash uchun
 
 module.exports = mongoose.model('Product', productSchema);

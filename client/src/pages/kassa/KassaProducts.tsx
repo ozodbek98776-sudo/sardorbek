@@ -1421,7 +1421,7 @@ export default function KassaProducts() {
 
       {/* Add/Edit Product Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 pt-4 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-2 pt-4 sm:p-4">
           <div className="overlay" onClick={closeModal} />
           <div className="modal w-full sm:max-w-lg p-4 sm:p-6 relative z-10 max-h-[calc(100vh-120px)] sm:max-h-[85vh] overflow-y-auto rounded-2xl">
             <div className="flex items-center justify-between mb-4 sm:mb-6 sticky top-0 bg-white pb-3 border-b border-surface-200 -mx-4 sm:-mx-6 px-4 sm:px-6 z-10">
@@ -1677,7 +1677,7 @@ export default function KassaProducts() {
 
       {/* QR Modal */}
       {showQRModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="overlay" onClick={() => setShowQRModal(false)} />
           <div className="modal w-full max-w-sm p-6 relative z-10">
             <div className="flex items-center justify-between mb-6">
@@ -1716,7 +1716,7 @@ export default function KassaProducts() {
 
       {/* Print Modal */}
       {showPrintModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="overlay" onClick={() => setShowPrintModal(false)} />
           <div className="modal w-full max-w-4xl p-6 relative z-10 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
@@ -2034,7 +2034,7 @@ export default function KassaProducts() {
       {/* Image Preview Modal */}
       {showImageModal && selectedImage && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
           onClick={() => setShowImageModal(false)}
         >
           <div className="relative max-w-6xl max-h-[90vh] w-full">

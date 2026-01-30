@@ -232,18 +232,18 @@ export default function Dashboard() {
                     <div className="mt-auto space-y-1.5">
                       {/* Large Value */}
                       <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <h3 className={`text-3xl font-bold ${stat.textColor} leading-none tracking-tight`}>
+                        <h3 className={`text-base sm:text-lg md:text-xl lg:text-2xl font-bold ${stat.textColor} leading-none tracking-tight`}>
                           {stat.value}
                         </h3>
                         {stat.suffix && (
-                          <span className="text-xs font-semibold text-slate-400 uppercase">
+                          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase">
                             {stat.suffix}
                           </span>
                         )}
                       </div>
                       
                       {/* Label */}
-                      <p className="text-xs sm:text-sm font-medium text-slate-600 leading-tight">
+                      <p className="text-[7px] sm:text-[8px] md:text-[9px] font-medium text-slate-600 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
                         {stat.label}
                       </p>
                     </div>

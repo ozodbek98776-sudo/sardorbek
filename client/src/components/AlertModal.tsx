@@ -11,13 +11,26 @@ interface AlertModalProps {
   confirmText?: string;
   cancelText?: string;
   showCancel?: boolean;
+  autoClose?: boolean; // Avtomatik yopilish
+  autoCloseDelay?: number; // Necha sekunddan keyin yopilsin (default: 2000ms)
 }
 
 export default function AlertModal({
   isOpen, onClose, onConfirm, title, message,
-  type = 'info', confirmText = 'OK', cancelText = 'Bekor qilish', showCancel = false
+  type = 'info', confirmText = 'OK', cancelText = 'Bekor qilish', showCancel = false,
+  autoClose = false, autoCloseDelay = 2000
 }: AlertModalProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // Avtomatik yopilish - faqat success va info uchun
+  useEffect(() => {
+    if (isOpen && autoClose && (type === 'success' || type === 'info')) {
+      const timer = setTimeout(() => {
+        onConfirm ? onConfirm() : onClose();
+      }, autoCloseDelay);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, autoClose, autoCloseDelay, type, onConfirm, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,8 +69,18 @@ export default function AlertModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10" onClick={onClose} />
-      <div className="bg-white rounded-t-2xl sm:rounded-3xl w-full sm:w-auto sm:min-w-[480px] sm:max-w-xl md:max-w-2xl p-6 sm:p-8 md:p-10 shadow-2xl relative z-10 border border-slate-200/50 animate-scale-in">
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 transition-opacity duration-100" 
+        onClick={onClose}
+        style={{ animation: 'fadeIn 0.1s ease-out' }}
+      />
+      <div 
+        className="bg-white rounded-t-2xl sm:rounded-3xl w-full sm:w-auto sm:min-w-[480px] sm:max-w-xl md:max-w-2xl p-6 sm:p-8 md:p-10 shadow-2xl relative z-10 border border-slate-200/50"
+        style={{ 
+          animation: 'modalSlideUp 0.1s ease-out',
+          willChange: 'transform, opacity'
+        }}
+      >
         {/* Close button */}
         <button 
           onClick={onClose}

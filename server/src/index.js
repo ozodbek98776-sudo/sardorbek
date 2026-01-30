@@ -182,3 +182,15 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
 const PORT = process.env.PORT || 8000;
 const HOST = '0.0.0.0'; // Barcha network interface'lardan kirish uchun
 app.listen(PORT, HOST, () => console.log(`Server running on ${HOST}:${PORT}`));
+
+
+
+
+ 
+
+
+ 
+
+
+ 
+ 

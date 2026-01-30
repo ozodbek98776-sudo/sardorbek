@@ -1,10 +1,11 @@
-// Minimal Service Worker - v6
-const CACHE_NAME = 'sardorbek-v6';
+// Minimal Service Worker - v7
+const CACHE_NAME = 'sardorbek-v7';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', () => self.clients.claim());
 
-// Network only - no caching, no offline handling
+// Network only - pass through all requests
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+  // Let the browser handle all requests normally
+  // Don't intercept or cache anything
 });

@@ -74,17 +74,17 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
         {!collapsed && (
           <div className="flex items-center gap-3">
             <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
                 boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
               }}
             >
-              <Building2 className="w-5 h-5 text-white" />
+              <img src="/o5sk1awh.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <span className="font-bold text-base text-white">Sardor</span>
-              <p className="text-xs font-medium" style={{ color: '#c4b5fd' }}>Furnitura</p>
+              <span className="font-bold text-lg text-white tracking-wide" style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.5px' }}>Sardor</span>
+              <p className="text-sm font-semibold tracking-wider" style={{ color: '#c4b5fd', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1.5px' }}>FURNITURA</p>
             </div>
           </div>
         )}

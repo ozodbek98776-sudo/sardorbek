@@ -490,7 +490,7 @@ export default function AdminSettings() {
 
       {/* Kassa Modal */}
       {showKassaModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-3 sm:p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-gradient-to-r from-green-500 to-green-600 p-4 sm:p-5 md:p-6 rounded-t-xl sm:rounded-t-2xl">
               <div className="flex items-center justify-between gap-2">

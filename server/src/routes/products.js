@@ -257,21 +257,14 @@ router.get('/', auth, async (req, res) => {
       Product.find(query)
         .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice')
         .populate('warehouse', 'name')
+        .sort({ createdAt: -1 }) // Eng yangi mahsulotlar birinchi
         .skip(skip)
         .limit(limitNum)
         .lean() // 40% tezroq!
-        .hint({ isMainWarehouse: 1, code: 1 }) // Compound index ishlatish
     ]);
 
-    // ⚡ JavaScript'da raqamli sort (MongoDB'dan tezroq!)
-    const products = rawProducts.sort((a, b) => {
-      const codeA = parseInt(a.code) || 999999;
-      const codeB = parseInt(b.code) || 999999;
-      if (codeA === 999999 && codeB === 999999) {
-        return String(a.code).localeCompare(String(b.code));
-      }
-      return codeA - codeB;
-    });
+    // Mahsulotlarni to'g'ridan-to'g'ri qaytarish (sort allaqachon qilingan)
+    const products = rawProducts;
 
     const totalPages = Math.ceil(total / limitNum);
 
@@ -297,19 +290,46 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get next auto-generated code
+// Get next auto-generated code - O'CHIRILGAN KODLARNI QAYTA ISHLATISH
 router.get('/next-code', auth, async (req, res) => {
   try {
-    const lastProduct = await Product.findOne().sort({ createdAt: -1 });
-    let nextNum = 1;
-    if (lastProduct && lastProduct.code) {
-      const match = lastProduct.code.match(/(\d+)$/);
-      if (match) {
-        nextNum = parseInt(match[1]) + 1;
+    // Barcha mahsulot kodlarini olish (faqat raqamli kodlar)
+    const allProducts = await Product.find({}).select('code').lean();
+    
+    // Raqamli kodlarni ajratib olish va sort qilish
+    const numericCodes = allProducts
+      .map(p => parseInt(p.code))
+      .filter(code => !isNaN(code) && code > 0)
+      .sort((a, b) => a - b);
+    
+    console.log(`📊 Mavjud kodlar: ${numericCodes.length} ta`);
+    
+    // Agar hech qanday kod bo'lmasa, 1 dan boshlash
+    if (numericCodes.length === 0) {
+      console.log('✅ Birinchi kod: 1');
+      return res.json({ code: '1' });
+    }
+    
+    // O'chirilgan kodlarni topish (bo'shliqlarni qidirish)
+    let nextCode = null;
+    
+    for (let i = 1; i <= numericCodes[numericCodes.length - 1]; i++) {
+      if (!numericCodes.includes(i)) {
+        nextCode = i;
+        console.log(`♻️ O'chirilgan kod topildi va qayta ishlatiladi: ${nextCode}`);
+        break;
       }
     }
-    res.json({ code: String(nextNum) });
+    
+    // Agar bo'shliq topilmasa, eng katta koddan keyin davom etish
+    if (!nextCode) {
+      nextCode = numericCodes[numericCodes.length - 1] + 1;
+      console.log(`➕ Yangi kod: ${nextCode} (davom etish)`);
+    }
+    
+    res.json({ code: String(nextCode) });
   } catch (error) {
+    console.error('❌ Next code error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -526,36 +546,81 @@ router.delete('/delete-image', auth, async (req, res) => {
 });
 
 // Umumiy statistika - barcha mahsulotlar uchun (cache qilinadi)
+let cachedStats = null;
+let cacheTime = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 daqiqa
+
 router.get('/overall-stats', auth, async (req, res) => {
   try {
-    // Barcha mahsulotlarni bir marta olish
-    const allProducts = await Product.find({}).lean();
+    console.log('📊 Overall stats so\'rovi keldi...');
     
-    const stats = {
-      total: allProducts.length,
-      lowStock: allProducts.filter(p => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
-      outOfStock: allProducts.filter(p => p.quantity === 0).length,
-      totalValue: allProducts.reduce((sum, p) => {
-        // unitPrice, currentPrice yoki price dan birini olish
-        const price = p.unitPrice || p.currentPrice || p.price || 0;
-        return sum + (price * (p.quantity || 0));
-      }, 0)
+    // Cache tekshirish
+    const now = Date.now();
+    if (cachedStats && cacheTime && (now - cacheTime) < CACHE_DURATION) {
+      console.log('✅ Cache dan qaytarildi');
+      return res.json(cachedStats);
+    }
+    
+    console.log('🔄 Yangi statistika hisoblanmoqda...');
+    
+    // MongoDB aggregation pipeline - tezroq hisoblash
+    const stats = await Product.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          lowStock: {
+            $sum: {
+              $cond: [
+                { 
+                  $and: [
+                    { $lte: ['$quantity', { $ifNull: ['$minStock', 50] }] },
+                    { $gt: ['$quantity', 0] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          outOfStock: {
+            $sum: {
+              $cond: [{ $eq: ['$quantity', 0] }, 1, 0]
+            }
+          },
+          totalValue: {
+            $sum: {
+              $multiply: [
+                { $ifNull: ['$currentPrice', { $ifNull: ['$unitPrice', { $ifNull: ['$price', 0] }] }] },
+                { $ifNull: ['$quantity', 0] }
+              ]
+            }
+          }
+        }
+      }
+    ]);
+    
+    const result = stats.length > 0 ? {
+      total: stats[0].total || 0,
+      lowStock: stats[0].lowStock || 0,
+      outOfStock: stats[0].outOfStock || 0,
+      totalValue: Math.round(stats[0].totalValue || 0)
+    } : {
+      total: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      totalValue: 0
     };
     
-    console.log('📊 Overall stats calculated:', {
-      total: stats.total,
-      totalValue: stats.totalValue,
-      sampleProduct: allProducts[0] ? {
-        name: allProducts[0].name,
-        unitPrice: allProducts[0].unitPrice,
-        currentPrice: allProducts[0].currentPrice,
-        price: allProducts[0].price,
-        quantity: allProducts[0].quantity
-      } : null
-    });
+    console.log('📊 Hisoblangan statistika:', result);
     
-    res.json(stats);
+    // Cache ga saqlash
+    cachedStats = result;
+    cacheTime = now;
+    
+    res.json(result);
   } catch (error) {
+    console.error('❌ Overall stats error:', error);
     res.status(500).json({ message: 'Statistikani yuklashda xatolik', error: error.message });
   }
 });
@@ -972,17 +1037,17 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     // Populate warehouse before returning
     await product.populate('warehouse', 'name');
     
-    // QR code yaratish
-    try {
-      const qrData = `${process.env.CLIENT_URL || 'http://localhost:5173'}/product/${product._id}`;
-      const qrCode = await QRCode.toDataURL(qrData);
-      product.qrCode = qrCode;
-      await product.save();
-      console.log('✅ QR code yaratildi:', product._id);
-    } catch (qrError) {
-      console.error('⚠️ QR code yaratish xatosi:', qrError);
-      // QR code xatosi bo'lsa ham mahsulot saqlanadi
-    }
+    // QR code yaratish - background da (javobni kutmasdan)
+    setImmediate(async () => {
+      try {
+        const qrData = `${process.env.CLIENT_URL || 'http://localhost:5173'}/product/${product._id}`;
+        const qrCode = await QRCode.toDataURL(qrData);
+        await Product.findByIdAndUpdate(product._id, { qrCode });
+        console.log('✅ QR code background da yaratildi:', product._id);
+      } catch (qrError) {
+        console.error('⚠️ QR code yaratish xatosi:', qrError);
+      }
+    });
     
     console.log(`✅ Yangi tovar qo'shildi: ${product.name} (${product.code}), isMainWarehouse: ${product.isMainWarehouse}, images: ${product.images?.length || 0}`);
     res.status(201).json(product);
@@ -1087,19 +1152,22 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       req.params.id,
       updateData,
       { new: true }
-    );
+    ).populate('warehouse', 'name');
+    
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
     
-    // QR code yaratish (agar yo'q bo'lsa yoki code o'zgargan bo'lsa)
+    // QR code yaratish - background da (agar yo'q bo'lsa yoki code o'zgargan bo'lsa)
     if (!product.qrCode || code) {
-      try {
-        const qrData = `${process.env.CLIENT_URL || 'http://localhost:5173'}/product/${product._id}`;
-        const qrCode = await QRCode.toDataURL(qrData);
-        product.qrCode = qrCode;
-        await product.save();
-      } catch (qrError) {
-        console.error('QR code yaratish xatosi:', qrError);
-      }
+      setImmediate(async () => {
+        try {
+          const qrData = `${process.env.CLIENT_URL || 'http://localhost:5173'}/product/${product._id}`;
+          const qrCode = await QRCode.toDataURL(qrData);
+          await Product.findByIdAndUpdate(product._id, { qrCode });
+          console.log('✅ QR code background da yangilandi:', product._id);
+        } catch (qrError) {
+          console.error('⚠️ QR code yaratish xatosi:', qrError);
+        }
+      });
     }
     
     res.json(product);

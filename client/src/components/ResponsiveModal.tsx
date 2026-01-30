@@ -42,11 +42,12 @@ export default function ResponsiveModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 transition-opacity duration-100"
         onClick={onClose}
+        style={{ animation: 'fadeIn 0.1s ease-out' }}
       />
 
       {/* Modal Container */}
@@ -62,6 +63,10 @@ export default function ResponsiveModal({
           ${size === 'fullscreen' ? 'h-full sm:h-auto' : ''}
           ${className}
         `}
+        style={{ 
+          animation: 'modalSlideUp 0.1s ease-out',
+          willChange: 'transform, opacity'
+        }}
       >
         {/* Header */}
         {(title || closeButton) && (

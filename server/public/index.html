@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/o5sk1awh.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#3b82f6" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -64,27 +69,23 @@
     <meta name="twitter:image" content="/o5sk1awh.png" />
     
     <title>Sardorbek.Furnetura - Biznes Boshqaruv Tizimi</title>
-    <script type="module" crossorigin src="/assets/index-CFxtXHGZ.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/qrcode-vendor-BIk6yrR2.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-C7NylOHx.js">
-    <link rel="modulepreload" crossorigin href="/assets/react-vendor-DkffYxId.js">
+    <script type="module" crossorigin src="/assets/index-CoYchmIW.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/qrcode-vendor-DZmUpnbD.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-BxRRhBPt.js">
+    <link rel="modulepreload" crossorigin href="/assets/react-vendor-DUCueqpg.js">
     <link rel="modulepreload" crossorigin href="/assets/http-vendor-DnTtldoj.js">
-    <link rel="modulepreload" crossorigin href="/assets/chart-vendor-8kTW-82J.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-DXuOsd2t.css">
+    <link rel="modulepreload" crossorigin href="/assets/chart-vendor-CbcldNwn.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CfF6DAWd.css">
   </head>
   <body>
     <div id="root"></div>
     <script>
-      // Register Service Worker
+      // Unregister all Service Workers to prevent caching issues
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister();
+          });
         });
       }
 

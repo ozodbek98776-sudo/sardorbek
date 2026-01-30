@@ -358,80 +358,80 @@ export default function StaffReceipts() {
                   className="bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden hover:shadow-xl transition-all duration-300"
                 >
                   {/* Card Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Receipt className="w-5 h-5" />
-                        <span className="font-bold text-lg">{receipt.receiptNumber}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-white/20 rounded-lg text-sm font-medium">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 text-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Receipt className="w-4 h-4 flex-shrink-0" />
+                        <span className="font-bold text-sm truncate">{receipt.receiptNumber}</span>
+                        <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-medium flex-shrink-0">
                           {receipt.itemsCount} ta
                         </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={() => handlePrintReceipt(receipt)}
                           disabled={printingReceipt === receipt._id}
-                          className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Chekni chiqarish"
                         >
                           {printingReceipt === receipt._id ? (
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                           ) : (
-                            <Printer className="w-5 h-5" />
+                            <Printer className="w-4 h-4" />
                           )}
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(receipt._id)}
                           disabled={deletingReceipt === receipt._id}
-                          className="p-2 bg-red-500/80 hover:bg-red-600 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 bg-red-500/80 hover:bg-red-600 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Chekni o'chirish"
                         >
                           {deletingReceipt === receipt._id ? (
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                           ) : (
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-4 h-4" />
                           )}
                         </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-blue-100 text-sm">
-                      <Clock className="w-4 h-4" />
-                      <span>{formatDate(receipt.createdAt)}</span>
+                    <div className="flex items-center gap-1.5 text-blue-100 text-xs mt-1.5">
+                      <Clock className="w-3 h-3" />
+                      <span className="truncate">{formatDate(receipt.createdAt)}</span>
                     </div>
                   </div>
 
                   {/* Card Body */}
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     {/* Helper Info */}
                     {receipt.helper && (
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                           {receipt.helper.name.charAt(0)}
                         </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-slate-900">{receipt.helper.name}</p>
-                          <p className="text-xs text-slate-600 capitalize">{receipt.helper.role}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 text-xs truncate">{receipt.helper.name}</p>
+                          <p className="text-[10px] text-slate-600 capitalize truncate">{receipt.helper.role}</p>
                         </div>
                         {receipt.helper.bonusPercentage > 0 && (
-                          <div className="text-right">
-                            <p className="text-xs text-slate-600">Bonus</p>
-                            <p className="font-bold text-emerald-600">{receipt.helper.bonusPercentage}%</p>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[10px] text-slate-600">Bonus</p>
+                            <p className="font-bold text-emerald-600 text-xs">{receipt.helper.bonusPercentage}%</p>
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* Total Amount */}
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl">
-                      <div>
-                        <p className="text-sm text-emerald-700 font-medium mb-1">Jami summa</p>
-                        <p className="text-2xl font-bold text-emerald-900">{formatNumber(receipt.total)}</p>
-                        <p className="text-xs text-emerald-600 mt-1">UZS</p>
+                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-emerald-700 font-medium mb-0.5">Jami summa</p>
+                        <p className="text-xl font-bold text-emerald-900 truncate">{formatNumber(receipt.total)}</p>
+                        <p className="text-[10px] text-emerald-600">UZS</p>
                       </div>
                       {receipt.bonusAmount > 0 && (
-                        <div className="text-right">
-                          <p className="text-xs text-emerald-700 font-medium mb-1">Bonus</p>
-                          <p className="text-lg font-bold text-emerald-900">{formatNumber(receipt.bonusAmount)}</p>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="text-[10px] text-emerald-700 font-medium mb-0.5">Bonus</p>
+                          <p className="text-base font-bold text-emerald-900">{formatNumber(receipt.bonusAmount)}</p>
                         </div>
                       )}
                     </div>
@@ -440,36 +440,36 @@ export default function StaffReceipts() {
                     <div>
                       <button
                         onClick={() => toggleReceipt(receipt._id)}
-                        className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+                        className="w-full flex items-center justify-between p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
                       >
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-slate-600" />
-                          <span className="font-medium text-slate-900">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Package className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                          <span className="font-medium text-slate-900 text-xs truncate">
                             Mahsulotlar ({receipt.totalQuantity} dona)
                           </span>
                         </div>
                         {expandedReceipt === receipt._id ? (
-                          <ChevronUp className="w-5 h-5 text-slate-600" />
+                          <ChevronUp className="w-4 h-4 text-slate-600 flex-shrink-0" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-slate-600" />
+                          <ChevronDown className="w-4 h-4 text-slate-600 flex-shrink-0" />
                         )}
                       </button>
 
                       {expandedReceipt === receipt._id && (
-                        <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                        <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto">
                           {receipt.items.map(item => (
                             <div
                               key={item._id}
-                              className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-blue-300 transition-all"
+                              className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-xl hover:border-blue-300 transition-all"
                             >
-                              <div className="flex-1">
-                                <p className="font-medium text-slate-900">{item.name}</p>
-                                <p className="text-xs text-slate-600">Kod: {item.code}</p>
-                                <div className="flex items-center gap-4 mt-1">
-                                  <span className="text-sm text-slate-600">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-900 text-xs truncate">{item.name}</p>
+                                <p className="text-[10px] text-slate-600 truncate">Kod: {item.code}</p>
+                                <div className="flex items-center gap-3 mt-0.5">
+                                  <span className="text-xs text-slate-600 truncate">
                                     {item.quantity} x {formatNumber(item.price)}
                                   </span>
-                                  <span className="text-sm font-bold text-blue-600">
+                                  <span className="text-xs font-bold text-blue-600 flex-shrink-0">
                                     = {formatNumber(item.total)}
                                   </span>
                                 </div>
@@ -512,7 +512,7 @@ export default function StaffReceipts() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">

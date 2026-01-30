@@ -149,6 +149,28 @@ export default function Debts() {
     setNewCustomer({ name: '', phone: '', region: '', district: '' });
   };
 
+  const cleanupUnknownDebts = async () => {
+    const confirmed = await showConfirm(
+      "Noma'lum mijozli barcha qarzlar o'chiriladi. Davom etasizmi?", 
+      "Tozalash"
+    );
+    if (!confirmed) return;
+    
+    try {
+      const res = await api.delete('/debts/cleanup/unknown');
+      showAlert(res.data.message, 'Muvaffaqiyat', 'success');
+      fetchDebts();
+      fetchStats();
+    } catch (err: any) {
+      console.error('Error cleaning up unknown debts:', err);
+      showAlert(
+        err.response?.data?.message || 'Tozalashda xatolik yuz berdi', 
+        'Xatolik', 
+        'danger'
+      );
+    }
+  };
+
   const openEditModal = (debt: Debt) => {
     setEditingDebt(debt);
     setDebtType(debt.type);
@@ -224,10 +246,22 @@ export default function Debts() {
         showSearch
         onSearch={setSearchQuery}
         actions={
-          <button onClick={() => setShowModal(true)} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Yangi qarz</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button 
+                onClick={cleanupUnknownDebts} 
+                className="btn-danger text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2"
+                title="Noma'lum qarzlarni tozalash"
+              >
+                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Tozalash</span>
+              </button>
+            )}
+            <button onClick={() => setShowModal(true)} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Yangi qarz</span>
+            </button>
+          </div>
         }
       />
 
@@ -629,7 +663,7 @@ export default function Debts() {
 
       {/* Add Debt Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="overlay -z-10" onClick={closeModal} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
@@ -800,7 +834,7 @@ export default function Debts() {
 
       {/* Payment Modal */}
       {showPaymentModal && selectedDebt && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="overlay -z-10" onClick={() => setShowPaymentModal(false)} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
