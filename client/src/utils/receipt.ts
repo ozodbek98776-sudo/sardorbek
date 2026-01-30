@@ -19,10 +19,10 @@ export const formatReceiptData = (data: ReceiptData): string => {
 
   let receipt = '';
   
-  // Header - Professional kassa cheki kabi
-  receipt += '================================\n';
-  receipt += '       SARDOR FURNITURA         \n';
-  receipt += '================================\n';
+  // Header - Professional kassa cheki kabi (58mm uchun qisqa)
+  receipt += '========================\n';
+  receipt += '   SARDOR FURNITURA    \n';
+  receipt += '========================\n';
   receipt += '\n';
   receipt += `CHK: ${receiptNumber}\n`;
   receipt += `${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
@@ -33,7 +33,7 @@ export const formatReceiptData = (data: ReceiptData): string => {
     receipt += `TEL: ${data.customer.phone}\n`;
   }
   
-  receipt += '--------------------------------\n';
+  receipt += '------------------------\n';
   
   // Umumiy chegirma hisoblash
   let totalOriginalPrice = 0;
@@ -72,49 +72,49 @@ export const formatReceiptData = (data: ReceiptData): string => {
     receipt += '\n';
   });
   
-  receipt += '--------------------------------\n';
+  receipt += '------------------------\n';
   
-  // Total - Katta va aniq
-  receipt += `JAMI:     ${formatNumber(data.total)} SO'M\n`;
+  // Total - Katta va aniq (58mm uchun qisqa)
+  receipt += `JAMI: ${formatNumber(data.total)} SO'M\n`;
   
-  // Umumiy chegirma foizini ko'rsatish
+  // Umumiy chegirma foizini ko'rsatish (58mm uchun qisqa)
   if (totalOriginalPrice > totalCurrentPrice) {
     const totalDiscount = totalOriginalPrice - totalCurrentPrice;
     const totalDiscountPercent = Math.round((totalDiscount / totalOriginalPrice) * 100);
     receipt += `CHEGIRMA: ${formatNumber(totalDiscount)} SO'M (${totalDiscountPercent}%)\n`;
   }
   
-  // To'lov turlari bo'yicha breakdown
+  // To'lov turlari bo'yicha breakdown (58mm uchun qisqa)
   const totalCash = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
   const totalClick = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
   const totalCard = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
   
-  if (totalCash > 0) receipt += `NAQT:     ${formatNumber(totalCash)} SO'M\n`;
-  if (totalClick > 0) receipt += `CLICK:    ${formatNumber(totalClick)} SO'M\n`;
-  if (totalCard > 0) receipt += `KARTA:    ${formatNumber(totalCard)} SO'M\n`;
+  if (totalCash > 0) receipt += `NAQT: ${formatNumber(totalCash)} SO'M\n`;
+  if (totalClick > 0) receipt += `CLICK: ${formatNumber(totalClick)} SO'M\n`;
+  if (totalCard > 0) receipt += `KARTA: ${formatNumber(totalCard)} SO'M\n`;
   
-  receipt += `TO'LOV:   ${data.paymentMethod === 'cash' ? 'NAQD PUL' : data.paymentMethod === 'click' ? 'CLICK' : 'PLASTIK KARTA'}\n`;
+  receipt += `TO'LOV: ${data.paymentMethod === 'cash' ? 'NAQD' : data.paymentMethod === 'click' ? 'CLICK' : 'KARTA'}\n`;
   
-  // Ball tizimi - har 1,000,000 so'm = 1 ball
+  // Ball tizimi - har 1,000,000 so'm = 1 ball (58mm uchun qisqa)
   const earnedBalls = Math.floor(data.total / 1000000);
   if (earnedBalls > 0) {
-    receipt += '--------------------------------\n';
-    receipt += `BALL:     +${earnedBalls} BALL YUTDINGIZ!\n`;
+    receipt += '------------------------\n';
+    receipt += `BALL: +${earnedBalls} BALL!\n`;
   }
   
   // Mijoz umumiy balli (agar mavjud bo'lsa)
   if (data.customer && (data.customer as any).totalBalls) {
-    receipt += `JAMI BALL: ${(data.customer as any).totalBalls} BALL\n`;
+    receipt += `JAMI: ${(data.customer as any).totalBalls} BALL\n`;
   }
   
-  receipt += '================================\n';
-  receipt += '    XARIDINGIZ UCHUN RAHMAT!    \n';
-  receipt += '================================\n';
+  receipt += '========================\n';
+  receipt += '  XARIDINGIZ UCHUN     \n';
+  receipt += '      RAHMAT!          \n';
+  receipt += '========================\n';
   receipt += '\n';
-  receipt += '⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️\n';
-  receipt += '  VAZVRAT CHEKSIZ QABUL QILINMAYDI  \n';
-  receipt += '⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️\n';
-  receipt += '================================\n';
+  receipt += '⚠️ VAZVRAT CHEKSIZ ⚠️\n';
+  receipt += '  QABUL QILINMAYDI  \n';
+  receipt += '========================\n';
   
   return receipt;
 };
@@ -179,24 +179,24 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             /* X Printer uchun maxsus print sozlamalari */
             @media print {
               @page {
-                size: 80mm auto;
+                size: 58mm auto;
                 margin: 0;
                 padding: 0;
               }
               
               body {
                 background: white;
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: bold;
                 padding: 0;
                 margin: 0;
-                width: 80mm;
+                width: 58mm;
               }
               
               .receipt-text {
                 width: 100%;
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 10px;
                 padding: 2mm;
               }
             }

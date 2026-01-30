@@ -446,9 +446,9 @@ export default function Helpers() {
 
       {/* Yordamchi qo'shish modali */}
       {showAddHelperModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">
           <div className="overlay" onClick={closeAddHelperModal} />
-          <div className="modal w-full max-w-xs sm:max-w-sm md:max-w-md p-2 sm:p-3 md:p-4 relative z-50 max-h-[70vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto mb-32 sm:mb-0 mt-4 sm:mt-0">
+          <div className="modal w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 relative z-50 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
             <div className="flex items-center justify-between mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-surface-200">
               <h3 className="text-sm sm:text-base font-semibold text-surface-900">Yordamchi qo'shish</h3>
               <button onClick={closeAddHelperModal} className="btn-icon-sm"><X className="w-3 h-3 sm:w-4 sm:h-4" /></button>
@@ -578,9 +578,9 @@ export default function Helpers() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">
           <div className="overlay" onClick={closeModal} />
-          <div className="modal w-full max-w-xs sm:max-w-sm md:max-w-md p-2 sm:p-3 md:p-4 relative z-50 max-h-[60vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto mb-32 sm:mb-0 mt-4 sm:mt-0">
+          <div className="modal w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 relative z-50 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
             <div className="flex items-center justify-between mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-surface-200">
               <h3 className="text-sm sm:text-base font-semibold text-surface-900">
                 {editingUser ? 'Tahrirlash' : 'Yangi yordamchi'}
@@ -690,9 +690,9 @@ export default function Helpers() {
 
       {/* Kassir cheklari modali */}
       {showReceiptsModal && selectedHelper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
           <div className="overlay" onClick={() => setShowReceiptsModal(false)} />
-          <div className="modal w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10">
+          <div className="modal w-full max-w-[98%] sm:max-w-[95%] md:max-w-4xl max-h-[90vh] overflow-hidden relative z-10">
             <div className="p-6 border-b border-surface-100 bg-gradient-to-r from-brand-50 to-blue-50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">

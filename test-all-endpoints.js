@@ -111,7 +111,7 @@ async function testAllEndpoints() {
 
   // 10. Stats Dashboard
   await test('Dashboard Stats', async () => {
-    const res = await axios.get(`${API_URL}/api/stats/dashboard`, {
+    const res = await axios.get(`${API_URL}/api/stats`, {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
     if (!res.data) throw new Error('No stats data');

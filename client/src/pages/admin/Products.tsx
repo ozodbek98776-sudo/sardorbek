@@ -123,6 +123,7 @@ export default function Products() {
     packageCount: '', unitsPerPackage: '', totalCost: ''
   });
   const [images, setImages] = useState<string[]>([]);
+  const [newlyUploadedImages, setNewlyUploadedImages] = useState<string[]>([]); // Yangi yuklangan rasmlar
   const [codeError, setCodeError] = useState('');
   const [showPackageInput, setShowPackageInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -515,6 +516,10 @@ export default function Products() {
       const uploadedImages = (res.data.images || []).map((img: any) =>
         typeof img === 'string' ? img : img.path
       );
+      
+      // Yangi yuklangan rasmlarni tracking qilamiz
+      setNewlyUploadedImages([...newlyUploadedImages, ...uploadedImages]);
+      
       setImages([
         ...images.map((img: any) => (typeof img === 'string' ? img : img.path)),
         ...uploadedImages
@@ -531,20 +536,50 @@ export default function Products() {
 
   const removeImage = async (imagePath: string) => {
     try {
-      const productId = editingProduct?._id;
-      console.log('🗑️ Removing image:', { imagePath, productId });
-      await api.delete('/products/delete-image', {
-        data: {
-          imagePath,
-          productId: productId || undefined
+      console.log('🗑️ Removing image:', { imagePath, isNewlyUploaded: newlyUploadedImages.includes(imagePath) });
+      
+      // Avval local state dan o'chiramiz (tezkor UI uchun)
+      const updatedImages = images
+        .map((img: any) => (typeof img === 'string' ? img : img.path))
+        .filter(path => path !== imagePath);
+      setImages(updatedImages);
+      
+      // Agar bu yangi yuklangan rasm bo'lsa, faqat tracking dan o'chiramiz
+      if (newlyUploadedImages.includes(imagePath)) {
+        setNewlyUploadedImages(newlyUploadedImages.filter(img => img !== imagePath));
+        showAlert('Rasm o\'chirildi (hali saqlanmagan)', 'Ma\'lumot', 'info');
+        
+        // Yangi yuklangan rasmni serverdan ham o'chiramiz (fayl tizimidan)
+        try {
+          await api.delete('/products/delete-image', {
+            data: { imagePath, productId: undefined }
+          });
+          console.log('✅ Yangi yuklangan rasm serverdan ham o\'chirildi');
+        } catch (serverErr) {
+          console.warn('Yangi yuklangan rasmni serverdan o\'chirishda xatolik:', serverErr);
         }
-      });
-      setImages(
-        images
-          .map((img: any) => (typeof img === 'string' ? img : img.path))
-          .filter(path => path !== imagePath)
-      );
-      showAlert('Rasm o\'chirildi', 'Muvaffaqiyat', 'success');
+        return;
+      }
+      
+      // Agar mahsulot tahrirlash rejimida bo'lsa va rasm serverda bo'lsa
+      const productId = editingProduct?._id;
+      if (productId) {
+        try {
+          await api.delete('/products/delete-image', {
+            data: { imagePath, productId }
+          });
+          showAlert('Rasm o\'chirildi', 'Muvaffaqiyat', 'success');
+        } catch (serverErr: any) {
+          console.warn('Server xatosi:', serverErr);
+          if (serverErr.response?.status === 404) {
+            showAlert('Rasm local state dan o\'chirildi', 'Ma\'lumot', 'info');
+          } else {
+            showAlert('Rasm local state dan o\'chirildi, lekin serverda xatolik', 'Ogohlantirish', 'warning');
+          }
+        }
+      } else {
+        showAlert('Rasm o\'chirildi', 'Muvaffaqiyat', 'success');
+      }
     } catch (err: any) {
       logger.error('Error deleting image:', err);
       const msg = err.response?.data?.message || err.message || 'Rasmni o\'chirishda xatolik';
@@ -965,6 +1000,7 @@ export default function Products() {
     });
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setImages([]);
+    setNewlyUploadedImages([]); // Yangi yuklangan rasmlar ro'yxatini tozalash
     setCodeError('');
     setShowPackageInput(false);
   };
@@ -1104,7 +1140,7 @@ export default function Products() {
         }
       />
 
-      <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6 max-w-[1800px] mx-auto">
+      <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6">
         {/* Compact Stats - Kichik va Professional */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
           {statItems.map((stat, i) => (
@@ -1152,10 +1188,10 @@ export default function Products() {
               {/* Card List View - One per row, Minimalist & Professional */}
               <div 
                 ref={scrollContainerRef}
-                className="overflow-y-auto p-2 sm:p-3 md:p-4"
-                style={{ maxHeight: 'calc(100vh - 250px)' }}
+                className="overflow-y-auto p-1 sm:p-2 md:p-3"
+                style={{ maxHeight: 'calc(100vh - 180px)' }}
               >
-                <div className="space-y-2 sm:space-y-3">
+                <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                   {filteredProducts.map(product => {
                     const isSelected = selectedProducts.has(product._id);
                     const productImage = getProductImage(product);
@@ -1170,27 +1206,27 @@ export default function Products() {
                         }`}
                       >
                         {/* Action Buttons - O'ng yuqori burchakda */}
-                        <div className="absolute top-1 right-1 flex items-center gap-0.5 z-10">
+                        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10">
                           <button 
                             onClick={(e) => { e.stopPropagation(); openQRModal(product); }} 
-                            className="w-3.5 h-3.5 bg-purple-50 hover:bg-purple-100 rounded-full transition-all duration-200 text-purple-600 flex items-center justify-center hover:scale-110"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-50 hover:bg-purple-100 rounded-lg transition-all duration-200 text-purple-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="QR kod"
                           >
-                            <QrCode className="w-2.5 h-2.5" />
+                            <QrCode className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); openEditModal(product); }} 
-                            className="w-3.5 h-3.5 bg-amber-50 hover:bg-amber-100 rounded-full transition-all duration-200 text-amber-600 flex items-center justify-center hover:scale-110"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all duration-200 text-amber-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="Tahrirlash"
                           >
-                            <Edit className="w-2.5 h-2.5" />
+                            <Edit className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} 
-                            className="w-3.5 h-3.5 bg-red-50 hover:bg-red-100 rounded-full transition-all duration-200 text-red-600 flex items-center justify-center hover:scale-110"
+                            className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 hover:bg-red-100 rounded-lg transition-all duration-200 text-red-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
                             title="O'chirish"
                           >
-                            <Trash2 className="w-2.5 h-2.5" />
+                            <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                           </button>
                         </div>
 
@@ -1207,10 +1243,10 @@ export default function Products() {
                         )}
 
                         {/* 320px: Vertical layout, Larger: Horizontal */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-2 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 md:p-4">
                           {/* Product Image */}
                           <div 
-                            className="relative w-full sm:w-24 h-32 sm:h-24 rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 cursor-pointer flex-shrink-0"
+                            className="relative w-full sm:w-24 md:w-28 h-28 sm:h-24 md:h-28 rounded-lg sm:rounded-xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 cursor-pointer flex-shrink-0 shadow-sm"
                             onClick={() => {
                               if (productImage) {
                                 setSelectedProduct(product);
@@ -1226,7 +1262,7 @@ export default function Products() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
+                                <Package className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-slate-300" />
                               </div>
                             )}
                           </div>
@@ -1234,21 +1270,21 @@ export default function Products() {
                           {/* Product Info */}
                           <div className="flex-1 min-w-0 px-2 pb-2 sm:p-0">
                             {/* Code Badge */}
-                            <div className="text-[10px] sm:text-xs font-mono text-slate-500 mb-1">
+                            <div className="text-xs sm:text-sm font-mono text-slate-500 mb-1 sm:mb-1.5">
                               #{product.code}
                             </div>
                             
                             {/* Name */}
-                            <h3 className="font-semibold text-sm sm:text-lg text-slate-900 mb-1 sm:mb-2 line-clamp-2">
+                            <h3 className="font-semibold text-base sm:text-lg md:text-xl text-slate-900 mb-1.5 sm:mb-2 line-clamp-2">
                               {product.name}
                             </h3>
 
                             {/* Price */}
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-xl sm:text-2xl font-bold text-brand-600">
+                            <div className="flex items-baseline gap-1 sm:gap-1.5">
+                              <span className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-600">
                                 {formatNumber((product as any).unitPrice || product.price)}
                               </span>
-                              <span className="text-xs sm:text-sm text-slate-500">so'm</span>
+                              <span className="text-sm sm:text-base text-slate-500">so'm</span>
                             </div>
                           </div>
                         </div>
@@ -1359,10 +1395,10 @@ export default function Products() {
                         <button
                           type="button"
                           onClick={() => removeImage(imagePath)}
-                          className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-6 h-6 sm:w-7 sm:h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
+                          className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-7 h-7 sm:w-8 sm:h-8 bg-red-500 hover:bg-red-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-110 z-10 opacity-90 hover:opacity-100"
                           title="Rasmni o'chirish"
                         >
-                          <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
+                          <X className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
                         </button>
                         {/* Hover overlay */}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none" />
