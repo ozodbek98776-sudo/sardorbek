@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 import { FRONTEND_URL } from '../config/api';
 import { X, Printer, Plus, Minus, Settings } from 'lucide-react';
 

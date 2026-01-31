@@ -41,6 +41,19 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Cache error - please refresh'));
     }
     
+    // Handle network errors (server ishlamayotgan)
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('🔴 Server bilan aloqa yo\'q - localhost:8000 ishlamayapti');
+      // Don't redirect, let components handle it
+      return Promise.reject(new Error('Server bilan aloqa yo\'q. Iltimos, serverni ishga tushiring.'));
+    }
+    
+    // Handle connection refused
+    if (error.code === 'ECONNREFUSED') {
+      console.error('🔴 Connection refused - server port 8000 da ishlamayapti');
+      return Promise.reject(new Error('Server ishlamayapti. Iltimos, serverni ishga tushiring.'));
+    }
+    
     // Handle server offline errors (503 from Service Worker)
     if (OfflineHandler.isServerOfflineError(error)) {
       console.warn('Server is offline:', error.response.data.message);
@@ -50,13 +63,17 @@ api.interceptors.response.use(
     
     // Handle authentication errors
     if (error.response?.status === 401) {
+      console.warn('401 Unauthorized - token yaroqsiz');
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Faqat agar login sahifasida bo'lmasa, redirect qilish
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     
     // Log timeout errors
     if (error.code === 'ECONNABORTED') {
-      console.error('Request timeout:', error.config?.url);
+      console.error('⏱️ Request timeout:', error.config?.url);
     }
     
     return Promise.reject(error);

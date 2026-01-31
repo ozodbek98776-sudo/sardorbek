@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 
 interface XPrinterLabelProps {
   price: number;

@@ -220,13 +220,37 @@ const RoleRedirect = () => {
   React.useEffect(() => {
     const checkAdminExists = async () => {
       try {
-        // Backend dan admin borligini tekshirish
-        const response = await fetch('http://localhost:8000/api/auth/check-admin');
+        // Backend dan admin borligini tekshirish - retry logic bilan
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 soniya timeout
+        
+        const response = await fetch('http://localhost:8000/api/auth/check-admin', {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         setHasAdmin(data.hasAdmin);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Admin check error:', error);
-        setHasAdmin(true); // Xatolik bo'lsa, login sahifasiga yo'naltirish
+        
+        // Agar server ishlamasa yoki timeout bo'lsa, default true qo'yamiz
+        if (error.name === 'AbortError') {
+          console.warn('Admin check timeout - server javob bermadi');
+        } else if (error.message?.includes('Failed to fetch')) {
+          console.warn('Server bilan aloqa yo\'q - localhost:8000 ishlamayapti');
+        }
+        
+        // Xatolik bo'lsa ham login sahifasiga yo'naltirish uchun true
+        setHasAdmin(true);
       } finally {
         setCheckingAdmin(false);
       }

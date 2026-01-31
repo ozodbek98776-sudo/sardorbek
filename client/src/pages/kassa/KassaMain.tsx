@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
   Package, Banknote, Delete, RefreshCw, Printer,
-  DollarSign, Smartphone, Upload
+  DollarSign, Smartphone, Upload, QrCode
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -11,6 +11,8 @@ import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/receipt';
 import PartnerPaymentModal from '../../components/PartnerPaymentModal';
+import * as QRCodeLib from 'qrcode';
+import { FRONTEND_URL } from '../../config/api';
 
 // Payment Breakdown Form komponenti
 interface PaymentBreakdownFormProps {
@@ -210,6 +212,11 @@ export default function KassaMain() {
   const [showQuantityEdit, setShowQuantityEdit] = useState(false);
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
   const [newQuantity, setNewQuantity] = useState<string>('');
+  
+  // QR-code modal uchun state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedProductForQR, setSelectedProductForQR] = useState<Product | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   
   // To'lov modal uchun yangi state
   const [paidAmount, setPaidAmount] = useState<number>(0);
@@ -703,6 +710,161 @@ export default function KassaMain() {
     setSelectedProductForEdit(product);
     setNewQuantity(product.quantity.toString());
     setShowQuantityEdit(true);
+  };
+
+  // QR-code modal ochish funksiyasi
+  const openQRModal = async (product: Product) => {
+    setSelectedProductForQR(product);
+    setShowQRModal(true);
+    
+    try {
+      const productUrl = `${FRONTEND_URL}/product/${product._id}`;
+      const dataUrl = await QRCodeLib.toDataURL(productUrl, {
+        width: 300,
+        margin: 1,
+        errorCorrectionLevel: 'H',
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+      setQrDataUrl(dataUrl);
+    } catch (err) {
+      console.error('QR generation error:', err);
+      showAlert('QR kod yaratishda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
+  // QR-code chop etish funksiyasi
+  const printQRCode = () => {
+    if (!selectedProductForQR || !qrDataUrl) return;
+
+    const printWindow = window.open('', '_blank', 'width=600,height=400');
+    if (!printWindow) {
+      showAlert('Popup bloklangan. Iltimos, popup ga ruxsat bering.', 'Ogohlantirish', 'warning');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>QR Label - ${selectedProductForQR.name}</title>
+        <style>
+          @page {
+            size: 60mm 40mm;
+            margin: 0;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .label {
+            width: 60mm;
+            height: 40mm;
+            padding: 2mm;
+            background: white;
+            display: flex;
+            flex-direction: column;
+          }
+          .top-section {
+            display: flex;
+            gap: 2mm;
+            flex: 1;
+          }
+          .qr-box {
+            width: 22mm;
+            height: 22mm;
+            flex-shrink: 0;
+          }
+          .qr-code {
+            width: 22mm;
+            height: 22mm;
+            display: block;
+            image-rendering: pixelated;
+          }
+          .info-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          }
+          .product-code {
+            font-size: 7pt;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 1mm;
+          }
+          .product-name {
+            font-size: 9pt;
+            font-weight: 700;
+            color: #000;
+            line-height: 1.2;
+            text-transform: uppercase;
+            word-break: break-word;
+          }
+          .bottom-section {
+            margin-top: 1.5mm;
+          }
+          .price-box {
+            padding: 1.5mm;
+            text-align: center;
+            background: #f0f0f0;
+            border-radius: 1mm;
+          }
+          .price-value {
+            font-size: 14pt;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: -0.5px;
+          }
+          .price-currency {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #000;
+            margin-left: 1mm;
+          }
+          @media print {
+            body { background: white; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="label">
+          <div class="top-section">
+            <div class="qr-box">
+              <img src="${qrDataUrl}" alt="QR" class="qr-code" />
+            </div>
+            <div class="info-box">
+              <div class="product-code">Kod: ${selectedProductForQR.code}</div>
+              <div class="product-name">${selectedProductForQR.name}</div>
+            </div>
+          </div>
+          <div class="bottom-section">
+            <div class="price-box">
+              <span class="price-value">${formatNumber(selectedProductForQR.price)}</span>
+              <span class="price-currency">so'm</span>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() { window.close(); }
+            }, 200);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleQuantityUpdate = async () => {
@@ -1810,8 +1972,20 @@ export default function KassaMain() {
                   <button
                     key={product._id}
                     onClick={() => addToCart(product)}
-                    className="flex flex-col bg-white border border-surface-200 rounded-xl hover:shadow-lg hover:border-brand-300 transition-all p-3 text-left group"
+                    className="flex flex-col bg-white border border-surface-200 rounded-xl hover:shadow-lg hover:border-brand-300 transition-all p-3 text-left group relative"
                   >
+                    {/* QR Code tugmasi */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openQRModal(product);
+                      }}
+                      className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm hover:bg-brand-500 hover:text-white rounded-lg shadow-md transition-all duration-200 group/qr"
+                      title="QR kod"
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
+
                     {/* Mahsulot rasmi */}
                     <div className="relative w-full aspect-square mb-3 rounded-lg overflow-hidden bg-surface-50">
                       {product.images && product.images.length > 0 ? (
@@ -2333,6 +2507,61 @@ export default function KassaMain() {
                 className="flex-1 py-2 px-3 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors text-sm"
               >
                 Saqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedProductForQR && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowQRModal(false)} />
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10 overflow-hidden">
+            <div className="p-4 border-b border-surface-200 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-surface-900">QR Kod</h3>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-surface-400 hover:bg-surface-100 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 flex flex-col items-center">
+              {/* QR Code */}
+              <div className="bg-white p-4 rounded-xl border-2 border-surface-200 mb-4">
+                {qrDataUrl ? (
+                  <img 
+                    src={qrDataUrl} 
+                    alt="QR Code"
+                    className="w-48 h-48"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <div className="w-48 h-48 bg-surface-100 flex items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Product Info */}
+              <div className="text-center mb-4 w-full">
+                <p className="font-bold text-surface-900 text-lg mb-1">{selectedProductForQR.name}</p>
+                <p className="text-sm text-surface-500 mb-2">Kod: {selectedProductForQR.code}</p>
+                <p className="text-2xl font-bold text-brand-600">
+                  {formatNumber(selectedProductForQR.price)} <span className="text-sm">so'm</span>
+                </p>
+              </div>
+              
+              {/* Print Button */}
+              <button
+                onClick={printQRCode}
+                disabled={!qrDataUrl}
+                className="w-full px-6 py-3 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Printer className="w-5 h-5" />
+                Chop etish
               </button>
             </div>
           </div>

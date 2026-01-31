@@ -20,10 +20,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      api.get('/auth/me')
-        .then(res => setUser(res.data))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
+      // Retry logic bilan user ma'lumotlarini olish
+      const fetchUserWithRetry = async (retries = 3, delay = 1000) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            const res = await api.get('/auth/me', {
+              timeout: 5000, // 5 soniya timeout
+            });
+            setUser(res.data);
+            setLoading(false);
+            return; // Muvaffaqiyatli bo'lsa, chiqish
+          } catch (error: any) {
+            console.warn(`User fetch attempt ${i + 1}/${retries} failed:`, error.message);
+            
+            // Agar oxirgi urinish bo'lsa yoki 401/403 xatolik bo'lsa, token o'chirish
+            if (i === retries - 1 || error.response?.status === 401 || error.response?.status === 403) {
+              console.error('Failed to fetch user after retries, clearing token');
+              localStorage.removeItem('token');
+              setLoading(false);
+              return;
+            }
+            
+            // Keyingi urinishdan oldin kutish
+            await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+          }
+        }
+      };
+      
+      fetchUserWithRetry();
     } else {
       setLoading(false);
     }

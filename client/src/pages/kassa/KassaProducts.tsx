@@ -6,7 +6,7 @@ import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 import { UPLOADS_URL } from '../../config/api';
 
 export default function KassaProducts() {
@@ -658,9 +658,10 @@ export default function KassaProducts() {
     // QR kodlarni generatsiya qilish
     const qrPromises = products.map(async (product) => {
       try {
-        const QRCode = (await import('qrcode')).default;
+        const QRCodeModule = await import('qrcode');
+        const QRCodeLib = QRCodeModule.default || QRCodeModule;
         const productUrl = `${window.location.origin}/product/${product._id}`;
-        const dataUrl = await QRCode.toDataURL(productUrl, {
+        const dataUrl = await QRCodeLib.toDataURL(productUrl, {
           width: 300,
           margin: 1,
           errorCorrectionLevel: 'H',

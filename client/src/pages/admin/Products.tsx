@@ -6,7 +6,7 @@ import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 import { FRONTEND_URL, UPLOADS_URL } from '../../config/api';
 import QRPrintLabel from '../../components/QRPrintLabel';
 import BatchQRPrint from '../../components/BatchQRPrint';

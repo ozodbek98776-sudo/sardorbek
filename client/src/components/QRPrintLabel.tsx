@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 import { FRONTEND_URL } from '../config/api';
 
 interface QRPrintLabelProps {
