@@ -25,7 +25,7 @@ export default function BottomNavigation() {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-100/80 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
       <div className="grid grid-cols-5 h-[72px] max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -66,7 +66,7 @@ export default function BottomNavigation() {
       </div>
       
       {/* Safe area padding for iOS */}
-      <div className="h-safe-area-inset-bottom bg-white/95" />
+      <div className="h-safe-area-inset-bottom bg-slate-100/80" />
     </nav>
   );
 }

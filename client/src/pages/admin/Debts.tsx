@@ -246,20 +246,13 @@ export default function Debts() {
         showSearch
         onSearch={setSearchQuery}
         actions={
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <button 
-                onClick={cleanupUnknownDebts} 
-                className="btn-danger text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2"
-                title="Noma'lum qarzlarni tozalash"
-              >
-                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Tozalash</span>
-              </button>
-            )}
-            <button onClick={() => setShowModal(true)} className="btn-primary">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Yangi qarz</span>
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => setShowModal(true)} 
+              className="w-5 h-5 md:w-9 md:h-9 rounded-full bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center shadow-sm hover:shadow-md transition-all active:scale-95"
+              title="Yangi qarz qo'shish"
+            >
+              <Plus className="w-2.5 h-2.5 md:w-4.5 md:h-4.5" />
             </button>
           </div>
         }
@@ -557,6 +550,26 @@ export default function Debts() {
 
                         {/* Actions */}
                         <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-2 sm:pt-3 border-t border-surface-100 flex-wrap">
+                              {/* O'chirish tugmasi - faqat admin uchun */}
+                              {isAdmin && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await api.delete(`/debts/${debt._id}`);
+                                      fetchDebts();
+                                      fetchStats();
+                                    } catch (err) { 
+                                      console.error('Error deleting debt:', err); 
+                                    }
+                                  }}
+                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-100 text-red-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-red-200 transition-all whitespace-nowrap"
+                                  title="Qarzni o'chirish"
+                                >
+                                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="hidden sm:inline">O'chirish</span>
+                                </button>
+                              )}
+
                               {/* Muddati berish va Bo'ldi tugmalari - faqat admin va faqat to'lanmagan qarzlar uchun */}
                               {isAdmin && !isPaid && (
                                 <>

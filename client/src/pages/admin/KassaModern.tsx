@@ -129,7 +129,7 @@ export default function KassaModern() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-100/30 to-slate-100">
       {AlertComponent}
       
       {/* Modern POS Layout */}

@@ -460,7 +460,6 @@
   .overlay {
     @apply fixed inset-0 z-40;
     background: rgba(46, 16, 101, 0.6);
-    backdrop-filter: blur(8px);
     animation: fadeIn 0.25s ease-out;
   }
 
@@ -942,6 +941,33 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Full Width Container - No Side Padding */
+  .container-full {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Content Padding - Consistent across pages */
+  .content-padding {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .content-padding {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .content-padding {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
   }
 }
 

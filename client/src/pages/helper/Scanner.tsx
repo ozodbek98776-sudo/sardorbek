@@ -320,7 +320,7 @@ export default function HelperScanner() {
   const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
 
   return (
-    <div className="min-h-[calc(100vh-120px)] bg-gradient-to-b from-surface-50 to-surface-100/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-sm">
+    <div className="min-h-[calc(100vh-120px)] bg-gradient-to-b from-surface-50 to-surface-100/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-sm overflow-x-hidden">
       {AlertComponent}
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
@@ -492,18 +492,18 @@ export default function HelperScanner() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)] gap-6 xl:gap-8 items-start">
-        <div className="space-y-4 lg:space-y-5">
-          <div className="card p-4 sm:p-5 border border-surface-100 shadow-sm">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 lg:gap-6 items-start w-full">
+        <div className="space-y-4 lg:space-y-5 min-w-0">
+          <div className="card p-3 sm:p-4 border border-surface-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => handleSearch(e.target.value)}
                   placeholder="Nomi yoki kodi bo'yicha qidirish..."
-                  className="input pl-12 h-11 sm:h-12 text-sm sm:text-base"
+                  className="input pl-10 pr-3 h-10 sm:h-11 text-sm w-full"
                 />
               </div>
               <button
@@ -760,53 +760,53 @@ export default function HelperScanner() {
           )}
         </div>
 
-        <div className="lg:sticky lg:top-4">
-          <div className="card border border-surface-100 shadow-md shadow-surface-900/5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-brand-600" />
+        <div className="lg:sticky lg:top-4 min-w-0 w-full">
+          <div className="card border border-surface-100 shadow-md shadow-surface-900/5 p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
                 </div>
-                <div>
-                  <span className="font-semibold text-surface-900">Savat</span>
-                  <p className="text-xs text-surface-400">Tanlangan tovarlar ro'yxati</p>
+                <div className="min-w-0">
+                  <span className="font-semibold text-surface-900 text-sm sm:text-base">Savat</span>
+                  <p className="text-xs text-surface-400 truncate">Tanlangan tovarlar</p>
                 </div>
               </div>
-              <span className="badge-primary text-xs px-3 py-1 rounded-full">{cart.length} ta</span>
+              <span className="badge-primary text-xs px-2 sm:px-3 py-1 rounded-full flex-shrink-0">{cart.length} ta</span>
             </div>
 
             {cart.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <ShoppingCart className="w-8 h-8 text-surface-300" />
+              <div className="text-center py-8 sm:py-10">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-surface-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <ShoppingCart className="w-7 h-7 sm:w-8 sm:h-8 text-surface-300" />
                 </div>
-                <p className="text-surface-500 text-sm">Savat bo'sh. QR skaner yoki qidiruv orqali tovar qo'shing.</p>
+                <p className="text-surface-500 text-xs sm:text-sm px-2">Savat bo'sh. QR skaner yoki qidiruv orqali tovar qo'shing.</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[360px] overflow-auto pr-1 custom-scrollbar">
+              <div className="space-y-2 sm:space-y-3 max-h-[360px] overflow-auto pr-1 custom-scrollbar">
                 {cart.map(item => (
-                  <div key={item._id} className="flex items-center gap-3 p-3 bg-surface-50 rounded-xl border border-surface-100">
+                  <div key={item._id} className="flex items-center gap-2 p-2 sm:p-3 bg-surface-50 rounded-xl border border-surface-100">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-surface-900 truncate">{item.name}</p>
-                      <p className="text-[11px] text-surface-400">{formatNumber(item.price)} so'm / dona</p>
-                      <p className="text-sm text-brand-600 font-semibold mt-0.5">
+                      <p className="font-medium text-surface-900 truncate text-sm">{item.name}</p>
+                      <p className="text-[10px] sm:text-[11px] text-surface-400">{formatNumber(item.price)} so'm / dona</p>
+                      <p className="text-xs sm:text-sm text-brand-600 font-semibold mt-0.5">
                         {formatNumber(item.price * item.cartQuantity)} so'm
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 bg-white rounded-lg border border-surface-200 px-1.5 py-1">
-                      <button onClick={() => updateQuantity(item._id, -1)} className="btn-icon-sm">
-                        <Minus className="w-4 h-4" />
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg border border-surface-200 px-1 sm:px-1.5 py-1 flex-shrink-0">
+                      <button onClick={() => updateQuantity(item._id, -1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
+                        <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
-                      <span className="w-8 text-center font-semibold text-sm">{item.cartQuantity}</span>
-                      <button onClick={() => updateQuantity(item._id, 1)} className="btn-icon-sm">
-                        <Plus className="w-4 h-4" />
+                      <span className="w-6 sm:w-8 text-center font-semibold text-xs sm:text-sm">{item.cartQuantity}</span>
+                      <button onClick={() => updateQuantity(item._id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                     <button
                       onClick={() => removeFromCart(item._id)}
-                      className="btn-icon-sm text-danger-500 hover:bg-danger-50 rounded-full"
+                      className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-danger-500 hover:bg-danger-50 rounded-full transition-colors flex-shrink-0"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
                     </button>
                   </div>
                 ))}
@@ -814,21 +814,21 @@ export default function HelperScanner() {
             )}
 
             {cart.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-surface-200 space-y-3">
+              <div className="mt-4 pt-3 sm:pt-4 border-t border-surface-200 space-y-2 sm:space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-surface-500 text-sm">Jami summa</span>
-                  <span className="text-2xl font-bold text-surface-900">{formatNumber(total)} so'm</span>
+                  <span className="text-surface-500 text-xs sm:text-sm">Jami summa</span>
+                  <span className="text-xl sm:text-2xl font-bold text-surface-900">{formatNumber(total)} so'm</span>
                 </div>
                 <button
                   onClick={sendToCashier}
                   disabled={sending}
-                  className="btn-primary w-full py-3.5 text-base rounded-xl flex items-center justify-center gap-2"
+                  className="btn-primary w-full py-3 sm:py-3.5 text-sm sm:text-base rounded-xl flex items-center justify-center gap-2"
                 >
                   {sending ? (
                     <div className="spinner" />
                   ) : (
                     <>
-                      <Send className="w-5 h-5" />
+                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                       Kassaga yuborish
                     </>
                   )}

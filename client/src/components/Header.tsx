@@ -73,7 +73,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
+      <header className="sticky top-0 z-50 bg-slate-100 border-b border-slate-200/60 shadow-sm">
         <div className="px-1.5 sm:px-3 md:px-4 lg:px-6 h-10 sm:h-12 md:h-14 flex items-center justify-between gap-1 sm:gap-2 md:gap-3 lg:gap-4">
           {/* Sidebar Toggle Button - Hamburger icon - Only visible on mobile/tablet */}
           <button 
@@ -146,7 +146,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
 
       {/* Dropdown Search Bar - Navbar ostida */}
       {showSearch && searchOpen && (
-        <div className="sticky top-10 sm:top-12 md:top-14 z-30 bg-white border-b border-slate-200 shadow-lg animate-fade-in">
+        <div className="sticky top-10 sm:top-12 md:top-14 z-30 bg-slate-100 border-b border-slate-200 shadow-lg animate-fade-in">
           <div className="px-3 sm:px-4 md:px-6 py-3">
             <div className="relative max-w-2xl mx-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -178,17 +178,17 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+            className="fixed inset-0 bg-black/50"
             onClick={() => setMenuOpen(false)}
           />
           
           {/* Menu Panel - LEFT SIDE */}
-          <div className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white z-[70] shadow-2xl animate-slide-in-left">
+          <div className="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-white z-[80] shadow-2xl animate-slide-in-left">
             {/* Menu Header */}
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                     <img src="/o5sk1awh.png" alt="Logo" className="w-8 h-8 rounded-lg border-2 border-white/30" />
                   </div>
                   <div>
@@ -198,7 +198,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
                 </div>
                 <button 
                   onClick={() => setMenuOpen(false)}
-                  className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors"
+                  className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center hover:bg-white/30 transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>

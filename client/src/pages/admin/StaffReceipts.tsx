@@ -205,7 +205,7 @@ export default function StaffReceipts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-100/30 to-slate-100 pb-20 lg:pb-0">
       {AlertComponent}
       <Header title="Xodimlar cheklari" />
 

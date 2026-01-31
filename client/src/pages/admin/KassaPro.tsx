@@ -687,7 +687,7 @@ export default function KassaPro() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-slate-100 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-100/30 to-slate-100 pb-20 lg:pb-0">
       {AlertComponent}
 
       {/* Header */}
