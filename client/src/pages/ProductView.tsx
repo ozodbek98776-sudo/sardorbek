@@ -105,7 +105,6 @@ export default function ProductView() {
     { icon: UserCircle, label: 'Hodimlar', path: '/admin/helpers' },
     { icon: BarChart3, label: 'Statistika', path: '/admin/dashboard' },
     { icon: QrCode, label: 'QR Scanner', path: '/helper/scanner' },
-    { icon: Settings, label: 'Sozlamalar', path: '/admin/settings' },
   ];
 
   if (loading) {

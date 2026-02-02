@@ -26,7 +26,6 @@ import KassaClients from './pages/kassa/KassaClients';
 import KassaDebts from './pages/kassa/KassaDebts';
 import KassaProducts from './pages/kassa/KassaProducts';
 import TelegramSettings from './pages/admin/TelegramSettings';
-import AdminSettings from './pages/admin/AdminSettings';
 import KassaLogin from './pages/KassaLogin';
 import ProductView from './pages/ProductView';
 import SwipeNavigator from './components/SwipeNavigator';

@@ -3,8 +3,7 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   Package, 
-  Receipt, 
-  Settings
+  Receipt
 } from 'lucide-react';
 
 export default function BottomNavigation() {
@@ -15,8 +14,7 @@ export default function BottomNavigation() {
     { path: '/admin', icon: LayoutDashboard, label: 'Bosh sahifa', exact: true },
     { path: '/admin/kassa', icon: ShoppingCart, label: 'Kassa' },
     { path: '/admin/products', icon: Package, label: 'Tovarlar' },
-    { path: '/admin/debts', icon: Receipt, label: 'Qarzlar' },
-    { path: '/admin/settings', icon: Settings, label: 'Sozlamalar' }
+    { path: '/admin/debts', icon: Receipt, label: 'Qarzlar' }
   ];
 
   const isActive = (path: string, exact?: boolean) => {
@@ -26,7 +24,7 @@ export default function BottomNavigation() {
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-100/80 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
-      <div className="grid grid-cols-5 h-[72px] max-w-lg mx-auto">
+      <div className="grid grid-cols-4 h-[72px] max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, item.exact);
