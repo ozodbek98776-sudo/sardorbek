@@ -1078,74 +1078,81 @@ export default function KassaProducts() {
   ];
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 pb-20 lg:pb-0">
       {AlertComponent}
       
-      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+      <div className="p-3 lg:p-5 space-y-3 max-w-[1800px] mx-auto">
+        {/* Header - Professional Compact */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-brand-600" />
-            <h2 className="text-lg font-semibold text-surface-900">Tovarlar (Asosiy ombor)</h2>
+            <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-md">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Tovarlar</h2>
+              <p className="text-xs text-slate-500">Asosiy ombor</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50 border border-slate-200 shadow-sm text-sm font-medium"
               title="Tovarlar ro'yxatini yangilash (F5)"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Yangilanmoqda...' : 'Yangilash'}</span>
             </button>
           </div>
         </div>
 
-        {/* Compact Stats - Admin Products ga o'xshash */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
+        {/* Compact Stats - Professional */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStockFilter(stat.filter)}
-              className={`bg-white rounded-lg sm:rounded-xl border-2 transition-all ${
+              className={`bg-white rounded-xl border-2 transition-all ${
                 stat.filter ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : ''
               } ${
-                stockFilter === stat.filter ? 'border-brand-500 shadow-md' : 'border-surface-200'
+                stockFilter === stat.filter ? 'border-brand-500 shadow-md' : 'border-slate-200'
               }`}
             >
-              <div className="p-2 sm:p-2.5 md:p-3">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
-                    <stat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-${stat.color}-600`} />
+              <div className="p-2.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
+                    <stat.icon className={`w-3.5 h-3.5 text-${stat.color}-600`} />
                   </div>
-                  <p className="text-[10px] sm:text-xs text-surface-500 font-medium">{stat.label}</p>
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">{stat.label}</p>
                 </div>
-                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-surface-900">{stat.value}</p>
+                <p className="text-lg font-black text-slate-900">{stat.value}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Search */}
+        {/* Search Bar - Professional */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Tovar nomi yoki kodi bo'yicha qidirish..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 bg-white shadow-sm text-sm"
           />
         </div>
 
-        {/* Category Filter - Horizontal Scrollable */}
-        <div className="bg-white rounded-lg p-3 border border-surface-200">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        {/* Category Filter - Professional Compact Design */}
+        <div className="bg-gradient-to-r from-white to-slate-50 rounded-xl p-2 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
             <button
               onClick={() => setSelectedCategory('')}
-              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
                 selectedCategory === '' 
-                  ? 'bg-brand-500 text-white shadow-md' 
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md scale-105' 
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               Barchasi
@@ -1154,10 +1161,10 @@ export default function KassaProducts() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all whitespace-nowrap ${
                   selectedCategory === category 
-                    ? 'bg-brand-500 text-white shadow-md' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md scale-105' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                 }`}
               >
                 {category}

@@ -37,6 +37,7 @@ export const formatReceiptData = (data: ReceiptData): string => {
   }
   
   receipt += '------------------------\n';
+  receipt += '\n';
   
   // Umumiy chegirma hisoblash
   let totalOriginalPrice = 0;
@@ -44,8 +45,8 @@ export const formatReceiptData = (data: ReceiptData): string => {
   
   // Items - Chiroyli va tushunarli format (rasmga o'xshash)
   data.items.forEach((item, index) => {
+    // Mahsulot nomi va kodi
     receipt += `${index + 1}. ${item.code} ${item.name}\n`;
-    receipt += `                ${item.cartQuantity}\n`;
     
     // Oldingi va hozirgi narxlarni ko'rsatish
     const previousPrice = (item as any).previousPrice;
@@ -55,7 +56,13 @@ export const formatReceiptData = (data: ReceiptData): string => {
     totalOriginalPrice += (previousPrice && previousPrice > 0 ? previousPrice : currentPrice) * item.cartQuantity;
     totalCurrentPrice += currentPrice * item.cartQuantity;
     
+    // Soni
+    receipt += `                ${item.cartQuantity}\n`;
+    
+    // Narxi
     receipt += `        NARXI: ${formatNumber(item.price)}\n`;
+    
+    // Hisoblash
     receipt += `        ${item.cartQuantity} x ${formatNumber(item.price)}\n`;
     receipt += `        = ${formatNumber(item.price * item.cartQuantity)}\n`;
     receipt += '\n';
@@ -133,12 +140,12 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             
             body {
               font-family: 'Courier New', 'Consolas', monospace;
-              font-size: 13px;
+              font-size: 14px;
               font-weight: 600;
-              line-height: 1.4;
+              line-height: 1.5;
               color: #000;
               background: white;
-              padding: 8px;
+              padding: 10px;
               margin: 0 auto;
               display: flex;
               justify-content: center;
@@ -147,16 +154,18 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             }
             
             .receipt-text {
-              white-space: pre-line;
+              white-space: pre-wrap;
               font-family: 'Courier New', 'Consolas', monospace;
-              font-size: 13px;
+              font-size: 14px;
               font-weight: 600;
-              word-break: break-word;
-              padding: 8px;
+              word-wrap: break-word;
+              padding: 10px;
               text-align: center;
               width: 80mm;
+              max-width: 80mm;
               margin: 0 auto;
-              letter-spacing: 0.3px;
+              letter-spacing: 0.5px;
+              line-height: 1.5;
             }
             
             /* X Printer uchun maxsus print sozlamalari */
@@ -169,7 +178,7 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
               
               body {
                 background: white;
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 600;
                 padding: 5mm;
                 margin: 0 auto;
@@ -180,13 +189,17 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
               }
               
               .receipt-text {
-                width: 70mm;
+                width: 75mm;
+                max-width: 75mm;
                 font-weight: 600;
-                font-size: 12px;
+                font-size: 13px;
                 padding: 0;
                 text-align: center;
                 margin: 0 auto;
-                letter-spacing: 0.3px;
+                letter-spacing: 0.5px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                word-wrap: break-word;
               }
             }
           </style>
