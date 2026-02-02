@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy, Search } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy, Search, Filter } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -12,6 +12,7 @@ import QRPrintLabel from '../../components/QRPrintLabel';
 import BatchQRPrint from '../../components/BatchQRPrint';
 import logger from '../../utils/logger';
 import { useSocket } from '../../hooks/useSocket';
+import { PRODUCT_CATEGORIES } from '../../constants/categories';
 
 // Statistika interfeysi
 interface ProductStats {
@@ -63,12 +64,10 @@ export default function Products() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dollarRate, setDollarRate] = useState(12500);
-  const [showQuantityModal, setShowQuantityModal] = useState(false);
-  const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
-  const [quantityInput, setQuantityInput] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Floating search button uchun
@@ -86,7 +85,7 @@ export default function Products() {
 
   // Modal ochilganda body scroll ni to'xtatish
   useEffect(() => {
-    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showQuantityModal || showImageModal) {
+    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showImageModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -96,7 +95,7 @@ export default function Products() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showQuantityModal, showImageModal]);
+  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showImageModal]);
 
   // Scroll listener - floating search button ko'rsatish
   useEffect(() => {
@@ -117,6 +116,7 @@ export default function Products() {
     costPriceInDollar: '', // Tan narxi dollarda
     unitPrice: '', // Dona narxi
     boxPrice: '', // Karobka narxi
+    category: 'Boshqa', // Kategoriya
     // Foizli chegirmalar
     pricingTiers: {
       tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
@@ -233,7 +233,7 @@ export default function Products() {
   // ⚡ Filtered products - useMemo bilan optimize qilish
   const filteredProducts = useMemo(() => {
     // Agar qidiruv bo'lmasa va filter 'all' bo'lsa, barcha mahsulotlarni qaytarish
-    if (!debouncedSearch && stockFilter === 'all') {
+    if (!debouncedSearch && stockFilter === 'all' && !categoryFilter) {
       return products;
     }
 
@@ -266,9 +266,12 @@ export default function Products() {
                           (stockFilter === 'low' && p.quantity <= (p.minStock || 50) && p.quantity > 0) ||
                           (stockFilter === 'out' && p.quantity === 0);
       
-      return matchesStock;
+      // Category filter
+      const matchesCategory = !categoryFilter || p.category === categoryFilter;
+      
+      return matchesStock && matchesCategory;
     });
-  }, [products, debouncedSearch, stockFilter]);
+  }, [products, debouncedSearch, stockFilter, categoryFilter]);
 
   // ⚡ Mahsulotlarni yuklash - useCallback bilan
   const fetchProducts = useCallback(async (page = 1) => {
@@ -841,6 +844,7 @@ export default function Products() {
         boxPrice: Number(formData.boxPrice) || 0,
         previousPrice: Number(formData.previousPrice) || 0,
         currentPrice: Number(formData.currentPrice) || 0,
+        category: formData.category || 'Boshqa',
         // Foizli chegirmalar
         pricingTiers: {
           tier1: {
@@ -924,6 +928,11 @@ export default function Products() {
             return updated;
           });
           logger.log('Tovar darhol UI da yangilandi:', response.data.name);
+          
+          // Tahrirlangan mahsulot kategoriyasini filtrlash uchun o'rnatish
+          if (response.data.category) {
+            setCategoryFilter(response.data.category);
+          }
         }
       } else {
         const response = await api.post('/products', data);
@@ -954,9 +963,10 @@ export default function Products() {
           });
           logger.log('Yangi tovar darhol UI ga qo\'shildi:', response.data.name);
           
-          // Qidiruv va filter o'chirish - barcha maxsulotlarni ko'rish uchun
-          setSearchQuery('');
-          setStockFilter('all');
+          // Yangi mahsulot kategoriyasini filtrlash uchun o'rnatish
+          if (response.data.category) {
+            setCategoryFilter(response.data.category);
+          }
         }
       }
       
@@ -1016,6 +1026,7 @@ export default function Products() {
       costPriceInDollar: String(p.costPriceInDollar || 0),
       unitPrice: String(p.unitPrice || p.currentPrice || product.price),
       boxPrice: String(p.boxPrice || 0),
+      category: p.category || 'Boshqa',
       pricingTiers: {
         tier1: {
           minQuantity: String(p.pricingTiers?.tier1?.minQuantity || 1),
@@ -1149,6 +1160,7 @@ export default function Products() {
         },
         quantity: '0', // Miqdorni 0 dan boshlash
         unit: product.unit || 'dona',
+        category: p.category || 'Boshqa',
         dimensions: {
           width: p.dimensions?.width || '',
           height: p.dimensions?.height || '',
@@ -1254,6 +1266,7 @@ export default function Products() {
       code: '', name: '', description: '', quantity: '',
       previousPrice: '', currentPrice: '',
       costPrice: '', costPriceInDollar: '', unitPrice: '', boxPrice: '',
+      category: 'Boshqa',
       pricingTiers: {
         tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
         tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
@@ -1274,25 +1287,6 @@ export default function Products() {
     setNewlyUploadedImages([]); // Yangi yuklangan rasmlar ro'yxatini tozalash
     setCodeError('');
     setShowPackageInput(false);
-  };
-
-  const openQuantityModal = (mode: 'add' | 'subtract') => {
-    setQuantityMode(mode);
-    setQuantityInput('');
-    setShowQuantityModal(true);
-  };
-
-  const applyQuantityChange = () => {
-    const change = Number(quantityInput) || 0;
-    if (change <= 0) return;
-    
-    const currentQty = Number(formData.quantity) || 0;
-    let newQty = quantityMode === 'add' ? currentQty + change : currentQty - change;
-    if (newQty < 0) newQty = 0;
-    
-    setFormData({ ...formData, quantity: String(newQty) });
-    setShowQuantityModal(false);
-    setQuantityInput('');
   };
 
   const openAddModal = async () => {
@@ -1425,6 +1419,35 @@ export default function Products() {
           ))}
         </div>
 
+        {/* Category Filter - Horizontal Scrollable */}
+        <div className="bg-white rounded-xl p-3 sm:p-4 border-2 border-surface-200">
+          <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setCategoryFilter('')}
+              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                categoryFilter === '' 
+                  ? 'bg-brand-500 text-white shadow-md' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Barchasi
+            </button>
+            {PRODUCT_CATEGORIES.map(category => (
+              <button
+                key={category}
+                onClick={() => setCategoryFilter(category)}
+                className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                  categoryFilter === category 
+                    ? 'bg-brand-500 text-white shadow-md' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Products List - No frame, free-flowing */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -1444,10 +1467,10 @@ export default function Products() {
           </div>
         ) : (
           <>
-            {/* Card List View - One per row, Minimalist & Professional */}
+            {/* Card Grid View - 2 columns */}
             <div 
               ref={scrollContainerRef}
-              className="space-y-2 sm:space-y-2.5 md:space-y-3"
+              className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4"
             >
                   {filteredProducts.map(product => {
                     const isSelected = selectedProducts.has(product._id);
@@ -1456,41 +1479,41 @@ export default function Products() {
                     return (
                       <div 
                         key={product._id}
-                        className={`group relative bg-white rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-lg ${
+                        className={`group relative bg-white rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-lg min-h-[140px] ${
                           isSelected 
                             ? 'shadow-md ring-2 ring-brand-500' 
                             : 'shadow-sm hover:shadow-md'
                         }`}
                       >
                         {/* Action Buttons - O'ng yuqori burchakda */}
-                        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10">
+                        <div className="absolute top-1 right-1 flex items-center gap-0.5 z-10">
                           <button 
                             onClick={(e) => { e.stopPropagation(); copyProduct(product); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-50 hover:bg-blue-100 rounded-lg transition-none text-blue-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-blue-50 hover:bg-blue-100 rounded-lg transition-none text-blue-600 flex items-center justify-center hover:scale-110 shadow-sm"
                             title="Mahsulotni nusxalash"
                           >
-                            <Copy className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                            <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); openQRModal(product); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-50 hover:bg-purple-100 rounded-lg transition-none text-purple-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-purple-50 hover:bg-purple-100 rounded-lg transition-none text-purple-600 flex items-center justify-center hover:scale-110 shadow-sm"
                             title="QR kod"
                           >
-                            <QrCode className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                            <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); openEditModal(product); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-amber-50 hover:bg-amber-100 rounded-lg transition-none text-amber-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-amber-50 hover:bg-amber-100 rounded-lg transition-none text-amber-600 flex items-center justify-center hover:scale-110 shadow-sm"
                             title="Tahrirlash"
                           >
-                            <Edit className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                            <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(product._id); }} 
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 hover:bg-red-100 rounded-lg transition-none text-red-600 flex items-center justify-center hover:scale-110 shadow-sm hover:shadow-md"
+                            className="w-6 h-6 sm:w-7 sm:h-7 bg-red-50 hover:bg-red-100 rounded-lg transition-none text-red-600 flex items-center justify-center hover:scale-110 shadow-sm"
                             title="O'chirish"
                           >
-                            <Trash2 className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
                         </div>
 
@@ -1507,10 +1530,10 @@ export default function Products() {
                         )}
 
                         {/* 320px: Vertical layout, Larger: Horizontal */}
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 md:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2 md:gap-3 p-2 sm:p-2.5 md:p-3">
                           {/* Product Image */}
                           <div 
-                            className="relative w-full sm:w-24 md:w-28 h-28 sm:h-24 md:h-28 rounded-lg sm:rounded-xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 cursor-pointer flex-shrink-0 shadow-sm"
+                            className="relative w-full sm:w-20 md:w-24 h-24 sm:h-20 md:h-24 rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 cursor-pointer flex-shrink-0 shadow-sm"
                             onClick={() => {
                               if (productImage) {
                                 setSelectedProduct(product);
@@ -1526,7 +1549,7 @@ export default function Products() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-slate-300" />
+                                <Package className="w-6 h-6 sm:w-8 sm:h-8 text-slate-300" />
                               </div>
                             )}
                           </div>
@@ -1534,26 +1557,26 @@ export default function Products() {
                           {/* Product Info */}
                           <div className="flex-1 min-w-0 px-2 pb-2 sm:p-0">
                             {/* Code Badge */}
-                            <div className="text-xs sm:text-sm font-mono text-slate-500 mb-1 sm:mb-1.5">
+                            <div className="text-xs font-mono text-slate-500 mb-0.5 sm:mb-1">
                               #{product.code}
                             </div>
                             
                             {/* Name with optional description suffix */}
-                            <h3 className="font-semibold text-base sm:text-lg md:text-xl text-slate-900 mb-1.5 sm:mb-2 line-clamp-2">
+                            <h3 className="font-semibold text-sm sm:text-base md:text-lg text-slate-900 mb-1 sm:mb-1.5 line-clamp-2">
                               {product.name}
                               {(product as any).description && (product as any).description.trim() && (
-                                <span className="text-base sm:text-lg md:text-xl font-semibold text-slate-900 ml-1.5">
+                                <span className="text-sm sm:text-base md:text-lg font-semibold text-slate-900 ml-1.5">
                                   {(product as any).description}
                                 </span>
                               )}
                             </h3>
 
                             {/* Price */}
-                            <div className="flex items-baseline gap-1 sm:gap-1.5">
-                              <span className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-600">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-lg sm:text-xl md:text-2xl font-bold text-brand-600">
                                 {formatNumber((product as any).unitPrice || product.price)}
                               </span>
-                              <span className="text-sm sm:text-base text-slate-500">so'm</span>
+                              <span className="text-xs sm:text-sm text-slate-500">so'm</span>
                             </div>
                           </div>
                         </div>
@@ -1635,7 +1658,7 @@ export default function Products() {
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1 sm:gap-2 mb-1 sm:mb-2">
                   {images.map((img, idx) => {
                     // img string yoki object bo'lishi mumkin - path ni olish
-                    let imagePath = typeof img === 'string' ? img : img.path;
+                    let imagePath = typeof img === 'string' ? img : (img as any).path;
                     
                     // Agar imagePath to'liq URL bo'lsa, faqat path qismini olish
                     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
@@ -1743,6 +1766,20 @@ export default function Products() {
                 <p className="text-[10px] sm:text-xs text-surface-400 mt-0.5 sm:mt-1">{(formData.description || '').length}/500</p>
               </div>
 
+              {/* Kategoriya */}
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">📂 Kategoriya</label>
+                <select 
+                  className="input text-sm cursor-pointer" 
+                  value={formData.category}
+                  onChange={e => setFormData({...formData, category: e.target.value})}
+                >
+                  {PRODUCT_CATEGORIES.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* O'lchamlar (sm/mm) */}
               <div className="border-t border-surface-200 pt-2 sm:pt-3 md:pt-4 mt-2 sm:mt-3 md:mt-4">
                 <h4 className="text-xs sm:text-sm font-semibold text-surface-900 mb-2 sm:mb-3 flex items-center gap-2">
@@ -1812,28 +1849,15 @@ export default function Products() {
                     <label className="text-[10px] sm:text-xs font-medium text-surface-600 mb-0.5 sm:mb-1 block">
                       Miqdor ({formData.unit === 'dona' ? 'dona' : formData.unit === 'metr' ? 'metr' : formData.unit === 'rulon' ? 'rulon' : formData.unit === 'karobka' ? 'karobka' : formData.unit === 'kg' ? 'kg' : formData.unit === 'gram' ? 'gram' : 'litr'})
                     </label>
-                    {editingProduct ? (
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <div className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-surface-100 rounded-lg text-center font-semibold text-surface-900 text-sm">
-                          {formatNumber(formData.quantity || 0)}
-                        </div>
-                        <button type="button" onClick={() => openQuantityModal('add')} className="btn-icon-sm bg-success-100 text-success-600 hover:bg-success-200">
-                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                        <button type="button" onClick={() => openQuantityModal('subtract')} className="btn-icon-sm bg-danger-100 text-danger-600 hover:bg-danger-200">
-                          <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <input 
-                        type="text" 
-                        className="input text-sm" 
-                        placeholder="0" 
-                        value={formatInputNumber(formData.quantity)} 
-                        onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})} 
-                        required 
-                      />
-                    )}
+                    <input 
+                      type="text" 
+                      className="input text-sm font-semibold text-center cursor-pointer hover:bg-surface-50 transition-colors" 
+                      placeholder="0" 
+                      value={formatInputNumber(formData.quantity)} 
+                      onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})}
+                      onClick={(e) => e.currentTarget.select()}
+                      required 
+                    />
                   </div>
                 </div>
 
@@ -2030,18 +2054,6 @@ export default function Products() {
                     onChange={e => setDollarRate(parseFloat(e.target.value) || 12500)}
                   />
                   <p className="text-[10px] text-blue-600 mt-1">Hozirgi kurs: 1 $ = {formatNumber(dollarRate)} so'm</p>
-                </div>
-
-                {/* Karobka narxi */}
-                <div className="mb-4">
-                  <label className="text-xs font-medium text-surface-600 mb-1 block">📦 Karobka narxi (so'm)</label>
-                  <input 
-                    type="text" 
-                    className="input" 
-                    placeholder="0"
-                    value={formatInputNumber(formData.boxPrice)}
-                    onChange={e => setFormData({...formData, boxPrice: parseNumber(e.target.value)})}
-                  />
                 </div>
 
                 {/* Foizli chegirmalar - 3 ta daraja */}
@@ -2407,74 +2419,6 @@ export default function Products() {
         </div>
       )}
 
-      {/* Quantity Adjustment Modal */}
-      {showQuantityModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
-            onClick={() => setShowQuantityModal(false)} 
-          />
-          <div className="modal w-full max-w-sm p-6 relative z-[71]">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-900">
-                {quantityMode === 'add' ? "Miqdor qo'shish" : "Miqdor ayirish"}
-              </h3>
-              <button onClick={() => setShowQuantityModal(false)} className="btn-icon-sm"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <div className={`rounded-xl p-4 mb-6 ${quantityMode === 'add' ? 'bg-success-50' : 'bg-danger-50'}`}>
-              <p className="text-sm text-surface-600 mb-1">Hozirgi miqdor</p>
-              <p className={`text-2xl font-bold ${quantityMode === 'add' ? 'text-success-600' : 'text-danger-600'}`}>
-                {formatNumber(formData.quantity || 0)} dona
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">
-                  {quantityMode === 'add' ? "Qo'shiladigan miqdor" : "Ayiriladigan miqdor"}
-                </label>
-                <input 
-                  type="text" 
-                  className="input text-center text-lg font-semibold" 
-                  placeholder="0" 
-                  value={formatInputNumber(quantityInput)}
-                  onChange={e => setQuantityInput(parseNumber(e.target.value))}
-                  autoFocus
-                />
-              </div>
-
-              {quantityInput && Number(quantityInput) > 0 && (
-                <div className="bg-surface-50 rounded-xl p-4">
-                  <p className="text-sm text-surface-600 mb-1">Yangi miqdor</p>
-                  <p className="text-xl font-bold text-surface-900">
-                    {formatNumber(
-                      quantityMode === 'add' 
-                        ? (Number(formData.quantity) || 0) + Number(quantityInput)
-                        : Math.max(0, (Number(formData.quantity) || 0) - Number(quantityInput))
-                    )} dona
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowQuantityModal(false)} className="btn-secondary flex-1">
-                  Bekor qilish
-                </button>
-                <button 
-                  type="button" 
-                  onClick={applyQuantityChange} 
-                  className={`flex-1 ${quantityMode === 'add' ? 'btn-success' : 'btn-danger'}`}
-                  disabled={!quantityInput || Number(quantityInput) <= 0}
-                >
-                  {quantityMode === 'add' ? "Qo'shish" : "Ayirish"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Product Statistics Modal - Compact & Professional */}
       {showStatsModal && selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -2818,65 +2762,54 @@ export default function Products() {
       )}
 
       {/* Floating Search Button - Appears after scrolling down */}
-      {showFloatingSearch && (
+      {showFloatingSearch && !floatingSearchOpen && (
         <button
           onClick={() => setFloatingSearchOpen(true)}
-          className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 z-40 animate-bounce-slow"
+          className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 z-40"
           title="Qidirish"
         >
           <Search className="w-6 h-6" />
         </button>
       )}
 
-      {/* Floating Search Modal */}
+      {/* Floating Search Input - Slides from right */}
       {floatingSearchOpen && (
-        <div className="fixed inset-0 z-[110] flex items-start justify-center pt-20 px-4">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        <div className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 z-40 flex items-center gap-2 animate-slide-in-right">
+          <div className="relative flex-1 min-w-[300px] sm:min-w-[400px]">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-600" />
+            <input
+              type="text"
+              value={floatingSearchQuery}
+              onChange={(e) => {
+                setFloatingSearchQuery(e.target.value);
+                setSearchQuery(e.target.value);
+              }}
+              placeholder="Tovar qidirish..."
+              className="w-full pl-12 pr-12 py-4 bg-white border-2 border-purple-200 rounded-2xl shadow-2xl text-base focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all"
+              autoFocus
+            />
+            {floatingSearchQuery && (
+              <button
+                onClick={() => {
+                  setFloatingSearchQuery('');
+                  setSearchQuery('');
+                }}
+                className="absolute right-12 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            )}
+          </div>
+          <button
             onClick={() => {
               setFloatingSearchOpen(false);
               setFloatingSearchQuery('');
             }}
-          />
-          
-          {/* Search Input Container */}
-          <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden transform animate-slide-down">
-            <div className="p-4 bg-gradient-to-r from-purple-600 to-blue-600">
-              <div className="flex items-center gap-3">
-                <Search className="w-6 h-6 text-white flex-shrink-0" />
-                <input
-                  type="text"
-                  value={floatingSearchQuery}
-                  onChange={(e) => {
-                    setFloatingSearchQuery(e.target.value);
-                    setSearchQuery(e.target.value);
-                  }}
-                  placeholder="Tovar nomi yoki kodi bo'yicha qidiring..."
-                  className="flex-1 bg-white/20 text-white placeholder-white/70 border-0 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-white/50"
-                  autoFocus
-                />
-                <button
-                  onClick={() => {
-                    setFloatingSearchOpen(false);
-                    setFloatingSearchQuery('');
-                  }}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-all"
-                >
-                  <X className="w-6 h-6 text-white" />
-                </button>
-              </div>
-            </div>
-            
-            {/* Search Results Preview */}
-            {floatingSearchQuery && (
-              <div className="p-4 bg-white">
-                <p className="text-sm text-slate-600">
-                  {filteredProducts.length} ta tovar topildi
-                </p>
-              </div>
-            )}
-          </div>
+            className="w-14 h-14 bg-white hover:bg-slate-50 border-2 border-slate-200 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105"
+            title="Yopish"
+          >
+            <X className="w-6 h-6 text-slate-600" />
+          </button>
         </div>
       )}
     </div>

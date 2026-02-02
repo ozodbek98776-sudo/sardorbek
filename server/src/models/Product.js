@@ -13,7 +13,21 @@ const productSchema = new mongoose.Schema({
   quantity: { type: Number, default: 0 },
   warehouse: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
   isMainWarehouse: { type: Boolean, default: false },
-  category: String,
+  category: { 
+    type: String, 
+    enum: [
+      'Mebel furnitura',
+      'Yumshoq mebel',
+      'Linoleum uy',
+      'Linoleum avto',
+      'Paralon',
+      'Fant (avtomobil)',
+      'Avto mato',
+      'Klyonka',
+      'Boshqa'
+    ],
+    default: 'Boshqa'
+  },
   images: [{ 
     path: { type: String, required: true }, // Rasm yo'li
     uploadedBy: { type: String, enum: ['admin', 'cashier'], default: 'admin' }, // Kim yuklagan
@@ -59,17 +73,17 @@ const productSchema = new mongoose.Schema({
     tier1: { // 1-dan X gacha
       minQuantity: { type: Number, default: 1 },
       maxQuantity: { type: Number, default: 5 },
-      discountPercent: { type: Number, default: 15 } // 15% chegirma
+      discountPercent: { type: Number, default: 1 } // 1% chegirma
     },
     tier2: { // X dan Y gacha
       minQuantity: { type: Number, default: 6 },
       maxQuantity: { type: Number, default: 20 },
-      discountPercent: { type: Number, default: 13 } // 13% chegirma
+      discountPercent: { type: Number, default: 3 } // 3% chegirma
     },
     tier3: { // Y dan Z gacha
       minQuantity: { type: Number, default: 21 },
       maxQuantity: { type: Number, default: 100 },
-      discountPercent: { type: Number, default: 11 } // 11% chegirma
+      discountPercent: { type: Number, default: 5 } // 5% chegirma
     }
   },
   // Package/batch information
@@ -101,11 +115,11 @@ productSchema.methods.calculatePrice = function (quantity) {
   const tier3 = this.pricingTiers?.tier3;
 
   if (tier3 && quantity >= tier3.minQuantity) {
-    discountPercent = tier3.discountPercent || 11;
+    discountPercent = tier3.discountPercent || 5;
   } else if (tier2 && quantity >= tier2.minQuantity) {
-    discountPercent = tier2.discountPercent || 13;
+    discountPercent = tier2.discountPercent || 3;
   } else if (tier1 && quantity >= tier1.minQuantity) {
-    discountPercent = tier1.discountPercent || 15;
+    discountPercent = tier1.discountPercent || 1;
   }
 
   // Narxni hisoblash (chegirma bilan)
@@ -123,7 +137,7 @@ productSchema.methods.getPricingTier = function (quantity) {
     return {
       tier: 'tier3',
       name: `${tier3.minQuantity}+ dona`,
-      discountPercent: tier3.discountPercent || 11,
+      discountPercent: tier3.discountPercent || 5,
       minQuantity: tier3.minQuantity,
       maxQuantity: tier3.maxQuantity
     };
@@ -131,7 +145,7 @@ productSchema.methods.getPricingTier = function (quantity) {
     return {
       tier: 'tier2',
       name: `${tier2.minQuantity}-${tier2.maxQuantity} dona`,
-      discountPercent: tier2.discountPercent || 13,
+      discountPercent: tier2.discountPercent || 3,
       minQuantity: tier2.minQuantity,
       maxQuantity: tier2.maxQuantity
     };
@@ -139,7 +153,7 @@ productSchema.methods.getPricingTier = function (quantity) {
     return {
       tier: 'tier1',
       name: `${tier1?.minQuantity || 1}-${tier1?.maxQuantity || 5} dona`,
-      discountPercent: tier1?.discountPercent || 15,
+      discountPercent: tier1?.discountPercent || 1,
       minQuantity: tier1?.minQuantity || 1,
       maxQuantity: tier1?.maxQuantity || 5
     };

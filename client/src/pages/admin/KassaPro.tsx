@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, RotateCcw, Save, CreditCard, Trash2, X, 
   Package2, Banknote, Delete, AlertTriangle, User, UserCircle, ChevronDown, Wifi, WifiOff, RefreshCw, ScanLine,
-  ShoppingCart, Plus, Minus, DollarSign, Receipt, Clock, TrendingUp, Scan, Menu, Home, Users, FileText
+  ShoppingCart, DollarSign, Receipt, Clock, TrendingUp, Scan, Menu, Home, Users, FileText, Filter
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -20,12 +20,58 @@ import {
   markSalesAsSynced,
   deleteSyncedSales
 } from '../../utils/indexedDbService';
+import { PRODUCT_CATEGORIES } from '../../constants/categories';
 
 interface SavedReceipt {
   id: string;
   items: CartItem[];
   total: number;
   savedAt: string;
+}
+
+// Debounce hook - professional search uchun
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Fuzzy search - professional qidiruv algoritmi
+function fuzzySearch(query: string, text: string): number {
+  const queryLower = query.toLowerCase();
+  const textLower = text.toLowerCase();
+  
+  // Exact match - eng yuqori ball
+  if (textLower === queryLower) return 100;
+  
+  // Starts with - yuqori ball
+  if (textLower.startsWith(queryLower)) return 90;
+  
+  // Contains - o'rtacha ball
+  if (textLower.includes(queryLower)) return 70;
+  
+  // Fuzzy match - harflar ketma-ketligi
+  let score = 0;
+  let queryIndex = 0;
+  
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      score += 10;
+      queryIndex++;
+    }
+  }
+  
+  return queryIndex === queryLower.length ? score : 0;
 }
 
 export default function KassaPro() {
@@ -62,7 +108,71 @@ export default function KassaPro() {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [helperReceipts, setHelperReceipts] = useState<any[]>([]);
   const [loadingReceipts, setLoadingReceipts] = useState(false);
+  const [showProductDetail, setShowProductDetail] = useState(false);
+  const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
+  const [productDetailQuantity, setProductDetailQuantity] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const productsContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Debounced search query - 300ms kechikish
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Professional search with fuzzy matching
+  const performSearch = useCallback((query: string) => {
+    if (!query || query.length < 1) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    // Fuzzy search bilan mahsulotlarni qidirish
+    const results = products
+      .map(product => {
+        const nameScore = fuzzySearch(query, product.name);
+        const codeScore = fuzzySearch(query, product.code);
+        const maxScore = Math.max(nameScore, codeScore);
+        
+        return { product, score: maxScore };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20) // Faqat eng yaxshi 20 ta natija
+      .map(item => item.product);
+
+    setSearchResults(results);
+    setIsSearching(false);
+  }, [products]);
+
+  // Debounced search effect
+  useEffect(() => {
+    performSearch(debouncedSearchQuery);
+  }, [debouncedSearchQuery, performSearch]);
+
+  // Keyboard shortcuts - Ctrl+K yoki Cmd+K qidiruv uchun
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K yoki Cmd+K - qidiruvni ochish
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+      }
+      
+      // Escape - qidiruvni yopish
+      if (e.key === 'Escape' && showSearch) {
+        setShowSearch(false);
+        setSearchQuery('');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
 
   useEffect(() => {
     fetchProducts();
@@ -112,8 +222,15 @@ export default function KassaPro() {
 
   // Mahsulotlar yuklanganida displayedProducts ni yangilash
   useEffect(() => {
-    setDisplayedProducts(products.slice(0, displayCount));
-  }, [products, displayCount]);
+    let filtered = products;
+    
+    // Kategoriya bo'yicha filtrlash
+    if (selectedCategory) {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+    
+    setDisplayedProducts(filtered.slice(0, displayCount));
+  }, [products, displayCount, selectedCategory]);
 
   // Infinite scroll uchun
   useEffect(() => {
@@ -133,6 +250,7 @@ export default function KassaPro() {
   }, [displayCount, products.length]);
 
   const fetchProducts = async () => {
+    setIsLoadingProducts(true);
     try {
       if (navigator.onLine) {
         const res = await api.get('/products?mainOnly=true&limit=1000');
@@ -150,6 +268,8 @@ export default function KassaPro() {
       if (cached.length > 0) {
         setProducts(cached as Product[]);
       }
+    } finally {
+      setIsLoadingProducts(false);
     }
   };
 
@@ -271,7 +391,11 @@ export default function KassaPro() {
     }
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
+  const total = cart.reduce((sum, item) => {
+    // Agar skidka tanlangan bo'lsa, skidka qilingan narxni ishlatish
+    const itemPrice = item.discountedPrice || item.price;
+    return sum + itemPrice * item.cartQuantity;
+  }, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
 
   const addToCart = (product: Product) => {
@@ -312,25 +436,33 @@ export default function KassaPro() {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(id);
-    } else {
-      // Warning olib tashlandi - faqat yangilash
-      setCart(prev => prev.map(p => p._id === id ? {...p, cartQuantity: quantity} : p));
-    }
+    // 0 yoki manfiy bo'lsa ham o'chirmaslik, faqat yangilash
+    setCart(prev => prev.map(p => p._id === id ? {...p, cartQuantity: Math.max(0, quantity)} : p));
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (query.length > 0) {
-      const results = products.filter(p => 
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.code.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(results);
-    } else {
-      setSearchResults(products.slice(0, 20));
-    }
+  const applyPricingTier = (itemId: string, tier: 'tier1' | 'tier2' | 'tier3' | null) => {
+    setCart(prev => prev.map(item => {
+      if (item._id !== itemId) return item;
+      
+      if (!tier || !item.pricingTiers || !item.pricingTiers[tier]) {
+        // Skidka yo'q - asl narxni qaytarish
+        return {
+          ...item,
+          selectedTier: null,
+          discountedPrice: undefined
+        };
+      }
+      
+      const tierData = item.pricingTiers[tier];
+      const discountPercent = tierData.discountPercent;
+      const discountedPrice = item.price * (1 - discountPercent / 100);
+      
+      return {
+        ...item,
+        selectedTier: tier,
+        discountedPrice
+      };
+    }));
   };
 
   const handlePayment = async () => {
@@ -432,6 +564,27 @@ export default function KassaPro() {
       paymentMethodText = 'Karta';
     }
 
+    // Skidka ma'lumotlarini hisoblash
+    let totalDiscount = 0;
+    let totalOriginalPrice = 0;
+    
+    const itemsWithDiscount = cart.map(item => {
+      const currentPrice = item.discountedPrice || item.price;
+      const originalPrice = item.price;
+      const itemDiscount = (originalPrice - currentPrice) * item.cartQuantity;
+      
+      totalDiscount += itemDiscount;
+      totalOriginalPrice += originalPrice * item.cartQuantity;
+      
+      return {
+        ...item,
+        currentPrice,
+        originalPrice,
+        hasDiscount: !!item.discountedPrice,
+        discountPercent: item.selectedTier && item.pricingTiers?.[item.selectedTier]?.discountPercent || 0
+      };
+    });
+
     const receiptHTML = `
       <!DOCTYPE html>
       <html>
@@ -442,8 +595,13 @@ export default function KassaPro() {
           .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
           .title { font-weight: bold; font-size: 14px; }
           .items { margin: 10px 0; border-bottom: 1px dashed #000; padding-bottom: 10px; }
-          .item { display: flex; justify-content: space-between; margin: 5px 0; }
+          .item { margin: 8px 0; }
+          .item-header { display: flex; justify-content: space-between; font-weight: bold; }
+          .item-details { font-size: 10px; color: #666; margin-top: 2px; }
+          .discount-badge { color: #d00; font-weight: bold; }
+          .original-price { text-decoration: line-through; color: #999; }
           .total { font-weight: bold; font-size: 14px; text-align: right; margin: 10px 0; }
+          .discount-summary { background: #f0f0f0; padding: 8px; margin: 10px 0; border-radius: 4px; }
           .payment-info { margin: 10px 0; border-top: 1px dashed #000; padding-top: 10px; }
           .footer { text-align: center; margin-top: 10px; font-size: 10px; }
           .debt-warning { color: #d00; font-weight: bold; text-align: center; margin: 10px 0; }
@@ -456,16 +614,36 @@ export default function KassaPro() {
         </div>
         
         <div class="items">
-          ${receipt.items.map((item: any) => `
+          ${itemsWithDiscount.map((item: any) => `
             <div class="item">
-              <span>${item.name}</span>
-              <span>${formatNumber(item.price * item.quantity)} so'm</span>
-            </div>
-            <div style="font-size: 10px; color: #666;">
-              ${item.quantity} x ${formatNumber(item.price)} so'm
+              <div class="item-header">
+                <span>${item.name}</span>
+                <span>${formatNumber(item.currentPrice * item.cartQuantity)} so'm</span>
+              </div>
+              <div class="item-details">
+                ${item.quantity} x ${formatNumber(item.currentPrice)} so'm
+                ${item.hasDiscount ? `
+                  <br>
+                  <span class="discount-badge">-${item.discountPercent}% skidka</span>
+                  <span class="original-price">(${formatNumber(item.originalPrice)} so'm)</span>
+                ` : ''}
+              </div>
             </div>
           `).join('')}
         </div>
+        
+        ${totalDiscount > 0 ? `
+          <div class="discount-summary">
+            <div style="display: flex; justify-content: space-between; margin: 3px 0;">
+              <span>Asl narx:</span>
+              <span>${formatNumber(totalOriginalPrice)} so'm</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 3px 0; color: #d00; font-weight: bold;">
+              <span>Skidka:</span>
+              <span>-${formatNumber(totalDiscount)} so'm</span>
+            </div>
+          </div>
+        ` : ''}
         
         <div class="total">
           Jami: ${formatNumber(receipt.total)} so'm
@@ -495,6 +673,7 @@ export default function KassaPro() {
         
         <div class="footer">
           To'lov: ${paymentMethodText}
+          ${totalDiscount > 0 ? `<br>Siz ${formatNumber(totalDiscount)} so'm tejadingiz!` : ''}
           <br>
           Raxmat!
         </div>
@@ -763,8 +942,8 @@ export default function KassaPro() {
       <div className="max-w-[1800px] mx-auto p-2 sm:p-4 lg:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           
-          {/* Products/Receipts - First (Top) */}
-          <div className="lg:col-span-2 space-y-2 sm:space-y-3 lg:space-y-4 order-1">
+          {/* Products/Receipts - Second (Bottom on mobile) */}
+          <div className="lg:col-span-2 space-y-2 sm:space-y-3 lg:space-y-4 order-2 lg:order-1">
             {/* Tabs */}
             <div className="flex gap-2 bg-white p-2 rounded-xl border-2 border-slate-200 shadow-sm">
               <button
@@ -799,28 +978,94 @@ export default function KassaPro() {
             {/* Search Bar - Only for products tab */}
             {activeTab === 'products' && (
               <>
-                <div className="relative">
-                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                <div className="relative group">
+                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-focus-within:text-brand-500 transition-colors" />
                   <input
+                    ref={searchInputRef}
                     type="text"
-                    placeholder="Mahsulot qidirish..."
+                    placeholder="Mahsulot qidirish... (Ctrl+K)"
                     value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setShowSearch(true)}
-                    className="w-full pl-9 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 bg-white border-2 border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-xs sm:text-sm"
+                    className="w-full pl-9 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 bg-white border-2 border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 text-xs sm:text-sm transition-all"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setShowSearch(false);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+                    >
+                      <X className="w-4 h-4 text-slate-400" />
+                    </button>
+                  )}
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Category Filter - Horizontal Scrollable */}
+                <div className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 border-2 border-slate-200">
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                    <button
+                      onClick={() => setSelectedCategory('')}
+                      className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all ${
+                        selectedCategory === '' 
+                          ? 'bg-brand-500 text-white shadow-md' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Barchasi
+                    </button>
+                    {PRODUCT_CATEGORIES.map(category => (
+                      <button
+                        key={category}
+                        onClick={() => setSelectedCategory(category)}
+                        className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all whitespace-nowrap ${
+                          selectedCategory === category 
+                            ? 'bg-brand-500 text-white shadow-md' 
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Search Results / Products Grid */}
                 {showSearch && searchQuery ? (
                   <div className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 overflow-hidden shadow-lg">
+                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-600">
+                        {searchResults.length} ta natija
+                      </span>
+                      <button
+                        onClick={() => {
+                          setShowSearch(false);
+                          setSearchQuery('');
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        Yopish (Esc)
+                      </button>
+                    </div>
                 <div className="max-h-64 sm:max-h-96 overflow-y-auto">
                   {searchResults.length > 0 ? (
                     <div className="divide-y divide-slate-100">
                       {searchResults.map(product => (
                         <button
                           key={product._id}
-                          onClick={() => { addToCart(product); setShowSearch(false); setSearchQuery(''); }}
+                          onClick={() => { 
+                            setSelectedProductForDetail(product);
+                            setProductDetailQuantity(0);
+                            setShowProductDetail(true);
+                            setShowSearch(false); 
+                            setSearchQuery(''); 
+                          }}
                           disabled={product.quantity <= 0}
                           className={`w-full flex items-center gap-2 sm:gap-4 p-2 sm:p-4 hover:bg-slate-50 transition-colors text-left ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
@@ -898,7 +1143,11 @@ export default function KassaPro() {
 
                       {/* Mahsulot kartasi - click qilish mumkin */}
                       <button
-                        onClick={() => addToCart(product)}
+                        onClick={() => {
+                          setSelectedProductForDetail(product);
+                          setProductDetailQuantity(0); // Reset quantity to 0
+                          setShowProductDetail(true);
+                        }}
                         disabled={product.quantity <= 0}
                         className={`w-full text-left ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
@@ -1025,8 +1274,8 @@ export default function KassaPro() {
             )}
           </div>
 
-          {/* Cart - Second (Bottom) */}
-          <div className="lg:col-span-1 order-2">
+          {/* Cart - First (Top on mobile) */}
+          <div className="lg:col-span-1 order-1 lg:order-2">
             <div className="bg-white rounded-lg sm:rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden">
               {/* Cart Header */}
               <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-3 sm:px-6 py-3 sm:py-4 text-white">
@@ -1048,54 +1297,110 @@ export default function KassaPro() {
                   cart.map(item => {
                     const product = products.find(p => p._id === item._id);
                     const isLowStock = product && item.cartQuantity > product.quantity;
+                    const currentPrice = item.discountedPrice || item.price;
+                    const hasPricingTiers = item.pricingTiers && (item.pricingTiers.tier1 || item.pricingTiers.tier2 || item.pricingTiers.tier3);
                     
                     return (
-                    <div key={item._id} className="p-2 sm:p-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-start justify-between mb-1 sm:mb-2">
+                    <div key={item._id} className="p-2 sm:p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
+                      <div className="flex items-start justify-between mb-1">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-slate-900 text-xs sm:text-sm truncate">{item.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-slate-900 text-xs truncate">{item.name}</p>
                             {isLowStock && (
-                              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] font-semibold rounded-full whitespace-nowrap">
+                              <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-semibold rounded whitespace-nowrap">
                                 Kam!
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] sm:text-xs text-slate-500">{item.code}</p>
+                          <p className="text-[10px] text-slate-500">{item.code}</p>
                         </div>
                         <button
                           onClick={() => removeFromCart(item._id)}
                           className="text-slate-400 hover:text-red-500 transition-colors flex-shrink-0 ml-2"
                         >
-                          <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <X className="w-3 h-3" />
                         </button>
                       </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 sm:p-1">
-                          <button
-                            onClick={() => updateQuantity(item._id, item.cartQuantity - 1)}
-                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-slate-200 rounded transition-colors"
-                          >
-                            <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.cartQuantity}
-                            onChange={(e) => {
-                              const newQty = parseInt(e.target.value) || 1;
-                              updateQuantity(item._id, newQty);
-                            }}
-                            className="w-10 sm:w-12 text-center text-xs sm:text-sm font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded"
-                          />
-                          <button
-                            onClick={() => updateQuantity(item._id, item.cartQuantity + 1)}
-                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-slate-200 rounded transition-colors"
-                          >
-                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                          </button>
+
+                      {/* Pricing Tiers - 3 ta narx */}
+                      {hasPricingTiers && (
+                        <div className="grid grid-cols-3 gap-1 mb-2">
+                          {item.pricingTiers?.tier1 && (
+                            <button
+                              onClick={() => applyPricingTier(item._id, item.selectedTier === 'tier1' ? null : 'tier1')}
+                              className={`px-1.5 py-1 rounded text-[9px] font-semibold transition-all ${
+                                item.selectedTier === 'tier1'
+                                  ? 'bg-green-500 text-white shadow-md'
+                                  : 'bg-green-50 text-green-700 hover:bg-green-100'
+                              }`}
+                            >
+                              -{item.pricingTiers.tier1.discountPercent}%
+                            </button>
+                          )}
+                          {item.pricingTiers?.tier2 && (
+                            <button
+                              onClick={() => applyPricingTier(item._id, item.selectedTier === 'tier2' ? null : 'tier2')}
+                              className={`px-1.5 py-1 rounded text-[9px] font-semibold transition-all ${
+                                item.selectedTier === 'tier2'
+                                  ? 'bg-blue-500 text-white shadow-md'
+                                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              }`}
+                            >
+                              -{item.pricingTiers.tier2.discountPercent}%
+                            </button>
+                          )}
+                          {item.pricingTiers?.tier3 && (
+                            <button
+                              onClick={() => applyPricingTier(item._id, item.selectedTier === 'tier3' ? null : 'tier3')}
+                              className={`px-1.5 py-1 rounded text-[9px] font-semibold transition-all ${
+                                item.selectedTier === 'tier3'
+                                  ? 'bg-purple-500 text-white shadow-md'
+                                  : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                              }`}
+                            >
+                              -{item.pricingTiers.tier3.discountPercent}%
+                            </button>
+                          )}
                         </div>
-                        <p className="font-bold text-brand-600 text-xs sm:text-sm">{formatNumber(item.price * item.cartQuantity)} so'm</p>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={item.cartQuantity === 0 ? '' : item.cartQuantity}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Bo'sh qoldirish mumkin
+                              if (value === '') {
+                                updateQuantity(item._id, 0);
+                                return;
+                              }
+                              // Faqat raqamlar
+                              const numValue = parseInt(value);
+                              if (!isNaN(numValue) && numValue >= 0) {
+                                updateQuantity(item._id, numValue);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              // Agar bo'sh bo'lsa yoki 0 bo'lsa, 1 ga o'rnatish
+                              if (item.cartQuantity === 0 || e.target.value === '') {
+                                updateQuantity(item._id, 1);
+                              }
+                            }}
+                            onClick={(e) => e.currentTarget.select()}
+                            placeholder="1"
+                            className="w-14 text-center text-xs font-bold bg-slate-100 border-2 border-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 rounded-lg py-1.5 cursor-pointer hover:bg-slate-50 transition-colors"
+                          />
+                        </div>
+                        <div className="text-right">
+                          {item.discountedPrice && (
+                            <p className="text-[9px] text-slate-400 line-through">{formatNumber(item.price * item.cartQuantity)} so'm</p>
+                          )}
+                          <p className="font-bold text-brand-600 text-xs">{formatNumber(currentPrice * item.cartQuantity)} so'm</p>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1327,17 +1632,18 @@ export default function KassaPro() {
                     )}
                   </div>
 
-                  {/* Qarz ogohlantirishi */}
+                  {/* Oddiy mijoz uchun ogohlantirish */}
                   {(cashAmount + cardAmount) < total && !selectedCustomer && (
                     <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 flex items-start gap-2">
                       <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-red-900 text-sm">Mijoz tanlanmagan!</p>
-                        <p className="text-xs text-red-700 mt-1">Qarzga sotish uchun mijozni tanlang yoki yangi mijoz qo'shing</p>
+                        <p className="font-semibold text-red-900 text-sm">Oddiy mijozga qarzga sotib bo'lmaydi!</p>
+                        <p className="text-xs text-red-700 mt-1">To'liq to'lov qiling yoki mijozni tanlang</p>
                       </div>
                     </div>
                   )}
 
+                  {/* Qarz ogohlantirishi */}
                   {(cashAmount + cardAmount) < total && selectedCustomer && (
                     <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 flex items-start gap-2">
                       <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -1432,6 +1738,216 @@ export default function KassaPro() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {showProductDetail && selectedProductForDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-3 text-white flex items-center justify-between flex-shrink-0">
+              <h3 className="text-base sm:text-lg font-bold">Mahsulot</h3>
+              <button 
+                onClick={() => {
+                  setShowProductDetail(false);
+                  setSelectedProductForDetail(null);
+                  setProductDetailQuantity(0);
+                }}
+                className="hover:bg-brand-600 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="p-4 space-y-3 overflow-y-auto flex-1">
+              {/* Product Image */}
+              <div className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-lg border-2 border-brand-200 flex items-center justify-center overflow-hidden">
+                {selectedProductForDetail.images && selectedProductForDetail.images.length > 0 ? (
+                  <img 
+                    src={getProductImage(selectedProductForDetail) || ''}
+                    alt={selectedProductForDetail.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        parent.innerHTML = '<svg class="w-12 h-12 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                      }
+                    }}
+                  />
+                ) : (
+                  <Package2 className="w-12 h-12 text-brand-600" />
+                )}
+              </div>
+
+              {/* Product Info */}
+              <div className="space-y-2.5">
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Nomi</p>
+                  <p className="text-base font-bold text-slate-900">{selectedProductForDetail.name}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-0.5">Kod</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedProductForDetail.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-0.5">Sotish narxi</p>
+                    <p className="text-sm font-bold text-brand-600">{formatNumber(selectedProductForDetail.price)} so'm</p>
+                  </div>
+                </div>
+
+                {/* Tan narxi va Karobka narxi */}
+                {(selectedProductForDetail.costPrice || selectedProductForDetail.boxPrice) && (
+                  <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2 rounded-lg">
+                    {selectedProductForDetail.costPrice && selectedProductForDetail.costPrice > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-0.5">Tan narxi</p>
+                        <p className="text-sm font-semibold text-slate-700">{formatNumber(selectedProductForDetail.costPrice)} so'm</p>
+                      </div>
+                    )}
+                    {selectedProductForDetail.boxPrice && selectedProductForDetail.boxPrice > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-0.5">Karobka narxi</p>
+                        <p className="text-sm font-semibold text-slate-700">{formatNumber(selectedProductForDetail.boxPrice)} so'm</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Mavjud</p>
+                  <p className={`font-bold text-base ${
+                    selectedProductForDetail.quantity <= 0 
+                      ? 'text-red-600' 
+                      : selectedProductForDetail.quantity <= 10 
+                      ? 'text-orange-600' 
+                      : 'text-green-600'
+                  }`}>
+                    {selectedProductForDetail.quantity} ta
+                  </p>
+                </div>
+
+                {/* Quantity Input */}
+                <div>
+                  <p className="text-xs text-slate-500 mb-1.5">Sotish miqdori</p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={productDetailQuantity === 0 ? '' : productDetailQuantity}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Bo'sh qoldirish mumkin
+                      if (value === '') {
+                        setProductDetailQuantity(0);
+                        return;
+                      }
+                      // Faqat raqamlar
+                      const numValue = parseInt(value);
+                      if (!isNaN(numValue) && numValue >= 0) {
+                        // Maksimal miqdordan oshmasligi
+                        setProductDetailQuantity(Math.min(numValue, selectedProductForDetail.quantity));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Agar bo'sh bo'lsa yoki 0 bo'lsa, 1 ga o'rnatish
+                      if (productDetailQuantity === 0 || e.target.value === '') {
+                        setProductDetailQuantity(1);
+                      }
+                    }}
+                    onClick={(e) => e.currentTarget.select()}
+                    placeholder="1"
+                    className="w-full px-3 py-2.5 text-center text-lg font-bold bg-slate-100 border-2 border-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
+                  />
+                  
+                  {/* Low Stock Warning */}
+                  {productDetailQuantity > selectedProductForDetail.quantity * 0.5 && selectedProductForDetail.quantity <= 10 && productDetailQuantity > 0 && (
+                    <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-yellow-900 text-xs">Mahsulot soni kam!</p>
+                        <p className="text-[10px] text-yellow-700 mt-0.5">
+                          Omborda {selectedProductForDetail.quantity} ta qoldi
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Total Price */}
+                  <div className="mt-2 bg-gradient-to-r from-brand-50 to-blue-50 rounded-lg p-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-slate-700">Jami:</span>
+                      <span className="text-base font-bold text-brand-600">
+                        {formatNumber(selectedProductForDetail.price * productDetailQuantity)} so'm
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedProductForDetail.description && (
+                  <div>
+                    <p className="text-xs text-slate-500 mb-0.5">Ta'rif</p>
+                    <p className="text-xs text-slate-700 leading-relaxed">{selectedProductForDetail.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons - Fixed at bottom */}
+            <div className="flex gap-2 p-4 border-t border-slate-200 flex-shrink-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowProductDetail(false);
+                  setSelectedProductForDetail(null);
+                  setProductDetailQuantity(0);
+                }}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-sm"
+              >
+                Bekor
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedProductForDetail) {
+                    // Mahsulotni savatga qo'shish - miqdor bilan
+                    const existingInCart = cart.find(p => p._id === selectedProductForDetail._id);
+                    
+                    if (existingInCart) {
+                      // Agar savatchada bo'lsa, miqdorni qo'shish
+                      const newQuantity = existingInCart.cartQuantity + productDetailQuantity;
+                      if (newQuantity > selectedProductForDetail.quantity) {
+                        showAlert(`Maksimal: ${selectedProductForDetail.quantity} ta`, 'Ogohlantirish', 'warning');
+                        return;
+                      }
+                      setCart(prev => prev.map(p => 
+                        p._id === selectedProductForDetail._id 
+                          ? {...p, cartQuantity: newQuantity} 
+                          : p
+                      ));
+                    } else {
+                      // Yangi mahsulot qo'shish
+                      setCart(prev => [...prev, {
+                        ...selectedProductForDetail, 
+                        cartQuantity: productDetailQuantity
+                      }]);
+                    }
+                    
+                    showAlert(`${selectedProductForDetail.name} (${productDetailQuantity} ta) qo'shildi`, 'Muvaffaqiyat', 'success');
+                    setShowProductDetail(false);
+                    setSelectedProductForDetail(null);
+                    setProductDetailQuantity(0);
+                  }
+                }}
+                disabled={selectedProductForDetail.quantity <= 0 || productDetailQuantity <= 0 || productDetailQuantity > selectedProductForDetail.quantity}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                Qo'shish
+              </button>
             </div>
           </div>
         </div>

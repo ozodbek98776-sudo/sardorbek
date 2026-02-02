@@ -388,11 +388,14 @@ export default function CustomersPro() {
                       <div className="flex items-center gap-1 mb-1">
                         <DollarSign className={`w-3 h-3 ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`} />
                         <p className={`text-[10px] font-semibold ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          {customer.debt > 0 ? 'Qarz' : 'Qarz yo\'q'}
+                          Qarz
                         </p>
                       </div>
                       <p className={`text-sm font-bold truncate ${customer.debt > 0 ? 'text-red-700' : 'text-blue-700'}`}>
                         {formatNumber(customer.debt)}
+                      </p>
+                      <p className={`text-[9px] mt-0.5 ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                        {customer.debt > 0 ? 'To\'lash kerak' : '0 ta'}
                       </p>
                     </div>
                   </div>

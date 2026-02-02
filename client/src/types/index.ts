@@ -66,6 +66,8 @@ export interface Product {
 
 export interface CartItem extends Product {
   cartQuantity: number;
+  selectedTier?: 'tier1' | 'tier2' | 'tier3' | null; // Tanlangan narx darajasi
+  discountedPrice?: number; // Skidka qilingan narx
   paymentBreakdown?: {
     cash: number;     // Naqt pul miqdori
     click: number;    // Click miqdori

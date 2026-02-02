@@ -555,7 +555,7 @@ export default function Debts() {
                                 </button>
                               )}
 
-                              {/* Muddati berish va Bo'ldi tugmalari - faqat admin va faqat to'lanmagan qarzlar uchun */}
+                              {/* Muddati berish tugmasi - faqat admin va faqat to'lanmagan qarzlar uchun */}
                               {isAdmin && !isPaid && (
                                 <>
                                   {debt.extensionCount === undefined || debt.extensionCount < 3 ? (
@@ -580,34 +580,6 @@ export default function Debts() {
                                       <span>Muddat</span>
                                     </button>
                                   ) : null}
-                                  <button
-                                    onClick={async () => {
-                                      const confirmed = await showConfirm(
-                                        "Bu qarzni to'landi deb belgilaysizmi? Qoldiq summa nol bo'ladi.",
-                                        "Bo'ldi"
-                                      );
-                                      if (!confirmed) return;
-                                      try {
-                                        const remainingAmount = debt.amount - debt.paidAmount;
-                                        if (remainingAmount > 0) {
-                                          await api.post(`/debts/${debt._id}/payment`, {
-                                            amount: remainingAmount,
-                                            method: 'cash'
-                                          });
-                                        }
-                                        fetchDebts();
-                                        fetchStats();
-                                        showAlert("Qarz to'landi deb belgilandi", 'Muvaffaqiyat', 'success');
-                                      } catch (err: any) {
-                                        console.error('Error marking debt as paid:', err);
-                                        showAlert(err.response?.data?.message || "Qarz to'landi deb belgilashda xatolik", 'Xatolik', 'danger');
-                                      }
-                                    }}
-                                    className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-emerald-200 transition-all whitespace-nowrap"
-                                  >
-                                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                    <span>Bo'ldi</span>
-                                  </button>
                                 </>
                               )}
 

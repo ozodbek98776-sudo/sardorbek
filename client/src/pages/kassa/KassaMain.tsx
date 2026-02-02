@@ -838,8 +838,7 @@ export default function KassaMain() {
     <div className="h-full flex flex-col lg:flex-row overflow-hidden">
       {AlertComponent}
       
-      {/* Left - Cart Table */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      {/* Left - Cart Table */}`n      <div className="flex-1 flex flex-col overflow-hidden min-h-0 order-2 lg:order-1">
         {/* Cart Info */}
         <div className="p-2 sm:p-3 lg:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white border-b border-surface-200 flex-shrink-0">
           <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">

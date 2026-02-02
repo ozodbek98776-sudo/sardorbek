@@ -11,7 +11,7 @@ export interface ReceiptData {
   date?: Date;
 }
 
-// Chek ma'lumotlarini formatlash - HAQIQIY KASSA CHEKI KABI
+// Chek ma'lumotlarini formatlash - PROFESSIONAL DIZAYN
 export const formatReceiptData = (data: ReceiptData): string => {
   const date = data.date || new Date();
   const receiptNumber = data.receiptNumber || `CHK-${Date.now()}`;
@@ -19,14 +19,17 @@ export const formatReceiptData = (data: ReceiptData): string => {
 
   let receipt = '';
   
-  // Header - Professional kassa cheki kabi (58mm uchun qisqa) - O'RTAGA TEKISLANGAN
-  receipt += '========================\n';
-  receipt += 'SARDOR FURNITURA\n';
-  receipt += '========================\n';
+  // Header - Professional va chiroyli dizayn (rasmga o'xshash)
+  receipt += '================================\n';
   receipt += '\n';
+  receipt += '      SARDOR FURNITURA\n';
+  receipt += '================================\n';
+  receipt += '\n';
+  
+  // Chek ma'lumotlari - Professional format (rasmga o'xshash)
   receipt += `CHK: ${receiptNumber}\n`;
-  receipt += `${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
-  receipt += `KASSIR: ${cashier}\n`;
+  receipt += `     ${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
+  receipt += `     KASSIR: ${cashier}\n`;
   
   if (data.customer) {
     receipt += `MIJOZ: ${data.customer.name}\n`;
@@ -39,10 +42,10 @@ export const formatReceiptData = (data: ReceiptData): string => {
   let totalOriginalPrice = 0;
   let totalCurrentPrice = 0;
   
-  // Items - Oddiy va tushunarli - CHAP TOMONGA TEKISLANGAN (mahsulot ma'lumotlari)
+  // Items - Chiroyli va tushunarli format (rasmga o'xshash)
   data.items.forEach((item, index) => {
-    receipt += `${index + 1}. ${item.name}\n`;
-    receipt += `   ${item.code}\n`;
+    receipt += `${index + 1}. ${item.code} ${item.name}\n`;
+    receipt += `                ${item.cartQuantity}\n`;
     
     // Oldingi va hozirgi narxlarni ko'rsatish
     const previousPrice = (item as any).previousPrice;
@@ -52,40 +55,18 @@ export const formatReceiptData = (data: ReceiptData): string => {
     totalOriginalPrice += (previousPrice && previousPrice > 0 ? previousPrice : currentPrice) * item.cartQuantity;
     totalCurrentPrice += currentPrice * item.cartQuantity;
     
-    if (previousPrice && previousPrice > 0 && previousPrice !== currentPrice) {
-      const discountPercent = Math.round(((previousPrice - currentPrice) / previousPrice) * 100);
-      receipt += `   OLDINGI: ${formatNumber(previousPrice)}\n`;
-      receipt += `   HOZIRGI: ${formatNumber(currentPrice)}`;
-      if (discountPercent > 0) {
-        receipt += ` (-${discountPercent}%)\n`;
-      } else if (discountPercent < 0) {
-        receipt += ` (+${Math.abs(discountPercent)}%)\n`;
-      } else {
-        receipt += '\n';
-      }
-    } else {
-      receipt += `   NARXI: ${formatNumber(item.price)}\n`;
-    }
-    
-    receipt += `   ${item.cartQuantity} x ${formatNumber(currentPrice)}\n`;
-    receipt += `   = ${formatNumber(currentPrice * item.cartQuantity)}\n`;
+    receipt += `        NARXI: ${formatNumber(item.price)}\n`;
+    receipt += `        ${item.cartQuantity} x ${formatNumber(item.price)}\n`;
+    receipt += `        = ${formatNumber(item.price * item.cartQuantity)}\n`;
     receipt += '\n';
   });
   
   receipt += '------------------------\n';
   
-  // Total - Katta va aniq (58mm uchun qisqa) - O'RTAGA TEKISLANGAN
+  // Total - Katta va chiroyli (rasmga o'xshash)
   receipt += `JAMI: ${formatNumber(data.total)}\n`;
   
-  // Umumiy chegirma foizini ko'rsatish (58mm uchun qisqa)
-  if (totalOriginalPrice > totalCurrentPrice) {
-    const totalDiscount = totalOriginalPrice - totalCurrentPrice;
-    const totalDiscountPercent = Math.round((totalDiscount / totalOriginalPrice) * 100);
-    receipt += `CHEGIRMA: ${formatNumber(totalDiscount)}\n`;
-    receipt += `(${totalDiscountPercent}%)\n`;
-  }
-  
-  // To'lov turlari bo'yicha breakdown (58mm uchun qisqa)
+  // To'lov turlari bo'yicha breakdown
   const totalCash = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.cash || 0), 0);
   const totalClick = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.click || 0), 0);
   const totalCard = data.items.reduce((sum, item) => sum + (item.paymentBreakdown?.card || 0), 0);
@@ -94,28 +75,21 @@ export const formatReceiptData = (data: ReceiptData): string => {
   if (totalClick > 0) receipt += `CLICK: ${formatNumber(totalClick)}\n`;
   if (totalCard > 0) receipt += `KARTA: ${formatNumber(totalCard)}\n`;
   
-  receipt += `TO'LOV: ${data.paymentMethod === 'cash' ? 'NAQD' : data.paymentMethod === 'click' ? 'CLICK' : 'KARTA'}\n`;
+  const paymentMethodText = data.paymentMethod === 'cash' ? 'NAQD' : 
+                           data.paymentMethod === 'click' ? 'CLICK' : 
+                           'KARTA';
+  receipt += `TO'LOV: ${paymentMethodText}\n`;
   
-  // Ball tizimi - har 1,000,000 so'm = 1 ball (58mm uchun qisqa)
-  const earnedBalls = Math.floor(data.total / 1000000);
-  if (earnedBalls > 0) {
-    receipt += '------------------------\n';
-    receipt += `BALL: +${earnedBalls} BALL!\n`;
-  }
-  
-  // Mijoz umumiy balli (agar mavjud bo'lsa)
-  if (data.customer && (data.customer as any).totalBalls) {
-    receipt += `JAMI: ${(data.customer as any).totalBalls} BALL\n`;
-  }
-  
-  receipt += '========================\n';
-  receipt += 'XARIDINGIZ UCHUN\n';
-  receipt += 'RAHMAT!\n';
-  receipt += '========================\n';
+  receipt += '================================\n';
   receipt += '\n';
-  receipt += '⚠️ VAZVRAT CHEKSIZ ⚠️\n';
-  receipt += 'QABUL QILINMAYDI\n';
-  receipt += '========================\n';
+  receipt += '     XARIDINGIZ UCHUN\n';
+  receipt += '        RAHMAT!\n';
+  receipt += '\n';
+  receipt += '================================\n';
+  receipt += '\n';
+  receipt += '⚠️  VAZVRAT CHEKSIZ  ⚠️\n';
+  receipt += '   QABUL QILINMAYDI\n';
+  receipt += '================================\n';
   
   return receipt;
 };
@@ -148,7 +122,7 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
       <!DOCTYPE html>
       <html>
         <head>
-          <title>X PRINTER CHEK</title>
+          <title>SARDOR FURNITURA - CHEK</title>
           <meta charset="UTF-8">
           <style>
             * {
@@ -158,13 +132,13 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             }
             
             body {
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
-              font-weight: bold;
-              line-height: 1.2;
+              font-family: 'Courier New', 'Consolas', monospace;
+              font-size: 13px;
+              font-weight: 600;
+              line-height: 1.4;
               color: #000;
               background: white;
-              padding: 0;
+              padding: 8px;
               margin: 0 auto;
               display: flex;
               justify-content: center;
@@ -174,43 +148,45 @@ export const printToXPrinter = async (data: ReceiptData, onPrintComplete?: () =>
             
             .receipt-text {
               white-space: pre-line;
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
-              font-weight: bold;
+              font-family: 'Courier New', 'Consolas', monospace;
+              font-size: 13px;
+              font-weight: 600;
               word-break: break-word;
-              padding: 5px;
+              padding: 8px;
               text-align: center;
-              width: 58mm;
+              width: 80mm;
               margin: 0 auto;
+              letter-spacing: 0.3px;
             }
             
             /* X Printer uchun maxsus print sozlamalari */
             @media print {
               @page {
-                size: 58mm auto;
+                size: 80mm auto;
                 margin: 0;
                 padding: 0;
               }
               
               body {
                 background: white;
-                font-size: 10px;
-                font-weight: bold;
-                padding: 0;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 5mm;
                 margin: 0 auto;
-                width: 58mm;
+                width: 80mm;
                 display: flex;
                 justify-content: center;
                 align-items: flex-start;
               }
               
               .receipt-text {
-                width: 58mm;
-                font-weight: bold;
-                font-size: 10px;
-                padding: 2mm;
+                width: 70mm;
+                font-weight: 600;
+                font-size: 12px;
+                padding: 0;
                 text-align: center;
                 margin: 0 auto;
+                letter-spacing: 0.3px;
               }
             }
           </style>

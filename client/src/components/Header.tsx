@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Bell, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut, Receipt } from 'lucide-react';
+import { Search, ChevronDown, Bell, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
@@ -18,9 +18,10 @@ interface HeaderProps {
   filterOptions?: FilterOption[];
   filterValue?: string;
   onFilterChange?: (value: string) => void;
+  showLogout?: boolean;
 }
 
-export default function Header({ title, showSearch, onSearch, actions, filterOptions, filterValue, onFilterChange }: HeaderProps) {
+export default function Header({ title, showSearch, onSearch, actions, filterOptions, filterValue, onFilterChange, showLogout }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -67,7 +68,6 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     { icon: ShoppingCart, label: 'Kassa', path: '/admin/kassa' },
     { icon: Users, label: 'Mijozlar', path: '/admin/customers' },
     { icon: FileText, label: 'Qarzlar', path: '/admin/debts' },
-    { icon: Receipt, label: 'Cheklar', path: '/admin/staff-receipts' },
     { icon: UserCircle, label: 'Hodimlar', path: '/admin/helpers' },
   ];
 
@@ -130,7 +130,17 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
 
             {/* Settings - REMOVED (Task 28) */}
 
-            {/* Logout Button removed */}
+            {/* Logout Button - Visible on all screens */}
+            {showLogout && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 flex-shrink-0 text-xs sm:text-sm font-semibold"
+                title="Chiqish"
+              >
+                <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden xs:inline">Chiqish</span>
+              </button>
+            )}
             
             {/* Custom Actions */}
             {actions}
@@ -171,7 +181,6 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
           {/* Backdrop */}
           <div 
             className="fixed inset-0 bg-black/50"
-            onClick={() => setMenuOpen(false)}
           />
           
           {/* Menu Panel - LEFT SIDE */}
@@ -198,8 +207,8 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
             </div>
 
             {/* Menu Items */}
-            <div className="overflow-y-auto h-[calc(100vh-140px)] p-4">
-              <div className="space-y-1">
+            <div className="overflow-y-auto h-[calc(100vh-140px)] p-3">
+              <div className="space-y-0.5">
                 {menuItems.map((item, index) => {
                   const Icon = item.icon;
                   return (
@@ -209,9 +218,9 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
                         navigate(item.path);
                         setMenuOpen(false);
                       }}
-                      className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-surface-50 transition-colors group"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 transition-colors group"
                     >
-                      <div className="w-11 h-11 bg-surface-100 rounded-xl flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-110 transition-all">
+                      <div className="w-10 h-10 bg-surface-100 rounded-xl flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-110 transition-all">
                         <Icon className="w-5 h-5 text-surface-600 group-hover:text-brand-600" />
                       </div>
                       <span className="font-medium text-surface-900 group-hover:text-brand-600 transition-colors">
@@ -224,25 +233,30 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
               </div>
 
               {/* Footer Info */}
-              <div className="mt-6 p-4 bg-surface-50 rounded-xl">
-                <p className="text-xs text-surface-500 text-center mb-2">
-                  {user?.name || 'Foydalanuvchi'}
-                </p>
-                <p className="text-xs text-surface-400 text-center mb-4">
-                  {new Date().toLocaleDateString('uz-UZ', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </p>
+              <div className="mt-4 p-3 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border border-red-200">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">
+                      {user?.name?.charAt(0).toUpperCase() || 'A'}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-surface-900">
+                      {user?.name || 'Foydalanuvchi'}
+                    </p>
+                    <p className="text-xs text-surface-500">
+                      {user?.role === 'admin' ? 'Administrator' : 'Foydalanuvchi'}
+                    </p>
+                  </div>
+                </div>
                 
-                {/* Logout Button */}
+                {/* Logout Button - Ko'zga tashlanadigan */}
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 font-semibold"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="font-medium">Chiqish</span>
+                  <LogOut className="w-5 h-5" />
+                  <span>Tizimdan chiqish</span>
                 </button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus, Ruler, Box, Scale, RotateCcw, Scan } from 'lucide-react';
+import { Search, RefreshCw, Package, Plus, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Image, Upload, Printer, Minus, Ruler, Box, Scale, RotateCcw, Scan, Filter } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -8,6 +8,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
 import * as QRCode from 'qrcode';
 import { UPLOADS_URL } from '../../config/api';
+import { PRODUCT_CATEGORIES } from '../../constants/categories';
 
 export default function KassaProducts() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
@@ -19,6 +20,7 @@ export default function KassaProducts() {
   const [displayCount, setDisplayCount] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -137,9 +139,14 @@ export default function KassaProducts() {
       }
     }
     
+    // Kategoriya bo'yicha filtrlash
+    if (selectedCategory) {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+    
     setFilteredProducts(filtered);
     setDisplayCount(20); // Reset display count when filter changes
-  }, [products, searchTerm, stockFilter]);
+  }, [products, searchTerm, stockFilter, selectedCategory]);
 
   const fetchMainWarehouse = async () => {
     try {
@@ -623,14 +630,10 @@ export default function KassaProducts() {
 
   const generateQRCodeDataURL = async (product: Product, size: number): Promise<string> => {
     try {
-      const qrData = JSON.stringify({
-        id: product._id,
-        code: product.code,
-        name: product.name,
-        price: product.price
-      });
+      // QR code ichida mahsulot sahifasiga havola
+      const productUrl = `${window.location.origin}/product/${product._id}`;
       
-      const qrDataURL = await QRCode.toDataURL(qrData, {
+      const qrDataURL = await QRCode.toDataURL(productUrl, {
         width: size * 10,
         margin: 1,
         color: {
@@ -1132,6 +1135,35 @@ export default function KassaProducts() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           />
+        </div>
+
+        {/* Category Filter - Horizontal Scrollable */}
+        <div className="bg-white rounded-lg p-3 border border-surface-200">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategory('')}
+              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                selectedCategory === '' 
+                  ? 'bg-brand-500 text-white shadow-md' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Barchasi
+            </button>
+            {PRODUCT_CATEGORIES.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                  selectedCategory === category 
+                    ? 'bg-brand-500 text-white shadow-md' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="card p-0 overflow-hidden">
@@ -1689,12 +1721,7 @@ export default function KassaProducts() {
               <div className="bg-white p-4 rounded-xl border border-surface-200 mb-4">
                 <QRCodeSVG
                   id="qr-code-svg"
-                  value={JSON.stringify({
-                    id: selectedProduct._id,
-                    code: selectedProduct.code,
-                    name: selectedProduct.name,
-                    price: selectedProduct.price
-                  })}
+                  value={`${window.location.origin}/product/${selectedProduct._id}`}
                   size={200}
                   level="H"
                   includeMargin
@@ -1914,12 +1941,7 @@ export default function KassaProducts() {
                           justifyContent: 'center'
                         }}>
                           <QRCodeSVG
-                            value={JSON.stringify({
-                              id: selectedProduct._id,
-                              code: selectedProduct.code,
-                              name: selectedProduct.name,
-                              price: selectedProduct.price
-                            })}
+                            value={`${window.location.origin}/product/${selectedProduct._id}`}
                             size={printSettings.size === 'card' ? 60 : printSettings.size === 'thermal' ? 120 : 140}
                             level="H"
                             includeMargin={false}

@@ -765,6 +765,10 @@
     animation: slideInLeft 0.3s ease-out;
   }
 
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
   @keyframes scaleIn {
     from {
       opacity: 0;
@@ -2157,4 +2161,24 @@
 
 .transition-slow {
   transition: all 0.2s ease;
+}
+
+
+/* ============================================
+   🚫 MODAL BACKDROP - Click Disabled
+   ============================================ */
+/* Barcha modal backdrop'lar bosilganda yopilmasin */
+.overlay {
+  pointer-events: none !important;
+}
+
+/* Modal o'zi bosilishi mumkin */
+.modal {
+  pointer-events: auto !important;
+}
+
+/* Backdrop orqasidagi elementlar ham bosilmasin */
+.fixed.inset-0.bg-black\/40,
+.fixed.inset-0.bg-black\/50 {
+  pointer-events: none !important;
 }

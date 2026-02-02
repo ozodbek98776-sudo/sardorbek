@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, CartItem } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { PRODUCT_CATEGORIES } from '../../constants/categories';
 
 interface Customer {
   _id: string;
@@ -21,6 +22,7 @@ export default function HelperScanner() {
   const { showAlert, AlertComponent } = useAlert();
   const [scanning, setScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -46,6 +48,11 @@ export default function HelperScanner() {
       }
     };
   }, []);
+
+  // Kategoriya o'zgarganda qidiruvni qayta ishga tushirish
+  useEffect(() => {
+    handleSearch(searchQuery);
+  }, [selectedCategory]);
 
   const fetchProducts = async () => {
     try {
@@ -241,13 +248,25 @@ export default function HelperScanner() {
     setSearchQuery(query);
     setScannedProduct(null);
     if (query.length > 0) {
-      const results = products.filter(p =>
+      let results = products.filter(p =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.code.toLowerCase().includes(query.toLowerCase())
       );
+      
+      // Kategoriya bo'yicha filtrlash
+      if (selectedCategory) {
+        results = results.filter(p => p.category === selectedCategory);
+      }
+      
       setSearchResults(results);
     } else {
-      setSearchResults([]);
+      // Agar qidiruv bo'sh bo'lsa, faqat kategoriya bo'yicha filtrlash
+      if (selectedCategory) {
+        const results = products.filter(p => p.category === selectedCategory);
+        setSearchResults(results);
+      } else {
+        setSearchResults([]);
+      }
     }
   };
 
@@ -586,6 +605,36 @@ export default function HelperScanner() {
                   </button>
                 )}
               </div>
+              
+              {/* Category Filter - Horizontal Scrollable */}
+              <div className="bg-white rounded-xl p-2 border-2 border-surface-200">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <button
+                    onClick={() => setSelectedCategory('')}
+                    className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all ${
+                      selectedCategory === '' 
+                        ? 'bg-brand-500 text-white shadow-md' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Barchasi
+                  </button>
+                  {PRODUCT_CATEGORIES.map(category => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all whitespace-nowrap ${
+                        selectedCategory === category 
+                          ? 'bg-brand-500 text-white shadow-md' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
               <button
                 onClick={scanning ? stopScanner : startScanner}
                 className={`h-12 flex items-center justify-center gap-2 rounded-xl px-4 font-medium ${scanning ? 'btn-secondary' : 'btn-primary'} shadow-md hover:shadow-lg transition-all`}
