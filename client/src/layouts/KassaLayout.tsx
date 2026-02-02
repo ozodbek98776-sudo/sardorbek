@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Calculator, Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
-import PWAInstallButton from '../components/PWAInstallButton.tsx';
 import api from '../utils/api';
 import { useAlert } from '../hooks/useAlert';
 
@@ -331,9 +330,6 @@ export default function KassaLayout() {
               <span className="text-xs font-medium" style={{ color: '#6b7280' }}>Faol</span>
             </div>
           </div>
-          
-          {/* Install App Button */}
-          <PWAInstallButton variant="navbar" />
         </header>
         
         {/* Content Area */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy, Search } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -11,6 +11,7 @@ import { FRONTEND_URL, UPLOADS_URL } from '../../config/api';
 import QRPrintLabel from '../../components/QRPrintLabel';
 import BatchQRPrint from '../../components/BatchQRPrint';
 import logger from '../../utils/logger';
+import { useSocket } from '../../hooks/useSocket';
 
 // Statistika interfeysi
 interface ProductStats {
@@ -31,6 +32,7 @@ interface ProductStats {
 
 export default function Products() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
+  const socket = useSocket(); // ⚡ Socket.IO hook
   const [products, setProducts] = useState<Product[]>([]); // Barcha mahsulotlar
   const [currentPage, setCurrentPage] = useState(1); // Joriy sahifa
   const [totalPages, setTotalPages] = useState(1); // Jami sahifalar
@@ -68,12 +70,17 @@ export default function Products() {
   const [quantityMode, setQuantityMode] = useState<'add' | 'subtract'>('add');
   const [quantityInput, setQuantityInput] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Floating search button uchun
+  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
+  const [floatingSearchOpen, setFloatingSearchOpen] = useState(false);
+  const [floatingSearchQuery, setFloatingSearchQuery] = useState('');
 
-  // ⚡ Debounce qidiruv - 300ms kutish
+  // ⚡ Debounce qidiruv - 150ms kutish (tezroq)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 300);
+    }, 150);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -90,6 +97,18 @@ export default function Products() {
       document.body.style.overflow = 'unset';
     };
   }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showQuantityModal, showImageModal]);
+
+  // Scroll listener - floating search button ko'rsatish
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      // 200px dan ko'proq scroll qilganda ko'rsatish
+      setShowFloatingSearch(scrollTop > 200);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   const [formData, setFormData] = useState({
     code: '', name: '', description: '', quantity: '',
     previousPrice: '', 
@@ -211,26 +230,56 @@ export default function Products() {
   };
 
   // ⚡ Filtered products - useMemo bilan optimize qilish
+  // ⚡ Filtered products - useMemo bilan optimize qilish
   const filteredProducts = useMemo(() => {
     // Agar qidiruv bo'lmasa va filter 'all' bo'lsa, barcha mahsulotlarni qaytarish
     if (!debouncedSearch && stockFilter === 'all') {
       return products;
     }
 
+    // Qidiruv so'zini bir marta lowercase qilish (optimizatsiya)
+    const searchLower = debouncedSearch.toLowerCase().trim();
+    
+    // Qidiruv so'zlarini bo'laklarga ajratish (masalan: "samsung a50" -> ["samsung", "a50"])
+    const searchWords = searchLower.split(/\s+/).filter(word => word.length > 0);
+
     return products.filter(p => {
-      const matchesSearch = !debouncedSearch || 
-                           p.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-                           p.code.toLowerCase().includes(debouncedSearch.toLowerCase());
+      if (!debouncedSearch) return true;
+      
+      const nameLower = p.name.toLowerCase();
+      const codeLower = p.code.toLowerCase();
+      
+      // Agar bitta so'z bo'lsa - oddiy qidiruv (tezroq)
+      if (searchWords.length === 1) {
+        return nameLower.includes(searchLower) || codeLower.includes(searchLower);
+      }
+      
+      // Agar bir nechta so'z bo'lsa - barcha so'zlar nom yoki kodda bo'lishi kerak
+      const matchesSearch = searchWords.every(word => 
+        nameLower.includes(word) || codeLower.includes(word)
+      );
+      
+      if (!matchesSearch) return false;
+      
+      // Stock filter
       const matchesStock = stockFilter === 'all' || 
                           (stockFilter === 'low' && p.quantity <= (p.minStock || 50) && p.quantity > 0) ||
                           (stockFilter === 'out' && p.quantity === 0);
-      return matchesSearch && matchesStock;
+      
+      return matchesStock;
     });
   }, [products, debouncedSearch, stockFilter]);
 
   // ⚡ Mahsulotlarni yuklash - useCallback bilan
   const fetchProducts = useCallback(async (page = 1) => {
     const startTime = performance.now();
+    
+    // Safari detection
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    if (isSafari) {
+      console.log('🍎 Safari browser aniqlandi - maxsus optimizatsiyalar faol');
+    }
+    
     try {
       if (page === 1) {
         setLoading(true);
@@ -245,10 +294,18 @@ export default function Products() {
       const productsData = response.data.data || [];
       const pagination = response.data.pagination || {};
       
+      console.log(`📦 Sahifa ${page}: ${productsData.length} ta mahsulot keldi`);
+      
       // Yumshoq validatsiya - faqat _id va name majburiy
       const validProducts = productsData.filter((p: Product) => {
-        if (!p || !p._id) return false;
-        if (!p.name || p.name.trim() === '') return false;
+        if (!p || !p._id) {
+          console.warn('⚠️ Mahsulot ID yo\'q:', p);
+          return false;
+        }
+        if (!p.name || p.name.trim() === '') {
+          console.warn('⚠️ Mahsulot nomi yo\'q:', p._id);
+          return false;
+        }
         return true;
       });
       
@@ -275,7 +332,8 @@ export default function Products() {
       
       // ⚡ Statistikani background da hisoblash (faqat birinchi sahifada)
       if (page === 1) {
-        requestIdleCallback(() => {
+        // Safari uchun fallback - requestIdleCallback mavjud bo'lmasa setTimeout ishlatish
+        const scheduleStats = () => {
           const stats = {
             total: pagination.total || 0,
             lowStock: validProducts.filter((p: Product) => p.quantity <= (p.minStock || 50) && p.quantity > 0).length,
@@ -310,13 +368,41 @@ export default function Products() {
           };
           console.log('💰 Client-side jami qiymat:', stats.totalValue);
           setOverallStats(stats);
-        }, { timeout: 2000 });
+        };
+        
+        // Safari uchun requestIdleCallback polyfill
+        if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(scheduleStats, { timeout: 2000 });
+        } else {
+          // Safari fallback - setTimeout ishlatish
+          setTimeout(scheduleStats, 100);
+        }
       }
       
     } catch (err: any) {
-      console.error('Error fetching products:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Maxsulotlarni yuklashda xatolik';
+      console.error('❌ Mahsulotlarni yuklashda xatolik:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        stack: err.stack
+      });
+      
+      // Safari uchun maxsus xato xabari
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      let errorMsg = err.response?.data?.message || err.message || 'Maxsulotlarni yuklashda xatolik';
+      
+      if (isSafari && err.message?.includes('Network')) {
+        errorMsg = 'Internet aloqasini tekshiring. Safari\'da ba\'zan aloqa muammolari bo\'lishi mumkin.';
+      }
+      
       showAlert(errorMsg, 'Xatolik', 'danger');
+      
+      // Agar xatolik bo'lsa, bo'sh array qo'yish (crash bo'lmasligi uchun)
+      if (page === 1) {
+        setProducts([]);
+        setOverallStats({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 });
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -338,6 +424,43 @@ export default function Products() {
     
     return () => clearTimeout(statsTimer);
   }, [fetchProducts]);
+
+  // ⚡ Socket.IO - Real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Yangi mahsulot qo'shilganda
+    socket.on('product:created', (newProduct: Product) => {
+      console.log('📡 Socket: Yangi mahsulot qo\'shildi', newProduct);
+      setProducts(prev => [newProduct, ...prev]); // Eng oldinga qo'shish
+      setTotalProducts(prev => prev + 1);
+      // Statistikani yangilash
+      fetchOverallStats();
+    });
+
+    // Mahsulot yangilanganda
+    socket.on('product:updated', (updatedProduct: Product) => {
+      console.log('📡 Socket: Mahsulot yangilandi', updatedProduct);
+      setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
+      // Statistikani yangilash
+      fetchOverallStats();
+    });
+
+    // Mahsulot o'chirilganda
+    socket.on('product:deleted', (data: { _id: string }) => {
+      console.log('📡 Socket: Mahsulot o\'chirildi', data._id);
+      setProducts(prev => prev.filter(p => p._id !== data._id));
+      setTotalProducts(prev => prev - 1);
+      // Statistikani yangilash
+      fetchOverallStats();
+    });
+
+    return () => {
+      socket.off('product:created');
+      socket.off('product:updated');
+      socket.off('product:deleted');
+    };
+  }, [socket]);
 
   // Umumiy statistikani serverdan olish
   const fetchOverallStats = async () => {
@@ -792,14 +915,11 @@ export default function Products() {
             const updated = prev.map(p => 
               p._id === editingProduct._id ? updatedProduct : p
             );
-            // Sorting qilish
+            // Yangi mahsulotlar birinchi - createdAt bo'yicha sorting
             updated.sort((a, b) => {
-              const codeA = parseInt(a.code) || 0;
-              const codeB = parseInt(b.code) || 0;
-              if (codeA === 0 && codeB === 0) {
-                return String(a.code).localeCompare(String(b.code));
-              }
-              return codeA - codeB;
+              const dateA = new Date(a.createdAt || 0).getTime();
+              const dateB = new Date(b.createdAt || 0).getTime();
+              return dateB - dateA; // Eng yangi birinchi
             });
             return updated;
           });
@@ -827,18 +947,9 @@ export default function Products() {
             imagesCount: productWithWarehouse.images?.length || 0
           });
           
-          // Yangi maxsulotni qo'shib, sorting qilish
+          // Yangi maxsulotni boshiga qo'shish (eng yangi birinchi)
           setProducts(prev => {
-            const updated = [...prev, productWithWarehouse];
-            // Numeric sorting qilish
-            updated.sort((a, b) => {
-              const codeA = parseInt(a.code) || 0;
-              const codeB = parseInt(b.code) || 0;
-              if (codeA === 0 && codeB === 0) {
-                return String(a.code).localeCompare(String(b.code));
-              }
-              return codeA - codeB;
-            });
+            const updated = [productWithWarehouse, ...prev]; // Boshiga qo'shish
             return updated;
           });
           logger.log('Yangi tovar darhol UI ga qo\'shildi:', response.data.name);
@@ -849,7 +960,9 @@ export default function Products() {
         }
       }
       
+      // Modal yopish va tozalash
       closeModal();
+      resetModal();
       showAlert(editingProduct ? 'Tovar yangilandi' : 'Tovar qo\'shildi', 'Muvaffaqiyat', 'success');
       
       // Statistikani yangilash
@@ -1124,10 +1237,19 @@ export default function Products() {
 
   // Print funksiyalari hozircha ishlatilmaydi, keyin qo'shilishi mumkin
 
+  // Modal yopish (ma'lumotlarni saqlab qolish)
   const closeModal = () => {
     setShowModal(false);
+    // ❌ Ma'lumotlarni reset QILMAYMIZ - foydalanuvchi qayta ochganda saqlanib qoladi
+  };
+
+  // Modal to'liq tozalash (saqlangandan keyin yoki yangi mahsulot qo'shishda)
+  const resetModal = () => {
     setEditingProduct(null);
-    setDollarRate(12500); // Dollar kursini reset qilish
+    setDollarRate(12500);
+    setImages([]);
+    setCodeError('');
+    setShowPackageInput(false);
     setFormData({ 
       code: '', name: '', description: '', quantity: '',
       previousPrice: '', currentPrice: '',
@@ -1174,30 +1296,11 @@ export default function Products() {
   };
 
   const openAddModal = async () => {
+    // Ma'lumotlarni tozalash (yangi mahsulot uchun)
+    resetModal();
+    
     // ⚡ Darhol modalni ochish - UI tezkor bo'lishi uchun
     setShowModal(true);
-    
-    // Default qiymatlarni o'rnatish
-    setFormData({ 
-      code: '', name: '', description: '', quantity: '',
-      previousPrice: '', currentPrice: '',
-      costPrice: '', costPriceInDollar: '', unitPrice: '', boxPrice: '',
-      pricingTiers: {
-        tier1: { minQuantity: '1', maxQuantity: '5', discountPercent: '15' },
-        tier2: { minQuantity: '6', maxQuantity: '20', discountPercent: '13' },
-        tier3: { minQuantity: '21', maxQuantity: '100', discountPercent: '11' }
-      },
-      unit: 'dona',
-      dimensions: { width: '', height: '', length: '' },
-      metersPerRoll: '',
-      unitsPerBox: '',
-      meterPriceRanges: [{ from: '', to: '', price: '' }],
-      pricePerRoll: '',
-      pricePerBox: '',
-      pricePerKg: '',
-      pricePerGram: ''
-    });
-    setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
     setImages([]);
     setCodeError('');
     setShowPackageInput(false);
@@ -1286,67 +1389,66 @@ export default function Products() {
             )}
             <button 
               onClick={openAddModal} 
-              className="flex items-center justify-center p-0.5 rounded bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 flex-shrink-0"
-              style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px' }}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-brand-500 hover:bg-brand-600 text-white transition-all duration-200 flex-shrink-0"
+              style={{ minHeight: '28px' }}
             >
-              <Plus className="w-3.5 h-3.5" style={{ width: '14px', height: '14px' }} />
+              <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[10px] sm:text-xs font-medium">Qo'shish</span>
             </button>
           </div>
         }
       />
 
       <div className="p-2 sm:p-3 md:p-4 lg:p-6 space-y-3 sm:space-y-4 md:space-y-6">
-        {/* Compact Stats - O'rtacha o'lcham, kichik shrift */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
+        {/* Stats Cards - Larger size with bigger fonts */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStockFilter(stat.filter)}
-              className={`bg-white rounded-lg sm:rounded-xl border-2 transition-all ${
+              className={`bg-white rounded-xl sm:rounded-2xl border-2 transition-all ${
                 stat.filter ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : ''
               } ${
                 stockFilter === stat.filter ? 'border-brand-500 shadow-md' : 'border-surface-200'
               }`}
             >
-              <div className="p-2 sm:p-2.5 md:p-3">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
-                    <stat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-${stat.color}-600`} />
+              <div className="p-3 sm:p-4 md:p-5">
+                <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-3">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center bg-${stat.color}-50`}>
+                    <stat.icon className={`w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-${stat.color}-600`} />
                   </div>
-                  <p className="text-[9px] sm:text-[10px] md:text-xs text-surface-500 font-medium">{stat.label}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-surface-500 font-medium">{stat.label}</p>
                 </div>
-                <p className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-surface-900">{stat.value}</p>
+                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-surface-900 truncate">{stat.value}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="card p-0 overflow-hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="spinner text-brand-600 w-8 h-8 mb-4" />
-              <p className="text-surface-500">Yuklanmoqda...</p>
+        {/* Products List - No frame, free-flowing */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="spinner text-brand-600 w-8 h-8 mb-4" />
+            <p className="text-surface-500">Yuklanmoqda...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
+              <Package className="w-8 h-8 text-surface-400" />
             </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
-              <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
-                <Package className="w-8 h-8 text-surface-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">Tovarlar topilmadi</h3>
-              <p className="text-surface-500 text-center max-w-md mb-6">
-                {searchQuery ? 'Qidiruv bo\'yicha tovarlar topilmadi' : 'Birinchi tovarni qo\'shing'}
-              </p>
-              <button onClick={openAddModal} className="btn-primary">Tovar qo'shish</button>
-            </div>
-          ) : (
-            <>
-              {/* Card List View - One per row, Minimalist & Professional */}
-              <div 
-                ref={scrollContainerRef}
-                className="overflow-y-auto p-1 sm:p-2 md:p-3"
-                style={{ maxHeight: 'calc(100vh - 180px)' }}
-              >
-                <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
+            <h3 className="text-lg font-semibold text-surface-900 mb-2">Tovarlar topilmadi</h3>
+            <p className="text-surface-500 text-center max-w-md mb-6">
+              {searchQuery ? 'Qidiruv bo\'yicha tovarlar topilmadi' : 'Birinchi tovarni qo\'shing'}
+            </p>
+            <button onClick={openAddModal} className="btn-primary">Tovar qo'shish</button>
+          </div>
+        ) : (
+          <>
+            {/* Card List View - One per row, Minimalist & Professional */}
+            <div 
+              ref={scrollContainerRef}
+              className="space-y-2 sm:space-y-2.5 md:space-y-3"
+            >
                   {filteredProducts.map(product => {
                     const isSelected = selectedProducts.has(product._id);
                     const productImage = getProductImage(product);
@@ -1354,10 +1456,10 @@ export default function Products() {
                     return (
                       <div 
                         key={product._id}
-                        className={`group relative bg-white rounded-lg sm:rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                        className={`group relative bg-white rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-lg ${
                           isSelected 
-                            ? 'border-brand-500 shadow-md' 
-                            : 'border-slate-200 hover:border-brand-300'
+                            ? 'shadow-md ring-2 ring-brand-500' 
+                            : 'shadow-sm hover:shadow-md'
                         }`}
                       >
                         {/* Action Buttons - O'ng yuqori burchakda */}
@@ -1459,19 +1561,17 @@ export default function Products() {
                     );
                   })}
                 </div>
-                
-                {/* End indicator */}
-                {currentPage >= totalPages && !loadingMore && filteredProducts.length > 0 && (
-                  <div className="flex justify-center items-center py-6 mt-4">
-                    <div className="text-slate-400 text-sm">
-                      ✅ Barcha maxsulotlar yuklandi ({totalProducts} ta)
-                    </div>
+              
+              {/* End indicator */}
+              {currentPage >= totalPages && !loadingMore && filteredProducts.length > 0 && (
+                <div className="flex justify-center items-center py-6 mt-4">
+                  <div className="text-slate-400 text-sm">
+                    ✅ Barcha maxsulotlar yuklandi ({totalProducts} ta)
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
-        </div>
       </div>
 
       {showModal && (
@@ -2715,6 +2815,69 @@ export default function Products() {
             setSelectedProducts(new Set());
           }}
         />
+      )}
+
+      {/* Floating Search Button - Appears after scrolling down */}
+      {showFloatingSearch && (
+        <button
+          onClick={() => setFloatingSearchOpen(true)}
+          className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 z-40 animate-bounce-slow"
+          title="Qidirish"
+        >
+          <Search className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Floating Search Modal */}
+      {floatingSearchOpen && (
+        <div className="fixed inset-0 z-[110] flex items-start justify-center pt-20 px-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setFloatingSearchOpen(false);
+              setFloatingSearchQuery('');
+            }}
+          />
+          
+          {/* Search Input Container */}
+          <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden transform animate-slide-down">
+            <div className="p-4 bg-gradient-to-r from-purple-600 to-blue-600">
+              <div className="flex items-center gap-3">
+                <Search className="w-6 h-6 text-white flex-shrink-0" />
+                <input
+                  type="text"
+                  value={floatingSearchQuery}
+                  onChange={(e) => {
+                    setFloatingSearchQuery(e.target.value);
+                    setSearchQuery(e.target.value);
+                  }}
+                  placeholder="Tovar nomi yoki kodi bo'yicha qidiring..."
+                  className="flex-1 bg-white/20 text-white placeholder-white/70 border-0 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-white/50"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    setFloatingSearchOpen(false);
+                    setFloatingSearchQuery('');
+                  }}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-all"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Search Results Preview */}
+            {floatingSearchQuery && (
+              <div className="p-4 bg-white">
+                <p className="text-sm text-slate-600">
+                  {filteredProducts.length} ta tovar topildi
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

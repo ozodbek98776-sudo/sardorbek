@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw } from 'lucide-react';
+import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, CartItem } from '../../types';
 import api from '../../utils/api';
@@ -25,6 +25,7 @@ export default function HelperScanner() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
+  const [expandedPricing, setExpandedPricing] = useState<string | null>(null); // Qaysi mahsulotning pricing tiers ochiq
   const [sending, setSending] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -250,13 +251,50 @@ export default function HelperScanner() {
     }
   };
 
+  // Miqdorga qarab narx hisoblash funksiyasi (chegirma tizimi)
+  const calculateDynamicPrice = (basePrice: number, quantity: number): number => {
+    let markupPercent = 15; // Default 15%
+    
+    // Pricing tier aniqlash
+    if (quantity >= 100) {
+      markupPercent = 11; // 100+ dona uchun 11% (katta chegirma)
+    } else if (quantity >= 10) {
+      markupPercent = 13; // 10-99 dona uchun 13% (o'rta chegirma)
+    } else {
+      markupPercent = 15; // 1-9 dona uchun 15% (oddiy narx)
+    }
+    
+    // Narxni hisoblash
+    const finalPrice = basePrice * (1 + markupPercent / 100);
+    return Math.round(finalPrice);
+  };
+
+  // Pricing tier ma'lumotini olish
+  const getPricingTier = (quantity: number) => {
+    if (quantity >= 100) {
+      return { name: '100+ dona', markupPercent: 11, discount: true };
+    } else if (quantity >= 10) {
+      return { name: '10-99 dona', markupPercent: 13, discount: true };
+    } else {
+      return { name: '1-9 dona', markupPercent: 15, discount: false };
+    }
+  };
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(p => p._id === product._id);
       if (existing) {
-        return prev.map(p => p._id === product._id ? { ...p, cartQuantity: p.cartQuantity + 1 } : p);
+        const newQuantity = existing.cartQuantity + 1;
+        const dynamicPrice = calculateDynamicPrice(product.price, newQuantity);
+        return prev.map(p => p._id === product._id ? { 
+          ...p, 
+          cartQuantity: newQuantity,
+          price: dynamicPrice 
+        } : p);
       }
-      return [...prev, { ...product, cartQuantity: 1 }];
+      // Yangi mahsulot uchun 1 dona narxi
+      const dynamicPrice = calculateDynamicPrice(product.price, 1);
+      return [...prev, { ...product, cartQuantity: 1, price: dynamicPrice }];
     });
     setSearchQuery('');
     setSearchResults([]);
@@ -264,9 +302,18 @@ export default function HelperScanner() {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart(prev => prev.map(item =>
-      item._id === id ? { ...item, cartQuantity: Math.max(1, item.cartQuantity + delta) } : item
-    ));
+    setCart(prev => prev.map(item => {
+      if (item._id === id) {
+        const newQuantity = Math.max(1, item.cartQuantity + delta);
+        const product = products.find(p => p._id === id);
+        if (product) {
+          const dynamicPrice = calculateDynamicPrice(product.price, newQuantity);
+          return { ...item, cartQuantity: newQuantity, price: dynamicPrice };
+        }
+        return { ...item, cartQuantity: newQuantity };
+      }
+      return item;
+    }));
   };
 
   const removeFromCart = (id: string) => {
@@ -284,11 +331,12 @@ export default function HelperScanner() {
       setShowCustomerModal(true);
       return;
     }
-    
+
     setSending(true);
     try {
-      await api.post('/receipts', {
-        customer: selectedCustomer._id,
+      // Oddiy mijoz uchun customer: null, ro'yxatdagi mijoz uchun customer._id
+      const receiptData = {
+        customer: selectedCustomer._id === 'default' ? null : selectedCustomer._id,
         items: cart.map(item => ({
           product: item._id,
           name: item.name,
@@ -297,11 +345,15 @@ export default function HelperScanner() {
           quantity: item.cartQuantity
         })),
         total,
-        paymentMethod: 'cash', // Default payment method
-        paidAmount: total, // To'liq to'langan
-        status: 'pending'
-      });
-      showAlert(`Chek ${selectedCustomer.name} uchun saqlandi!`, 'Muvaffaqiyat', 'success');
+        paymentMethod: 'cash',
+        paidAmount: total,
+        status: selectedCustomer._id === 'default' ? 'completed' : 'pending'
+      };
+
+      await api.post('/receipts', receiptData);
+      
+      const customerName = selectedCustomer._id === 'default' ? 'Oddiy mijoz' : selectedCustomer.name;
+      showAlert(`Chek ${customerName} uchun saqlandi!`, 'Muvaffaqiyat', 'success');
       setCart([]);
       setSelectedCustomer(null);
     } catch (err) {
@@ -397,6 +449,26 @@ export default function HelperScanner() {
                   </div>
                   
                   <div className="max-h-96 overflow-y-auto space-y-2">
+                    {/* Oddiy mijoz - default */}
+                    <button
+                      onClick={() => {
+                        setSelectedCustomer({ _id: 'default', name: 'Oddiy mijoz', phone: '', debt: 0 } as Customer);
+                        setShowCustomerModal(false);
+                        setCustomerSearchQuery('');
+                      }}
+                      className={`w-full p-3 rounded-xl text-left transition-all ${
+                        selectedCustomer?._id === 'default'
+                          ? 'bg-blue-50 border-2 border-blue-500'
+                          : 'bg-blue-50/50 hover:bg-blue-100 border-2 border-blue-200'
+                      }`}
+                    >
+                      <div className="font-medium text-blue-900 flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Oddiy mijoz
+                      </div>
+                      <div className="text-xs text-blue-600">Faqat to'liq to'lov</div>
+                    </button>
+
                     {filteredCustomers.length === 0 ? (
                       <div className="text-center py-8 text-surface-500">
                         <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -495,24 +567,31 @@ export default function HelperScanner() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 lg:gap-6 items-start w-full">
         <div className="space-y-4 lg:space-y-5 min-w-0">
           <div className="card p-3 sm:p-4 border border-surface-100 shadow-sm">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
+            <div className="flex flex-col gap-3 items-stretch">
               <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-brand-400 z-10 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => handleSearch(e.target.value)}
-                  placeholder="Nomi yoki kodi bo'yicha qidirish..."
-                  className="input pl-10 pr-3 h-10 sm:h-11 text-sm w-full"
+                  placeholder="Qidirish..."
+                  className="w-full h-12 pl-10 sm:pl-11 pr-10 rounded-xl border-2 border-surface-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 transition-all text-sm sm:text-base text-surface-900 placeholder:text-surface-400 bg-white shadow-sm hover:border-brand-300 relative z-0"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-surface-100 hover:bg-surface-200 flex items-center justify-center transition-colors z-10"
+                  >
+                    <X className="w-4 h-4 text-surface-500" />
+                  </button>
+                )}
               </div>
               <button
                 onClick={scanning ? stopScanner : startScanner}
-                className={`btn-lg flex items-center justify-center gap-2 rounded-xl px-4 sm:px-5 ${scanning ? 'btn-secondary' : 'btn-primary'}`}
+                className={`h-12 flex items-center justify-center gap-2 rounded-xl px-4 font-medium ${scanning ? 'btn-secondary' : 'btn-primary'} shadow-md hover:shadow-lg transition-all`}
               >
                 <QrCode className="w-5 h-5" />
-                <span className="hidden sm:inline">{scanning ? 'Skanerni to‘xtatish' : 'QR skanerni ishga tushirish'}</span>
-                <span className="sm:hidden">{scanning ? 'Stop' : 'QR'}</span>
+                <span>{scanning ? 'Skanerni to\'xtatish' : 'QR skaner'}</span>
               </button>
             </div>
           </div>
@@ -784,32 +863,107 @@ export default function HelperScanner() {
               </div>
             ) : (
               <div className="space-y-2 sm:space-y-3 max-h-[360px] overflow-auto pr-1 custom-scrollbar">
-                {cart.map(item => (
-                  <div key={item._id} className="flex items-center gap-2 p-2 sm:p-3 bg-surface-50 rounded-xl border border-surface-100">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-surface-900 truncate text-sm">{item.name}</p>
-                      <p className="text-[10px] sm:text-[11px] text-surface-400">{formatNumber(item.price)} so'm / dona</p>
-                      <p className="text-xs sm:text-sm text-brand-600 font-semibold mt-0.5">
-                        {formatNumber(item.price * item.cartQuantity)} so'm
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg border border-surface-200 px-1 sm:px-1.5 py-1 flex-shrink-0">
-                      <button onClick={() => updateQuantity(item._id, -1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
-                        <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                {cart.map(item => {
+                  const pricingTier = getPricingTier(item.cartQuantity);
+                  const basePrice = products.find(p => p._id === item._id)?.price || item.price;
+                  const product = products.find(p => p._id === item._id);
+                  const isExpanded = expandedPricing === item._id;
+                  
+                  return (
+                  <div key={item._id} className="bg-surface-50 rounded-xl border border-surface-100">
+                    <div className="flex items-center gap-2 p-2 sm:p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-surface-900 truncate text-sm">{item.name}</p>
+                        
+                        {/* Pricing tier badge - bosiladigan */}
+                        <button
+                          onClick={() => setExpandedPricing(isExpanded ? null : item._id)}
+                          className="flex items-center gap-1.5 mt-1 hover:opacity-80 transition-opacity"
+                        >
+                          <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            pricingTier.discount 
+                              ? 'bg-success-100 text-success-700' 
+                              : 'bg-surface-200 text-surface-600'
+                          }`}>
+                            {pricingTier.name} • {pricingTier.markupPercent}%
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-3 h-3 text-surface-500" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3 text-surface-500" />
+                          )}
+                        </button>
+                        
+                        <p className="text-xs sm:text-sm text-brand-600 font-semibold mt-1">
+                          {formatNumber(item.price * item.cartQuantity)} so'm
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg border border-surface-200 px-1 sm:px-1.5 py-1 flex-shrink-0">
+                        <button onClick={() => updateQuantity(item._id, -1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
+                          <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.cartQuantity}
+                          onChange={(e) => {
+                            const newQty = parseInt(e.target.value) || 1;
+                            const delta = newQty - item.cartQuantity;
+                            updateQuantity(item._id, delta);
+                          }}
+                          className="w-8 sm:w-10 text-center font-semibold text-xs sm:text-sm bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded"
+                        />
+                        <button onClick={() => updateQuantity(item._id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
+                      <button onClick={() => removeFromCart(item._id)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0">
+                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
-                      <span className="w-6 sm:w-8 text-center font-semibold text-xs sm:text-sm">{item.cartQuantity}</span>
-                      <button onClick={() => updateQuantity(item._id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
                     </div>
-                    <button
-                      onClick={() => removeFromCart(item._id)}
-                      className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-danger-500 hover:bg-danger-50 rounded-full transition-colors flex-shrink-0"
-                    >
-                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </button>
+
+                    {/* Dropdown - 3 ta chegirma narxi */}
+                    {isExpanded && product && (
+                      <div className="px-2 sm:px-3 pb-2 sm:pb-3 space-y-1.5">
+                        {/* Tier 1 */}
+                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                          <div>
+                            <p className="text-[10px] font-medium text-green-900">
+                              {product.pricingTiers?.tier1?.minQuantity || 1}-{product.pricingTiers?.tier1?.maxQuantity || 9} dona
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-green-700">
+                            {product.pricingTiers?.tier1?.discountPercent || 15}%
+                          </span>
+                        </div>
+
+                        {/* Tier 2 */}
+                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                          <div>
+                            <p className="text-[10px] font-medium text-blue-900">
+                              {product.pricingTiers?.tier2?.minQuantity || 10}-{product.pricingTiers?.tier2?.maxQuantity || 99} dona
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-blue-700">
+                            {product.pricingTiers?.tier2?.discountPercent || 13}%
+                          </span>
+                        </div>
+
+                        {/* Tier 3 */}
+                        <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
+                          <div>
+                            <p className="text-[10px] font-medium text-purple-900">
+                              {product.pricingTiers?.tier3?.minQuantity || 100}+ dona
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-purple-700">
+                            {product.pricingTiers?.tier3?.discountPercent || 11}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
             )}
 

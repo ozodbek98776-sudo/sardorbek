@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { 
   Search, Save, CreditCard, Trash2, 
   Package, Banknote, Delete, RefreshCw, Printer,
-  DollarSign, Smartphone, Upload, QrCode
+  DollarSign, Smartphone
 } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -11,8 +11,6 @@ import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData, checkPrinterStatus } from '../../utils/receipt';
 import PartnerPaymentModal from '../../components/PartnerPaymentModal';
-import * as QRCodeLib from 'qrcode';
-import { FRONTEND_URL } from '../../config/api';
 
 // Payment Breakdown Form komponenti
 interface PaymentBreakdownFormProps {
@@ -207,16 +205,6 @@ export default function KassaMain() {
   const [showPricingEdit, setShowPricingEdit] = useState(false);
   const [selectedItemForPricing, setSelectedItemForPricing] = useState<CartItem | null>(null);
   const [customMarkupPercent, setCustomMarkupPercent] = useState<number>(15);
-  
-  // Mahsulot qadini o'zgartirish uchun state
-  const [showQuantityEdit, setShowQuantityEdit] = useState(false);
-  const [selectedProductForEdit, setSelectedProductForEdit] = useState<Product | null>(null);
-  const [newQuantity, setNewQuantity] = useState<string>('');
-  
-  // QR-code modal uchun state
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [selectedProductForQR, setSelectedProductForQR] = useState<Product | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   
   // To'lov modal uchun yangi state
   const [paidAmount, setPaidAmount] = useState<number>(0);
@@ -705,207 +693,6 @@ export default function KassaMain() {
     setCart(prev => prev.filter(item => item._id !== id));
   };
 
-  // Mahsulot qadini o'zgartirish funksiyasi
-  const handleQuantityEdit = (product: Product) => {
-    setSelectedProductForEdit(product);
-    setNewQuantity(product.quantity.toString());
-    setShowQuantityEdit(true);
-  };
-
-  // QR-code modal ochish funksiyasi
-  const openQRModal = async (product: Product) => {
-    setSelectedProductForQR(product);
-    setShowQRModal(true);
-    
-    try {
-      const productUrl = `${FRONTEND_URL}/product/${product._id}`;
-      const dataUrl = await QRCodeLib.toDataURL(productUrl, {
-        width: 300,
-        margin: 1,
-        errorCorrectionLevel: 'H',
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
-      });
-      setQrDataUrl(dataUrl);
-    } catch (err) {
-      console.error('QR generation error:', err);
-      showAlert('QR kod yaratishda xatolik', 'Xatolik', 'danger');
-    }
-  };
-
-  // QR-code chop etish funksiyasi
-  const printQRCode = () => {
-    if (!selectedProductForQR || !qrDataUrl) return;
-
-    const printWindow = window.open('', '_blank', 'width=600,height=400');
-    if (!printWindow) {
-      showAlert('Popup bloklangan. Iltimos, popup ga ruxsat bering.', 'Ogohlantirish', 'warning');
-      return;
-    }
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>QR Label - ${selectedProductForQR.name}</title>
-        <style>
-          @page {
-            size: 60mm 40mm;
-            margin: 0;
-          }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .label {
-            width: 60mm;
-            height: 40mm;
-            padding: 2mm;
-            background: white;
-            display: flex;
-            flex-direction: column;
-          }
-          .top-section {
-            display: flex;
-            gap: 2mm;
-            flex: 1;
-          }
-          .qr-box {
-            width: 22mm;
-            height: 22mm;
-            flex-shrink: 0;
-          }
-          .qr-code {
-            width: 22mm;
-            height: 22mm;
-            display: block;
-            image-rendering: pixelated;
-          }
-          .info-box {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-          }
-          .product-code {
-            font-size: 7pt;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 1mm;
-          }
-          .product-name {
-            font-size: 9pt;
-            font-weight: 700;
-            color: #000;
-            line-height: 1.2;
-            text-transform: uppercase;
-            word-break: break-word;
-          }
-          .bottom-section {
-            margin-top: 1.5mm;
-          }
-          .price-box {
-            padding: 1.5mm;
-            text-align: center;
-            background: #f0f0f0;
-            border-radius: 1mm;
-          }
-          .price-value {
-            font-size: 14pt;
-            font-weight: 900;
-            color: #000;
-            letter-spacing: -0.5px;
-          }
-          .price-currency {
-            font-size: 10pt;
-            font-weight: 700;
-            color: #000;
-            margin-left: 1mm;
-          }
-          @media print {
-            body { background: white; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="label">
-          <div class="top-section">
-            <div class="qr-box">
-              <img src="${qrDataUrl}" alt="QR" class="qr-code" />
-            </div>
-            <div class="info-box">
-              <div class="product-code">Kod: ${selectedProductForQR.code}</div>
-              <div class="product-name">${selectedProductForQR.name}</div>
-            </div>
-          </div>
-          <div class="bottom-section">
-            <div class="price-box">
-              <span class="price-value">${formatNumber(selectedProductForQR.price)}</span>
-              <span class="price-currency">so'm</span>
-            </div>
-          </div>
-        </div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-              window.onafterprint = function() { window.close(); }
-            }, 200);
-          }
-        </script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  const handleQuantityUpdate = async () => {
-    if (!selectedProductForEdit) return;
-    
-    const qty = parseInt(newQuantity);
-    if (isNaN(qty) || qty < 0) {
-      showAlert('Noto\'g\'ri miqdor kiritildi', 'Xatolik', 'danger');
-      return;
-    }
-
-    try {
-      // Serverga yangilash so'rovi
-      await api.put(`/products/${selectedProductForEdit._id}`, {
-        quantity: qty
-      });
-
-      // Local state ni yangilash
-      setProducts(prev => prev.map(p => 
-        p._id === selectedProductForEdit._id ? { ...p, quantity: qty } : p
-      ));
-
-      // Agar mahsulot savatchada bo'lsa, uni ham yangilash kerak
-      setCart(prev => prev.map(item => {
-        if (item._id === selectedProductForEdit._id && item.cartQuantity > qty) {
-          // Agar savatchadagi miqdor yangi qaddan ko'p bo'lsa, kamaytiramiz
-          return { ...item, cartQuantity: qty };
-        }
-        return item;
-      }));
-
-      showAlert('Mahsulot qadi yangilandi', 'Muvaffaqiyat', 'success');
-      setShowQuantityEdit(false);
-      setSelectedProductForEdit(null);
-      setNewQuantity('');
-    } catch (err: any) {
-      console.error('Error updating quantity:', err);
-      showAlert(err.response?.data?.message || 'Qadni yangilashda xatolik', 'Xatolik', 'danger');
-    }
-  };
-
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.length > 0) {
@@ -1151,29 +938,13 @@ export default function KassaMain() {
                           </div>
                         )}
                         
-                        {/* Mahsulot rasmi yoki icon */}
-                        {product.images && product.images.length > 0 ? (
-                          <img 
-                            src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
-                            alt={product.name}
-                            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover ${
-                              product.quantity === 0 ? 'opacity-50 grayscale' : ''
-                            }`}
-                            onError={(e) => {
-                              // Rasm yuklanmasa, icon ko'rsatish
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <div className={`${product.images && product.images.length > 0 ? 'hidden' : ''} w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
                           product.quantity === 0 ? 'bg-red-100' : 'bg-brand-100'
                         }`}>
                           <Package className={`w-4 h-4 sm:w-5 sm:h-5 ${
                             product.quantity === 0 ? 'text-red-600' : 'text-brand-600'
                           }`} />
                         </div>
-                        
                         <div className="flex-1 min-w-0 relative">
                           <p className={`font-medium text-sm sm:text-base truncate ${
                             product.quantity === 0 ? 'text-red-700 opacity-60' : 'text-surface-900'
@@ -1242,24 +1013,17 @@ export default function KassaMain() {
                 </div>
               )
             ) : (
-              <div className="space-y-3 p-4">
+              <div className="divide-y divide-surface-100">
                 {cart.map((item) => (
-                  <div key={item._id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-surface-100 overflow-hidden">
-                    {/* Desktop Layout - Professional */}
-                    <div className="hidden md:grid grid-cols-12 gap-3 p-4 items-center">
-                      {/* Code */}
+                  <div key={item._id}>
+                    {/* Desktop Layout */}
+                    <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-surface-50 transition-colors">
                       <div className="col-span-1">
-                        <div className="px-2 py-1 bg-surface-50 rounded-lg">
-                          <span className="text-xs font-mono font-semibold text-surface-700">{item.code}</span>
-                        </div>
+                        <span className="text-sm font-mono text-surface-600">{item.code}</span>
                       </div>
-                      
-                      {/* Name */}
                       <div className="col-span-4">
-                        <span className="text-sm font-semibold text-surface-900">{item.name}</span>
+                        <span className="text-sm font-medium text-surface-900">{item.name}</span>
                       </div>
-                      
-                      {/* Quantity */}
                       <div className="col-span-2 flex items-center justify-center">
                         <input
                           type="text"
@@ -1270,11 +1034,13 @@ export default function KassaMain() {
                             if (val === '' || /^\d+$/.test(val)) {
                               const newQuantity = val === '' ? 0 : parseInt(val);
                               
+                              // Ombordagi miqdorni tekshirish
                               if (newQuantity > item.quantity) {
                                 showAlert(`${item.name} uchun maksimal miqdor: ${item.quantity} ta`, 'Ogohlantirish', 'warning');
-                                return;
+                                return; // O'zgartirishni bekor qilish
                               }
                               
+                              // Dynamic pricing bilan narxni yangilash
                               const dynamicPrice = calculateDynamicPrice(item, newQuantity);
                               
                               setCart(prev => prev.map(p => 
@@ -1287,27 +1053,25 @@ export default function KassaMain() {
                               removeFromCart(item._id);
                             }
                           }}
-                          className={`w-20 h-10 text-center font-bold text-lg border-2 rounded-xl focus:outline-none focus:ring-2 cursor-pointer transition-all ${
+                          className={`w-16 h-9 text-center font-medium border rounded-xl focus:outline-none focus:ring-2 cursor-pointer ${
                             item.cartQuantity > item.quantity 
                               ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
-                              : 'border-brand-200 bg-brand-50/50 text-brand-700 focus:border-brand-500 focus:ring-brand-500/20 hover:bg-brand-50'
+                              : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20 hover:bg-surface-50'
                           }`}
                         />
                       </div>
-                      
-                      {/* Price */}
                       <div className="col-span-2 text-right">
                         <div className="space-y-1">
-                          <span className="text-base font-bold text-surface-900">{formatNumber(item.price)}</span>
+                          <span className="text-sm text-surface-900">{formatNumber(item.price)}</span>
+                          {/* Pricing tier ma'lumoti */}
                           {(() => {
                             const tier = getPricingTier(item.cartQuantity, item.customMarkup);
                             return (
                               <div 
                                 onClick={() => handleItemPricingEdit(item)}
-                                className={`text-xs px-2.5 py-1 rounded-full inline-block cursor-pointer hover:scale-105 transition-all font-medium shadow-sm ${
-                                  tier.custom ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white' :
-                                  tier.discount ? 'bg-gradient-to-r from-success-500 to-success-600 text-white' : 
-                                  'bg-gradient-to-r from-surface-100 to-surface-200 text-surface-700'
+                                className={`text-xs px-2 py-0.5 rounded-full inline-block cursor-pointer hover:opacity-80 transition-opacity ${
+                                  tier.custom ? 'bg-purple-100 text-purple-700' :
+                                  tier.discount ? 'bg-success-100 text-success-700' : 'bg-surface-100 text-surface-600'
                                 }`}
                                 title="Foizni o'zgartirish uchun bosing"
                               >
@@ -1317,46 +1081,35 @@ export default function KassaMain() {
                           })()}
                         </div>
                       </div>
-                      
-                      {/* Total */}
                       <div className="col-span-2 text-right">
-                        <div className="bg-gradient-to-r from-brand-500 to-brand-600 text-white px-3 py-2 rounded-xl inline-block shadow-lg">
-                          <span className="text-base font-black">
-                            {formatNumber(item.price * item.cartQuantity)}
-                          </span>
-                        </div>
+                        <span className="text-sm font-semibold text-surface-900">
+                          {formatNumber(item.price * item.cartQuantity)}
+                        </span>
+                        {/* To'lov turlari ko'rsatish */}
                         {item.paymentBreakdown && (
-                          <div className="mt-2 space-y-1">
+                          <div className="mt-1 text-xs text-surface-600 space-y-0.5">
                             {item.paymentBreakdown.cash > 0 && (
-                              <div className="flex items-center justify-end gap-1.5 text-xs">
-                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                                  <DollarSign className="w-3 h-3 text-green-600" />
-                                </div>
-                                <span className="font-medium text-green-700">{formatNumber(item.paymentBreakdown.cash)}</span>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3 text-green-600" />
+                                {formatNumber(item.paymentBreakdown.cash)}
                               </div>
                             )}
                             {item.paymentBreakdown.click > 0 && (
-                              <div className="flex items-center justify-end gap-1.5 text-xs">
-                                <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center">
-                                  <Smartphone className="w-3 h-3 text-purple-600" />
-                                </div>
-                                <span className="font-medium text-purple-700">{formatNumber(item.paymentBreakdown.click)}</span>
+                              <div className="flex items-center gap-1">
+                                <Smartphone className="w-3 h-3 text-purple-600" />
+                                {formatNumber(item.paymentBreakdown.click)}
                               </div>
                             )}
                             {item.paymentBreakdown.card > 0 && (
-                              <div className="flex items-center justify-end gap-1.5 text-xs">
-                                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <CreditCard className="w-3 h-3 text-blue-600" />
-                                </div>
-                                <span className="font-medium text-blue-700">{formatNumber(item.paymentBreakdown.card)}</span>
+                              <div className="flex items-center gap-1">
+                                <CreditCard className="w-3 h-3 text-blue-600" />
+                                {formatNumber(item.paymentBreakdown.card)}
                               </div>
                             )}
                             {item.paymentBreakdown.partner && item.paymentBreakdown.partner > 0 && (
-                              <div className="flex items-center justify-end gap-1.5 text-xs">
-                                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <Smartphone className="w-3 h-3 text-blue-600" />
-                                </div>
-                                <span className="font-medium text-blue-700">{formatNumber(item.paymentBreakdown.partner)}</span>
+                              <div className="flex items-center gap-1">
+                                <Smartphone className="w-3 h-3 text-blue-600" />
+                                {formatNumber(item.paymentBreakdown.partner)}
                               </div>
                             )}
                           </div>
@@ -1364,19 +1117,16 @@ export default function KassaMain() {
                         {!item.paymentBreakdown && (
                           <button
                             onClick={() => handleItemPaymentBreakdown(item)}
-                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg font-medium"
+                            className="mt-1 inline-flex items-center px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
                           >
-                            <CreditCard className="w-3 h-3" />
                             To'lov
                           </button>
                         )}
                       </div>
-                      
-                      {/* Actions */}
-                      <div className="col-span-1 flex justify-center gap-1.5">
+                      <div className="col-span-1 flex justify-center gap-1">
                         <button
                           onClick={() => handlePartnerPaymentClick(item)}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl text-purple-600 bg-purple-50 hover:bg-purple-100 transition-all shadow-sm hover:shadow-md"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-500 hover:bg-purple-50 transition-colors"
                           title="Hamkor orqali to'lash"
                         >
                           <Smartphone className="w-4 h-4" />
@@ -1399,41 +1149,24 @@ export default function KassaMain() {
                       </div>
                     </div>
 
-                    {/* Mobile Layout - Professional Design */}
-                    <div className="md:hidden p-4 bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100">
-                      {/* Header with Product Name and Delete Button */}
-                      <div className="flex items-start justify-between mb-4">
+                    {/* Mobile Layout */}
+                    <div className="md:hidden p-4 hover:bg-surface-50 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 mb-1.5 text-base">{item.name}</h3>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-md">
-                              Kod: {item.code}
-                            </span>
-                            {/* Stock indicator */}
-                            <span className={`text-xs px-2 py-1 rounded-md font-medium ${
-                              item.quantity > 10 
-                                ? 'bg-green-100 text-green-700' 
-                                : item.quantity > 0 
-                                  ? 'bg-yellow-100 text-yellow-700' 
-                                  : 'bg-red-100 text-red-700'
-                            }`}>
-                              {item.quantity} ta
-                            </span>
-                          </div>
+                          <h3 className="font-medium text-surface-900 mb-1">{item.name}</h3>
+                          <p className="text-sm text-surface-500 font-mono">Kod: {item.code}</p>
                         </div>
                         <button 
                           onClick={() => removeFromCart(item._id)}
-                          className="ml-3 w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-red-50 to-red-100 text-red-600 hover:from-red-100 hover:to-red-200 transition-all shadow-sm hover:shadow-md"
+                          className="ml-3 w-8 h-8 flex items-center justify-center rounded-lg text-danger-500 hover:bg-danger-50 transition-colors"
                         >
-                          <Trash2 className="w-4.5 h-4.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                       
-                      {/* Quantity and Price Section */}
-                      <div className="space-y-3">
-                        {/* Quantity Input */}
-                        <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm">
-                          <span className="text-sm font-medium text-gray-700">Soni:</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-surface-600">Soni:</span>
                           <input
                             type="text"
                             value={item.cartQuantity}
@@ -1462,129 +1195,72 @@ export default function KassaMain() {
                                 removeFromCart(item._id);
                               }
                             }}
-                            className={`w-20 h-10 text-center font-semibold border-2 rounded-xl focus:outline-none focus:ring-2 cursor-pointer transition-all ${
+                            className={`w-16 h-8 text-center font-medium border rounded-lg focus:outline-none focus:ring-2 cursor-pointer ${
                               item.cartQuantity > item.quantity 
-                                ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-500/20' 
-                                : 'border-blue-300 bg-blue-50 text-blue-700 focus:border-blue-500 focus:ring-blue-500/20 hover:bg-blue-100'
+                                ? 'border-danger-500 bg-danger-50 text-danger-700 focus:border-danger-500 focus:ring-danger-500/20' 
+                                : 'border-surface-200 focus:border-brand-500 focus:ring-brand-500/20 hover:bg-surface-50'
                             }`}
                           />
                         </div>
                         
-                        {/* Price Information */}
-                        <div className="bg-white p-3 rounded-xl shadow-sm space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Narxi:</span>
-                            <span className="text-sm font-semibold text-gray-900">{formatNumber(item.price)} so'm</span>
+                        <div className="text-right">
+                          <div className="space-y-1">
+                            <p className="text-sm text-surface-600">{formatNumber(item.price)} so'm</p>
+                            {/* Pricing tier ma'lumoti */}
+                            {(() => {
+                              const tier = getPricingTier(item.cartQuantity, item.customMarkup);
+                              return (
+                                <div 
+                                  onClick={() => handleItemPricingEdit(item)}
+                                  className={`text-xs px-2 py-0.5 rounded-full inline-block cursor-pointer hover:opacity-80 transition-opacity ${
+                                    tier.custom ? 'bg-purple-100 text-purple-700' :
+                                    tier.discount ? 'bg-success-100 text-success-700' : 'bg-surface-100 text-surface-600'
+                                  }`}
+                                  title="Foizni o'zgartirish uchun bosing"
+                                >
+                                  {tier.name} ({tier.markupPercent}%)
+                                </div>
+                              );
+                            })()}
+                            <p className="font-semibold text-surface-900">
+                              {formatNumber(item.price * item.cartQuantity)} so'm
+                            </p>
                           </div>
-                          
-                          {/* Pricing tier badge with gradient */}
-                          {(() => {
-                            const tier = getPricingTier(item.cartQuantity, item.customMarkup);
-                            return (
-                              <div 
-                                onClick={() => handleItemPricingEdit(item)}
-                                className={`text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm hover:shadow-md font-medium ${
-                                  tier.custom 
-                                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                                    : tier.discount 
-                                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
-                                      : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
-                                }`}
-                                title="Foizni o'zgartirish uchun bosing"
-                              >
-                                <span>{tier.name}</span>
-                                <span className="font-bold">({tier.markupPercent}%)</span>
-                              </div>
-                            );
-                          })()}
-                          
-                          {/* Total Price with gradient background */}
-                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-xl shadow-md">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-white">Jami:</span>
-                              <span className="text-lg font-bold text-white">
-                                {formatNumber(item.price * item.cartQuantity)} so'm
-                              </span>
+                          {/* To'lov turlari ko'rsatish */}
+                          {item.paymentBreakdown && (
+                            <div className="mt-1 text-xs text-surface-600 space-y-0.5">
+                              {item.paymentBreakdown.cash > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3 text-green-600" />
+                                  {formatNumber(item.paymentBreakdown.cash)}
+                                </div>
+                              )}
+                              {item.paymentBreakdown.click > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3 text-purple-600" />
+                                  {formatNumber(item.paymentBreakdown.click)}
+                                </div>
+                              )}
+                              {item.paymentBreakdown.card > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <CreditCard className="w-3 h-3 text-blue-600" />
+                                  {formatNumber(item.paymentBreakdown.card)}
+                                </div>
+                              )}
+                              {item.paymentBreakdown.partner && item.paymentBreakdown.partner > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3 text-blue-600" />
+                                  {formatNumber(item.paymentBreakdown.partner)}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </div>
-                        
-                        {/* Payment Breakdown Display */}
-                        {item.paymentBreakdown && (
-                          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-3 rounded-xl shadow-sm space-y-2">
-                            <div className="text-xs font-semibold text-gray-700 mb-2">To'lov turlari:</div>
-                            {item.paymentBreakdown.cash > 0 && (
-                              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-md">
-                                    <DollarSign className="w-4 h-4 text-white" />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-700">Naqd</span>
-                                </div>
-                                <span className="text-sm font-semibold text-gray-900">{formatNumber(item.paymentBreakdown.cash)} so'm</span>
-                              </div>
-                            )}
-                            {item.paymentBreakdown.click > 0 && (
-                              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-md">
-                                    <Smartphone className="w-4 h-4 text-white" />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-700">Click</span>
-                                </div>
-                                <span className="text-sm font-semibold text-gray-900">{formatNumber(item.paymentBreakdown.click)} so'm</span>
-                              </div>
-                            )}
-                            {item.paymentBreakdown.card > 0 && (
-                              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-md">
-                                    <CreditCard className="w-4 h-4 text-white" />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-700">Karta</span>
-                                </div>
-                                <span className="text-sm font-semibold text-gray-900">{formatNumber(item.paymentBreakdown.card)} so'm</span>
-                              </div>
-                            )}
-                            {item.paymentBreakdown.partner && item.paymentBreakdown.partner > 0 && (
-                              <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-md">
-                                    <Smartphone className="w-4 h-4 text-white" />
-                                  </div>
-                                  <span className="text-sm font-medium text-gray-700">Hamkor</span>
-                                </div>
-                                <span className="text-sm font-semibold text-gray-900">{formatNumber(item.paymentBreakdown.partner)} so'm</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handlePartnerPaymentClick(item)}
-                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg font-medium"
-                          >
-                            <Smartphone className="w-4 h-4" />
-                            Hamkor
-                          </button>
+                          )}
                           {!item.paymentBreakdown && (
                             <button
                               onClick={() => handleItemPaymentBreakdown(item)}
-                              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg font-medium"
+                              className="mt-1 inline-flex items-center px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
                             >
-                              <CreditCard className="w-4 h-4" />
                               To'lov
-                            </button>
-                          )}
-                          {item.paymentBreakdown && (
-                            <button
-                              onClick={() => handleItemPaymentBreakdown(item)}
-                              className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg"
-                              title="To'lov turini o'zgartirish"
-                            >
-                              <CreditCard className="w-5 h-5" />
                             </button>
                           )}
                         </div>
@@ -1624,21 +1300,7 @@ export default function KassaMain() {
                     </div>
                   )}
                   
-                  {/* Mahsulot rasmi yoki icon */}
-                  {product.images && product.images.length > 0 ? (
-                    <img 
-                      src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
-                      alt={product.name}
-                      className={`w-12 h-12 rounded-xl object-cover flex-shrink-0 ${
-                        product.quantity === 0 ? 'opacity-50 grayscale' : ''
-                      }`}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                  ) : null}
-                  <div className={`${product.images && product.images.length > 0 ? 'hidden' : ''} w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     product.quantity === 0 ? 'bg-red-100' : 'bg-brand-100'
                   }`}>
                     <Package className={`w-5 h-5 ${
@@ -1684,17 +1346,6 @@ export default function KassaMain() {
                           {product.quantity > 0 ? `${product.quantity} ta` : 'TUGAGAN'}
                         </span>
                       )}
-                      {/* Qad o'zgartirish tugmasi - faqat admin uchun */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleQuantityEdit(product);
-                        }}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700 hover:bg-brand-200 transition-colors"
-                        title="Qadni o'zgartirish"
-                      >
-                        ✏️
-                      </button>
                     </div>
                   </div>
                   
@@ -1950,10 +1601,20 @@ export default function KassaMain() {
 
       {/* Search Modal */}
       {showSearch && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-20 px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-20 px-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowSearch(false)} />
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden max-h-[90vh] sm:max-h-none">
             <div className="p-4 border-b border-surface-100">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-surface-900">Mahsulot qidirish</h3>
+                <button
+                  onClick={() => setShowSearch(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-surface-400 hover:bg-surface-100 transition-colors"
+                  title="Yopish"
+                >
+                  
+                </button>
+              </div>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
                 <input
@@ -1966,83 +1627,38 @@ export default function KassaMain() {
                 />
               </div>
             </div>
-            <div className="max-h-[500px] sm:max-h-[600px] overflow-auto p-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-                {searchResults.map(product => (
-                  <button
-                    key={product._id}
-                    onClick={() => addToCart(product)}
-                    className="flex flex-col bg-white border border-surface-200 rounded-xl hover:shadow-lg hover:border-brand-300 transition-all p-3 text-left group relative"
-                  >
-                    {/* QR Code tugmasi */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openQRModal(product);
-                      }}
-                      className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm hover:bg-brand-500 hover:text-white rounded-lg shadow-md transition-all duration-200 group/qr"
-                      title="QR kod"
-                    >
-                      <QrCode className="w-4 h-4" />
-                    </button>
-
-                    {/* Mahsulot rasmi */}
-                    <div className="relative w-full aspect-square mb-3 rounded-lg overflow-hidden bg-surface-50">
-                      {product.images && product.images.length > 0 ? (
-                        <img 
-                          src={`${(import.meta as any).env?.VITE_UPLOADS_URL || 'http://localhost:8000'}${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].path}`}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = 'none';
-                            const fallback = target.nextElementSibling as HTMLElement;
-                            if (fallback) fallback.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div className={`${product.images && product.images.length > 0 ? 'hidden' : ''} absolute inset-0 flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100`}>
-                        <Package className="w-12 h-12 text-brand-400" />
-                      </div>
-                      
-                      {/* Stock badge */}
+            <div className="max-h-80 sm:max-h-96 overflow-auto">
+              {searchResults.map(product => (
+                <button
+                  key={product._id}
+                  onClick={() => addToCart(product)}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-surface-50 transition-colors text-left border-b border-surface-50 last:border-0"
+                >
+                  <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Package className="w-5 h-5 text-brand-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-surface-900 truncate">{product.name}</p>
+                    <div className="flex items-center gap-2 text-sm text-surface-500">
+                      <span>Kod: {product.code}</span>
                       {product.quantity !== undefined && (
-                        <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold shadow-lg ${
-                          product.quantity > 10 ? 'bg-success-500 text-white' :
-                          product.quantity > 0 ? 'bg-warning-500 text-white' :
-                          'bg-danger-500 text-white'
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          product.quantity > 10 ? 'bg-success-100 text-success-700' :
+                          product.quantity > 0 ? 'bg-warning-100 text-warning-700' :
+                          'bg-danger-100 text-danger-700'
                         }`}>
-                          {product.quantity > 0 ? `${product.quantity}` : 'Tugagan'}
-                        </div>
+                          {product.quantity > 0 ? `${product.quantity} ta` : 'Tugagan'}
+                        </span>
                       )}
                     </div>
-                    
-                    {/* Mahsulot ma'lumotlari */}
-                    <div className="flex-1 flex flex-col">
-                      <p className="font-semibold text-surface-900 text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
-                        {product.name}
-                      </p>
-                      <p className="text-xs text-surface-500 mb-2 font-mono">
-                        #{product.code}
-                      </p>
-                      <div className="mt-auto">
-                        <p className="text-lg font-bold text-brand-600">
-                          {formatNumber(product.price)}
-                        </p>
-                        <p className="text-xs text-surface-400">so'm</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {searchQuery && searchResults.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
-                    <Package className="w-8 h-8 text-surface-400" />
                   </div>
-                  <p className="text-center text-surface-500 font-medium">Tovar topilmadi</p>
-                  <p className="text-center text-surface-400 text-sm mt-1">Boshqa nom yoki kod bilan qidiring</p>
-                </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-semibold text-brand-600">{formatNumber(product.price)}</p>
+                  </div>
+                </button>
+              ))}
+              {searchQuery && searchResults.length === 0 && (
+                <p className="text-center text-surface-500 py-8">Tovar topilmadi</p>
               )}
             </div>
           </div>
@@ -2051,7 +1667,7 @@ export default function KassaMain() {
 
       {/* Customer Selection Modal */}
       {showCustomerModal && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-20 px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-20 px-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowCustomerModal(false)} />
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden max-h-[90vh] sm:max-h-none">
             <div className="p-4 border-b border-surface-100">
@@ -2124,7 +1740,7 @@ export default function KassaMain() {
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setShowPayment(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
             <div className="text-center mb-4 sm:mb-6">
@@ -2363,7 +1979,7 @@ export default function KassaMain() {
 
       {/* Payment Breakdown Modal - Har bir tovar uchun to'lov turlarini tanlash */}
       {showPaymentBreakdown && selectedItemForPayment && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => {
             setShowPaymentBreakdown(false);
             setSelectedItemForPayment(null);
@@ -2422,26 +2038,26 @@ export default function KassaMain() {
 
       {/* Pricing Edit Modal - Foizni o'zgartirish */}
       {showPricingEdit && selectedItemForPricing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => {
             setShowPricingEdit(false);
             setSelectedItemForPricing(null);
           }} />
-          <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-2xl relative z-10">
-            <div className="mb-4">
-              <h3 className="text-base font-semibold text-surface-900 mb-2">Foizni o'zgartirish</h3>
-              <div className="bg-surface-50 rounded-lg p-2.5 mb-3">
-                <p className="text-xs font-medium text-surface-700 mb-1">{selectedItemForPricing.name}</p>
-                <p className="text-[10px] text-surface-500 font-mono mb-1.5">Kod: {selectedItemForPricing.code}</p>
-                <p className="text-xs text-surface-600">
+          <div className="bg-white rounded-2xl w-full max-w-md p-4 sm:p-6 shadow-2xl relative z-10">
+            <div className="mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-surface-900 mb-2">Foizni o'zgartirish</h3>
+              <div className="bg-surface-50 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-surface-700 mb-1">{selectedItemForPricing.name}</p>
+                <p className="text-xs text-surface-500 font-mono mb-2">Kod: {selectedItemForPricing.code}</p>
+                <p className="text-sm text-surface-600">
                   Miqdor: {selectedItemForPricing.cartQuantity} ta
                 </p>
               </div>
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-surface-700 mb-1.5">
+                <label className="block text-sm font-medium text-surface-700 mb-2">
                   Qo'shimcha foiz (%)
                 </label>
                 <input
@@ -2451,18 +2067,18 @@ export default function KassaMain() {
                   min="0"
                   max="100"
                   step="0.1"
-                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-base font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-center text-lg font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   placeholder="15"
                 />
               </div>
               
               {/* Tezkor foiz tugmalari */}
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-4 gap-2">
                 {[5, 10, 15, 20].map(percent => (
                   <button
                     key={percent}
                     onClick={() => setCustomMarkupPercent(percent)}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                       customMarkupPercent === percent
                         ? 'bg-brand-500 text-white'
                         : 'bg-surface-100 text-surface-700 hover:bg-surface-200'
@@ -2475,14 +2091,14 @@ export default function KassaMain() {
               
               {/* Narx ko'rsatish */}
               {selectedItemForPricing && (
-                <div className="bg-brand-50 rounded-lg p-2.5">
-                  <div className="flex justify-between items-center text-xs mb-1">
+                <div className="bg-brand-50 rounded-lg p-3">
+                  <div className="flex justify-between items-center text-sm mb-1">
                     <span className="text-surface-600">Yangi narx (1 ta):</span>
                     <span className="font-semibold text-brand-600">
                       {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)))} so'm
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-surface-600">Jami summa:</span>
                     <span className="font-bold text-brand-700">
                       {formatNumber(Math.round((selectedItemForPricing.costPrice || selectedItemForPricing.price / 1.15) * (1 + customMarkupPercent / 100)) * selectedItemForPricing.cartQuantity)} so'm
@@ -2492,147 +2108,19 @@ export default function KassaMain() {
               )}
             </div>
             
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {
                   setShowPricingEdit(false);
                   setSelectedItemForPricing(null);
                 }}
-                className="flex-1 py-2 px-3 bg-surface-100 text-surface-700 rounded-lg font-medium hover:bg-surface-200 transition-colors text-sm"
+                className="flex-1 py-3 px-4 bg-surface-100 text-surface-700 rounded-xl font-medium hover:bg-surface-200 transition-colors"
               >
                 Bekor qilish
               </button>
               <button
                 onClick={saveCustomPricing}
-                className="flex-1 py-2 px-3 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors text-sm"
-              >
-                Saqlash
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* QR Code Modal */}
-      {showQRModal && selectedProductForQR && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setShowQRModal(false)} />
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative z-10 overflow-hidden">
-            <div className="p-4 border-b border-surface-200 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-surface-900">QR Kod</h3>
-              <button
-                onClick={() => setShowQRModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-surface-400 hover:bg-surface-100 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="p-6 flex flex-col items-center">
-              {/* QR Code */}
-              <div className="bg-white p-4 rounded-xl border-2 border-surface-200 mb-4">
-                {qrDataUrl ? (
-                  <img 
-                    src={qrDataUrl} 
-                    alt="QR Code"
-                    className="w-48 h-48"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                ) : (
-                  <div className="w-48 h-48 bg-surface-100 flex items-center justify-center">
-                    <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                  </div>
-                )}
-              </div>
-              
-              {/* Product Info */}
-              <div className="text-center mb-4 w-full">
-                <p className="font-bold text-surface-900 text-lg mb-1">{selectedProductForQR.name}</p>
-                <p className="text-sm text-surface-500 mb-2">Kod: {selectedProductForQR.code}</p>
-                <p className="text-2xl font-bold text-brand-600">
-                  {formatNumber(selectedProductForQR.price)} <span className="text-sm">so'm</span>
-                </p>
-              </div>
-              
-              {/* Print Button */}
-              <button
-                onClick={printQRCode}
-                disabled={!qrDataUrl}
-                className="w-full px-6 py-3 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Printer className="w-5 h-5" />
-                Chop etish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quantity Edit Modal - Mahsulot qadini o'zgartirish */}
-      {showQuantityEdit && selectedProductForEdit && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40" onClick={() => {
-            setShowQuantityEdit(false);
-            setSelectedProductForEdit(null);
-            setNewQuantity('');
-          }} />
-          <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-2xl relative z-10">
-            <h3 className="text-base font-bold text-surface-900 mb-3">
-              Mahsulot qadini o'zgartirish
-            </h3>
-            
-            <div className="space-y-3">
-              {/* Mahsulot ma'lumotlari */}
-              <div className="bg-surface-50 rounded-lg p-3">
-                <p className="text-xs text-surface-600 mb-1">Mahsulot:</p>
-                <p className="font-semibold text-sm text-surface-900">{selectedProductForEdit.name}</p>
-                <p className="text-[10px] text-surface-500 mt-1">Kod: {selectedProductForEdit.code}</p>
-              </div>
-
-              {/* Hozirgi qad */}
-              <div className="bg-blue-50 rounded-lg p-2">
-                <p className="text-xs text-blue-600 mb-1">Hozirgi qad:</p>
-                <p className="text-xl font-bold text-blue-700">{selectedProductForEdit.quantity} ta</p>
-              </div>
-
-              {/* Yangi qad kiritish */}
-              <div>
-                <label className="block text-xs font-medium text-surface-700 mb-1.5">
-                  Yangi qad:
-                </label>
-                <input
-                  type="number"
-                  value={newQuantity}
-                  onChange={(e) => setNewQuantity(e.target.value)}
-                  className="w-full px-3 py-2 text-base font-semibold border-2 border-brand-200 rounded-lg focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
-                  placeholder="Yangi qadni kiriting"
-                  min="0"
-                  autoFocus
-                />
-              </div>
-
-              {/* Ogohlantirish */}
-              <div className="bg-warning-50 border border-warning-200 rounded-lg p-2">
-                <p className="text-[10px] text-warning-700">
-                  ⚠️ Diqqat: Mahsulot qadi o'zgartirilganda, agar savatchada bu mahsulot bo'lsa va yangi qad savatchadagi miqdordan kam bo'lsa, savatchadagi miqdor ham kamaytiriladi.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setShowQuantityEdit(false);
-                  setSelectedProductForEdit(null);
-                  setNewQuantity('');
-                }}
-                className="flex-1 py-2 px-3 bg-surface-100 text-surface-700 rounded-lg font-medium hover:bg-surface-200 transition-colors text-sm"
-              >
-                Bekor qilish
-              </button>
-              <button
-                onClick={handleQuantityUpdate}
-                className="flex-1 py-2 px-3 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors text-sm"
+                className="flex-1 py-3 px-4 bg-brand-500 text-white rounded-xl font-medium hover:bg-brand-600 transition-colors"
               >
                 Saqlash
               </button>
@@ -2641,5 +2129,4 @@ export default function KassaMain() {
         </div>
       )}
     </div>
-  );
-}
+  );}

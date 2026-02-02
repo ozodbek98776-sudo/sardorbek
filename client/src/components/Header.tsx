@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Bell, Settings, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut, Receipt } from 'lucide-react';
+import { Search, ChevronDown, Bell, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut, Receipt } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
@@ -128,13 +128,7 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
               </button>
             )}
 
-            {/* Settings - hidden on very small screens */}
-            <button 
-              onClick={() => navigate('/admin/settings')}
-              className="hidden sm:flex items-center justify-center p-1.5 md:p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all duration-200 flex-shrink-0"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            {/* Settings - REMOVED (Task 28) */}
 
             {/* Logout Button removed */}
             
@@ -144,31 +138,29 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
         </div>
       </header>
 
-      {/* Dropdown Search Bar - Navbar ostida */}
+      {/* Dropdown Search Bar - X tugma yonida */}
       {showSearch && searchOpen && (
-        <div className="sticky top-10 sm:top-12 md:top-14 z-30 bg-slate-100 border-b border-slate-200 shadow-lg animate-fade-in">
-          <div className="px-3 sm:px-4 md:px-6 py-3">
-            <div className="relative max-w-2xl mx-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder={t('header.search')}
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all duration-200 placeholder:text-slate-400"
-              />
-              <button
-                onClick={() => {
-                  setSearchOpen(false);
-                  setSearchQuery('');
-                  onSearch?.('');
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
+        <div className="fixed top-10 sm:top-12 md:top-14 right-1.5 sm:right-3 md:right-4 lg:right-6 z-50 animate-fade-in">
+          <div className="relative">
+            <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-brand-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Qidirish..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-64 sm:w-80 md:w-96 h-10 sm:h-11 pl-10 sm:pl-11 pr-10 sm:pr-11 rounded-xl border-2 border-slate-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 focus:bg-white transition-all duration-200 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 bg-white shadow-lg hover:border-brand-300"
+            />
+            <button
+              onClick={() => {
+                setSearchOpen(false);
+                setSearchQuery('');
+                onSearch?.('');
+              }}
+              className="absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
           </div>
         </div>
       )}

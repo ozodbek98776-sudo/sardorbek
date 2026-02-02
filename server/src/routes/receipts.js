@@ -11,7 +11,7 @@ const router = express.Router();
 // Kassir cheklari uchun yangi endpoint - to'lovsiz chek yaratish
 router.post('/helper-receipt', auth, async (req, res) => {
   try {
-    const { items } = req.body;
+    const { items, customer, customerName, isRegularCustomer } = req.body;
 
     // Faqat kassir va admin ruxsat etiladi
     if (!['cashier', 'admin'].includes(req.user.role)) {
@@ -50,7 +50,10 @@ router.post('/helper-receipt', auth, async (req, res) => {
       createdBy: req.user._id,
       helperId: req.user._id, // Chekni chiqargan kassir
       isPaid: false, // To'lov yo'q
-      receiptType: 'helper_receipt' // Kassir cheki
+      receiptType: 'helper_receipt', // Kassir cheki
+      customer: customer || null, // Mijoz ID
+      customerName: customerName || (isRegularCustomer ? 'Oddiy mijoz' : null), // Mijoz ismi
+      isRegularCustomer: isRegularCustomer || false // Oddiy mijoz belgisi
     });
 
     await receipt.save();
@@ -77,6 +80,17 @@ router.post('/helper-receipt', auth, async (req, res) => {
       });
 
       console.log(`Kassir ${kassir.name} ga ${bonusAmount} so'm bonus qo'shildi (${kassir.bonusPercentage}% dan ${totalAmount} so'm)`);
+    }
+
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('receipt:created', {
+        _id: receipt._id,
+        total: receipt.total,
+        helperId: receipt.helperId,
+        createdAt: receipt.createdAt
+      });
+      console.log('📡 Socket emit: receipt:created');
     }
 
     res.status(201).json({
@@ -640,6 +654,8 @@ router.get('/all-helper-receipts', auth, authorize('admin'), async (req, res) =>
 
     const receipts = await Receipt.find(filter)
       .populate('helperId', 'name role bonusPercentage')
+      .populate('customer', 'name phone')
+      .populate('createdBy', 'name role')
       .populate('items.product', 'name code images')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -667,11 +683,24 @@ router.get('/all-helper-receipts', auth, authorize('admin'), async (req, res) =>
       paymentMethod: receipt.paymentMethod,
       isPaid: receipt.isPaid,
       status: receipt.status,
+      customer: receipt.customer ? {
+        _id: receipt.customer._id,
+        name: receipt.customer.name,
+        phone: receipt.customer.phone
+      } : (receipt.customerName ? {
+        name: receipt.customerName,
+        isRegularCustomer: receipt.isRegularCustomer
+      } : null),
       helper: receipt.helperId ? {
         _id: receipt.helperId._id,
         name: receipt.helperId.name,
         role: receipt.helperId.role,
         bonusPercentage: receipt.helperId.bonusPercentage || 0
+      } : null,
+      createdBy: receipt.createdBy ? {
+        _id: receipt.createdBy._id,
+        name: receipt.createdBy.name,
+        role: receipt.createdBy.role
       } : null,
       createdAt: receipt.createdAt,
       updatedAt: receipt.updatedAt,
@@ -970,6 +999,7 @@ router.post('/', auth, async (req, res) => {
       status: isHelper ? 'pending' : 'completed',
       isReturn: isReturn || false,
       createdBy: req.user._id,
+      helperId: req.user._id, // Xodim ID qo'shildi
       receiptType: isHelper ? 'helper_receipt' : 'direct_sale' // Xodim cheki yoki to'g'ridan-to'g'ri sotuv
     });
 
@@ -1084,7 +1114,8 @@ router.post('/', auth, async (req, res) => {
             paymentMethod,
             receiptNumber: receipt.receiptNumber,
             paidAmount,
-            remainingAmount
+            remainingAmount,
+            sellerName: req.user?.name || 'Xodim' // Hodim ismi qo'shildi
           };
           
           // POS Bot orqali chek yuborish
@@ -1152,6 +1183,57 @@ router.put('/:id/reject', auth, authorize('admin', 'cashier'), async (req, res) 
 
     res.json(receipt);
   } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Bitta chekni olish - ID bo'yicha
+router.get('/:id', async (req, res) => {
+  try {
+    const receipt = await Receipt.findById(req.params.id)
+      .populate('customer', 'name phone')
+      .populate('createdBy', 'name role')
+      .populate('helperId', 'name role')
+      .populate('items.product', 'name code images')
+      .lean();
+
+    if (!receipt) {
+      return res.status(404).json({ message: 'Chek topilmadi' });
+    }
+
+    // Format receipt data
+    const formattedReceipt = {
+      _id: receipt._id,
+      receiptNumber: receipt.receiptNumber || `CHK-${receipt._id.toString().slice(-6).toUpperCase()}`,
+      items: receipt.items.map(item => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name || item.name,
+          code: item.product.code || item.code,
+          images: item.product.images || []
+        },
+        quantity: item.quantity,
+        price: item.price
+      })),
+      totalAmount: receipt.total,
+      paymentMethod: receipt.paymentMethod,
+      customer: receipt.customer ? {
+        name: receipt.customer.name,
+        phone: receipt.customer.phone
+      } : (receipt.customerName ? {
+        name: receipt.customerName
+      } : null),
+      createdBy: receipt.createdBy ? {
+        name: receipt.createdBy.name,
+        role: receipt.createdBy.role
+      } : null,
+      createdAt: receipt.createdAt,
+      status: receipt.status
+    };
+
+    res.json(formattedReceipt);
+  } catch (error) {
+    console.error('Get receipt error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

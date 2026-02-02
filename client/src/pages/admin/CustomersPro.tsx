@@ -315,72 +315,86 @@ export default function CustomersPro() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {filteredCustomers.map(customer => (
-              <div key={customer._id} className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 hover:border-brand-300 hover:shadow-lg transition-all p-4 sm:p-5 lg:p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-brand-100 to-brand-50 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="font-bold text-sm sm:text-base lg:text-lg text-brand-600">{customer.name.charAt(0)}</span>
+              <div key={customer._id} className="group bg-white rounded-xl border border-slate-200 hover:border-brand-400 hover:shadow-xl transition-all duration-300 p-4 relative overflow-hidden">
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-50/0 to-purple-50/0 group-hover:from-brand-50/50 group-hover:to-purple-50/30 transition-all duration-300 pointer-events-none" />
+                
+                {/* Content */}
+                <div className="relative z-10">
+                  {/* Header - Compact */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                        <span className="font-bold text-base text-white">{customer.name.charAt(0)}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-900 text-sm truncate">{customer.name}</h3>
+                        <p className="text-xs text-slate-500 truncate">{displayPhone(customer.phone)}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base lg:text-lg truncate">{customer.name}</h3>
-                      <p className="text-xs sm:text-sm text-slate-500 truncate">{displayPhone(customer.phone)}</p>
+                    <div className="flex gap-1 flex-shrink-0 ml-2">
+                      <button 
+                        onClick={() => openEditModal(customer)} 
+                        className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                        title="Tahrirlash"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(customer._id)}
+                        disabled={deletingId === customer._id}
+                        className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors disabled:opacity-50"
+                        title="O'chirish"
+                      >
+                        {deletingId === customer._id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1 sm:gap-2 flex-shrink-0 ml-2">
-                    <button 
-                      onClick={() => openEditModal(customer)} 
-                      className="p-1.5 sm:p-2 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
-                      title="Tahrirlash"
-                    >
-                      <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(customer._id)}
-                      disabled={deletingId === customer._id}
-                      className="p-1.5 sm:p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="O'chirish"
-                    >
-                      {deletingId === customer._id ? (
-                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
 
-                {/* Address */}
-                {customer.address && (
-                  <div className="mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-slate-100">
-                    <p className="text-[10px] sm:text-xs text-slate-500 mb-1">Manzil</p>
-                    <p className="text-xs sm:text-sm text-slate-700 font-medium truncate">{customer.address}</p>
-                  </div>
-                )}
+                  {/* Address - Compact */}
+                  {customer.address && (
+                    <div className="mb-3 pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-1 text-xs text-slate-600">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{customer.address}</span>
+                      </div>
+                    </div>
+                  )}
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {/* Purchases */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2.5 sm:p-3 border border-green-200">
-                    <p className="text-[10px] sm:text-xs text-green-600 font-semibold mb-0.5 sm:mb-1">Xaridlar</p>
-                    <p className="text-base sm:text-lg font-bold text-green-700 truncate">{formatNumber((customer as any).totalPurchases || 0)}</p>
-                    <p className="text-[10px] sm:text-xs text-green-600 mt-0.5 sm:mt-1">{(customer as any).purchaseCount || 0} ta</p>
-                  </div>
+                  {/* Stats - Compact & Modern */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Purchases - Smaller */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-2 border border-emerald-200/50">
+                      <div className="flex items-center gap-1 mb-1">
+                        <ShoppingCart className="w-3 h-3 text-emerald-600" />
+                        <p className="text-[10px] text-emerald-600 font-semibold">Xaridlar</p>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-700 truncate">{formatNumber((customer as any).totalPurchases || 0)}</p>
+                      <p className="text-[9px] text-emerald-600 mt-0.5">{(customer as any).purchaseCount || 0} ta</p>
+                    </div>
 
-                  {/* Debt */}
-                  <div className={`rounded-lg p-2.5 sm:p-3 border ${
-                    customer.debt > 0 
-                      ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200' 
-                      : 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
-                  }`}>
-                    <p className={`text-[10px] sm:text-xs font-semibold mb-0.5 sm:mb-1 ${customer.debt > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {customer.debt > 0 ? 'Qarz' : 'Qarz yo\'q'}
-                    </p>
-                    <p className={`text-base sm:text-lg font-bold truncate ${customer.debt > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
-                      {formatNumber(customer.debt)}
-                    </p>
+                    {/* Debt - Smaller */}
+                    <div className={`rounded-lg p-2 border ${
+                      customer.debt > 0 
+                        ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200/50' 
+                        : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200/50'
+                    }`}>
+                      <div className="flex items-center gap-1 mb-1">
+                        <DollarSign className={`w-3 h-3 ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`} />
+                        <p className={`text-[10px] font-semibold ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                          {customer.debt > 0 ? 'Qarz' : 'Qarz yo\'q'}
+                        </p>
+                      </div>
+                      <p className={`text-sm font-bold truncate ${customer.debt > 0 ? 'text-red-700' : 'text-blue-700'}`}>
+                        {formatNumber(customer.debt)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

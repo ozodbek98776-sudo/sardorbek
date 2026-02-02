@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import { 
   Receipt, User, Package, Calendar, Search, Filter, ChevronDown, ChevronUp,
-  DollarSign, Clock, TrendingUp, FileText, Eye, Download, Printer, Trash2
+  DollarSign, Clock, FileText, Printer, Trash2
 } from 'lucide-react';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
@@ -28,11 +28,21 @@ interface HelperReceipt {
   paymentMethod: string;
   isPaid: boolean;
   status: string;
+  customer: {
+    _id: string;
+    name: string;
+    phone: string;
+  } | null;
   helper: {
     _id: string;
     name: string;
     role: string;
     bonusPercentage: number;
+  } | null;
+  createdBy: {
+    _id: string;
+    name: string;
+    role: string;
   } | null;
   bonusAmount: number;
   createdAt: string;
@@ -394,6 +404,27 @@ export default function StaffReceipts() {
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Mijoz va Hodim ma'lumotlari */}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center gap-1.5 text-blue-50 text-xs">
+                        <User className="w-3 h-3" />
+                        <span className="font-medium">Mijoz:</span>
+                        <span className="truncate">
+                          {receipt.customer ? receipt.customer.name : 'Oddiy mijoz'}
+                        </span>
+                      </div>
+                      {(receipt.helper || receipt.createdBy) && (
+                        <div className="flex items-center gap-1.5 text-blue-50 text-xs">
+                          <User className="w-3 h-3" />
+                          <span className="font-medium">Hodim:</span>
+                          <span className="truncate">
+                            {receipt.helper?.name || receipt.createdBy?.name || 'Noma\'lum'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="flex items-center gap-1.5 text-blue-100 text-xs mt-1.5">
                       <Clock className="w-3 h-3" />
                       <span className="truncate">{formatDate(receipt.createdAt)}</span>

@@ -318,7 +318,7 @@ function App() {
               <Route path="orders" element={<Orders />} />
               <Route path="helpers" element={<Helpers />} />
               <Route path="staff-receipts" element={<StaffReceipts />} />
-              <Route path="settings" element={<AdminSettings />} />
+              {/* Settings route removed - Task 30 */}
               <Route path="telegram-settings" element={<TelegramSettings />} />
             </Route>
 

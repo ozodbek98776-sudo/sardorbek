@@ -410,7 +410,7 @@ router.put('/admin/kassa-users/:id', auth, async (req, res) => {
       });
     }
     
-    const { name, login, password } = req.body;
+    const { name, login, password, bonusPercentage } = req.body;
     const kassaUser = await User.findById(req.params.id);
     
     if (!kassaUser || kassaUser.role !== 'cashier') {
@@ -440,6 +440,7 @@ router.put('/admin/kassa-users/:id', auth, async (req, res) => {
     // Ma'lumotlarni yangilash
     if (name) kassaUser.name = name;
     if (password) kassaUser.password = password;
+    if (bonusPercentage !== undefined) kassaUser.bonusPercentage = bonusPercentage;
     
     await kassaUser.save();
     
@@ -451,6 +452,7 @@ router.put('/admin/kassa-users/:id', auth, async (req, res) => {
         name: kassaUser.name,
         login: kassaUser.login,
         role: kassaUser.role,
+        bonusPercentage: kassaUser.bonusPercentage,
         createdAt: kassaUser.createdAt
       }
     });
@@ -593,6 +595,18 @@ router.post('/admin/helpers', auth, async (req, res) => {
     await helper.save();
     console.log('✅ Xodim yaratildi:', helper.login);
     
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('helper:created', {
+        _id: helper._id,
+        name: helper.name,
+        login: helper.login,
+        phone: helper.phone,
+        role: helper.role
+      });
+      console.log('📡 Socket emit: helper:created');
+    }
+    
     res.status(201).json({
       success: true,
       message: 'Xodim muvaffaqiyatli yaratildi',
@@ -618,6 +632,11 @@ router.post('/admin/helpers', auth, async (req, res) => {
 // Xodimni o'zgartirish
 router.put('/admin/helpers/:id', auth, async (req, res) => {
   try {
+    console.log('📝 Xodimni yangilash so\'rovi:', {
+      helperId: req.params.id,
+      body: req.body
+    });
+    
     if (req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false,
@@ -625,24 +644,35 @@ router.put('/admin/helpers/:id', auth, async (req, res) => {
       });
     }
     
-    const { name, login, phone, password } = req.body;
+    const { name, login, phone, password, role, bonusPercentage } = req.body;
     const helper = await User.findById(req.params.id);
     
-    if (!helper || helper.role !== 'helper') {
+    if (!helper) {
+      console.log('❌ Xodim topilmadi');
       return res.status(404).json({ 
         success: false,
         message: 'Xodim topilmadi' 
       });
     }
     
+    console.log('✅ Xodim topildi:', {
+      currentName: helper.name,
+      currentLogin: helper.login,
+      currentPhone: helper.phone,
+      currentRole: helper.role
+    });
+    
     // Login o'zgartirilsa, mavjudligini tekshirish
     if (login && login !== helper.login) {
+      console.log('🔄 Login o\'zgartirilmoqda:', helper.login, '->', login);
+      
       const existingUser = await User.findOne({ 
         login, 
         _id: { $ne: helper._id } 
       });
       
       if (existingUser) {
+        console.log('❌ Login allaqachon band:', login);
         return res.status(400).json({ 
           success: false,
           message: 'Bu login allaqachon band' 
@@ -650,16 +680,20 @@ router.put('/admin/helpers/:id', auth, async (req, res) => {
       }
       
       helper.login = login;
+      console.log('✅ Login yangilandi');
     }
     
     // Telefon o'zgartirilsa, mavjudligini tekshirish
     if (phone && phone !== helper.phone) {
+      console.log('🔄 Telefon o\'zgartirilmoqda:', helper.phone, '->', phone);
+      
       const existingPhone = await User.findOne({ 
         phone, 
         _id: { $ne: helper._id } 
       });
       
       if (existingPhone) {
+        console.log('❌ Telefon allaqachon band:', phone);
         return res.status(400).json({ 
           success: false,
           message: 'Bu telefon raqam allaqachon ro\'yxatdan o\'tgan' 
@@ -667,13 +701,43 @@ router.put('/admin/helpers/:id', auth, async (req, res) => {
       }
       
       helper.phone = phone;
+      console.log('✅ Telefon yangilandi');
     }
     
     // Ma'lumotlarni yangilash
-    if (name) helper.name = name;
-    if (password) helper.password = password;
+    if (name) {
+      console.log('🔄 Ism o\'zgartirilmoqda:', helper.name, '->', name);
+      helper.name = name;
+    }
+    if (password) {
+      console.log('🔄 Parol o\'zgartirilmoqda');
+      helper.password = password;
+    }
+    if (role) {
+      console.log('🔄 Rol o\'zgartirilmoqda:', helper.role, '->', role);
+      helper.role = role;
+    }
+    if (bonusPercentage !== undefined) {
+      console.log('🔄 Bonus foizi o\'zgartirilmoqda:', helper.bonusPercentage, '->', bonusPercentage);
+      helper.bonusPercentage = bonusPercentage;
+    }
     
+    console.log('💾 Ma\'lumotlar saqlanmoqda...');
     await helper.save();
+    console.log('✅ Ma\'lumotlar saqlandi');
+    
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('helper:updated', {
+        _id: helper._id,
+        name: helper.name,
+        login: helper.login,
+        phone: helper.phone,
+        role: helper.role,
+        bonusPercentage: helper.bonusPercentage
+      });
+      console.log('📡 Socket emit: helper:updated');
+    }
     
     res.json({
       success: true,
@@ -688,7 +752,7 @@ router.put('/admin/helpers/:id', auth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Update helper error:', error);
+    console.error('❌ Update helper error:', error);
     res.status(500).json({ 
       success: false,
       message: 'Server xatosi', 
@@ -717,6 +781,12 @@ router.delete('/admin/helpers/:id', auth, async (req, res) => {
     }
     
     await User.findByIdAndDelete(req.params.id);
+    
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('helper:deleted', { _id: helper._id });
+      console.log('📡 Socket emit: helper:deleted');
+    }
     
     res.json({
       success: true,

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw } from 'lucide-react';
+import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
 import { formatNumber } from '../../utils/format';
+import { useSocket } from '../../hooks/useSocket';
+import { UPLOADS_URL } from '../../config/api';
 
 interface ReceiptItem {
   product: {
     _id: string;
     name: string;
     code: string;
+    images?: Array<{ path: string }>;
   };
   quantity: number;
   price: number;
@@ -33,15 +36,42 @@ interface Receipt {
 }
 
 export default function KassaReceipts() {
+  const socket = useSocket(); // ⚡ Socket.IO hook
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [expandedImages, setExpandedImages] = useState<{ [key: number]: boolean }>({});
   const { showAlert, showConfirm, AlertComponent } = useAlert();
 
   useEffect(() => {
     fetchReceipts();
   }, []);
+
+  // ⚡ Socket.IO - Real-time updates for receipts
+  useEffect(() => {
+    if (!socket) return;
+
+    // Yangi chek kelganda
+    socket.on('receipt:created', async (data: any) => {
+      console.log('📡 Kassa Receipts Socket: Yangi chek keldi', data);
+      // Chek ma'lumotlarini to'liq olish
+      try {
+        const response = await api.get(`/receipts/${data._id}`);
+        const newReceipt = response.data;
+        setReceipts(prev => [newReceipt, ...prev]); // Eng oldinga qo'shish
+        showAlert('Yangi chek keldi!', 'Yangilik', 'success');
+      } catch (error) {
+        console.error('Chek ma\'lumotlarini olishda xatolik:', error);
+        // Agar xatolik bo'lsa, barcha cheklar ro'yxatini qayta yuklash
+        fetchReceipts();
+      }
+    });
+
+    return () => {
+      socket.off('receipt:created');
+    };
+  }, [socket]);
 
   const fetchReceipts = async () => {
     try {
@@ -409,22 +439,70 @@ export default function KassaReceipts() {
               {/* Items */}
               <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                 <h3 className="font-semibold text-sm sm:text-base text-surface-900 mb-2 sm:mb-3">Mahsulotlar:</h3>
-                {selectedReceipt.items.map((item, index) => (
-                  <div key={index} className="flex items-start justify-between p-2 sm:p-3 bg-surface-50 rounded-lg gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm sm:text-base text-surface-900 break-words">{item.product.name}</p>
-                      <p className="text-xs sm:text-sm text-surface-500">Kod: {item.product.code}</p>
+                {selectedReceipt.items.map((item, index) => {
+                  const hasImages = item.product.images && item.product.images.length > 0;
+                  const isExpanded = expandedImages[index] || false;
+                  const displayImages = isExpanded ? item.product.images : item.product.images?.slice(0, 1);
+                  
+                  return (
+                    <div key={index} className="p-2 sm:p-3 bg-surface-50 rounded-lg">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        {/* Product Images */}
+                        {hasImages && (
+                          <div className="flex-shrink-0">
+                            <div className="space-y-1">
+                              {displayImages?.map((img, imgIndex) => (
+                                <div key={imgIndex} className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-surface-100 border border-surface-200">
+                                  <img 
+                                    src={`${UPLOADS_URL}${img.path}`} 
+                                    alt={item.product.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.src = '/o5sk1awh.png';
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                              {/* Show more/less button */}
+                              {item.product.images && item.product.images.length > 1 && (
+                                <button
+                                  onClick={() => setExpandedImages(prev => ({ ...prev, [index]: !isExpanded }))}
+                                  className="w-full flex items-center justify-center gap-1 py-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp className="w-3 h-3" />
+                                      <span>Yashirish</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="w-3 h-3" />
+                                      <span>+{item.product.images.length - 1} rasm</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base text-surface-900 break-words">{item.product.name}</p>
+                          <p className="text-xs sm:text-sm text-surface-500">Kod: {item.product.code}</p>
+                          <div className="mt-2 text-right">
+                            <p className="font-semibold text-xs sm:text-sm text-surface-900">
+                              {item.quantity} x {formatNumber(item.price)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-brand-600 font-bold">
+                              {formatNumber(item.quantity * item.price)} so'm
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-semibold text-xs sm:text-sm text-surface-900 whitespace-nowrap">
-                        {item.quantity} x {formatNumber(item.price)}
-                      </p>
-                      <p className="text-xs sm:text-sm text-brand-600 font-bold">
-                        {formatNumber(item.quantity * item.price)} so'm
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Total */}

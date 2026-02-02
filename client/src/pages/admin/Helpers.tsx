@@ -363,17 +363,17 @@ export default function Helpers() {
             {helpersStats.length === 0 ? (
               <p className="text-surface-500 text-center py-8">Hali cheklar chiqarilmagan</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-4xl">
             {helpersStats.map(helper => (
-                  <div key={helper._id} className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200 hover:shadow-lg transition-all h-full flex flex-col">
+                  <div key={helper._id} className="group bg-white rounded-xl p-3 shadow-sm border border-surface-200 hover:shadow-lg hover:border-brand-300 transition-all duration-300 hover:-translate-y-1 flex flex-col">
                     {/* Header - Name and Role */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0">
                         {helper.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base text-surface-900 truncate" title={helper.name}>{helper.name}</h3>
-                        <span className={`inline-block text-xs px-2 py-1 rounded-full font-semibold mt-1 ${
+                        <h3 className="font-bold text-sm text-surface-900 truncate" title={helper.name}>{helper.name}</h3>
+                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${
                           helper.role === 'cashier' ? 'bg-success-100 text-success-700' : 'bg-brand-100 text-brand-700'
                         }`}>
                           {helper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
@@ -384,7 +384,7 @@ export default function Helpers() {
                     {/* Stats Grid - Uniform */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-surface-100 flex-1">
                       <div className="text-center">
-                        <p className="text-xl font-bold text-brand-600">{helper.receiptCount}</p>
+                        <p className="text-lg font-bold text-brand-600">{helper.receiptCount}</p>
                         <p className="text-xs text-surface-500 mt-1">Cheklar</p>
                       </div>
                       <div className="text-center">
@@ -690,13 +690,12 @@ export default function Helpers() {
 
       {/* Kassir cheklari modali */}
       {showReceiptsModal && selectedHelper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
-          <div className="overlay" onClick={() => setShowReceiptsModal(false)} />
-          <div className="modal w-full max-w-[98%] sm:max-w-[95%] md:max-w-4xl max-h-[90vh] overflow-hidden relative z-10">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">`n          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowReceiptsModal(false)} />
+          <div className="modal w-full max-w-[98%] sm:max-w-[95%] md:max-w-4xl max-h-[90vh] overflow-hidden relative z-50 bg-white rounded-2xl shadow-2xl">
             <div className="p-6 border-b border-surface-100 bg-gradient-to-r from-brand-50 to-blue-50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                  <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                     {selectedHelper.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -823,3 +822,7 @@ export default function Helpers() {
     </div>
   );
 }
+
+
+
+

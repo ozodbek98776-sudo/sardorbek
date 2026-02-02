@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { LogOut, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import PWAInstallButton from '../components/PWAInstallButton.tsx';
 
 export default function HelperLayout() {
   const { user, logout } = useAuth();
@@ -18,7 +17,6 @@ export default function HelperLayout() {
             <span className="font-bold text-sm text-surface-900 sm:hidden truncate">Sardorbek</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            <PWAInstallButton variant="icon" />
             <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-surface-100 rounded-xl max-w-[150px]">
               <User className="w-4 h-4 text-surface-500 flex-shrink-0" />
               <span className="text-sm font-medium text-surface-700 truncate">{user?.name}</span>

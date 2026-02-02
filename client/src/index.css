@@ -154,18 +154,36 @@
   }
 
   .btn-sm {
-    @apply btn px-3 py-2 text-sm;
-    min-height: 36px;
+    @apply px-1.5 py-1 text-[10px] sm:px-3 sm:py-2 sm:text-sm;
+    min-height: 24px;
+  }
+  
+  @media (min-width: 640px) {
+    .btn-sm {
+      min-height: 36px;
+    }
   }
 
   .btn-md {
-    @apply btn px-5 py-2.5 text-sm;
-    min-height: 44px;
+    @apply px-2 py-1 text-[10px] sm:px-5 sm:py-2.5 sm:text-sm;
+    min-height: 28px;
+  }
+  
+  @media (min-width: 640px) {
+    .btn-md {
+      min-height: 44px;
+    }
   }
 
   .btn-lg {
-    @apply btn px-6 py-3.5 text-base;
-    min-height: 52px;
+    @apply px-2.5 py-1.5 text-xs sm:px-6 sm:py-3.5 sm:text-base;
+    min-height: 32px;
+  }
+  
+  @media (min-width: 640px) {
+    .btn-lg {
+      min-height: 52px;
+    }
   }
 
   /* Primary Button - To'q Binafsha */
@@ -767,8 +785,36 @@
     }
   }
 
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .animate-shimmer {
     animation: shimmer 1s ease-in-out;
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
   }
 
   .animate-fade-in {
@@ -879,6 +925,16 @@
 }
 
 @layer utilities {
+  /* Scrollbar hide utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
   .text-balance {
     text-wrap: balance;
   }

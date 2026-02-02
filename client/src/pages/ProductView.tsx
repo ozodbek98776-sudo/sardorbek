@@ -172,12 +172,12 @@ export default function ProductView() {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] transition-opacity"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] transition-opacity"
             onClick={() => setMenuOpen(false)}
           />
           
           {/* Menu Panel */}
-          <div className="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white z-50 shadow-2xl transform transition-transform">
+          <div className="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white z-[100] shadow-2xl transform transition-transform">
             {/* Menu Header */}
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 p-6">
               <div className="flex items-center justify-between mb-4">

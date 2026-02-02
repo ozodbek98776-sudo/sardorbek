@@ -377,31 +377,7 @@ export default function AdminSettings() {
               </div>
             </form>
 
-            {/* Security Tips */}
-            <div className="mt-3 sm:mt-4 md:mt-6 bg-yellow-50 border border-yellow-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6">
-              <h4 className="text-xs sm:text-sm font-bold text-yellow-900 mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2">
-                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                Xavfsizlik Maslahatlari
-              </h4>
-              <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-yellow-800">
-                <li className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-yellow-600 mt-0.5 flex-shrink-0">•</span>
-                  <span>Parolni hech kimga bermang</span>
-                </li>
-                <li className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-yellow-600 mt-0.5 flex-shrink-0">•</span>
-                  <span>Kuchli parol ishlating (harflar, raqamlar, belgilar)</span>
-                </li>
-                <li className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-yellow-600 mt-0.5 flex-shrink-0">•</span>
-                  <span>Parolni muntazam o'zgartiring</span>
-                </li>
-                <li className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-yellow-600 mt-0.5 flex-shrink-0">•</span>
-                  <span>Login va parolni xavfsiz joyda saqlang</span>
-                </li>
-              </ul>
-            </div>
+            {/* Security Tips - REMOVED (Task 17) */}
           </div>
 
           {/* Kassa Foydalanuvchilari */}

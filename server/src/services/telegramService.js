@@ -349,25 +349,45 @@ ${receiptData.items.map(item =>
       return false;
     }
 
-    const message = `
-🧾 <b>XARID CHEKI</b>
+    const sellerName = receiptData.sellerName || 'Xodim';
 
-📅 <b>Sana:</b> ${new Date().toLocaleString('uz-UZ')}
+    const message = `
+╔═══════════════════════╗
+║   🧾 <b>XARID CHEKI</b>   ║
+╚═══════════════════════╝
+
+📅 <b>Sana:</b> ${new Date().toLocaleString('uz-UZ', { 
+  day: '2-digit', 
+  month: '2-digit', 
+  year: 'numeric',
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
 🏪 <b>Do'kon:</b> Sardor Furnitura
 👤 <b>Mijoz:</b> ${receiptData.customer.name}
-🧾 <b>Chek №:</b> ${receiptData.receiptNumber || `CHK-${Date.now()}`}
+👨‍💼 <b>Sotuvchi:</b> ${sellerName}
+🧾 <b>Chek №:</b> <code>${receiptData.receiptNumber || `CHK-${Date.now()}`}</code>
 
-📦 <b>Xarid qilingan mahsulotlar:</b>
-${receiptData.items.map(item =>
-      `• ${item.name} - ${item.quantity} x ${this.formatNumber(item.price)} = ${this.formatNumber(item.quantity * item.price)} so'm`
-    ).join('\n')}
+━━━━━━━━━━━━━━━━━━━━━
+📦 <b>Sotilgan mahsulotlar:</b>
+━━━━━━━━━━━━━━━━━━━━━
 
-💰 <b>Jami summa:</b> ${this.formatNumber(receiptData.total)} so'm
-💳 <b>To'lov turi:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul' : receiptData.paymentMethod === 'card' ? 'Plastik karta' : 'Click'}
+${receiptData.items.map((item, index) =>
+      `${index + 1}. <b>${item.name}</b>
+   ├ Miqdor: ${item.quantity} dona
+   ├ Narx: ${this.formatNumber(item.price)} so'm
+   └ Jami: ${this.formatNumber(item.quantity * item.price)} so'm`
+    ).join('\n\n')}
+
+━━━━━━━━━━━━━━━━━━━━━
+💰 <b>Umumiy summa:</b> ${this.formatNumber(receiptData.total)} so'm
+💳 <b>To'lov usuli:</b> ${receiptData.paymentMethod === 'cash' ? 'Naqd pul 💵' : receiptData.paymentMethod === 'card' ? 'Plastik karta 💳' : 'Click 📱'}
 ${receiptData.paidAmount ? `💵 <b>To'langan:</b> ${this.formatNumber(receiptData.paidAmount)} so'm` : ''}
 ${receiptData.remainingAmount && receiptData.remainingAmount > 0 ? `💸 <b>Qoldiq:</b> ${this.formatNumber(receiptData.remainingAmount)} so'm` : ''}
+━━━━━━━━━━━━━━━━━━━━━
 
-🙏 Xaridingiz uchun katta rahmat!
+🙏 <b>Xaridingiz uchun rahmat!</b>
+📞 <b>Aloqa:</b> Sardor Furnitura
     `;
 
     return this.sendPOSMessage(message.trim(), receiptData.customer.telegramChatId);

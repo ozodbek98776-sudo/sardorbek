@@ -71,6 +71,19 @@ fi
 # Step 5: Build frontend
 echo ""
 echo -e "${YELLOW}Step 5: Building frontend...${NC}"
+
+# Production environment variables ni o'rnatish
+if [ -f .env.production ]; then
+  echo -e "${GREEN}✓ .env.production fayli topildi${NC}"
+  # .env.production faylini .env ga ko'chirish (Vite uchun)
+  cp .env.production .env
+  echo -e "${GREEN}  VITE_FRONTEND_URL: $(grep VITE_FRONTEND_URL .env.production | cut -d= -f2)${NC}"
+else
+  echo -e "${RED}✗ .env.production fayli topilmadi!${NC}"
+  echo -e "${RED}  QR code ishlamaydi - VITE_FRONTEND_URL o'rnatilmagan${NC}"
+  exit 1
+fi
+
 npm run build
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✓ Frontend built successfully${NC}"

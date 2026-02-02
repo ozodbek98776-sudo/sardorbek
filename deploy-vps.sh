@@ -15,6 +15,19 @@ cd ..
 # 2. Client build qilish
 echo "🔨 Client build qilinmoqda..."
 cd client
+
+# Production environment variables ni o'rnatish
+if [ -f .env.production ]; then
+    echo "✅ .env.production fayli topildi"
+    # .env.production faylini .env ga ko'chirish (Vite uchun)
+    cp .env.production .env
+else
+    echo "⚠️  .env.production fayli topilmadi!"
+    echo "❌ VITE_FRONTEND_URL o'rnatilmagan - QR code ishlamaydi!"
+    echo "📝 .env.production faylini yarating va VITE_FRONTEND_URL ni o'rnating"
+    exit 1
+fi
+
 npm install
 npm run build
 cd ..

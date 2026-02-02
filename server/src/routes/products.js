@@ -1050,6 +1050,13 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     });
     
     console.log(`✅ Yangi tovar qo'shildi: ${product.name} (${product.code}), isMainWarehouse: ${product.isMainWarehouse}, images: ${product.images?.length || 0}`);
+    
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('product:created', product);
+      console.log('📡 Socket emit: product:created');
+    }
+    
     res.status(201).json(product);
   } catch (error) {
     console.error('Product creation error:', error);
@@ -1170,6 +1177,12 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       });
     }
     
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('product:updated', product);
+      console.log('📡 Socket emit: product:updated');
+    }
+    
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -1180,6 +1193,13 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
+    
+    // ⚡ Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('product:deleted', { _id: product._id });
+      console.log('📡 Socket emit: product:deleted');
+    }
+    
     res.json({ message: 'Tovar o\'chirildi' });
   } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });

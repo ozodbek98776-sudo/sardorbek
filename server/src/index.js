@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
+const http = require('http');
+const { Server } = require('socket.io');
 
 // Telegram Botlar import qilish
 const POSTelegramBot = require('./telegram.bot');
@@ -24,6 +26,32 @@ const telegramRoutes = require('./routes/telegram');
 const partnerRoutes = require('./routes/partners');
 
 const app = express();
+const server = http.createServer(app);
+
+// ⚡ Socket.IO setup - Real-time updates
+const io = new Server(server, {
+  cors: {
+    origin: function(origin, callback) {
+      callback(null, true); // Allow all origins for development
+    },
+    credentials: true
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000
+});
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('✅ Socket.IO client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('❌ Socket.IO client disconnected:', socket.id);
+  });
+});
+
+// Make io globally available
+global.io = io;
 
 // ⚡ HTTP Keep-Alive - connection'larni qayta ishlatish
 app.use((req, res, next) => {
@@ -181,7 +209,10 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
 
 const PORT = process.env.PORT || 8000;
 const HOST = '0.0.0.0'; // Barcha network interface'lardan kirish uchun
-app.listen(PORT, HOST, () => console.log(`Server running on ${HOST}:${PORT}`));
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
+  console.log(`⚡ Socket.IO ready for real-time updates`);
+});
 
 
 

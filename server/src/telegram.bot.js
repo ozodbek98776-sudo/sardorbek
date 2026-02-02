@@ -398,36 +398,52 @@ Iltimos, qaytadan urinib ko'ring yoki do'kon bilan bog'laning.
     const paidAmount = receiptData.paidAmount || 0;
     const remainingAmount = receiptData.remainingAmount || 0;
     const receiptNumber = receiptData.receiptNumber || `CHK-${Date.now()}`;
+    const sellerName = receiptData.sellerName || receiptData.createdBy?.name || 'Xodim';
 
     // To'lov ma'lumotlari
     let paymentInfo = '';
     if (paidAmount > 0) {
-      paymentInfo += `💵 **To'langan:** ${this.formatNumber(paidAmount)} so'm\n`;
+      paymentInfo += `💵 *To'langan:* ${this.formatNumber(paidAmount)} so'm\n`;
     }
 
     // To'lov turi
     const paymentMethod = this.getPaymentMethodText(receiptData.paymentMethod);
 
     const message = `
-🧾 **XARID CHEKI**
+╔═══════════════════════╗
+║   🧾 *XARID CHEKI*   ║
+╚═══════════════════════╝
 
-📅 **Sana:** ${new Date().toLocaleString('uz-UZ')}
-🏪 **Do'kon:** Sardor Furnitura
-👤 **Mijoz:** ${customer.name}
-🧾 **Chek №:** ${receiptNumber}
+📅 *Sana:* ${new Date().toLocaleString('uz-UZ', { 
+  day: '2-digit', 
+  month: '2-digit', 
+  year: 'numeric',
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+🏪 *Do'kon:* Sardor Furnitura
+👤 *Mijoz:* ${customer.name}
+👨‍💼 *Sotuvchi:* ${sellerName}
+🧾 *Chek №:* \`${receiptNumber}\`
 
-📦 **Siz xarid qilgan mahsulotlar:**
+━━━━━━━━━━━━━━━━━━━━━
+📦 *Sotilgan mahsulotlar:*
+━━━━━━━━━━━━━━━━━━━━━
+
 ${items.map((item, index) =>
-      `${index + 1}. **${item.name}**\n   📦 Miqdor: ${item.quantity} dona\n   💰 Narx: ${this.formatNumber(item.price)} so'm\n   💵 Jami: ${this.formatNumber(item.quantity * item.price)} so'm`
+      `${index + 1}. *${item.name}*
+   ├ Miqdor: ${item.quantity} dona
+   ├ Narx: ${this.formatNumber(item.price)} so'm
+   └ Jami: ${this.formatNumber(item.quantity * item.price)} so'm`
     ).join('\n\n')}
 
-💰 **Umumiy summa:** ${this.formatNumber(total)} so'm
-💳 **To'lov usuli:** ${paymentMethod}
-${paymentInfo}
+━━━━━━━━━━━━━━━━━━━━━
+💰 *Umumiy summa:* ${this.formatNumber(total)} so'm
+💳 *To'lov usuli:* ${paymentMethod}
+${paymentInfo}━━━━━━━━━━━━━━━━━━━━━
 
-🙏 **Xaridingiz uchun katta rahmat!**
-
-📞 **Aloqa:** Sardor Furnitura
+🙏 *Xaridingiz uchun rahmat!*
+📞 *Aloqa:* Sardor Furnitura
     `;
 
     return message.trim();

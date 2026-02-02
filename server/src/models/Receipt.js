@@ -18,6 +18,8 @@ const receiptSchema = new mongoose.Schema({
   total: { type: Number, required: true },
   paymentMethod: { type: String, enum: ['cash', 'card', 'click', 'mixed'], default: 'cash' },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+  customerName: { type: String }, // Mijoz ismi (oddiy mijoz uchun)
+  isRegularCustomer: { type: Boolean, default: false }, // Oddiy mijoz belgisi
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'completed'], default: 'completed' },
   isReturn: { type: Boolean, default: false },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

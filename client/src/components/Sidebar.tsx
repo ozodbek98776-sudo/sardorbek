@@ -8,7 +8,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../utils/api';
 import { formatPhone } from '../utils/format';
-import PWAInstallButton from '../components/PWAInstallButton.tsx';
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -89,7 +88,6 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
           </div>
         )}
         <div className="flex items-center gap-1">
-          <PWAInstallButton variant="icon" />
           <button 
             onClick={() => setCollapsed?.(!collapsed)} 
             className="p-2 rounded-xl transition-all duration-200"
@@ -189,14 +187,17 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <>
+          {/* Backdrop blur - faqat orqa fon */}
           <div 
-            className="fixed inset-0 -z-10" 
-            style={{ background: 'rgba(46, 16, 101, 0.7)', backdropFilter: 'blur(8px)' }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]" 
             onClick={() => setShowEditModal(false)} 
           />
-          <div 
-            className="w-full sm:w-auto max-w-md p-4 sm:p-8 relative z-10 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden"
+          
+          {/* Modal content */}
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
+            <div 
+              className="w-full sm:w-auto max-w-md p-4 sm:p-8 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden pointer-events-auto"
             style={{
               background: 'linear-gradient(145deg, #ffffff 0%, #faf5ff 100%)',
               border: '1px solid rgba(139, 92, 246, 0.15)',
@@ -306,7 +307,8 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
               </form>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </aside>
   );
@@ -318,7 +320,6 @@ export const adminMenuItems: MenuItem[] = [
   { icon: <Package className="w-5 h-5" />, label: 'sidebar.products', path: '/products' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
-  { icon: <Receipt className="w-5 h-5" />, label: 'sidebar.receipts', path: '/staff-receipts' },
   { icon: <UserPlus className="w-5 h-5" />, label: 'sidebar.helpers', path: '/helpers' },
   { icon: <Settings className="w-5 h-5" />, label: 'sidebar.settings', path: '/settings' },
 ];
@@ -326,5 +327,4 @@ export const adminMenuItems: MenuItem[] = [
 export const cashierMenuItems: MenuItem[] = [
   { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
-  { icon: <Receipt className="w-5 h-5" />, label: 'sidebar.receipts', path: '/staff-receipts' },
 ];

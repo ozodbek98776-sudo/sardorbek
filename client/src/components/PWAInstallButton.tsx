@@ -21,8 +21,15 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isHidden, setIsHidden] = useState(false); // Yashirish uchun state
 
   useEffect(() => {
+    // LocalStorage dan yashirilganligini tekshirish
+    const hidden = localStorage.getItem('pwaInstallButtonHidden');
+    if (hidden === 'true') {
+      setIsHidden(true);
+    }
+    
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const standalone = window.matchMedia('(display-mode: standalone)').matches || 
                      (window.navigator as any).standalone === true;
@@ -65,8 +72,15 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
       setShowInstallPrompt(true);
     }
   };
+  
+  // Tugmani yashirish funksiyasi
+  const handleHideButton = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Parent onClick ni to'xtatish
+    localStorage.setItem('pwaInstallButtonHidden', 'true');
+    setIsHidden(true);
+  };
 
-  if (isInstalled) {
+  if (isInstalled || isHidden) {
     return null;
   }
 
@@ -191,15 +205,25 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
   if (variant === 'icon') {
     return (
       <>
-        <button
-          onClick={handleInstallClick}
-          className={`p-3 rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 border border-gray-700/50 shadow-2xl hover:shadow-3xl transition-all duration-300 text-white hover:scale-110 relative overflow-hidden ${className}`}
-          title="Ilovani yuklab olish"
-        >
-          {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-2xl"></div>
-          <AppleIcon size="md" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={handleInstallClick}
+            className={`p-3 rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 border border-gray-700/50 shadow-2xl hover:shadow-3xl transition-all duration-300 text-white hover:scale-110 relative overflow-hidden ${className}`}
+            title="Ilovani yuklab olish"
+          >
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-2xl"></div>
+            <AppleIcon size="md" />
+          </button>
+          {/* Yopish tugmasi */}
+          <button
+            onClick={handleHideButton}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 z-10"
+            title="Yopish"
+          >
+            <X className="w-3 h-3 text-white" />
+          </button>
+        </div>
         {showInstallPrompt && isIOS && <IOSInstructions />}
       </>
     );
@@ -208,16 +232,26 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
   if (variant === 'navbar') {
     return (
       <>
-        <button
-          onClick={handleInstallClick}
-          className={`flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 border border-gray-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 text-white hover:scale-105 relative overflow-hidden ${className}`}
-          title="Ilovani yuklab olish"
-        >
-          {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-2xl"></div>
-          <AppleIcon size="sm" />
-          <span className="hidden sm:inline text-sm font-semibold">Yuklab olish</span>
-        </button>
+        <div className="relative">
+          <button
+            onClick={handleInstallClick}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 border border-gray-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 text-white hover:scale-105 relative overflow-hidden ${className}`}
+            title="Ilovani yuklab olish"
+          >
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-2xl"></div>
+            <AppleIcon size="sm" />
+            <span className="hidden sm:inline text-sm font-semibold">Yuklab olish</span>
+          </button>
+          {/* Yopish tugmasi */}
+          <button
+            onClick={handleHideButton}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 z-10"
+            title="Yopish"
+          >
+            <X className="w-3 h-3 text-white" />
+          </button>
+        </div>
         {showInstallPrompt && isIOS && <IOSInstructions />}
       </>
     );
@@ -225,15 +259,25 @@ export default function PWAInstallButton({ variant = 'button', className = '' }:
 
   return (
     <>
-      <button
-        onClick={handleInstallClick}
-        className={`flex items-center gap-4 px-8 py-4 bg-gradient-to-r from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 text-white rounded-3xl shadow-2xl hover:shadow-3xl border border-gray-700/50 transition-all duration-300 font-semibold text-lg hover:scale-105 relative overflow-hidden ${className}`}
-      >
-        {/* Glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-3xl"></div>
-        <AppleIcon size="lg" />
-        <span className="relative z-10">Ilovani yuklab olish</span>
-      </button>
+      <div className="relative inline-block">
+        <button
+          onClick={handleInstallClick}
+          className={`flex items-center gap-4 px-8 py-4 bg-gradient-to-r from-gray-900 via-gray-800 to-black hover:from-gray-800 hover:to-gray-900 text-white rounded-3xl shadow-2xl hover:shadow-3xl border border-gray-700/50 transition-all duration-300 font-semibold text-lg hover:scale-105 relative overflow-hidden ${className}`}
+        >
+          {/* Glow effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent rounded-3xl"></div>
+          <AppleIcon size="lg" />
+          <span className="relative z-10">Ilovani yuklab olish</span>
+        </button>
+        {/* Yopish tugmasi */}
+        <button
+          onClick={handleHideButton}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 z-10"
+          title="Yopish"
+        >
+          <X className="w-4 h-4 text-white" />
+        </button>
+      </div>
       {showInstallPrompt && isIOS && <IOSInstructions />}
     </>
   );

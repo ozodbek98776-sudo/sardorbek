@@ -223,9 +223,8 @@ export default function Debts() {
 
   const statItems = [
     { label: 'AKTIV', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
-    { label: "TO'LANGAN", value: stats.paid, icon: CheckCircle2, color: 'success', filter: 'paid' },
+    { label: "QORA RO'YXAT", value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
     { label: "MUDDATI O'TGAN", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
-    { label: 'QORA RO\'YXAT', value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
     { label: 'JAMI QARZ', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
   ];
 
@@ -249,10 +248,11 @@ export default function Debts() {
           <div className="flex items-center gap-1">
             <button 
               onClick={() => setShowModal(true)} 
-              className="w-5 h-5 md:w-9 md:h-9 rounded-full bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center shadow-sm hover:shadow-md transition-all active:scale-95"
+              className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-2 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
               title="Yangi qarz qo'shish"
             >
-              <Plus className="w-2.5 h-2.5 md:w-4.5 md:h-4.5" />
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="text-[10px] sm:text-xs font-medium">Qo'shish</span>
             </button>
           </div>
         }
@@ -289,75 +289,60 @@ export default function Debts() {
           </div>
         )}
 
-        {/* Stats - Dashboard bilan bir xil dizayn */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* Stats - Compact Design */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
               onClick={() => stat.filter && setStatusFilter(stat.filter)}
               className={`group relative ${stat.filter ? 'cursor-pointer' : ''}`}
             >
-              {/* Glass Card with Gradient Border - Fixed Height */}
-              <div className={`relative bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] overflow-hidden h-[140px] sm:h-[160px] flex flex-col ${
-                statusFilter === stat.filter ? 'ring-2 ring-brand-500' : ''
+              {/* Compact Card */}
+              <div className={`relative bg-white rounded-xl p-2 sm:p-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] overflow-hidden h-[80px] sm:h-[90px] flex flex-col ${
+                statusFilter === stat.filter ? 'ring-2 ring-brand-500' : 'border border-surface-200'
               }`}>
-                {/* Animated Gradient Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${
-                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
-                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
-                  'from-purple-500 to-purple-600'
-                } opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700`} />
-                
-                {/* Decorative Glow Effect */}
-                <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${
-                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
-                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
-                  'from-purple-500 to-purple-600'
-                } opacity-[0.08] rounded-full blur-3xl group-hover:opacity-[0.15] group-hover:scale-125 transition-all duration-700`} />
-                
                 {/* Top Border Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${
                   stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
                   stat.color === 'danger' ? 'from-red-500 to-red-600' :
+                  stat.color === 'accent' ? 'from-purple-500 to-purple-600' :
                   'from-purple-500 to-purple-600'
-                } opacity-60 group-hover:opacity-100 transition-all duration-500`} />
+                }`} />
                 
                 {/* Content */}
-                <div className="relative z-10 flex flex-col h-full">
-                  {/* Icon */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 ${
-                      stat.color === 'success' ? 'bg-gradient-to-br from-emerald-100 to-emerald-50' :
-                      stat.color === 'danger' ? 'bg-gradient-to-br from-red-100 to-red-50' :
-                      'bg-gradient-to-br from-purple-100 to-purple-50'
-                    }`}>
-                      <stat.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                        stat.color === 'success' ? 'text-emerald-600' :
-                        stat.color === 'danger' ? 'text-red-600' :
-                        'text-purple-600'
-                      }`} />
-                    </div>
-                  </div>
-                  
-                  {/* Value */}
-                  <div className="flex-1 flex flex-col justify-end">
-                    <p className={`text-lg sm:text-xl lg:text-2xl font-extrabold mb-0.5 transition-all duration-500 group-hover:scale-105 ${
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                  {/* Icon - Small */}
+                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center ${
+                    stat.color === 'success' ? 'bg-emerald-50' :
+                    stat.color === 'danger' ? 'bg-red-50' :
+                    stat.color === 'accent' ? 'bg-purple-50' :
+                    'bg-purple-50'
+                  }`}>
+                    <stat.icon className={`w-3 h-3 sm:w-4 sm:h-4 ${
                       stat.color === 'success' ? 'text-emerald-600' :
                       stat.color === 'danger' ? 'text-red-600' :
+                      stat.color === 'accent' ? 'text-purple-600' :
+                      'text-purple-600'
+                    }`} />
+                  </div>
+                  
+                  {/* Value & Label */}
+                  <div>
+                    <p className={`text-base sm:text-lg font-bold mb-0.5 ${
+                      stat.color === 'success' ? 'text-emerald-600' :
+                      stat.color === 'danger' ? 'text-red-600' :
+                      stat.color === 'accent' ? 'text-purple-600' :
                       'text-purple-600'
                     }`}>
                       {stat.value}
                     </p>
                     
-                    {/* Label */}
-                    <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider leading-tight">
+                    {/* Label - Larger for mobile readability */}
+                    <p className="text-[10px] sm:text-[11px] font-semibold text-slate-600 uppercase tracking-wide leading-tight truncate">
                       {stat.label}
                     </p>
                   </div>
                 </div>
-
-                {/* Shimmer Effect on Hover */}
-                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
               </div>
             </div>
           ))}
