@@ -5,7 +5,7 @@ import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCodeGenerator, { exportQRCodeToPNG } from '../../components/QRCodeGenerator';
 import * as QRCode from 'qrcode';
 import { FRONTEND_URL, UPLOADS_URL } from '../../config/api';
 import QRPrintLabel from '../../components/QRPrintLabel';
@@ -41,6 +41,7 @@ export default function Products() {
   const [loadingMore, setLoadingMore] = useState(false); // Yana yuklanmoqda
   const [mainWarehouse, setMainWarehouse] = useState<Warehouse | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1); // Stepper uchun: 1, 2, 3
   const [showQRModal, setShowQRModal] = useState(false);
   const [showBatchQRModal, setShowBatchQRModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -74,6 +75,11 @@ export default function Products() {
   const [showFloatingSearch, setShowFloatingSearch] = useState(false);
   const [floatingSearchOpen, setFloatingSearchOpen] = useState(false);
   const [floatingSearchQuery, setFloatingSearchQuery] = useState('');
+
+  // ⚡ Memoized QR value - faqat selectedProduct o'zgarganda yangilanadi
+  const qrValue = useMemo(() => {
+    return selectedProduct ? `${FRONTEND_URL}/product/${selectedProduct._id}` : '';
+  }, [selectedProduct?._id]);
 
   // ⚡ Debounce qidiruv - 150ms kutish (tezroq)
   useEffect(() => {
@@ -146,29 +152,21 @@ export default function Products() {
   const [codeError, setCodeError] = useState('');
   const [showPackageInput, setShowPackageInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrContainerRef = useRef<HTMLDivElement>(null);
 
-  const downloadQR = () => {
+  const downloadQR = async () => {
     if (!selectedProduct) return;
-    const svg = document.getElementById('qr-code-svg');
-    if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = document.createElement('img');
-
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `QR-${selectedProduct.code}-${selectedProduct.name}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    
+    const success = await exportQRCodeToPNG(
+      qrContainerRef.current,
+      `QR-${selectedProduct.code}-${selectedProduct.name}.png`
+    );
+    
+    if (success) {
+      showAlert('QR kod yuklandi', 'Muvaffaqiyat', 'success');
+    } else {
+      showAlert('QR kodni yuklashda xatolik', 'Xatolik', 'danger');
+    }
   };
 
   const checkCodeExists = async (code: string) => {
@@ -187,46 +185,102 @@ export default function Products() {
     }
   };
 
-  const printXprinterLabel = (product: Product) => {
-    const svg = document.getElementById('qr-code-svg');
-    if (!svg) {
+  const printXprinterLabel = async (product: Product) => {
+    if (!qrContainerRef.current) {
+      showAlert('QR kod topilmadi', 'Xatolik', 'danger');
       return;
     }
 
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = document.createElement('img');
+    const svg = qrContainerRef.current.querySelector('svg');
+    if (!svg) {
+      showAlert('QR kod topilmadi', 'Xatolik', 'danger');
+      return;
+    }
 
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Canvas yaratib bo\'lmadi');
+      }
 
-      const printWindow = window.open('', '_blank', 'width=400,height=600');
-      if (!printWindow) return;
+      const svgSize = svg.getBoundingClientRect();
+      canvas.width = svgSize.width || 150;
+      canvas.height = svgSize.height || 150;
 
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>QR - ${product.name}</title>
-            <style>
-              body { margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
-              img { width: 260px; height: 260px; }
-            </style>
-          </head>
-          <body>
-            <img src="${dataUrl}" alt="QR Code" />
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    };
+      // Oq fon
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      const img = new Image();
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        
+        if (!printWindow) {
+          showAlert('Chop etish oynasi ochilmadi', 'Xatolik', 'danger');
+          return;
+        }
+
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>QR - ${product.name}</title>
+              <meta charset="UTF-8">
+              <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                  display: flex; 
+                  align-items: center; 
+                  justify-content: center; 
+                  height: 100vh;
+                  background: white;
+                }
+                img { 
+                  width: 260px; 
+                  height: 260px;
+                  image-rendering: -webkit-optimize-contrast;
+                  image-rendering: crisp-edges;
+                }
+                @media print {
+                  body { margin: 0; }
+                  img { width: 100%; height: auto; }
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${dataUrl}" alt="QR Code - ${product.name}" />
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        
+        // Print dialog ochish
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        showAlert('QR kodni chop etishda xatolik', 'Xatolik', 'danger');
+      };
+
+      img.src = url;
+    } catch (error) {
+      console.error('QR chop etishda xatolik:', error);
+      showAlert('QR kodni chop etishda xatolik', 'Xatolik', 'danger');
+    }
   };
 
   // ⚡ Filtered products - useMemo bilan optimize qilish
@@ -1252,6 +1306,7 @@ export default function Products() {
   // Modal yopish (ma'lumotlarni saqlab qolish)
   const closeModal = () => {
     setShowModal(false);
+    setCurrentStep(1); // Stepperни 1-bosqichga qaytarish
     // ❌ Ma'lumotlarni reset QILMAYMIZ - foydalanuvchi qayta ochganda saqlanib qoladi
   };
 
@@ -1617,7 +1672,7 @@ export default function Products() {
           >
             {/* Header - Gradient with animation */}
             <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 px-4 sm:px-6 py-4 sm:py-5 border-b border-white/20 shadow-lg">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 mb-1">
                     {editingProduct ? (
@@ -1648,10 +1703,46 @@ export default function Products() {
                   <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-white/90" />
                 </button>
               </div>
+              
+              {/* Stepper */}
+              <div className="flex items-center justify-between">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(step)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                          currentStep === step
+                            ? 'bg-white text-blue-600 shadow-lg scale-110'
+                            : currentStep > step
+                            ? 'bg-green-500 text-white'
+                            : 'bg-white/20 text-white/60'
+                        }`}
+                      >
+                        {currentStep > step ? '✓' : step}
+                      </button>
+                      <span className={`text-xs mt-1 font-medium ${
+                        currentStep === step ? 'text-white' : 'text-white/60'
+                      }`}>
+                        {step === 1 ? 'Asosiy' : step === 2 ? 'O\'lcham' : 'Narx'}
+                      </span>
+                    </div>
+                    {step < 3 && (
+                      <div className={`h-0.5 flex-1 mx-2 ${
+                        currentStep > step ? 'bg-green-500' : 'bg-white/20'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Form Content - Scrollable */}
-            <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="overflow-y-auto max-h-[calc(90vh-240px)] p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Bosqich 1: Asosiy ma'lumotlar */}
+              {currentStep === 1 && (
+                <>
               {/* Image Upload */}
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Rasmlar (max 8 ta - JPG, PNG, WebP)</label>
@@ -1779,6 +1870,12 @@ export default function Products() {
                   ))}
                 </select>
               </div>
+                </>
+              )}
+
+              {/* Bosqich 2: O'lchamlar va Miqdor */}
+              {currentStep === 2 && (
+                <>
 
               {/* O'lchamlar (sm/mm) */}
               <div className="border-t border-surface-200 pt-2 sm:pt-3 md:pt-4 mt-2 sm:mt-3 md:mt-4">
@@ -1989,7 +2086,12 @@ export default function Products() {
                   </div>
                 )}
               </div>
+                </>
+              )}
 
+              {/* Bosqich 3: Narxlar */}
+              {currentStep === 3 && (
+                <>
               {/* Narxlar */}
               <div className="border-t border-surface-200 pt-2 sm:pt-3 md:pt-4 mt-2 sm:mt-3 md:mt-4">
                 <h4 className="text-xs sm:text-sm font-semibold text-surface-900 mb-2 sm:mb-3 flex items-center gap-2">
@@ -2324,29 +2426,55 @@ export default function Products() {
                   </div>
                 )}
               </div>
+                </>
+              )}
             </div>
 
-            {/* Footer - Sticky Buttons with enhanced design */}
+            {/* Footer - Sticky Buttons with Stepper Navigation */}
             <div className="sticky bottom-0 bg-gradient-to-r from-slate-50 via-blue-50 to-purple-50 px-4 sm:px-6 py-4 sm:py-5 border-t border-slate-200/50 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] backdrop-blur-sm">
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-5 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  <span className="hidden sm:inline">Bekor qilish</span>
-                  <span className="sm:hidden">Bekor</span>
-                </button>
-                <button
-                  type="submit"
-                  disabled={!!codeError || uploading}
-                  className="px-6 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 relative overflow-hidden group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  <Save className="w-4 h-4 sm:w-5 sm:h-5 relative z-10" />
-                  <span className="relative z-10">{editingProduct ? 'Yangilash' : 'Saqlash'}</span>
-                </button>
+              <div className="flex items-center justify-between gap-3">
+                {/* Orqaga tugmasi */}
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(currentStep - 1)}
+                    className="px-5 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <span>← Orqaga</span>
+                  </button>
+                )}
+                
+                <div className="flex items-center gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-5 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="hidden sm:inline">Bekor qilish</span>
+                    <span className="sm:hidden">Bekor</span>
+                  </button>
+                  
+                  {currentStep < 3 ? (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(currentStep + 1)}
+                      className="px-6 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl flex items-center gap-2"
+                    >
+                      <span>Keyingisi →</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={!!codeError || uploading}
+                      className="px-6 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                      <Save className="w-4 h-4 sm:w-5 sm:h-5 relative z-10" />
+                      <span className="relative z-10">{editingProduct ? 'Yangilash' : 'Saqlash'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </form>
@@ -2385,17 +2513,19 @@ export default function Products() {
                 onPrint={() => setShowQRModal(false)}
               />
               
-              {/* Eski QR Preview (yuklab olish uchun) */}
+              {/* QR Preview - Ultra Fast */}
               <div className="mt-6 pt-6 border-t border-surface-200 w-full">
                 <p className="text-sm font-medium text-surface-700 mb-3 text-center">Katta QR (yuklab olish uchun)</p>
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-3 rounded-xl border border-surface-200">
-                    <QRCodeSVG
-                      id="qr-code-svg"
-                      value={`${FRONTEND_URL}/product/${selectedProduct._id}`}
+                    <QRCodeGenerator
+                      ref={qrContainerRef}
+                      value={qrValue}
                       size={150}
                       level="H"
-                      includeMargin
+                      onError={(error) => {
+                        console.error('QR generation error:', error);
+                      }}
                     />
                   </div>
                 </div>
