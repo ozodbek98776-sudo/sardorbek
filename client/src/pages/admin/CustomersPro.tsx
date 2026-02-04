@@ -349,44 +349,44 @@ export default function CustomersPro() {
             {filteredCustomers.map(customer => (
               <div 
                 key={customer._id} 
-                className="bg-white rounded-lg border-2 border-slate-200 hover:border-brand-300 hover:shadow-md transition-all p-4 cursor-pointer"
+                className="bg-white rounded-lg border-2 border-slate-200 hover:border-brand-300 hover:shadow-md transition-all p-3 cursor-pointer"
                 onClick={() => fetchCustomerStats(customer._id)}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-3">
+                {/* Header - Compact */}
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="font-bold text-brand-600">{customer.name.charAt(0)}</span>
+                    <div className="w-9 h-9 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="font-bold text-brand-600 text-sm">{customer.name.charAt(0)}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-slate-900 text-sm truncate">{customer.name}</h3>
+                      <h3 className="font-semibold text-slate-900 text-sm truncate leading-tight">{customer.name}</h3>
                       <p className="text-xs text-slate-500 truncate">{displayPhone(customer.phone)}</p>
                     </div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
+                  <div className="flex gap-0.5 flex-shrink-0">
                     <button 
                       onClick={(e) => { e.stopPropagation(); openEditModal(customer); }} 
-                      className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-colors"
+                      className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-colors"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3.5 h-3.5" />
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDelete(customer._id); }}
                       disabled={deletingId === customer._id}
-                      className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-colors disabled:opacity-50"
+                      className="p-1 hover:bg-red-50 text-red-600 rounded transition-colors disabled:opacity-50"
                     >
                       {deletingId === customer._id ? (
-                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Address */}
+                {/* Address - Compact */}
                 {customer.address && (
-                  <div className="mb-3 pb-2 border-b border-slate-100">
+                  <div className="mb-2 pb-1.5 border-b border-slate-100">
                     <div className="flex items-center gap-1 text-xs text-slate-600">
                       <MapPin className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{customer.address}</span>
@@ -394,27 +394,21 @@ export default function CustomersPro() {
                   </div>
                 )}
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                    <div className="flex items-center gap-1 mb-1">
-                      <ShoppingCart className="w-3 h-3 text-green-600" />
-                      <p className="text-xs text-green-600 font-semibold">Xarid</p>
-                    </div>
+                {/* Stats - Compact */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="bg-green-50 rounded-lg p-1.5 border border-green-200">
+                    <p className="text-xs text-green-600 font-semibold mb-0.5">Xarid</p>
                     <p className="text-sm font-bold text-green-700 truncate">{formatNumber((customer as any).totalPurchases || 0)}</p>
                   </div>
 
-                  <div className={`rounded-lg p-2 border ${
+                  <div className={`rounded-lg p-1.5 border ${
                     customer.debt > 0 
                       ? 'bg-red-50 border-red-200' 
                       : 'bg-blue-50 border-blue-200'
                   }`}>
-                    <div className="flex items-center gap-1 mb-1">
-                      <DollarSign className={`w-3 h-3 ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`} />
-                      <p className={`text-xs font-semibold ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                        Qarz
-                      </p>
-                    </div>
+                    <p className={`text-xs font-semibold mb-0.5 ${customer.debt > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                      Qarz
+                    </p>
                     <p className={`text-sm font-bold truncate ${customer.debt > 0 ? 'text-red-700' : 'text-blue-700'}`}>
                       {formatNumber(customer.debt)}
                     </p>

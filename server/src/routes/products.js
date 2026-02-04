@@ -91,7 +91,7 @@ router.get('/kassa', async (req, res) => {
     }
 
     const products = await Product.find(query)
-      .select('name code price quantity description warehouse isMainWarehouse')
+      .select('name code price quantity description warehouse isMainWarehouse category images')
       .populate('warehouse', 'name')
       .limit(search ? 50 : 1000)
       .lean()
@@ -202,7 +202,7 @@ router.post('/kassa', async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly, kassaView, page = 1, limit = 20 } = req.query;
+    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 50 } = req.query;
     const query = {};
 
     if (search) {
@@ -223,16 +223,16 @@ router.get('/', auth, async (req, res) => {
     }
     if (warehouse) query.warehouse = warehouse;
     if (mainOnly === 'true') query.isMainWarehouse = true;
+    if (category) query.category = category; // ⚡ Kategoriya filtri
 
-    // Kassa view - tez va oddiy
+    // ⚡ KASSA VIEW - ULTRA MINIMAL - faqat kerakli fieldlar
     if (kassaView === 'true') {
       const products = await Product.find(query)
-        .select('name code price quantity description warehouse isMainWarehouse qrCode')
-        .populate('warehouse', 'name')
-        .limit(search ? 50 : 10000)
-        .lean();
+        .select('name code price quantity images category') // 6 ta field - category qo'shildi!
+        .limit(search ? 50 : 50) // Maksimal 50 ta
+        .lean(); // 40% tezroq!
 
-      // ⚡ Raqamli sort
+      // ⚡ Raqamli sort - tez
       products.sort((a, b) => {
         const codeA = parseInt(a.code) || 999999;
         const codeB = parseInt(b.code) || 999999;
@@ -242,40 +242,39 @@ router.get('/', auth, async (req, res) => {
         return codeA - codeB;
       });
 
-      res.set('Cache-Control', 'public, max-age=300');
+      // ⚡ Cache headers - brauzer cache qiladi
+      res.set('Cache-Control', 'public, max-age=60'); // 1 daqiqa cache
+      res.set('X-Content-Type-Options', 'nosniff');
+      
       return res.json(products);
     }
 
-    // ⚡ PAGINATION - 20 tadan yuklash
+    // ⚡ PAGINATION - Admin uchun
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // ⚡ ULTRA TEZKOR - Parallel query + Pagination
+    // ⚡ Parallel query
     const [total, rawProducts] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
-        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice')
+        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category')
         .populate('warehouse', 'name')
-        .sort({ createdAt: -1 }) // Eng yangi mahsulotlar birinchi
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .lean() // 40% tezroq!
+        .lean()
     ]);
-
-    // Mahsulotlarni to'g'ridan-to'g'ri qaytarish (sort allaqachon qilingan)
-    const products = rawProducts;
 
     const totalPages = Math.ceil(total / limitNum);
 
-    console.log(`⚡ PAGINATION: Sahifa ${pageNum}/${totalPages}, ${products.length} ta maxsulot ${Date.now() - req.startTime}ms da yuklandi`);
+    console.log(`⚡ PAGINATION: Sahifa ${pageNum}/${totalPages}, ${rawProducts.length} ta maxsulot ${Date.now() - req.startTime}ms da yuklandi`);
 
-    // ⚡ Response headers - tezroq yuklash uchun
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('X-Content-Type-Options', 'nosniff');
     
     res.json({
-      data: products,
+      data: rawProducts,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -1087,6 +1086,42 @@ router.put('/:id/images', auth, authorize('admin', 'cashier'), async (req, res) 
   } catch (error) {
     console.error('Image update error:', error);
     res.status(500).json({ message: 'Rasmlarni yangilashda xatolik', error: error.message });
+  }
+});
+
+// Kassa uchun - kategoriya yangilash (auth talab qilmaydi)
+router.put('/:id/category', async (req, res) => {
+  try {
+    const { category } = req.body;
+    
+    console.log(`📂 Kategoriya yangilash: ID=${req.params.id}, Category=${category}`);
+
+    if (!category) {
+      return res.status(400).json({ message: 'Kategoriya ko\'rsatilmagan' });
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { category: category },
+      { new: true }
+    ).populate('warehouse', 'name');
+
+    if (!product) {
+      console.log('❌ Tovar topilmadi:', req.params.id);
+      return res.status(404).json({ message: 'Tovar topilmadi' });
+    }
+
+    console.log(`✅ Kategoriya yangilandi: ${product.name} -> ${category}`);
+    
+    // Socket.IO - Real-time update
+    if (global.io) {
+      global.io.emit('product:updated', product);
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('❌ Kategoriya yangilash xatosi:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
 

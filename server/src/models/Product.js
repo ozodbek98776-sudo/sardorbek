@@ -15,18 +15,12 @@ const productSchema = new mongoose.Schema({
   isMainWarehouse: { type: Boolean, default: false },
   category: { 
     type: String, 
-    enum: [
-      'Mebel furnitura',
-      'Yumshoq mebel',
-      'Linoleum uy',
-      'Linoleum avto',
-      'Paralon',
-      'Fant (avtomobil)',
-      'Avto mato',
-      'Klyonka',
-      'Boshqa'
-    ],
     default: 'Boshqa'
+  },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    default: null
   },
   images: [{ 
     path: { type: String, required: true }, // Rasm yo'li

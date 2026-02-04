@@ -37,6 +37,24 @@ const PartnerPaymentModal: React.FC<PartnerPaymentModalProps> = ({
   const paidAmount = currentBreakdown.cash + currentBreakdown.click + currentBreakdown.card + (currentBreakdown.partner || 0);
   const remainingAmount = itemTotal - paidAmount;
 
+  // Body scroll lock when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   // Hamkorlar ro'yxatini yuklash
   useEffect(() => {
     if (isOpen) {
@@ -171,15 +189,27 @@ const PartnerPaymentModal: React.FC<PartnerPaymentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div 
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ pointerEvents: 'auto' }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10"
-        onClick={onClose}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+        style={{ pointerEvents: 'auto' }}
       />
 
       {/* Modal */}
-      <div className="bg-white w-full sm:w-auto rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+      <div 
+        className="bg-white w-full sm:w-auto rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        style={{ pointerEvents: 'auto' }}
+      >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 flex items-center justify-between p-4 sm:p-6 gap-4">
           <div className="flex-1 min-w-0">

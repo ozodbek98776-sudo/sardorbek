@@ -156,6 +156,25 @@ export default function KassaReceipts() {
             font-weight: bold;
             margin-top: 8px;
           }
+          .info-section {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 11px;
+          }
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #333;
+          }
+          .info-value {
+            color: #666;
+          }
           table { 
             width: 100%; 
             border-collapse: collapse; 
@@ -218,6 +237,39 @@ export default function KassaReceipts() {
           <h1>SARDOR FURNITURA</h1>
           <div class="subtitle">Mebel furniturasi</div>
           <div class="receipt-number">Chek #${receipt.receiptNumber}</div>
+        </div>
+
+        <!-- Hodim va Mijoz ma'lumotlari -->
+        <div class="info-section">
+          <div class="info-row">
+            <span class="info-label">👤 Sotuvchi:</span>
+            <span class="info-value">${receipt.createdBy.name}</span>
+          </div>
+          ${receipt.customer ? `
+            <div class="info-row">
+              <span class="info-label">🛒 Mijoz:</span>
+              <span class="info-value">${receipt.customer.name}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">📞 Tel:</span>
+              <span class="info-value">${receipt.customer.phone}</span>
+            </div>
+          ` : `
+            <div class="info-row">
+              <span class="info-label">🛒 Mijoz:</span>
+              <span class="info-value" style="font-style: italic;">Ko'rsatilmagan</span>
+            </div>
+          `}
+          <div class="info-row">
+            <span class="info-label">📅 Sana:</span>
+            <span class="info-value">${new Date(receipt.createdAt).toLocaleString('uz-UZ', { 
+              day: '2-digit', 
+              month: '2-digit', 
+              year: 'numeric',
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}</span>
+          </div>
         </div>
 
         <table>
@@ -316,7 +368,6 @@ export default function KassaReceipts() {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-base sm:text-xl font-bold text-surface-900 truncate">Cheklar</h1>
-              <p className="text-xs sm:text-sm text-surface-500 truncate">Hodimlar cheklari</p>
             </div>
           </div>
           <button
@@ -366,24 +417,30 @@ export default function KassaReceipts() {
                   <User className="w-3 h-3 sm:w-4 sm:h-4 text-surface-400 flex-shrink-0" />
                   <span className="text-surface-600">Sotuvchi:</span>
                   <span className="font-medium text-surface-900 truncate">{receipt.createdBy.name}</span>
+                  <span className="text-xs text-surface-500">({receipt.createdBy.role})</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs sm:text-sm">
                   <Package className="w-3 h-3 sm:w-4 sm:h-4 text-surface-400 flex-shrink-0" />
                   <span className="text-surface-600">Mahsulotlar:</span>
                   <span className="font-medium text-surface-900">{receipt.items.length} ta</span>
                 </div>
-                {receipt.customer && (
+                {receipt.customer ? (
                   <>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <User className="w-3 h-3 sm:w-4 sm:h-4 text-surface-400 flex-shrink-0" />
+                      <User className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
                       <span className="text-surface-600">Mijoz:</span>
-                      <span className="font-medium text-surface-900 truncate">{receipt.customer.name}</span>
+                      <span className="font-semibold text-green-700 truncate">{receipt.customer.name}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <span className="text-surface-600">Tel:</span>
+                      <span className="text-surface-600 ml-7">Tel:</span>
                       <span className="font-medium text-surface-900">{receipt.customer.phone}</span>
                     </div>
                   </>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm">
+                    <User className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
+                    <span className="text-slate-500 italic">Mijoz ko'rsatilmagan</span>
+                  </div>
                 )}
               </div>
 
@@ -411,6 +468,13 @@ export default function KassaReceipts() {
                 >
                   <Printer className="w-4 h-4" />
                   <span>Print</span>
+                </button>
+                <button
+                  onClick={() => handleDelete(receipt._id)}
+                  className="flex items-center justify-center gap-1 sm:gap-2 p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs sm:text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">O'chirish</span>
                 </button>
               </div>
             </div>

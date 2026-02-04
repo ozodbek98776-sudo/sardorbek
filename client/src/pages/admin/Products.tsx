@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Header from '../../components/Header';
-import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy, Search, Filter } from 'lucide-react';
+import { Plus, Minus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, Upload, Printer, Ruler, Box, Scale, RotateCcw, BarChart3, Clock, Calendar, TrendingUp, ShoppingCart, CheckSquare, Save, Copy, Search, Filter, Check } from 'lucide-react';
 import { Product, Warehouse } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -12,6 +12,7 @@ import QRPrintLabel from '../../components/QRPrintLabel';
 import BatchQRPrint from '../../components/BatchQRPrint';
 import logger from '../../utils/logger';
 import { useSocket } from '../../hooks/useSocket';
+import { useCategories } from '../../hooks/useCategories';
 import { PRODUCT_CATEGORIES } from '../../constants/categories';
 
 // Statistika interfeysi
@@ -34,6 +35,7 @@ interface ProductStats {
 export default function Products() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const socket = useSocket(); // ⚡ Socket.IO hook
+  const { categories } = useCategories(); // ⚡ Dynamic categories
   const [products, setProducts] = useState<Product[]>([]); // Barcha mahsulotlar
   const [currentPage, setCurrentPage] = useState(1); // Joriy sahifa
   const [totalPages, setTotalPages] = useState(1); // Jami sahifalar
@@ -51,6 +53,15 @@ export default function Products() {
   const [productStats, setProductStats] = useState<ProductStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<string>('7'); // 7, 30, 90, 365, all
+  
+  // Mahsulot ma'lumotlarini ko'rish uchun yangi state
+  const [showProductDetailsModal, setShowProductDetailsModal] = useState(false);
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState<Product | null>(null);
+  const [detailsStep, setDetailsStep] = useState(1); // 1: Asosiy, 2: O'lchamlar, 3: Narxlar
+  
+  // Kategoriya tanlash modal
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedProductForCategory, setSelectedProductForCategory] = useState<Product | null>(null);
   
   // Umumiy statistika - faqat bir marta yuklanadi
   const [overallStats, setOverallStats] = useState({
@@ -78,7 +89,9 @@ export default function Products() {
 
   // ⚡ Memoized QR value - faqat selectedProduct o'zgarganda yangilanadi
   const qrValue = useMemo(() => {
-    return selectedProduct ? `${FRONTEND_URL}/product/${selectedProduct._id}` : '';
+    const value = selectedProduct ? `${FRONTEND_URL}/product/${selectedProduct._id}` : '';
+    console.log('QR Value:', value, 'FRONTEND_URL:', FRONTEND_URL, 'Product ID:', selectedProduct?._id);
+    return value;
   }, [selectedProduct?._id]);
 
   // ⚡ Debounce qidiruv - 150ms kutish (tezroq)
@@ -91,7 +104,7 @@ export default function Products() {
 
   // Modal ochilganda body scroll ni to'xtatish
   useEffect(() => {
-    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showImageModal) {
+    if (showModal || showQRModal || showBatchQRModal || showStatsModal || showImageModal || showProductDetailsModal || showCategoryModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -101,7 +114,7 @@ export default function Products() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showImageModal]);
+  }, [showModal, showQRModal, showBatchQRModal, showStatsModal, showImageModal, showProductDetailsModal, showCategoryModal]);
 
   // Scroll listener - floating search button ko'rsatish
   useEffect(() => {
@@ -1130,6 +1143,13 @@ export default function Products() {
     setSelectedProduct(product);
     setShowQRModal(true);
   };
+  
+  // Mahsulot ma'lumotlarini ko'rish
+  const openProductDetailsModal = (product: Product) => {
+    setSelectedProductForDetails(product);
+    setDetailsStep(1);
+    setShowProductDetailsModal(true);
+  };
 
   // Selection funksiyalari
   const toggleProductSelection = (productId: string) => {
@@ -1284,6 +1304,37 @@ export default function Products() {
     }
   };
 
+  // Kategoriya tanlash modal ochish
+  const openCategoryModal = (product: Product) => {
+    setSelectedProductForCategory(product);
+    setShowCategoryModal(true);
+  };
+
+  // Kategoriyani yangilash
+  const handleCategoryUpdate = async (categoryName: string) => {
+    if (!selectedProductForCategory) return;
+    
+    try {
+      const response = await api.put(`/products/${selectedProductForCategory._id}/category`, {
+        category: categoryName
+      });
+      
+      // Darhol UI da yangilash
+      setProducts(prev => prev.map(p => 
+        p._id === selectedProductForCategory._id 
+          ? { ...p, category: categoryName }
+          : p
+      ));
+      
+      setShowCategoryModal(false);
+      setSelectedProductForCategory(null);
+      showAlert('Kategoriya yangilandi', 'Muvaffaqiyat', 'success');
+    } catch (err: any) {
+      logger.error('Error updating category:', err);
+      showAlert(err.response?.data?.message || 'Kategoriyani yangilashda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
   // Davr o'zgarganda statistikani qayta yuklash
   const handlePeriodChange = async (period: string) => {
     if (!selectedProduct) return;
@@ -1380,9 +1431,14 @@ export default function Products() {
     { label: 'Jami qiymat', value: `${formatNumber(stats.totalValue)} so'm`, icon: DollarSign, color: 'success', filter: null },
   ];
 
+
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-100/30 to-slate-100 pb-20 lg:pb-0">
+    <div className="min-h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-purple-100/30 to-slate-100">
       {AlertComponent}
+      
+      {/* CHAP TOMON - Mahsulotlar */}
+      <div className="flex-1 flex flex-col overflow-hidden pb-20 lg:pb-0">
       <Header 
         title="Tovarlar"
         showSearch 
@@ -1468,7 +1524,7 @@ export default function Products() {
                   </div>
                   <p className="text-[10px] sm:text-xs md:text-sm text-surface-500 font-medium">{stat.label}</p>
                 </div>
-                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-surface-900 truncate">{stat.value}</p>
+                <p className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-surface-900 truncate">{stat.value}</p>
               </div>
             </div>
           ))}
@@ -1487,17 +1543,17 @@ export default function Products() {
             >
               Barchasi
             </button>
-            {PRODUCT_CATEGORIES.map(category => (
+            {categories.map(category => (
               <button
-                key={category}
-                onClick={() => setCategoryFilter(category)}
+                key={category._id}
+                onClick={() => setCategoryFilter(category.name)}
                 className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
-                  categoryFilter === category 
+                  categoryFilter === category.name 
                     ? 'bg-brand-500 text-white shadow-md' 
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {category}
+                {category.name}
               </button>
             ))}
           </div>
@@ -1534,7 +1590,8 @@ export default function Products() {
                     return (
                       <div 
                         key={product._id}
-                        className={`group relative bg-white rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-lg min-h-[140px] ${
+                        onClick={() => !selectionMode && openProductDetailsModal(product)}
+                        className={`group relative bg-white rounded-lg sm:rounded-xl transition-all duration-200 hover:shadow-lg min-h-[140px] cursor-pointer ${
                           isSelected 
                             ? 'shadow-md ring-2 ring-brand-500' 
                             : 'shadow-sm hover:shadow-md'
@@ -1626,12 +1683,26 @@ export default function Products() {
                               )}
                             </h3>
 
-                            {/* Price */}
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-lg sm:text-xl md:text-2xl font-bold text-brand-600">
-                                {formatNumber((product as any).unitPrice || product.price)}
-                              </span>
-                              <span className="text-xs sm:text-sm text-slate-500">so'm</span>
+                            {/* Price and Category */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-lg sm:text-xl md:text-2xl font-bold text-brand-600">
+                                  {formatNumber((product as any).unitPrice || product.price)}
+                                </span>
+                                <span className="text-xs sm:text-sm text-slate-500">so'm</span>
+                              </div>
+                              
+                              {/* Category Badge - Click to change */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openCategoryModal(product); }}
+                                className="px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 text-purple-700 rounded-md transition-all hover:scale-105 shadow-sm border border-purple-200/50 flex items-center gap-1 flex-shrink-0"
+                                title="Kategoriyani o'zgartirish"
+                              >
+                                <Filter className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                                <span className="truncate max-w-[70px] sm:max-w-[90px]">
+                                  {(product as any).category || 'Boshqa'}
+                                </span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1653,7 +1724,7 @@ export default function Products() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4">
           {/* Backdrop with blur - orqa fon */}
           <div 
             className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-sm transition-opacity duration-100" 
@@ -1661,50 +1732,50 @@ export default function Products() {
             style={{ animation: 'fadeIn 0.1s ease-out' }}
           />
           
-          {/* Modal oyna - professional design */}
+          {/* Modal oyna - professional design - MOBILE OPTIMIZED */}
           <form 
             onSubmit={handleSubmit} 
-            className="relative z-10 bg-white rounded-3xl w-full max-w-xs sm:max-w-sm md:max-w-2xl max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border border-white/20 transform"
+            className="relative z-10 bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-full sm:max-w-sm md:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border-t sm:border border-white/20 transform"
             style={{
               animation: 'modalSlideUp 0.1s ease-out',
               willChange: 'transform, opacity'
             }}
           >
-            {/* Header - Gradient with animation */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 px-4 sm:px-6 py-4 sm:py-5 border-b border-white/20 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 mb-1">
+            {/* Header - Gradient with animation - MOBILE OPTIMIZED */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 px-3 sm:px-6 py-3 sm:py-5 border-b border-white/20 shadow-lg">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white flex items-center gap-2 mb-1 truncate">
                     {editingProduct ? (
                       <>
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                          <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                         </div>
-                        Tovarni tahrirlash
+                        <span className="truncate">Tovarni tahrirlash</span>
                       </>
                     ) : (
                       <>
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                         </div>
-                        Yangi tovar qo'shish
+                        <span className="truncate">Yangi tovar qo'shish</span>
                       </>
                     )}
                   </h3>
-                  <p className="text-xs sm:text-sm text-white/90 font-medium">
+                  <p className="text-[10px] xs:text-xs sm:text-sm text-white/90 font-medium truncate">
                     {editingProduct ? 'Tovar ma\'lumotlarini yangilang' : 'Yangi tovar ma\'lumotlarini kiriting'}
                   </p>
                 </div>
                 <button 
                   type="button"
                   onClick={closeModal} 
-                  className="p-2 sm:p-2.5 hover:bg-white/20 rounded-xl transition-all duration-300 hover:rotate-90 hover:scale-110 active:scale-95 group ml-3"
+                  className="p-1.5 sm:p-2 md:p-2.5 hover:bg-white/20 rounded-xl transition-all duration-300 hover:rotate-90 hover:scale-110 active:scale-95 group ml-2 sm:ml-3 flex-shrink-0"
                 >
-                  <X className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:text-white/90" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white group-hover:text-white/90" />
                 </button>
               </div>
               
-              {/* Stepper */}
+              {/* Stepper - MOBILE OPTIMIZED */}
               <div className="flex items-center justify-between">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="flex items-center flex-1">
@@ -1712,7 +1783,7 @@ export default function Products() {
                       <button
                         type="button"
                         onClick={() => setCurrentStep(step)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all ${
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-all ${
                           currentStep === step
                             ? 'bg-white text-blue-600 shadow-lg scale-110'
                             : currentStep > step
@@ -1722,14 +1793,14 @@ export default function Products() {
                       >
                         {currentStep > step ? '✓' : step}
                       </button>
-                      <span className={`text-xs mt-1 font-medium ${
+                      <span className={`text-[9px] xs:text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium ${
                         currentStep === step ? 'text-white' : 'text-white/60'
                       }`}>
                         {step === 1 ? 'Asosiy' : step === 2 ? 'O\'lcham' : 'Narx'}
                       </span>
                     </div>
                     {step < 3 && (
-                      <div className={`h-0.5 flex-1 mx-2 ${
+                      <div className={`h-0.5 flex-1 mx-1 sm:mx-2 ${
                         currentStep > step ? 'bg-green-500' : 'bg-white/20'
                       }`} />
                     )}
@@ -1738,8 +1809,8 @@ export default function Products() {
               </div>
             </div>
 
-            {/* Form Content - Scrollable */}
-            <div className="overflow-y-auto max-h-[calc(90vh-240px)] p-4 sm:p-6 space-y-4 sm:space-y-6">
+            {/* Form Content - Scrollable - MOBILE OPTIMIZED */}
+            <div className="overflow-y-auto max-h-[calc(95vh-280px)] sm:max-h-[calc(90vh-240px)] p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
               {/* Bosqich 1: Asosiy ma'lumotlar */}
               {currentStep === 1 && (
                 <>
@@ -1865,8 +1936,8 @@ export default function Products() {
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
-                  {PRODUCT_CATEGORIES.map(category => (
-                    <option key={category} value={category}>{category}</option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category.name}>{category.name}</option>
                   ))}
                 </select>
               </div>
@@ -2430,36 +2501,38 @@ export default function Products() {
               )}
             </div>
 
-            {/* Footer - Sticky Buttons with Stepper Navigation */}
-            <div className="sticky bottom-0 bg-gradient-to-r from-slate-50 via-blue-50 to-purple-50 px-4 sm:px-6 py-4 sm:py-5 border-t border-slate-200/50 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-3">
-                {/* Orqaga tugmasi */}
+            {/* Footer - Sticky Buttons with Stepper Navigation - MOBILE OPTIMIZED */}
+            <div className="sticky bottom-0 bg-gradient-to-r from-slate-50 via-blue-50 to-purple-50 px-3 sm:px-6 py-3 sm:py-5 border-t border-slate-200/50 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)] backdrop-blur-sm">
+              {/* Mobile: Vertikal layout, Desktop: Horizontal */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                {/* Orqaga tugmasi - Mobile: Full width, Desktop: Auto */}
                 {currentStep > 1 && (
                   <button
                     type="button"
                     onClick={() => setCurrentStep(currentStep - 1)}
-                    className="px-5 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
+                    className="w-full sm:w-auto px-4 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     <span>← Orqaga</span>
                   </button>
                 )}
                 
-                <div className="flex items-center gap-3 ml-auto">
+                {/* Bekor va Keyingisi/Saqlash - Mobile: Full width row, Desktop: Auto */}
+                <div className="flex items-center gap-2 sm:gap-3 sm:ml-auto w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-5 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2"
+                    className="flex-1 sm:flex-none px-3 sm:px-7 py-2.5 sm:py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-slate-400 hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
                   >
-                    <X className="w-4 h-4" />
-                    <span className="hidden sm:inline">Bekor qilish</span>
-                    <span className="sm:hidden">Bekor</span>
+                    <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline sm:hidden">Bekor</span>
+                    <span className="xs:hidden sm:inline">Bekor qilish</span>
                   </button>
                   
                   {currentStep < 3 ? (
                     <button
                       type="button"
                       onClick={() => setCurrentStep(currentStep + 1)}
-                      className="px-6 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl flex items-center gap-2"
+                      className="flex-1 sm:flex-none px-4 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <span>Keyingisi →</span>
                     </button>
@@ -2467,10 +2540,10 @@ export default function Products() {
                     <button
                       type="submit"
                       disabled={!!codeError || uploading}
-                      className="px-6 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 relative overflow-hidden group"
+                      className="flex-1 sm:flex-none px-4 sm:px-10 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-1.5 sm:gap-2 relative overflow-hidden group text-sm sm:text-base"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                      <Save className="w-4 h-4 sm:w-5 sm:h-5 relative z-10" />
+                      <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 relative z-10" />
                       <span className="relative z-10">{editingProduct ? 'Yangilash' : 'Saqlash'}</span>
                     </button>
                   )}
@@ -2826,6 +2899,308 @@ export default function Products() {
         </div>
       )}
 
+      {/* Mahsulot ma'lumotlari modali - Professional Stepper Design */}
+      {showProductDetailsModal && selectedProductForDetails && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-sm transition-opacity duration-100" 
+            onClick={() => setShowProductDetailsModal(false)}
+          />
+          
+          {/* Modal oyna - MOBILE OPTIMIZED */}
+          <div 
+            className="relative z-10 bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-full sm:max-w-sm md:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border-t sm:border border-white/20"
+          >
+            {/* Header - Gradient with animation */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 px-3 sm:px-6 py-3 sm:py-5 border-b border-white/20 shadow-lg">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-white flex items-center gap-2 mb-1 truncate">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                    </div>
+                    <span className="truncate">Mahsulot ma'lumotlari</span>
+                  </h3>
+                  <p className="text-[10px] xs:text-xs sm:text-sm text-white/90 font-medium truncate">
+                    {selectedProductForDetails.name}
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowProductDetailsModal(false)} 
+                  className="p-1.5 sm:p-2 md:p-2.5 hover:bg-white/20 rounded-xl transition-all duration-300 hover:rotate-90 hover:scale-110 active:scale-95 group ml-2 sm:ml-3 flex-shrink-0"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white group-hover:text-white/90" />
+                </button>
+              </div>
+              
+              {/* Stepper - MOBILE OPTIMIZED */}
+              <div className="flex items-center justify-between">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setDetailsStep(step)}
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-all ${
+                          detailsStep === step
+                            ? 'bg-white text-blue-600 shadow-lg scale-110'
+                            : detailsStep > step
+                            ? 'bg-green-500 text-white'
+                            : 'bg-white/20 text-white/60'
+                        }`}
+                      >
+                        {detailsStep > step ? '✓' : step}
+                      </button>
+                      <span className={`text-[9px] xs:text-[10px] sm:text-xs mt-0.5 sm:mt-1 font-medium ${
+                        detailsStep === step ? 'text-white' : 'text-white/60'
+                      }`}>
+                        {step === 1 ? 'Asosiy' : step === 2 ? 'O\'lcham' : 'Narx'}
+                      </span>
+                    </div>
+                    {step < 3 && (
+                      <div className={`h-0.5 flex-1 mx-1 sm:mx-2 ${
+                        detailsStep > step ? 'bg-green-500' : 'bg-white/20'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Content - Scrollable */}
+            <div className="overflow-y-auto max-h-[calc(95vh-220px)] sm:max-h-[calc(90vh-200px)] p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+              {/* Bosqich 1: Asosiy ma'lumotlar */}
+              {detailsStep === 1 && (
+                <>
+                  {/* Rasmlar */}
+                  {selectedProductForDetails.images && selectedProductForDetails.images.length > 0 && (
+                    <div>
+                      <label className="text-xs sm:text-sm font-semibold text-surface-700 mb-2 block">📸 Rasmlar</label>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {selectedProductForDetails.images.map((img: any, idx: number) => (
+                          <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-surface-100">
+                            <img 
+                              src={`${UPLOADS_URL}${typeof img === 'string' ? img : img.path}`}
+                              alt={`${selectedProductForDetails.name} ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kod va Nomi */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">Kod</label>
+                      <p className="text-sm sm:text-base font-semibold text-surface-900">{selectedProductForDetails.code}</p>
+                    </div>
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">Nomi</label>
+                      <p className="text-sm sm:text-base font-semibold text-surface-900">{selectedProductForDetails.name}</p>
+                    </div>
+                  </div>
+
+                  {/* Izoh */}
+                  {(selectedProductForDetails as any).description && (
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">Izoh</label>
+                      <p className="text-sm text-surface-700">{(selectedProductForDetails as any).description}</p>
+                    </div>
+                  )}
+
+                  {/* Kategoriya */}
+                  <div className="bg-surface-50 rounded-lg p-3">
+                    <label className="text-xs font-medium text-surface-500 mb-1 block">📂 Kategoriya</label>
+                    <p className="text-sm sm:text-base font-semibold text-surface-900">
+                      {(selectedProductForDetails as any).category || 'Boshqa'}
+                    </p>
+                  </div>
+
+                  {/* Miqdor */}
+                  <div className="bg-surface-50 rounded-lg p-3">
+                    <label className="text-xs font-medium text-surface-500 mb-1 block">📦 Miqdor</label>
+                    <p className={`text-lg sm:text-xl font-bold ${
+                      selectedProductForDetails.quantity > 10 ? 'text-success-600' :
+                      selectedProductForDetails.quantity > 0 ? 'text-warning-600' :
+                      'text-danger-600'
+                    }`}>
+                      {formatNumber(selectedProductForDetails.quantity)} {(selectedProductForDetails as any).unit || 'dona'}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Bosqich 2: O'lchamlar */}
+              {detailsStep === 2 && (
+                <>
+                  {/* O'lchov birligi */}
+                  <div className="bg-surface-50 rounded-lg p-3">
+                    <label className="text-xs font-medium text-surface-500 mb-1 block">📏 O'lchov birligi</label>
+                    <p className="text-sm sm:text-base font-semibold text-surface-900 capitalize">
+                      {(selectedProductForDetails as any).unit || 'dona'}
+                    </p>
+                  </div>
+
+                  {/* O'lchamlar */}
+                  {(selectedProductForDetails as any).dimensions && (
+                    <div>
+                      <label className="text-xs sm:text-sm font-semibold text-surface-700 mb-2 block">📐 O'lchamlar</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(selectedProductForDetails as any).dimensions.width && (
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <label className="text-xs font-medium text-surface-500 mb-1 block">Eni (sm)</label>
+                            <p className="text-sm font-semibold text-surface-900">
+                              {(selectedProductForDetails as any).dimensions.width}
+                            </p>
+                          </div>
+                        )}
+                        {(selectedProductForDetails as any).dimensions.height && (
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <label className="text-xs font-medium text-surface-500 mb-1 block">Bo'yi (mm)</label>
+                            <p className="text-sm font-semibold text-surface-900">
+                              {(selectedProductForDetails as any).dimensions.height}
+                            </p>
+                          </div>
+                        )}
+                        {(selectedProductForDetails as any).dimensions.length && (
+                          <div className="bg-surface-50 rounded-lg p-3">
+                            <label className="text-xs font-medium text-surface-500 mb-1 block">Uzunligi (sm)</label>
+                            <p className="text-sm font-semibold text-surface-900">
+                              {(selectedProductForDetails as any).dimensions.length}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rulon/Karobka ma'lumotlari */}
+                  {(selectedProductForDetails as any).unit === 'rulon' && (selectedProductForDetails as any).metersPerRoll && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <label className="text-xs font-medium text-blue-700 mb-1 block">🎯 Rulon ma'lumotlari</label>
+                      <p className="text-sm font-semibold text-blue-900">
+                        1 rulonda {(selectedProductForDetails as any).metersPerRoll} metr
+                      </p>
+                    </div>
+                  )}
+
+                  {(selectedProductForDetails as any).unit === 'karobka' && (selectedProductForDetails as any).unitsPerBox && (
+                    <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                      <label className="text-xs font-medium text-purple-700 mb-1 block">📦 Karobka ma'lumotlari</label>
+                      <p className="text-sm font-semibold text-purple-900">
+                        1 karobkada {(selectedProductForDetails as any).unitsPerBox} dona
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Bosqich 3: Narxlar (TAN NARXISIZ) */}
+              {detailsStep === 3 && (
+                <>
+                  {/* Hozirgi narx */}
+                  {(selectedProductForDetails as any).currentPrice && (
+                    <div className="bg-gradient-to-br from-brand-50 to-purple-50 rounded-lg p-4 border-2 border-brand-200">
+                      <label className="text-xs font-medium text-brand-700 mb-1 block">💰 Hozirgi narx</label>
+                      <p className="text-2xl font-bold text-brand-600">
+                        {formatNumber((selectedProductForDetails as any).currentPrice)} so'm
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Dona narxi */}
+                  {(selectedProductForDetails as any).unitPrice && (
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">🔢 Dona narxi</label>
+                      <p className="text-lg font-bold text-surface-900">
+                        {formatNumber((selectedProductForDetails as any).unitPrice)} so'm
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Karobka narxi */}
+                  {(selectedProductForDetails as any).boxPrice && (
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">📦 Karobka narxi</label>
+                      <p className="text-lg font-bold text-surface-900">
+                        {formatNumber((selectedProductForDetails as any).boxPrice)} so'm
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Oldingi narx */}
+                  {(selectedProductForDetails as any).previousPrice && (
+                    <div className="bg-surface-50 rounded-lg p-3">
+                      <label className="text-xs font-medium text-surface-500 mb-1 block">⏮️ Oldingi narx</label>
+                      <p className="text-base font-semibold text-surface-700 line-through">
+                        {formatNumber((selectedProductForDetails as any).previousPrice)} so'm
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Pricing Tiers - Foizli chegirmalar */}
+                  {(selectedProductForDetails as any).pricingTiers && (
+                    <div>
+                      <label className="text-xs sm:text-sm font-semibold text-surface-700 mb-2 block">🎯 Chegirmalar</label>
+                      <div className="space-y-2">
+                        {Object.entries((selectedProductForDetails as any).pricingTiers).map(([key, tier]: [string, any]) => (
+                          <div key={key} className="bg-green-50 rounded-lg p-3 border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-green-700">
+                                {tier.minQuantity}-{tier.maxQuantity} dona
+                              </span>
+                              <span className="text-sm font-bold text-green-900">
+                                {tier.discountPercent}% chegirma
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer - Navigation Buttons */}
+            <div className="sticky bottom-0 bg-gradient-to-r from-slate-50 via-blue-50 to-purple-50 px-3 sm:px-6 py-3 sm:py-4 border-t border-slate-200/50 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.1)]">
+              <div className="flex items-center justify-between gap-2">
+                {detailsStep > 1 && (
+                  <button
+                    onClick={() => setDetailsStep(detailsStep - 1)}
+                    className="px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all text-sm"
+                  >
+                    ← Orqaga
+                  </button>
+                )}
+                
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    onClick={() => setShowProductDetailsModal(false)}
+                    className="px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all text-sm"
+                  >
+                    Yopish
+                  </button>
+                  
+                  {detailsStep < 3 && (
+                    <button
+                      onClick={() => setDetailsStep(detailsStep + 1)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all text-sm"
+                    >
+                      Keyingisi →
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Image Modal - Rasm kattalashtirish */}
       {showImageModal && selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
@@ -2940,6 +3315,51 @@ export default function Products() {
           >
             <X className="w-6 h-6 text-slate-600" />
           </button>
+        </div>
+      )}
+      
+      </div>
+      
+      {/* Category Selection Modal */}
+      {showCategoryModal && selectedProductForCategory && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ pointerEvents: 'auto' }}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCategoryModal(false)} />
+          
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden relative z-10" onClick={(e) => e.stopPropagation()} style={{ pointerEvents: 'auto' }}>
+            <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 px-6 py-5 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold">Kategoriyani tanlang</h3>
+                <p className="text-sm text-white/80 truncate">{selectedProductForCategory.name}</p>
+              </div>
+              <button onClick={() => setShowCategoryModal(false)} className="hover:bg-white/20 p-2 rounded-xl transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 gap-2">
+                {categories.map((category) => {
+                  const isSelected = (selectedProductForCategory as any).category === category.name;
+                  return (
+                    <button
+                      key={category._id}
+                      onClick={() => handleCategoryUpdate(category.name)}
+                      className={`p-4 rounded-xl text-left transition-all ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{category.name}</span>
+                        {isSelected && <Check className="w-5 h-5" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

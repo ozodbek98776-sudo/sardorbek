@@ -29,6 +29,7 @@ const translations = {
     // Sidebar
     'sidebar.statistics': 'Statistika',
     'sidebar.products': 'Tovarlar',
+    'sidebar.categories': 'Kategoriyalar',
     'sidebar.warehouses': 'Omborlar',
     'sidebar.customers': 'Mijozlar',
     'sidebar.debts': 'Qarz daftarcha',
@@ -99,6 +100,7 @@ const translations = {
     // Sidebar
     'sidebar.statistics': 'Statistics',
     'sidebar.products': 'Products',
+    'sidebar.categories': 'Categories',
     'sidebar.warehouses': 'Warehouses',
     'sidebar.customers': 'Customers',
     'sidebar.debts': 'Debt Book',
@@ -169,6 +171,7 @@ const translations = {
     // Sidebar
     'sidebar.statistics': 'Статистика',
     'sidebar.products': 'Товары',
+    'sidebar.categories': 'Категории',
     'sidebar.warehouses': 'Склады',
     'sidebar.customers': 'Клиенты',
     'sidebar.debts': 'Долговая книга',

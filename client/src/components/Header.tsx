@@ -1,9 +1,10 @@
-import { Search, ChevronDown, Bell, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut } from 'lucide-react';
+import { Search, ChevronDown, Bell, Menu, X, Home, ShoppingCart, Users, BarChart3, Package2, Warehouse, FileText, UserCircle, QrCode, ChevronRight, LogOut, LogIn } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import DebtApprovalNotification from './DebtApprovalNotification';
+import api from '../utils/api';
 
 interface FilterOption {
   value: string;
@@ -25,6 +26,10 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [lastAttendance, setLastAttendance] = useState<'in' | 'out' | null>(
+    localStorage.getItem('lastAttendance') as 'in' | 'out' | null
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const { user, logout } = useAuth();
@@ -35,6 +40,38 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     if (window.confirm('Tizimdan chiqmoqchimisiz?')) {
       logout();
       navigate('/login');
+    }
+  };
+
+  const handleAttendance = async () => {
+    if (attendanceLoading) return;
+    
+    const type = lastAttendance === 'in' ? 'out' : 'in';
+    setAttendanceLoading(true);
+
+    try {
+      // Kassa user uchun
+      if (user?.role === 'cashier' || user?.role === 'helper') {
+        await api.post('/telegram/attendance/kassa', {
+          type,
+          username: user.name
+        });
+      } else {
+        // Admin uchun
+        await api.post('/telegram/attendance', { type });
+      }
+
+      setLastAttendance(type);
+      localStorage.setItem('lastAttendance', type);
+      
+      // Success feedback
+      const message = type === 'in' ? '✅ Keldim!' : '👋 Ketdim!';
+      alert(message);
+    } catch (error) {
+      console.error('Attendance error:', error);
+      alert('Xatolik yuz berdi');
+    } finally {
+      setAttendanceLoading(false);
     }
   };
 
@@ -127,6 +164,27 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
                 <div className="absolute -top-0.5 -right-0.5 w-1.5 sm:w-2 h-1.5 sm:h-2 bg-red-500 rounded-full" />
               </button>
             )}
+
+            {/* Keldim/Ketdim Button */}
+            <button
+              onClick={handleAttendance}
+              disabled={attendanceLoading}
+              className={`flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 flex-shrink-0 text-xs sm:text-sm font-semibold disabled:opacity-50 ${
+                lastAttendance === 'in'
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white'
+                  : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
+              }`}
+              title={lastAttendance === 'in' ? 'Ketdim' : 'Keldim'}
+            >
+              {attendanceLoading ? (
+                <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : lastAttendance === 'in' ? (
+                <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              ) : (
+                <LogIn className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              )}
+              <span className="hidden xs:inline">{lastAttendance === 'in' ? 'Ketdim' : 'Keldim'}</span>
+            </button>
 
             {/* Settings - REMOVED (Task 28) */}
 

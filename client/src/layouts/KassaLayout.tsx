@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Calculator, Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
+import { Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
 import api from '../utils/api';
 import { useAlert } from '../hooks/useAlert';
 
@@ -9,7 +9,6 @@ export default function KassaLayout() {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sending, setSending] = useState<'arrived' | 'left' | null>(null);
-  const [uiMode, setUiMode] = useState<'idle' | 'arrived'>('idle');
   const { showAlert, AlertComponent } = useAlert();
   const [attendanceToday, setAttendanceToday] = useState<{ arrived: number; left: number }>({ arrived: 0, left: 0 });
   const [todayKey, setTodayKey] = useState<string>('');
@@ -71,7 +70,6 @@ export default function KassaLayout() {
       const raw = localStorage.getItem(key);
       const parsed = raw ? JSON.parse(raw) : { arrived: 0, left: 0 };
       setAttendanceToday(parsed);
-      setUiMode(parsed.arrived > 0 && parsed.left === 0 ? 'arrived' : 'idle');
     };
 
     checkAndUpdateAttendance();
@@ -110,9 +108,6 @@ export default function KassaLayout() {
         const updated = { ...current, arrived: current.arrived + 1 };
         localStorage.setItem(key, JSON.stringify(updated));
         setAttendanceToday(updated);
-        if (updated.arrived > 0 && updated.left === 0) {
-          setUiMode('arrived');
-        }
       } else {
         const key = `attendance:kassa:${userInfo.username}:${todayKey || getTodayString()}`;
         const current = attendanceToday;
@@ -145,10 +140,10 @@ export default function KassaLayout() {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === '/kassa' || path === '/kassa/') return 'Kassa';
+    if (path === '/kassa' || path === '/kassa/') return 'Kassa POS';
+    if (path === '/kassa/pos') return 'Kassa POS';
     if (path === '/kassa/receipts') return 'Cheklar';
     if (path === '/kassa/clients') return 'Mijozlar';
-    if (path === '/kassa/products') return 'Tovarlar';
     return 'Kassa';
   };
 
@@ -212,11 +207,10 @@ export default function KassaLayout() {
         <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1.5">
             {[
-              { path: '/kassa', label: 'Kassa', icon: Calculator },
+              { path: '/kassa/pos', label: 'Kassa POS', icon: Package },
               { path: '/kassa/receipts', label: 'Cheklar', icon: FileText },
               { path: '/kassa/clients', label: 'Mijozlar', icon: Users },
-              { path: '/kassa/debts', label: 'Qarz daftarcha', icon: FileText },
-              { path: '/kassa/products', label: 'Tovarlar', icon: Package }
+              { path: '/kassa/debts', label: 'Qarz daftarcha', icon: FileText }
             ].map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
@@ -330,6 +324,32 @@ export default function KassaLayout() {
               <span className="text-xs font-medium" style={{ color: '#6b7280' }}>Faol</span>
             </div>
           </div>
+
+          {/* Keldim/Ketdim Tugmalari - Navbar da */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleAttendance('arrived')}
+              disabled={sending !== null}
+              className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
+              }}
+            >
+              {sending === 'arrived' ? '...' : 'Keldim'}
+            </button>
+            <button
+              onClick={() => handleAttendance('left')}
+              disabled={sending !== null}
+              className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.4)'
+              }}
+            >
+              {sending === 'left' ? '...' : 'Ketdim'}
+            </button>
+          </div>
         </header>
         
         {/* Content Area */}
@@ -338,64 +358,6 @@ export default function KassaLayout() {
         </div>
       </div>
 
-      {/* Keldim/Ketdim UI */}
-      {uiMode === 'idle' && (
-        <div className="fixed inset-0 z-50 pointer-events-none">
-          <div className="absolute inset-0" style={{ background: 'rgba(250, 245, 255, 0.7)', backdropFilter: 'blur(8px)' }} />
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <div className="mx-auto max-w-md flex gap-4">
-              <button
-                onClick={() => handleAttendance('arrived')}
-                disabled={sending !== null}
-                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl text-white font-bold shadow-lg disabled:opacity-60 transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-                  boxShadow: '0 8px 24px -4px rgba(6, 182, 212, 0.4)'
-                }}
-              >
-                {sending === 'arrived' ? 'Yuborilmoqda...' : 'Keldim'}
-              </button>
-              <button
-                onClick={() => handleAttendance('left')}
-                disabled={sending !== null}
-                className="pointer-events-auto flex-1 px-6 py-4 rounded-2xl text-white font-bold shadow-lg disabled:opacity-60 transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                  boxShadow: '0 8px 24px -4px rgba(220, 38, 38, 0.4)'
-                }}
-              >
-                {sending === 'left' ? 'Yuborilmoqda...' : 'Ketdim'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {uiMode === 'arrived' && (
-        <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
-          <button
-            onClick={() => handleAttendance('arrived')}
-            disabled={sending !== null}
-            className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-              boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
-            }}
-          >
-            {sending === 'arrived' ? '...' : 'Keldim'}
-          </button>
-          <button
-            onClick={() => handleAttendance('left')}
-            disabled={sending !== null}
-            className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-              boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.4)'
-            }}
-          >
-            {sending === 'left' ? '...' : 'Ketdim'}
-          </button>
-        </div>
-      )}
       {AlertComponent}
     </div>
   );

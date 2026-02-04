@@ -368,7 +368,7 @@ export default function Debts() {
           ) : (
             <>
               {/* Pro Design Cards - barcha ekranlar uchun */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5 p-3 sm:p-4 md:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3 p-2.5 sm:p-3">
                 {filteredDebts.map(debt => {
                   const isPaid = debt.status === 'paid';
                   const isOverdue = debt.status === 'overdue';
@@ -400,9 +400,9 @@ export default function Debts() {
                                      'border-surface-200 hover:border-brand-300';
                   
                   return (
-                    <div key={debt._id} className={`bg-white rounded-xl sm:rounded-2xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
-                      {/* Header with Avatar and Status */}
-                      <div className={`relative p-3 sm:p-4 ${
+                    <div key={debt._id} className={`bg-white rounded-xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
+                      {/* Header with Avatar and Status - Compact */}
+                      <div className={`relative p-2.5 ${
                         isBlacklist ? 'bg-gradient-to-br from-slate-800 to-slate-900' :
                         isUrgent ? 'bg-gradient-to-br from-red-100 to-rose-100' :
                         isWarning ? 'bg-gradient-to-br from-orange-50 to-amber-50' :
@@ -413,7 +413,7 @@ export default function Debts() {
                       }`}>
                         {/* Muddat ogohlantirishi */}
                         {!isPaid && daysUntilDue <= 7 && (
-                          <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-[10px] font-bold ${
+                          <div className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
                             isUrgent ? 'bg-red-500 text-white animate-pulse' :
                             isWarning ? 'bg-orange-500 text-white' :
                             'bg-amber-500 text-white'
@@ -425,8 +425,8 @@ export default function Debts() {
                         )}
                         
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                          <div className="flex items-center gap-2">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
                               isBlacklist ? 'bg-gradient-to-br from-slate-900 to-black' :
                               isUrgent ? 'bg-gradient-to-br from-red-500 to-rose-600' :
                               isWarning ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
@@ -435,12 +435,12 @@ export default function Debts() {
                                 ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
                                 : 'bg-gradient-to-br from-red-400 to-rose-500'
                             }`}>
-                              <User className={`w-6 h-6 ${isBlacklist ? 'text-amber-300' : 'text-white'}`} />
+                              <User className={`w-5 h-5 ${isBlacklist ? 'text-amber-300' : 'text-white'}`} />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="font-bold text-surface-900 truncate text-sm sm:text-base">{getDebtorName(debt)}</h4>
+                              <h4 className="font-bold text-surface-900 truncate text-sm">{getDebtorName(debt)}</h4>
                               {getDebtorPhone(debt) && (
-                                <p className="text-xs sm:text-sm text-surface-500 flex items-center gap-1">
+                                <p className="text-xs text-surface-500 flex items-center gap-1">
                                   <Phone className="w-3 h-3" />
                                   {getDebtorPhone(debt)}
                                 </p>
@@ -448,8 +448,8 @@ export default function Debts() {
                             </div>
                           </div>
                           
-                          {/* Status Badge */}
-                          <div className={`px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold flex items-center gap-1.5 ${
+                          {/* Status Badge - Compact */}
+                          <div className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 ${
                             isBlacklist
                               ? 'bg-gradient-to-r from-slate-900 to-black text-amber-300 shadow-lg shadow-slate-500'
                               : isApproved
@@ -458,22 +458,22 @@ export default function Debts() {
                           }`}>
                             {isBlacklist ? <AlertTriangle className="w-3 h-3" /> : isApproved ? <CheckCircle2 className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
                             <span>
-                              {isBlacklist ? 'Qora ro\'yxat' :
-                               isPaid ? "To'langan" :
-                               isOverdue ? "Muddati o'tgan" : 
-                               isApproved ? 'Aktiv' : 'Jarayonda'}
+                              {isBlacklist ? 'Qora' :
+                               isPaid ? "To'landi" :
+                               isOverdue ? "Muddati o'tdi" : 
+                               isApproved ? 'Aktiv' : 'Kutish'}
                             </span>
                           </div>
                         </div>
 
-                        {/* Progress Bar */}
+                        {/* Progress Bar - Compact */}
                         {!isPaid && (
-                          <div className="mt-3">
-                            <div className="flex justify-between text-[10px] sm:text-xs text-surface-600 mb-1">
+                          <div className="mt-2">
+                            <div className="flex justify-between text-[9px] text-surface-600 mb-1">
                               <span>To'langan: {paidPercent}%</span>
-                              <span>{formatNumber(debt.paidAmount)} / {formatNumber(debt.amount)}</span>
+                              <span>{formatNumber(debt.paidAmount)}</span>
                             </div>
-                            <div className={`h-2 rounded-full overflow-hidden ${
+                            <div className={`h-1.5 rounded-full overflow-hidden ${
                               isUrgent ? 'bg-red-200' : isWarning ? 'bg-orange-200' : isCaution ? 'bg-amber-200' : 'bg-white/60'
                             }`}>
                               <div 
@@ -491,50 +491,48 @@ export default function Debts() {
                       </div>
 
                       {/* Content */}
-                      <div className="p-3 sm:p-4">
-                        {/* Amount Cards */}
-                        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-                          <div className="bg-surface-50 rounded-xl p-1.5 sm:p-3 border border-surface-100">
-                            <p className="text-[9px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-0.5 sm:mb-1">Jami qarz</p>
-                            <p className="font-bold text-surface-900 text-xs sm:text-base">{formatNumber(debt.amount)}</p>
-                            <p className="text-[9px] text-surface-400">so'm</p>
+                      <div className="p-2.5 sm:p-3">
+                        {/* Amount Cards - More Compact */}
+                        <div className="grid grid-cols-2 gap-1.5 mb-2">
+                          <div className="bg-surface-50 rounded-lg p-1.5 border border-surface-100">
+                            <p className="text-[9px] text-surface-500 uppercase tracking-wide font-semibold mb-0.5">Jami</p>
+                            <p className="font-bold text-surface-900 text-xs">{formatNumber(debt.amount)}</p>
                           </div>
-                          <div className={`rounded-xl p-1.5 sm:p-3 border ${
+                          <div className={`rounded-lg p-1.5 border ${
                             debtType === 'receivable' 
                               ? 'bg-emerald-50 border-emerald-200' 
                               : 'bg-red-50 border-red-200'
                           }`}>
-                            <p className="text-[9px] sm:text-xs text-surface-500 uppercase tracking-wide font-semibold mb-0.5 sm:mb-1">Qoldiq</p>
-                            <p className={`font-bold text-xs sm:text-base ${
+                            <p className="text-[9px] text-surface-500 uppercase tracking-wide font-semibold mb-0.5">Qoldiq</p>
+                            <p className={`font-bold text-xs ${
                               debtType === 'receivable' ? 'text-emerald-600' : 'text-red-600'
                             }`}>{formatNumber(remaining)}</p>
-                            <p className="text-[9px] text-surface-400">so'm</p>
                           </div>
                         </div>
 
-                        {/* Due Date & Collateral */}
-                        <div className="flex items-center justify-between mb-2 sm:mb-3 text-[10px] sm:text-sm">
-                          <div className="flex flex-col gap-0.5 sm:gap-1">
-                            <div className="flex items-center gap-1 sm:gap-1.5 text-surface-600">
-                              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        {/* Due Date & Collateral - Compact */}
+                        <div className="flex items-center justify-between mb-2 text-[10px]">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1 text-surface-600">
+                              <Calendar className="w-3 h-3" />
                               <span>{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
                             </div>
                             {/* Muddat berilgan kunlar */}
                             {debt.extensionDays > 0 && (
-                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded-md text-blue-700 text-[9px] sm:text-[10px] font-medium border border-blue-200">
-                                📅 {debt.extensionDays} kun muddat
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded text-blue-700 text-[9px] font-medium border border-blue-200">
+                                📅 {debt.extensionDays} kun
                               </div>
                             )}
                           </div>
                           {debtType === 'receivable' && debt.collateral && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded-lg text-amber-700 text-[9px] sm:text-[10px] font-medium border border-amber-200 max-w-[100px] truncate">
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded text-amber-700 text-[9px] font-medium border border-amber-200 max-w-[90px] truncate">
                               🔒 {debt.collateral}
                             </div>
                           )}
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-2 sm:pt-3 border-t border-surface-100 flex-wrap">
+                        {/* Actions - Compact */}
+                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-surface-100 flex-wrap">
                               {/* O'chirish tugmasi - faqat admin uchun */}
                               {isAdmin && (
                                 <button
@@ -547,7 +545,7 @@ export default function Debts() {
                                       console.error('Error deleting debt:', err); 
                                     }
                                   }}
-                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-100 text-red-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-red-200 transition-all whitespace-nowrap"
+                                  className="flex items-center justify-center gap-1 px-2 py-1.5 bg-red-100 text-red-700 rounded-lg text-[10px] font-semibold hover:bg-red-200 transition-all whitespace-nowrap"
                                   title="Qarzni o'chirish"
                                 >
                                   <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />

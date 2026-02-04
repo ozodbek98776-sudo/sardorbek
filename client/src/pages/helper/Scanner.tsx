@@ -5,7 +5,8 @@ import { Product, CartItem } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
-import { PRODUCT_CATEGORIES } from '../../constants/categories';
+import { useCategories } from '../../hooks/useCategories';
+import { useSocket } from '../../hooks/useSocket';
 
 interface Customer {
   _id: string;
@@ -20,6 +21,8 @@ interface NewCustomerForm {
 
 export default function HelperScanner() {
   const { showAlert, AlertComponent } = useAlert();
+  const { categories } = useCategories();
+  const socket = useSocket(); // ⚡ Socket.IO hook
   const [scanning, setScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -48,6 +51,56 @@ export default function HelperScanner() {
       }
     };
   }, []);
+
+  // ⚡ Socket.IO - Real-time product updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Mahsulot yangilanganda
+    socket.on('product:updated', (updatedProduct: Product) => {
+      console.log('📡 Helper Scanner: Mahsulot yangilandi', updatedProduct);
+      setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
+      // Qidiruv natijalarini ham yangilash
+      setSearchResults(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
+    });
+
+    // Mahsulot qo'shilganda
+    socket.on('product:created', (newProduct: Product) => {
+      console.log('📡 Helper Scanner: Yangi mahsulot qo\'shildi', newProduct);
+      setProducts(prev => [newProduct, ...prev]);
+    });
+
+    // Mahsulot o'chirilganda
+    socket.on('product:deleted', (data: { _id: string }) => {
+      console.log('📡 Helper Scanner: Mahsulot o\'chirildi', data._id);
+      setProducts(prev => prev.filter(p => p._id !== data._id));
+      setSearchResults(prev => prev.filter(p => p._id !== data._id));
+    });
+
+    return () => {
+      socket.off('product:updated');
+      socket.off('product:created');
+      socket.off('product:deleted');
+    };
+  }, [socket]);
+
+  // Body scroll lock for modals
+  useEffect(() => {
+    if (showCustomerModal || scannedProduct) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showCustomerModal, scannedProduct]);
 
   // Kategoriya o'zgarganda qidiruvni qayta ishga tushirish
   useEffect(() => {
@@ -391,45 +444,71 @@ export default function HelperScanner() {
   const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
 
   return (
-    <div className="min-h-[calc(100vh-120px)] bg-gradient-to-b from-surface-50 to-surface-100/80 rounded-3xl p-4 sm:p-6 lg:p-8 shadow-sm overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-4 sm:p-6 lg:p-8">
       {AlertComponent}
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-surface-900 flex items-center gap-2">
-            <QrCode className="w-6 h-6 text-brand-600" />
-            Skaner orqali savat to'ldirish
-          </h1>
-          <p className="text-sm text-surface-500 mt-1">
-            Tovarlarni QR kod orqali tezda toping, savatga qo'shing va kassaga yuboring.
-          </p>
-        </div>
-        
-        {/* Mijoz tanlash tugmasi */}
-        <button
-          onClick={() => setShowCustomerModal(true)}
-          className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-all shadow-sm text-sm sm:text-base w-full sm:w-auto ${
-            selectedCustomer
-              ? 'bg-green-50 border-2 border-green-500 text-green-700 hover:bg-green-100'
-              : 'bg-brand-500 text-white hover:bg-brand-600'
-          }`}
-        >
-          <User className="w-4 h-4 sm:w-5 sm:h-5" />
-          <div className="text-left flex-1">
-            <div className="text-xs font-medium">
-              {selectedCustomer ? 'Mijoz tanlandi' : 'Mijoz tanlash'}
+      {/* Modern Header with Glassmorphism */}
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/5 border border-white/20 p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <QrCode className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  QR Skaner
+                </h1>
+                <p className="text-sm text-slate-600 mt-1">
+                  Tez va oson savat to'ldirish tizimi
+                </p>
+              </div>
             </div>
-            {selectedCustomer && (
-              <div className="text-sm font-semibold truncate">{selectedCustomer.name}</div>
-            )}
+            
+            {/* Mijoz tanlash tugmasi - Yangilangan dizayn */}
+            <button
+              onClick={() => setShowCustomerModal(true)}
+              className={`group relative overflow-hidden px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
+                selectedCustomer
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white'
+                  : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white'
+              }`}
+            >
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <User className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-semibold opacity-90">
+                    {selectedCustomer ? 'Tanlangan mijoz' : 'Mijoz tanlash'}
+                  </div>
+                  {selectedCustomer && (
+                    <div className="text-sm font-bold truncate max-w-[150px]">{selectedCustomer.name}</div>
+                  )}
+                </div>
+              </div>
+            </button>
           </div>
-        </button>
+        </div>
       </div>
 
       {/* Mijoz tanlash modali */}
       {showCustomerModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+          style={{ pointerEvents: 'auto' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCustomerModal(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
+            style={{ pointerEvents: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-surface-200 flex items-center justify-between bg-gradient-to-r from-brand-500 to-brand-600">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Users className="w-5 h-5" />
@@ -583,64 +662,78 @@ export default function HelperScanner() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 lg:gap-6 items-start w-full">
-        <div className="space-y-4 lg:space-y-5 min-w-0">
-          <div className="card p-3 sm:p-4 border border-surface-100 shadow-sm">
-            <div className="flex flex-col gap-3 items-stretch">
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-brand-400 z-10 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => handleSearch(e.target.value)}
-                  placeholder="Qidirish..."
-                  className="w-full h-12 pl-10 sm:pl-11 pr-10 rounded-xl border-2 border-surface-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 transition-all text-sm sm:text-base text-surface-900 placeholder:text-surface-400 bg-white shadow-sm hover:border-brand-300 relative z-0"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => handleSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-surface-100 hover:bg-surface-200 flex items-center justify-center transition-colors z-10"
-                  >
-                    <X className="w-4 h-4 text-surface-500" />
-                  </button>
-                )}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+        {/* Chap tomon - Qidiruv va mahsulotlar */}
+        <div className="space-y-5">
+          {/* Qidiruv va skaner kartasi - Glassmorphism */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/5 border border-white/20 p-5">
+            <div className="space-y-4">
+              {/* Qidiruv input - Modern */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-brand-500/20 to-indigo-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500 z-10" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => handleSearch(e.target.value)}
+                    placeholder="Mahsulot nomi yoki kodi..."
+                    className="w-full h-14 pl-12 pr-12 rounded-2xl border-2 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base text-slate-900 placeholder:text-slate-400 bg-white shadow-sm hover:shadow-md font-medium"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => handleSearch('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all hover:scale-110 z-10"
+                    >
+                      <X className="w-4 h-4 text-slate-600" />
+                    </button>
+                  )}
+                </div>
               </div>
               
-              {/* Category Filter - Horizontal Scrollable */}
-              <div className="bg-white rounded-xl p-2 border-2 border-surface-200">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              {/* Kategoriya filtri - Horizontal scroll */}
+              <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-2xl p-3 border border-slate-200/50">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
                   <button
                     onClick={() => setSelectedCategory('')}
-                    className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all ${
+                    className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
                       selectedCategory === '' 
-                        ? 'bg-brand-500 text-white shadow-md' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30 scale-105' 
+                        : 'bg-white text-slate-600 hover:bg-slate-50 shadow-sm hover:shadow-md'
                     }`}
                   >
-                    Barchasi
+                    🔹 Barchasi
                   </button>
-                  {PRODUCT_CATEGORIES.map(category => (
+                  {categories.map(category => (
                     <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all whitespace-nowrap ${
-                        selectedCategory === category 
-                          ? 'bg-brand-500 text-white shadow-md' 
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      key={category._id}
+                      onClick={() => setSelectedCategory(category.name)}
+                      className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
+                        selectedCategory === category.name 
+                          ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30 scale-105' 
+                          : 'bg-white text-slate-600 hover:bg-slate-50 shadow-sm hover:shadow-md'
                       }`}
                     >
-                      {category}
+                      {category.name}
                     </button>
                   ))}
                 </div>
               </div>
               
+              {/* QR Skaner tugmasi - Premium */}
               <button
                 onClick={scanning ? stopScanner : startScanner}
-                className={`h-12 flex items-center justify-center gap-2 rounded-xl px-4 font-medium ${scanning ? 'btn-secondary' : 'btn-primary'} shadow-md hover:shadow-lg transition-all`}
+                className={`group relative w-full h-14 rounded-2xl font-bold text-base transition-all duration-300 overflow-hidden ${
+                  scanning 
+                    ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40' 
+                    : 'bg-gradient-to-r from-brand-500 via-brand-600 to-indigo-600 hover:from-brand-600 hover:via-brand-700 hover:to-indigo-700 shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40'
+                } text-white hover:scale-[1.02]`}
               >
-                <QrCode className="w-5 h-5" />
-                <span>{scanning ? 'Skanerni to\'xtatish' : 'QR skaner'}</span>
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative flex items-center justify-center gap-3">
+                  <QrCode className="w-6 h-6" />
+                  <span>{scanning ? 'Skanerni to\'xtatish' : 'QR Skaner Ochish'}</span>
+                </div>
               </button>
             </div>
           </div>
@@ -668,8 +761,20 @@ export default function HelperScanner() {
           )}
 
           {scannedProduct && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+              style={{ pointerEvents: 'auto' }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setScannedProduct(null);
+                }
+              }}
+            >
+              <div 
+                className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+                style={{ pointerEvents: 'auto' }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="sticky top-0 bg-gradient-to-r from-success-500 to-success-600 p-4 flex items-center justify-between z-10">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -888,155 +993,173 @@ export default function HelperScanner() {
           )}
         </div>
 
-        <div className="lg:sticky lg:top-4 min-w-0 w-full">
-          <div className="card border border-surface-100 shadow-md shadow-surface-900/5 p-3 sm:p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
+        {/* O'ng tomon - Savat - Premium dizayn */}
+        <div className="lg:sticky lg:top-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/20 p-5 overflow-hidden">
+            {/* Savat header - Gradient */}
+            <div className="relative mb-5">
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-500/10 to-indigo-500/10 rounded-2xl blur-xl" />
+              <div className="relative flex items-center justify-between p-4 bg-gradient-to-r from-brand-50 to-indigo-50 rounded-2xl border border-brand-200/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                    <ShoppingCart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 text-lg">Savat</span>
+                    <p className="text-xs text-slate-600">Tanlangan mahsulotlar</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <span className="font-semibold text-surface-900 text-sm sm:text-base">Savat</span>
-                  <p className="text-xs text-surface-400 truncate">Tanlangan tovarlar</p>
+                <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold shadow-lg shadow-brand-500/30">
+                  {cart.length}
                 </div>
               </div>
-              <span className="badge-primary text-xs px-2 sm:px-3 py-1 rounded-full flex-shrink-0">{cart.length} ta</span>
             </div>
 
             {cart.length === 0 ? (
-              <div className="text-center py-8 sm:py-10">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-surface-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <ShoppingCart className="w-7 h-7 sm:w-8 sm:h-8 text-surface-300" />
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <ShoppingCart className="w-10 h-10 text-slate-400" />
                 </div>
-                <p className="text-surface-500 text-xs sm:text-sm px-2">Savat bo'sh. QR skaner yoki qidiruv orqali tovar qo'shing.</p>
+                <p className="text-slate-600 font-medium mb-1">Savat bo'sh</p>
+                <p className="text-sm text-slate-500">QR skaner yoki qidiruv orqali mahsulot qo'shing</p>
               </div>
             ) : (
-              <div className="space-y-2 sm:space-y-3 max-h-[360px] overflow-auto pr-1 custom-scrollbar">
-                {cart.map(item => {
-                  const pricingTier = getPricingTier(item.cartQuantity);
-                  const basePrice = products.find(p => p._id === item._id)?.price || item.price;
-                  const product = products.find(p => p._id === item._id);
-                  const isExpanded = expandedPricing === item._id;
-                  
-                  return (
-                  <div key={item._id} className="bg-surface-50 rounded-xl border border-surface-100">
-                    <div className="flex items-center gap-2 p-2 sm:p-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-surface-900 truncate text-sm">{item.name}</p>
+              <>
+                <div className="space-y-3 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
+                  {cart.map(item => {
+                    const pricingTier = getPricingTier(item.cartQuantity);
+                    const product = products.find(p => p._id === item._id);
+                    const isExpanded = expandedPricing === item._id;
+                    
+                    return (
+                    <div key={item._id} className="group bg-gradient-to-br from-white to-slate-50/50 rounded-2xl border-2 border-slate-200 hover:border-brand-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                      <div className="flex items-center gap-3 p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 truncate">{item.name}</p>
+                          
+                          {/* Pricing tier badge */}
+                          <button
+                            onClick={() => setExpandedPricing(isExpanded ? null : item._id)}
+                            className="flex items-center gap-2 mt-1.5 hover:opacity-80 transition-opacity"
+                          >
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+                              pricingTier.discount 
+                                ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 border border-emerald-200' 
+                                : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 border border-slate-300'
+                            }`}>
+                              {pricingTier.name} • {pricingTier.markupPercent}%
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                            )}
+                          </button>
+                          
+                          <p className="text-sm text-brand-600 font-bold mt-1.5">
+                            {formatNumber(item.price * item.cartQuantity)} so'm
+                          </p>
+                        </div>
                         
-                        {/* Pricing tier badge - bosiladigan */}
-                        <button
-                          onClick={() => setExpandedPricing(isExpanded ? null : item._id)}
-                          className="flex items-center gap-1.5 mt-1 hover:opacity-80 transition-opacity"
+                        {/* Miqdor o'zgartirish - Modern */}
+                        <div className="flex items-center gap-1 bg-white rounded-xl border-2 border-slate-200 px-2 py-1.5 shadow-sm">
+                          <button 
+                            onClick={() => updateQuantity(item._id, -1)} 
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-all hover:scale-110"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.cartQuantity}
+                            onChange={(e) => {
+                              const newQty = parseInt(e.target.value) || 1;
+                              const delta = newQty - item.cartQuantity;
+                              updateQuantity(item._id, delta);
+                            }}
+                            className="w-12 text-center font-bold text-sm bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg"
+                          />
+                          <button 
+                            onClick={() => updateQuantity(item._id, 1)} 
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-all hover:scale-110"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        {/* O'chirish tugmasi */}
+                        <button 
+                          onClick={() => removeFromCart(item._id)} 
+                          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-500 transition-all hover:scale-110"
                         >
-                          <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            pricingTier.discount 
-                              ? 'bg-success-100 text-success-700' 
-                              : 'bg-surface-200 text-surface-600'
-                          }`}>
-                            {pricingTier.name} • {pricingTier.markupPercent}%
-                          </span>
-                          {isExpanded ? (
-                            <ChevronUp className="w-3 h-3 text-surface-500" />
-                          ) : (
-                            <ChevronDown className="w-3 h-3 text-surface-500" />
-                          )}
-                        </button>
-                        
-                        <p className="text-xs sm:text-sm text-brand-600 font-semibold mt-1">
-                          {formatNumber(item.price * item.cartQuantity)} so'm
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-1 bg-white rounded-lg border border-surface-200 px-1 sm:px-1.5 py-1 flex-shrink-0">
-                        <button onClick={() => updateQuantity(item._id, -1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
-                          <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.cartQuantity}
-                          onChange={(e) => {
-                            const newQty = parseInt(e.target.value) || 1;
-                            const delta = newQty - item.cartQuantity;
-                            updateQuantity(item._id, delta);
-                          }}
-                          className="w-8 sm:w-10 text-center font-semibold text-xs sm:text-sm bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded"
-                        />
-                        <button onClick={() => updateQuantity(item._id, 1)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded hover:bg-surface-100 transition-colors">
-                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <X className="w-4.5 h-4.5" />
                         </button>
                       </div>
-                      <button onClick={() => removeFromCart(item._id)} className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors flex-shrink-0">
-                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
 
-                    {/* Dropdown - 3 ta chegirma narxi */}
-                    {isExpanded && product && (
-                      <div className="px-2 sm:px-3 pb-2 sm:pb-3 space-y-1.5">
-                        {/* Tier 1 */}
-                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
-                          <div>
-                            <p className="text-[10px] font-medium text-green-900">
+                      {/* Dropdown - Chegirma tiers */}
+                      {isExpanded && product && (
+                        <div className="px-3 pb-3 space-y-2 bg-slate-50/50">
+                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                            <p className="text-xs font-semibold text-emerald-900">
                               {product.pricingTiers?.tier1?.minQuantity || 1}-{product.pricingTiers?.tier1?.maxQuantity || 9} dona
                             </p>
+                            <span className="text-xs font-bold text-emerald-700 px-2 py-1 bg-emerald-100 rounded-lg">
+                              {product.pricingTiers?.tier1?.discountPercent || 15}%
+                            </span>
                           </div>
-                          <span className="text-xs font-bold text-green-700">
-                            {product.pricingTiers?.tier1?.discountPercent || 15}%
-                          </span>
-                        </div>
 
-                        {/* Tier 2 */}
-                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                          <div>
-                            <p className="text-[10px] font-medium text-blue-900">
+                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl border border-blue-200">
+                            <p className="text-xs font-semibold text-blue-900">
                               {product.pricingTiers?.tier2?.minQuantity || 10}-{product.pricingTiers?.tier2?.maxQuantity || 99} dona
                             </p>
+                            <span className="text-xs font-bold text-blue-700 px-2 py-1 bg-blue-100 rounded-lg">
+                              {product.pricingTiers?.tier2?.discountPercent || 13}%
+                            </span>
                           </div>
-                          <span className="text-xs font-bold text-blue-700">
-                            {product.pricingTiers?.tier2?.discountPercent || 13}%
-                          </span>
-                        </div>
 
-                        {/* Tier 3 */}
-                        <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
-                          <div>
-                            <p className="text-[10px] font-medium text-purple-900">
+                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200">
+                            <p className="text-xs font-semibold text-purple-900">
                               {product.pricingTiers?.tier3?.minQuantity || 100}+ dona
                             </p>
+                            <span className="text-xs font-bold text-purple-700 px-2 py-1 bg-purple-100 rounded-lg">
+                              {product.pricingTiers?.tier3?.discountPercent || 11}%
+                            </span>
                           </div>
-                          <span className="text-xs font-bold text-purple-700">
-                            {product.pricingTiers?.tier3?.discountPercent || 11}%
-                          </span>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )})}
-              </div>
-            )}
-
-            {cart.length > 0 && (
-              <div className="mt-4 pt-3 sm:pt-4 border-t border-surface-200 space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-surface-500 text-xs sm:text-sm">Jami summa</span>
-                  <span className="text-xl sm:text-2xl font-bold text-surface-900">{formatNumber(total)} so'm</span>
+                      )}
+                    </div>
+                  )})}
                 </div>
-                <button
-                  onClick={sendToCashier}
-                  disabled={sending}
-                  className="btn-primary w-full py-3 sm:py-3.5 text-sm sm:text-base rounded-xl flex items-center justify-center gap-2"
-                >
-                  {sending ? (
-                    <div className="spinner" />
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Kassaga yuborish
-                    </>
-                  )}
-                </button>
-              </div>
+
+                {/* Jami va yuborish - Premium */}
+                <div className="mt-5 pt-5 border-t-2 border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-2xl border border-slate-200">
+                    <span className="text-slate-600 font-semibold">Jami summa</span>
+                    <span className="text-2xl font-bold bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">
+                      {formatNumber(total)} so'm
+                    </span>
+                  </div>
+                  
+                  <button
+                    onClick={sendToCashier}
+                    disabled={sending}
+                    className="group relative w-full h-14 rounded-2xl font-bold text-base transition-all duration-300 overflow-hidden bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative flex items-center justify-center gap-3">
+                      {sending ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5" />
+                          <span>Kassaga Yuborish</span>
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

@@ -8,7 +8,7 @@ import { UPLOADS_URL } from '../config/api';
 // API URL
 const API_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
-interface TierPrice {
+interface TierPrice { 
   minQuantity: number;
   maxQuantity: number;
   discountPercent: number;

@@ -20,7 +20,8 @@ import {
   markSalesAsSynced,
   deleteSyncedSales
 } from '../../utils/indexedDbService';
-import { PRODUCT_CATEGORIES } from '../../constants/categories';
+import { useCategories } from '../../hooks/useCategories';
+import { useSocket } from '../../hooks/useSocket';
 
 interface SavedReceipt {
   id: string;
@@ -78,11 +79,13 @@ export default function KassaPro() {
   const navigate = useNavigate();
   const { showAlert, AlertComponent } = useAlert();
   const { isOnline, pendingCount, isSyncing, manualSync } = useOffline();
+  const { categories } = useCategories();
+  const socket = useSocket(); // ⚡ Socket.IO hook
   const [activeTab, setActiveTab] = useState<'products' | 'receipts'>('products');
   const [menuOpen, setMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
-  const [displayCount, setDisplayCount] = useState(20);
+  const [displayCount, setDisplayCount] = useState(5);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [showPayment, setShowPayment] = useState(false);
@@ -98,6 +101,9 @@ export default function KassaPro() {
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [cashAmount, setCashAmount] = useState<number>(0);
   const [cardAmount, setCardAmount] = useState<number>(0);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedProductForCategory, setSelectedProductForCategory] = useState<Product | null>(null);
+  const [selectedCategoryForProduct, setSelectedCategoryForProduct] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mixed' | null>(null);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -220,6 +226,35 @@ export default function KassaPro() {
     }
   }, []);
 
+  // ⚡ Socket.IO - Real-time product updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Mahsulot yangilanganda
+    socket.on('product:updated', (updatedProduct: Product) => {
+      console.log('📡 KassaPro: Mahsulot yangilandi', updatedProduct);
+      setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
+    });
+
+    // Mahsulot qo'shilganda
+    socket.on('product:created', (newProduct: Product) => {
+      console.log('📡 KassaPro: Yangi mahsulot qo\'shildi', newProduct);
+      setProducts(prev => [newProduct, ...prev]);
+    });
+
+    // Mahsulot o'chirilganda
+    socket.on('product:deleted', (data: { _id: string }) => {
+      console.log('📡 KassaPro: Mahsulot o\'chirildi', data._id);
+      setProducts(prev => prev.filter(p => p._id !== data._id));
+    });
+
+    return () => {
+      socket.off('product:updated');
+      socket.off('product:created');
+      socket.off('product:deleted');
+    };
+  }, [socket]);
+
   // Mahsulotlar yuklanganida displayedProducts ni yangilash
   useEffect(() => {
     let filtered = products;
@@ -232,6 +267,21 @@ export default function KassaPro() {
     setDisplayedProducts(filtered.slice(0, displayCount));
   }, [products, displayCount, selectedCategory]);
 
+  // Mahsulotlarni kategoriya bo'yicha guruhlash
+  const productsByCategory = useMemo(() => {
+    const grouped: Record<string, Product[]> = {};
+    
+    products.forEach(product => {
+      const category = product.category || 'Boshqa';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(product);
+    });
+    
+    return grouped;
+  }, [products]);
+
   // Infinite scroll uchun
   useEffect(() => {
     const container = productsContainerRef.current;
@@ -239,9 +289,9 @@ export default function KassaPro() {
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      // Foydalanuvchi pastga yaqinlashganda keyingi 20 ta mahsulotni yuklash
+      // Foydalanuvchi pastga yaqinlashganda keyingi 5 ta mahsulotni yuklash
       if (scrollHeight - scrollTop <= clientHeight * 1.5 && displayCount < products.length) {
-        setDisplayCount(prev => Math.min(prev + 20, products.length));
+        setDisplayCount(prev => Math.min(prev + 5, products.length));
       }
     };
 
@@ -249,12 +299,42 @@ export default function KassaPro() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [displayCount, products.length]);
 
+  // Modal ochilganda body scroll ni bloklash
+  useEffect(() => {
+    if (showProductDetail || showPayment || showSavedReceipts) {
+      // Body scroll ni bloklash
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = '0px';
+      // Orqa fonni to'liq bloklash
+      document.body.style.pointerEvents = 'none';
+      
+      // Modal uchun pointer-events ni yoqish
+      const modals = document.querySelectorAll('[data-modal="true"]');
+      modals.forEach(modal => {
+        (modal as HTMLElement).style.pointerEvents = 'auto';
+      });
+    } else {
+      // Body scroll ni qayta yoqish
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      document.body.style.pointerEvents = '';
+    }
+
+    // Cleanup
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      document.body.style.pointerEvents = '';
+    };
+  }, [showProductDetail, showPayment, showSavedReceipts]);
+
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
     try {
       if (navigator.onLine) {
-        const res = await api.get('/products?mainOnly=true&limit=1000');
-        const productsData = res.data.data || res.data;
+        // ⚡ ULTRA TEZKOR - faqat minimal ma'lumotlar
+        const res = await api.get('/products?kassaView=true&limit=1000');
+        const productsData = res.data;
         const products = Array.isArray(productsData) ? productsData : [];
         setProducts(products);
         await cacheProducts(products);
@@ -340,6 +420,47 @@ export default function KassaPro() {
   const loadSavedReceipts = () => {
     const saved = localStorage.getItem('savedReceipts');
     if (saved) setSavedReceipts(JSON.parse(saved));
+  };
+
+  const handleSaveProductCategory = async () => {
+    if (!selectedProductForCategory || !selectedCategoryForProduct) {
+      showAlert('Kategoriya tanlanmagan!', 'Xatolik', 'warning');
+      return;
+    }
+
+    try {
+      const response = await api.put(`/products/${selectedProductForCategory._id}/category`, {
+        category: selectedCategoryForProduct
+      });
+
+      if (response.data) {
+        // Yangilangan mahsulotni olish
+        const updatedProduct = response.data;
+        
+        // Mahsulotlar ro'yxatini yangilash
+        setProducts(prev => prev.map(p => 
+          p._id === updatedProduct._id 
+            ? updatedProduct
+            : p
+        ));
+        
+        // Kategoriya filtriga o'tish
+        setSelectedCategory(selectedCategoryForProduct);
+        
+        // Display count ni reset qilish
+        setDisplayCount(5);
+        
+        showAlert(`Kategoriya saqlandi: ${selectedCategoryForProduct}`, 'Muvaffaqiyat', 'success');
+        
+        // Modalni yopish
+        setShowCategoryModal(false);
+        setSelectedProductForCategory(null);
+        setSelectedCategoryForProduct('');
+      }
+    } catch (err: any) {
+      console.error('Kategoriya saqlashda xatolik:', err);
+      showAlert(err.response?.data?.message || 'Kategoriya saqlanmadi!', 'Xatolik', 'danger');
+    }
   };
 
   const handleCreateNewCustomer = async () => {
@@ -915,10 +1036,9 @@ export default function KassaPro() {
               <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-lg" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+              <h1 className="text-base sm:text-lg lg:text-xl font-extrabold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
                 Kassa (POS)
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">Professional Sotish Tizimi</p>
             </div>
           </div>
 
@@ -948,7 +1068,7 @@ export default function KassaPro() {
             <div className="flex gap-2 bg-white p-2 rounded-xl border-2 border-slate-200 shadow-sm">
               <button
                 onClick={() => setActiveTab('products')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-sm transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all ${
                   activeTab === 'products'
                     ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -959,7 +1079,7 @@ export default function KassaPro() {
               </button>
               <button
                 onClick={() => setActiveTab('receipts')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-sm transition-all ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-xs sm:text-sm transition-all ${
                   activeTab === 'receipts'
                     ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -968,7 +1088,7 @@ export default function KassaPro() {
                 <Receipt className="w-4 h-4" />
                 Cheklar
                 {helperReceipts.length > 0 && (
-                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
+                  <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-bold">
                     {helperReceipts.length}
                   </span>
                 )}
@@ -1020,17 +1140,17 @@ export default function KassaPro() {
                     >
                       Barchasi
                     </button>
-                    {PRODUCT_CATEGORIES.map(category => (
+                    {categories.map(category => (
                       <button
-                        key={category}
-                        onClick={() => setSelectedCategory(category)}
+                        key={category._id}
+                        onClick={() => setSelectedCategory(category.name)}
                         className={`flex-shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium text-xs sm:text-sm transition-all whitespace-nowrap ${
-                          selectedCategory === category 
+                          selectedCategory === category.name 
                             ? 'bg-brand-500 text-white shadow-md' 
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        {category}
+                        {category.name}
                       </button>
                     ))}
                   </div>
@@ -1053,10 +1173,10 @@ export default function KassaPro() {
                         Yopish (Esc)
                       </button>
                     </div>
-                <div className="max-h-64 sm:max-h-96 overflow-y-auto">
+                <div className="max-h-64 sm:max-h-96 overflow-y-auto thin-scrollbar">
                   {searchResults.length > 0 ? (
                     <div className="divide-y divide-slate-100">
-                      {searchResults.map(product => (
+                      {searchResults.slice(0, 10).map(product => (
                         <button
                           key={product._id}
                           onClick={() => { 
@@ -1093,12 +1213,12 @@ export default function KassaPro() {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">{product.name}</p>
-                            <p className="text-[10px] sm:text-xs text-slate-500">Kod: {product.code}</p>
+                            <p className="font-semibold text-slate-900 truncate text-[10px] sm:text-xs">{product.name}</p>
+                            <p className="text-[9px] sm:text-[10px] text-slate-500">Kod: {product.code}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="font-bold text-brand-600 text-xs sm:text-sm">{formatNumber(product.price)} so'm</p>
-                            <p className={`text-[10px] sm:text-xs font-semibold ${product.quantity <= 0 ? 'text-red-600' : product.quantity <= 10 ? 'text-orange-600' : 'text-green-600'}`}>
+                            <p className="font-bold text-brand-600 text-[10px] sm:text-xs">{formatNumber(product.price)} so'm</p>
+                            <p className={`text-[9px] sm:text-[10px] font-semibold ${product.quantity <= 0 ? 'text-red-600' : product.quantity <= 10 ? 'text-orange-600' : 'text-green-600'}`}>
                               {product.quantity} ta
                             </p>
                           </div>
@@ -1114,86 +1234,300 @@ export default function KassaPro() {
                 </div>
               </div>
             ) : (
-              /* All Products with Infinite Scroll */
-              <div 
-                ref={productsContainerRef}
-                className="max-h-[calc(100vh-250px)] overflow-y-auto"
-              >
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
-                  {displayedProducts.map(product => (
+              /* Kategoriyalar bo'yicha mahsulotlar - har biri alohida scroll bilan */
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto thin-scrollbar pb-32">
+                <div className="space-y-6 pb-8">
+                {!selectedCategory ? (
+                  /* Barcha kategoriyalar - har biri alohida scroll */
+                  Object.entries(productsByCategory).map(([category, categoryProducts]) => (
+                    <div key={category} className="space-y-3">
+                      {/* Kategoriya header */}
+                      <div className="flex items-center justify-between px-2">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                          <div className="w-1 h-6 bg-brand-500 rounded-full"></div>
+                          {category}
+                          <span className="text-sm text-slate-500 font-normal">({categoryProducts.length})</span>
+                        </h3>
+                        <button
+                          onClick={() => setSelectedCategory(category)}
+                          className="text-xs sm:text-sm text-brand-600 hover:text-brand-700 font-semibold transition-colors"
+                        >
+                          Barchasini ko'rish →
+                        </button>
+                      </div>
+                      
+                      {/* Gorizontal scroll - kategoriya mahsulotlari */}
+                      <div className="overflow-x-auto thin-scrollbar pb-2 scroll-smooth snap-x snap-mandatory">
+                        <div className="flex gap-3 sm:gap-4 px-2 pr-4" style={{ minWidth: 'min-content' }}>
+                          {categoryProducts.map(product => (
+                            <div
+                              key={product._id}
+                              className="group bg-white rounded-2xl border border-slate-200 hover:border-brand-400 hover:shadow-2xl transition-all duration-300 overflow-hidden relative flex-shrink-0 snap-start"
+                              style={{ width: '160px' }}
+                            >
+                              {/* Action tugmalari */}
+                              <div className="absolute top-2 right-2 flex gap-1 z-20">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedProductForCategory(product);
+                                    setSelectedCategoryForProduct(product.category || '');
+                                    setShowCategoryModal(true);
+                                  }}
+                                  className="w-7 h-7 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-lg shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+                                  title="Kategoriya"
+                                >
+                                  <Filter className="w-3.5 h-3.5 text-white drop-shadow-lg" />
+                                </button>
+                                
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    printQRCodes([product]);
+                                  }}
+                                  className="w-7 h-7 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-lg shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+                                  title="QR Print"
+                                >
+                                  <Scan className="w-3.5 h-3.5 text-white drop-shadow-lg" />
+                                </button>
+                              </div>
+
+                              {/* Mahsulot kartasi */}
+                              <button
+                                onClick={() => {
+                                  setSelectedProductForDetail(product);
+                                  setProductDetailQuantity(0);
+                                  setShowProductDetail(true);
+                                }}
+                                disabled={product.quantity <= 0}
+                                className={`w-full text-left ${product.quantity <= 0 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              >
+                                {/* Rasm */}
+                                <div className="relative w-full aspect-square bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden">
+                                  {product.quantity <= 0 && (
+                                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
+                                      <div className="bg-red-500 text-white px-2 py-1 rounded-full text-[10px] font-bold shadow-lg">
+                                        TUGAGAN
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {product.images && product.images.length > 0 ? (
+                                    <img 
+                                      src={`${UPLOADS_URL}${product.images[0]}`}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        const parent = e.currentTarget.parentElement;
+                                        if (parent && !parent.querySelector('svg')) {
+                                          const icon = document.createElement('div');
+                                          icon.className = 'flex items-center justify-center w-full h-full';
+                                          icon.innerHTML = '<svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                          parent.appendChild(icon);
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <Package2 className="w-10 h-10 text-slate-300" />
+                                  )}
+                                  
+                                  {/* Stock badge */}
+                                  <div className="absolute bottom-1.5 left-1.5">
+                                    {product.quantity <= 0 ? (
+                                      <span className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-md shadow-lg">
+                                        0 ta
+                                      </span>
+                                    ) : product.quantity <= 10 ? (
+                                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-md shadow-lg animate-pulse">
+                                        {product.quantity} ta
+                                      </span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 bg-green-500 text-white text-[9px] font-bold rounded-md shadow-lg">
+                                        {product.quantity} ta
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Ma'lumotlar */}
+                                <div className="p-2.5">
+                                  <h3 className="font-bold text-slate-900 text-[11px] mb-0.5 truncate group-hover:text-brand-600 transition-colors">
+                                    {product.name}
+                                  </h3>
+                                  <p className="text-[9px] text-slate-500 mb-1.5 font-mono">
+                                    #{product.code}
+                                  </p>
+                                  <div>
+                                    <p className="text-[8px] text-slate-500 mb-0.5">Narxi</p>
+                                    <p className="font-bold text-brand-600 text-xs">
+                                      {formatNumber(product.price)}
+                                      <span className="text-[9px] ml-0.5">so'm</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  /* Bitta kategoriya tanlangan - vertikal scroll */
+                  <div 
+                    ref={productsContainerRef}
+                    className="max-h-[calc(100vh-250px)] overflow-y-auto thin-scrollbar pb-32"
+                  >
+                    {displayedProducts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 px-4">
+                        <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4">
+                          <Package2 className="w-10 h-10 text-slate-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-700 mb-2">
+                          Bu kategoriyada mahsulot yo'q
+                        </h3>
+                        <p className="text-sm text-slate-500 text-center mb-4">
+                          "{selectedCategory}" kategoriyasida hozircha mahsulot mavjud emas
+                        </p>
+                        <button
+                          onClick={() => setSelectedCategory('')}
+                          className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg transition-colors"
+                        >
+                          Barcha mahsulotlar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 pb-16">
+                        {displayedProducts.map(product => (
                     <div
                       key={product._id}
-                      className="group bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 hover:border-brand-300 hover:shadow-lg transition-all p-2 sm:p-4 relative"
+                      className="group bg-white rounded-2xl border border-slate-200 hover:border-brand-400 hover:shadow-2xl transition-all duration-300 overflow-hidden relative"
                     >
-                      {/* QR Print tugmasi - chiroyli dizayn */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          printQRCodes([product]);
-                        }}
-                        className="absolute top-2 right-2 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 z-10 group/qr"
-                        title="QR code chiqarish"
-                      >
-                        <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-white drop-shadow-lg" />
-                        {/* Tooltip */}
-                        <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover/qr:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          QR Print
-                        </span>
-                      </button>
+                      {/* Action tugmalari - yuqori o'ng burchak */}
+                      <div className="absolute top-2 right-2 flex gap-1.5 z-20">
+                        {/* Kategoriya tugmasi */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProductForCategory(product);
+                            setSelectedCategoryForProduct(product.category || '');
+                            setShowCategoryModal(true);
+                          }}
+                          className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                          title="Kategoriya"
+                        >
+                          <Filter className="w-4 h-4 text-white drop-shadow-lg" />
+                        </button>
+                        
+                        {/* QR Print tugmasi */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            printQRCodes([product]);
+                          }}
+                          className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                          title="QR Print"
+                        >
+                          <Scan className="w-4 h-4 text-white drop-shadow-lg" />
+                        </button>
+                      </div>
 
                       {/* Mahsulot kartasi - click qilish mumkin */}
                       <button
                         onClick={() => {
                           setSelectedProductForDetail(product);
-                          setProductDetailQuantity(0); // Reset quantity to 0
+                          setProductDetailQuantity(0);
                           setShowProductDetail(true);
                         }}
                         disabled={product.quantity <= 0}
-                        className={`w-full text-left ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full text-left ${product.quantity <= 0 ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
-                        <div className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-xl border-2 border-brand-200 flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">
-                          {/* Tugagan belgisi */}
+                        {/* Rasm qismi */}
+                        <div className="relative w-full aspect-square bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden">
+                          {/* Tugagan overlay */}
                           {product.quantity <= 0 && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-                              <div className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
+                              <div className="bg-red-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">
                                 TUGAGAN
                               </div>
                             </div>
                           )}
                           
+                          {/* Mahsulot rasmi */}
                           {product.images && product.images.length > 0 ? (
                             <img 
                               src={`${UPLOADS_URL}${product.images[0]}`}
                               alt={product.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                               onError={(e) => {
-                                // Rasm yuklanmasa, default icon ko'rsatish
                                 e.currentTarget.style.display = 'none';
                                 const parent = e.currentTarget.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                if (parent && !parent.querySelector('svg')) {
+                                  const icon = document.createElement('div');
+                                  icon.className = 'flex items-center justify-center w-full h-full';
+                                  icon.innerHTML = '<svg class="w-12 h-12 sm:w-16 sm:h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                                  parent.appendChild(icon);
                                 }
                               }}
                             />
                           ) : (
-                            <Package2 className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
+                            <Package2 className="w-12 h-12 sm:w-16 sm:h-16 text-slate-300" />
                           )}
+                          
+                          {/* Stock badge - pastki chap burchak */}
+                          <div className="absolute bottom-2 left-2">
+                            {product.quantity <= 0 ? (
+                              <span className="px-2 py-1 bg-red-500 text-white text-[9px] sm:text-xs font-bold rounded-lg shadow-lg">
+                                0 ta
+                              </span>
+                            ) : product.quantity <= 10 ? (
+                              <span className="px-2 py-1 bg-orange-500 text-white text-[9px] sm:text-xs font-bold rounded-lg shadow-lg animate-pulse">
+                                {product.quantity} ta
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-green-500 text-white text-[9px] sm:text-xs font-bold rounded-lg shadow-lg">
+                                {product.quantity} ta
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="font-semibold text-slate-900 text-[10px] sm:text-sm truncate">{product.name}</p>
-                        <p className="text-[9px] sm:text-xs text-slate-500 mb-1 sm:mb-2">{product.code}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="font-bold text-brand-600 text-[10px] sm:text-sm">{formatNumber(product.price)} so'm</p>
-                          {product.quantity <= 0 ? (
-                            <span className="text-[9px] sm:text-xs text-red-600 font-semibold">0 ta</span>
-                          ) : product.quantity <= 10 ? (
-                            <span className="text-[9px] sm:text-xs text-orange-600 font-semibold">{product.quantity} ta</span>
-                          ) : (
-                            <span className="text-[9px] sm:text-xs text-green-600 font-semibold">{product.quantity} ta</span>
-                          )}
+                        
+                        {/* Ma'lumotlar qismi */}
+                        <div className="p-3 sm:p-4">
+                          {/* Mahsulot nomi */}
+                          <h3 className="font-bold text-slate-900 text-xs sm:text-sm mb-1 truncate group-hover:text-brand-600 transition-colors">
+                            {product.name}
+                          </h3>
+                          
+                          {/* Kod */}
+                          <p className="text-[10px] sm:text-xs text-slate-500 mb-2 font-mono">
+                            #{product.code}
+                          </p>
+                          
+                          {/* Narx - katta va ko'zga tashlanadigan */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[9px] sm:text-[10px] text-slate-500 mb-0.5">Narxi</p>
+                              <p className="font-bold text-brand-600 text-sm sm:text-base">
+                                {formatNumber(product.price)}
+                                <span className="text-[10px] sm:text-xs ml-1">so'm</span>
+                              </p>
+                            </div>
+                            
+                            {/* Hover effekt - qo'shish belgisi */}
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-brand-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:scale-110 shadow-lg">
+                              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
+                          </div>
                         </div>
                       </button>
                     </div>
                   ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
               </div>
             )}
@@ -1224,7 +1558,7 @@ export default function KassaPro() {
                     <p>Cheklar yo'q</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto thin-scrollbar">
                     {helperReceipts.map((receipt: any) => (
                       <div key={receipt._id} className="border-2 border-slate-200 rounded-xl p-4 hover:border-brand-300 transition-colors">
                         <div className="flex items-start justify-between mb-3">
@@ -1281,17 +1615,17 @@ export default function KassaPro() {
               <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-3 sm:px-6 py-3 sm:py-4 text-white">
                 <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                   <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <h2 className="text-base sm:text-lg font-bold">Savat</h2>
+                  <h2 className="text-sm sm:text-base font-bold">Savat</h2>
                 </div>
-                <p className="text-xs sm:text-sm text-brand-100">{itemCount} ta mahsulot</p>
+                <p className="text-[10px] sm:text-xs text-brand-100">{itemCount} ta mahsulot</p>
               </div>
 
               {/* Cart Items */}
-              <div className="max-h-48 sm:max-h-64 overflow-y-auto divide-y divide-slate-100">
+              <div className="max-h-48 sm:max-h-64 overflow-y-auto divide-y divide-slate-100 thin-scrollbar">
                 {cart.length === 0 ? (
                   <div className="p-4 sm:p-8 text-center text-slate-400">
                     <ShoppingCart className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
-                    <p className="text-xs sm:text-sm">Savat bo'sh</p>
+                    <p className="text-[10px] sm:text-xs">Savat bo'sh</p>
                   </div>
                 ) : (
                   cart.map(item => {
@@ -1305,14 +1639,14 @@ export default function KassaPro() {
                       <div className="flex items-start justify-between mb-1">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-slate-900 text-xs truncate">{item.name}</p>
+                            <p className="font-semibold text-slate-900 text-[10px] sm:text-xs truncate">{item.name}</p>
                             {isLowStock && (
-                              <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-semibold rounded whitespace-nowrap">
+                              <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[8px] font-semibold rounded whitespace-nowrap">
                                 Kam!
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500">{item.code}</p>
+                          <p className="text-[9px] text-slate-500">{item.code}</p>
                         </div>
                         <button
                           onClick={() => removeFromCart(item._id)}
@@ -1424,7 +1758,7 @@ export default function KassaPro() {
                   </button>
 
                   {showCustomerSelect && (
-                    <div className="absolute right-0 left-0 mx-4 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto">
+                    <div className="absolute right-0 left-0 mx-4 mt-2 bg-white rounded-lg shadow-xl border border-slate-200 z-50 max-h-48 overflow-y-auto thin-scrollbar">
                       <button
                         onClick={() => { setSelectedCustomer(null); setShowCustomerSelect(false); }}
                         className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 border-b border-slate-100"
@@ -1452,34 +1786,37 @@ export default function KassaPro() {
                   {/* Jami summa - katta va aniq */}
                   <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-xl p-3 sm:p-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm sm:text-base font-semibold text-slate-700">Jami:</span>
-                      <span className="text-xl sm:text-2xl font-bold text-brand-600">{formatNumber(total)} so'm</span>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-700">Jami:</span>
+                      <span className="text-base sm:text-lg font-bold text-brand-600">{formatNumber(total)} so'm</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setShowPayment(true)}
-                    className="w-full bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-xs sm:text-sm"
-                  >
-                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-                    To'lash
-                  </button>
+                  {/* Tugmalar - Gorizontal bir qatorda */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    <button
+                      onClick={() => setShowPayment(true)}
+                      className="bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold py-2 rounded-lg transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-1 text-[9px] sm:text-[10px]"
+                    >
+                      <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>To'lash</span>
+                    </button>
 
-                  <button
-                    onClick={saveReceipt}
-                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1.5 sm:py-2 rounded-lg sm:rounded-xl transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm"
-                  >
-                    <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Saqlash
-                  </button>
+                    <button
+                      onClick={saveReceipt}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg transition-colors flex flex-col items-center justify-center gap-1 text-[9px] sm:text-[10px]"
+                    >
+                      <Save className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span>Saqlash</span>
+                    </button>
 
-                  <button
-                    onClick={() => setCart([])}
-                    className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-1.5 sm:py-2 rounded-lg sm:rounded-xl transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm"
-                  >
-                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Tozalash
-                  </button>
+                    <button
+                      onClick={() => setCart([])}
+                      className="bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 rounded-lg transition-colors flex flex-col items-center justify-center gap-1 text-[9px] sm:text-[10px]"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span>Tozalash</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1489,13 +1826,29 @@ export default function KassaPro() {
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 overflow-hidden">
+        <div 
+          data-modal="true"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto"
+          style={{ pointerEvents: 'auto' }}
+          onClick={() => {
+            setShowPayment(false);
+            setCashAmount(0);
+            setCardAmount(0);
+            setShowNewCustomerForm(false);
+            setNewCustomerName('');
+            setNewCustomerPhone('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 overflow-hidden"
+            style={{ pointerEvents: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white">
               <h3 className="text-xl font-bold">To'lov</h3>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto thin-scrollbar">
               {/* Jami summa */}
               <div className="bg-slate-50 rounded-xl p-4 text-center">
                 <p className="text-sm text-slate-600 mb-1">Jami summa</p>
@@ -1696,8 +2049,17 @@ export default function KassaPro() {
 
       {/* Saved Receipts Modal */}
       {showSavedReceipts && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-96 overflow-hidden flex flex-col">
+        <div 
+          data-modal="true"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto"
+          style={{ pointerEvents: 'auto' }}
+          onClick={() => setShowSavedReceipts(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-96 overflow-hidden flex flex-col"
+            style={{ pointerEvents: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white flex items-center justify-between">
               <h3 className="text-xl font-bold">Saqlangan Cheklar</h3>
               <button onClick={() => setShowSavedReceipts(false)} className="hover:bg-brand-600 p-2 rounded-lg transition-colors">
@@ -1705,7 +2067,7 @@ export default function KassaPro() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-200">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-200 thin-scrollbar">
               {savedReceipts.length === 0 ? (
                 <div className="p-8 text-center text-slate-400">
                   <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -1743,210 +2105,275 @@ export default function KassaPro() {
         </div>
       )}
 
-      {/* Product Detail Modal */}
+      {/* Product Detail Modal - Professional UX/UI */}
       {showProductDetail && selectedProductForDetail && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-3 text-white flex items-center justify-between flex-shrink-0">
-              <h3 className="text-base sm:text-lg font-bold">Mahsulot</h3>
+        <div 
+          data-modal="true"
+          className="fixed inset-0 bg-gradient-to-br from-black/60 via-black/50 to-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 overflow-y-auto animate-fadeIn"
+          style={{ pointerEvents: 'auto' }}
+          onClick={() => {
+            setShowProductDetail(false);
+            setSelectedProductForDetail(null);
+            setProductDetailQuantity(0);
+          }}
+        >
+          <div 
+            className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-slideUp transform transition-all"
+            style={{ pointerEvents: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag Handle - Mobile only */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+            </div>
+
+            {/* Modal Header - Gradient */}
+            <div className="relative bg-gradient-to-br from-brand-500 via-brand-600 to-purple-600 px-5 py-4 text-white flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <Package2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Mahsulot tafsiloti</h3>
+                  <p className="text-xs text-white/80">Miqdorni tanlang</p>
+                </div>
+              </div>
               <button 
                 onClick={() => {
                   setShowProductDetail(false);
                   setSelectedProductForDetail(null);
                   setProductDetailQuantity(0);
                 }}
-                className="hover:bg-brand-600 p-1.5 rounded-lg transition-colors"
+                className="w-9 h-9 flex items-center justify-center hover:bg-white/20 rounded-xl transition-all active:scale-95"
               >
                 <X className="w-5 h-5" />
               </button>
+              
+              {/* Decorative circles - pointer-events none */}
+              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+              <div className="absolute -left-8 -bottom-8 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl pointer-events-none"></div>
             </div>
 
             {/* Modal Body - Scrollable */}
-            <div className="p-4 space-y-3 overflow-y-auto flex-1">
-              {/* Product Image */}
-              <div className="w-full aspect-square bg-gradient-to-br from-brand-100 to-brand-50 rounded-lg border-2 border-brand-200 flex items-center justify-center overflow-hidden">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1 thin-scrollbar bg-gradient-to-b from-slate-50 to-white">
+              {/* Product Image - Enhanced - Kichikroq */}
+              <div className="relative w-full max-w-xs mx-auto aspect-square bg-gradient-to-br from-brand-50 via-purple-50 to-blue-50 rounded-2xl border-2 border-brand-200/50 flex items-center justify-center overflow-hidden shadow-lg group">
+                {/* Stock badge */}
+                <div className="absolute top-3 right-3 z-10">
+                  <div className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg backdrop-blur-sm ${
+                    selectedProductForDetail.quantity <= 0 
+                      ? 'bg-red-500/90 text-white' 
+                      : selectedProductForDetail.quantity <= 10 
+                      ? 'bg-orange-500/90 text-white' 
+                      : 'bg-green-500/90 text-white'
+                  }`}>
+                    {selectedProductForDetail.quantity} ta
+                  </div>
+                </div>
+
                 {selectedProductForDetail.images && selectedProductForDetail.images.length > 0 ? (
                   <img 
                     src={getProductImage(selectedProductForDetail) || ''}
                     alt={selectedProductForDetail.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                       const parent = e.currentTarget.parentElement;
                       if (parent) {
-                        parent.innerHTML = '<svg class="w-12 h-12 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
+                        parent.innerHTML = '<svg class="w-16 h-16 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>';
                       }
                     }}
                   />
                 ) : (
-                  <Package2 className="w-12 h-12 text-brand-600" />
+                  <Package2 className="w-16 h-16 text-brand-400" />
                 )}
               </div>
 
-              {/* Product Info */}
-              <div className="space-y-2.5">
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Nomi</p>
-                  <p className="text-base font-bold text-slate-900">{selectedProductForDetail.name}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Kod</p>
-                    <p className="text-sm font-semibold text-slate-900">{selectedProductForDetail.code}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Sotish narxi</p>
-                    <p className="text-sm font-bold text-brand-600">{formatNumber(selectedProductForDetail.price)} so'm</p>
+              {/* Product Info - Card Style */}
+              <div className="space-y-3">
+                {/* Name & Code */}
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                  <p className="text-xs font-semibold text-brand-600 mb-1 uppercase tracking-wide">Mahsulot</p>
+                  <h4 className="text-lg font-bold text-slate-900 mb-2">{selectedProductForDetail.name}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Kod:</span>
+                    <span className="px-2 py-0.5 bg-slate-100 rounded-md text-sm font-mono font-semibold text-slate-700">
+                      {selectedProductForDetail.code}
+                    </span>
                   </div>
                 </div>
 
-                {/* Tan narxi va Karobka narxi */}
-                {(selectedProductForDetail.costPrice || selectedProductForDetail.boxPrice) && (
-                  <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2 rounded-lg">
-                    {selectedProductForDetail.costPrice && selectedProductForDetail.costPrice > 0 && (
-                      <div>
-                        <p className="text-xs text-slate-500 mb-0.5">Tan narxi</p>
-                        <p className="text-sm font-semibold text-slate-700">{formatNumber(selectedProductForDetail.costPrice)} so'm</p>
-                      </div>
-                    )}
-                    {selectedProductForDetail.boxPrice && selectedProductForDetail.boxPrice > 0 && (
-                      <div>
-                        <p className="text-xs text-slate-500 mb-0.5">Karobka narxi</p>
-                        <p className="text-sm font-semibold text-slate-700">{formatNumber(selectedProductForDetail.boxPrice)} so'm</p>
-                      </div>
-                    )}
+                {/* Price Info */}
+                <div className="bg-gradient-to-br from-brand-50 to-purple-50 rounded-xl p-4 shadow-sm border border-brand-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-brand-700 uppercase tracking-wide">Narx</span>
+                    <DollarSign className="w-4 h-4 text-brand-500" />
                   </div>
-                )}
-
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Mavjud</p>
-                  <p className={`font-bold text-base ${
-                    selectedProductForDetail.quantity <= 0 
-                      ? 'text-red-600' 
-                      : selectedProductForDetail.quantity <= 10 
-                      ? 'text-orange-600' 
-                      : 'text-green-600'
-                  }`}>
-                    {selectedProductForDetail.quantity} ta
-                  </p>
+                  <div className="text-2xl font-bold text-brand-600 mb-1">
+                    {formatNumber(selectedProductForDetail.price)} <span className="text-base text-brand-500">so'm</span>
+                  </div>
+                  
+                  {/* Additional prices */}
+                  {(selectedProductForDetail.costPrice || selectedProductForDetail.boxPrice) && (
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-brand-200/50">
+                      {selectedProductForDetail.costPrice && selectedProductForDetail.costPrice > 0 && (
+                        <div>
+                          <p className="text-[10px] text-brand-600 mb-0.5 uppercase tracking-wide">Tan narxi</p>
+                          <p className="text-sm font-bold text-slate-700">{formatNumber(selectedProductForDetail.costPrice)}</p>
+                        </div>
+                      )}
+                      {selectedProductForDetail.boxPrice && selectedProductForDetail.boxPrice > 0 && (
+                        <div>
+                          <p className="text-[10px] text-brand-600 mb-0.5 uppercase tracking-wide">Karobka</p>
+                          <p className="text-sm font-bold text-slate-700">{formatNumber(selectedProductForDetail.boxPrice)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Quantity Input */}
-                <div>
-                  <p className="text-xs text-slate-500 mb-1.5">Sotish miqdori</p>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={productDetailQuantity === 0 ? '' : productDetailQuantity}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Bo'sh qoldirish mumkin
-                      if (value === '') {
-                        setProductDetailQuantity(0);
-                        return;
-                      }
-                      // Faqat raqamlar
-                      const numValue = parseInt(value);
-                      if (!isNaN(numValue) && numValue >= 0) {
-                        // Maksimal miqdordan oshmasligi
-                        setProductDetailQuantity(Math.min(numValue, selectedProductForDetail.quantity));
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // Agar bo'sh bo'lsa yoki 0 bo'lsa, 1 ga o'rnatish
-                      if (productDetailQuantity === 0 || e.target.value === '') {
-                        setProductDetailQuantity(1);
-                      }
-                    }}
-                    onClick={(e) => e.currentTarget.select()}
-                    placeholder="1"
-                    className="w-full px-3 py-2.5 text-center text-lg font-bold bg-slate-100 border-2 border-slate-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
-                  />
+                {/* Quantity Selector - Enhanced */}
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Miqdor</span>
+                    <ShoppingCart className="w-4 h-4 text-slate-400" />
+                  </div>
+                  
+                  {/* Quantity Input with +/- buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setProductDetailQuantity(Math.max(1, productDetailQuantity - 1))}
+                      className="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 active:scale-95 rounded-xl transition-all duration-150 font-bold text-slate-700"
+                    >
+                      −
+                    </button>
+                    
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={productDetailQuantity === 0 ? '' : productDetailQuantity}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setProductDetailQuantity(0);
+                          return;
+                        }
+                        const numValue = parseInt(value);
+                        if (!isNaN(numValue) && numValue >= 0) {
+                          setProductDetailQuantity(Math.min(numValue, selectedProductForDetail.quantity));
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (productDetailQuantity === 0 || e.target.value === '') {
+                          setProductDetailQuantity(1);
+                        }
+                      }}
+                      onClick={(e) => e.currentTarget.select()}
+                      placeholder="1"
+                      className="flex-1 h-12 text-center text-2xl font-bold bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/20 rounded-xl cursor-pointer hover:bg-slate-50 transition-all duration-150"
+                    />
+                    
+                    <button
+                      onClick={() => setProductDetailQuantity(Math.min(selectedProductForDetail.quantity, productDetailQuantity + 1))}
+                      disabled={productDetailQuantity >= selectedProductForDetail.quantity}
+                      className="w-12 h-12 flex items-center justify-center bg-brand-500 hover:bg-brand-600 active:bg-brand-700 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 rounded-xl transition-all duration-150 font-bold text-white shadow-lg shadow-brand-500/30"
+                    >
+                      +
+                    </button>
+                  </div>
                   
                   {/* Low Stock Warning */}
                   {productDetailQuantity > selectedProductForDetail.quantity * 0.5 && selectedProductForDetail.quantity <= 10 && productDetailQuantity > 0 && (
-                    <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="mt-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 flex items-start gap-2 animate-fadeIn">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-yellow-900 text-xs">Mahsulot soni kam!</p>
+                        <p className="font-bold text-yellow-900 text-xs">Mahsulot soni kam!</p>
                         <p className="text-[10px] text-yellow-700 mt-0.5">
                           Omborda {selectedProductForDetail.quantity} ta qoldi
                         </p>
                       </div>
                     </div>
                   )}
-                  
-                  {/* Total Price */}
-                  <div className="mt-2 bg-gradient-to-r from-brand-50 to-blue-50 rounded-lg p-2.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-slate-700">Jami:</span>
-                      <span className="text-base font-bold text-brand-600">
-                        {formatNumber(selectedProductForDetail.price * productDetailQuantity)} so'm
-                      </span>
+                </div>
+
+                {/* Total Price - Prominent */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 shadow-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-xs font-semibold text-white/80 uppercase tracking-wide mb-1">Jami to'lov</p>
+                      <p className="text-2xl font-bold text-white">
+                        {formatNumber(selectedProductForDetail.price * productDetailQuantity)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                      <Receipt className="w-6 h-6 text-white" />
                     </div>
                   </div>
                 </div>
 
+                {/* Description */}
                 {selectedProductForDetail.description && (
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Ta'rif</p>
-                    <p className="text-xs text-slate-700 leading-relaxed">{selectedProductForDetail.description}</p>
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Ta'rif</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{selectedProductForDetail.description}</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Action Buttons - Fixed at bottom */}
-            <div className="flex gap-2 p-4 border-t border-slate-200 flex-shrink-0 bg-white">
+            {/* Action Buttons - Fixed at bottom - Enhanced */}
+            <div className="flex gap-3 p-5 border-t border-slate-200 flex-shrink-0 bg-white shadow-lg">
               <button
                 onClick={() => {
                   setShowProductDetail(false);
                   setSelectedProductForDetail(null);
                   setProductDetailQuantity(0);
                 }}
-                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-sm"
+                className="flex-1 px-5 py-3.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 active:scale-95 text-slate-700 font-bold rounded-xl transition-all duration-150 shadow-sm"
               >
-                Bekor
+                Bekor qilish
               </button>
               <button
                 onClick={() => {
                   if (selectedProductForDetail) {
-                    // Mahsulotni savatga qo'shish - miqdor bilan
+                    // ⚡ OPTIMISTIC UI - Darhol UI ni yangilash
                     const existingInCart = cart.find(p => p._id === selectedProductForDetail._id);
                     
                     if (existingInCart) {
-                      // Agar savatchada bo'lsa, miqdorni qo'shish
                       const newQuantity = existingInCart.cartQuantity + productDetailQuantity;
                       if (newQuantity > selectedProductForDetail.quantity) {
                         showAlert(`Maksimal: ${selectedProductForDetail.quantity} ta`, 'Ogohlantirish', 'warning');
                         return;
                       }
+                      // Darhol savat yangilanadi
                       setCart(prev => prev.map(p => 
                         p._id === selectedProductForDetail._id 
                           ? {...p, cartQuantity: newQuantity} 
                           : p
                       ));
                     } else {
-                      // Yangi mahsulot qo'shish
+                      // Darhol savatga qo'shiladi
                       setCart(prev => [...prev, {
                         ...selectedProductForDetail, 
                         cartQuantity: productDetailQuantity
                       }]);
                     }
                     
-                    showAlert(`${selectedProductForDetail.name} (${productDetailQuantity} ta) qo'shildi`, 'Muvaffaqiyat', 'success');
+                    // Darhol modal yopiladi
                     setShowProductDetail(false);
                     setSelectedProductForDetail(null);
                     setProductDetailQuantity(0);
+                    
+                    // Success xabari
+                    showAlert(`${selectedProductForDetail.name} (${productDetailQuantity} ta) qo'shildi`, 'Muvaffaqiyat', 'success');
                   }
                 }}
                 disabled={selectedProductForDetail.quantity <= 0 || productDetailQuantity <= 0 || productDetailQuantity > selectedProductForDetail.quantity}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex-1 px-5 py-3.5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 active:scale-95 active:shadow-inner text-white font-bold rounded-xl transition-all duration-150 shadow-lg shadow-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
               >
-                Qo'shish
+                <ShoppingCart className="w-5 h-5" />
+                Savatga qo'shish
               </button>
             </div>
           </div>
@@ -2039,6 +2466,74 @@ export default function KassaPro() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Kategoriya tanlash modali */}
+      {showCategoryModal && selectedProductForCategory && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowCategoryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Kategoriya tanlash</h3>
+                <p className="text-sm text-slate-500 mt-1">{selectedProductForCategory.name}</p>
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Kategoriyalar ro'yxati */}
+            <div className="space-y-2 max-h-96 overflow-y-auto thin-scrollbar mb-6">
+              {categories.map((category) => (
+                <button
+                  key={category._id}
+                  onClick={() => setSelectedCategoryForProduct(category.name)}
+                  className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-150 ${
+                    selectedCategoryForProduct === category.name
+                      ? 'bg-gradient-to-r from-brand-500 to-purple-600 text-white shadow-lg scale-[1.02]'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{category.name}</span>
+                    {selectedCategoryForProduct === category.name && (
+                      <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
+                        <div className="w-2.5 h-2.5 bg-brand-500 rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Tugmalar */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all duration-150 active:scale-95"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleSaveProductCategory}
+                disabled={!selectedCategoryForProduct}
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-brand-500 to-purple-600 hover:from-brand-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                Saqlash
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

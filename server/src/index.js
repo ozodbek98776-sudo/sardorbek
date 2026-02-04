@@ -6,6 +6,15 @@ const path = require('path');
 const compression = require('compression');
 const http = require('http');
 const { Server } = require('socket.io');
+const helmet = require('helmet');
+
+// Middleware imports
+const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { apiLimiter } = require('./middleware/rateLimiter');
+const { sanitizeInput } = require('./middleware/validator');
+const logger = require('./services/loggerService');
+const backupService = require('./services/backupService');
+const performanceMonitor = require('./middleware/performanceMonitor');
 
 // Telegram Botlar import qilish
 const POSTelegramBot = require('./telegram.bot');
@@ -24,6 +33,8 @@ const userRoutes = require('./routes/users');
 const statsRoutes = require('./routes/stats');
 const telegramRoutes = require('./routes/telegram');
 const partnerRoutes = require('./routes/partners');
+const categoryRoutes = require('./routes/categories');
+const monitoringRoutes = require('./routes/monitoring');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +63,24 @@ io.on('connection', (socket) => {
 
 // Make io globally available
 global.io = io;
+
+// ⚡ Security - Helmet middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for development
+  crossOriginEmbedderPolicy: false
+}));
+
+// ⚡ Request logging
+app.use(logger.requestLogger());
+
+// ⚡ Performance monitoring
+app.use(performanceMonitor.middleware());
+
+// ⚡ Input sanitization
+app.use(sanitizeInput);
+
+// ⚡ Rate limiting
+app.use('/api/', apiLimiter);
 
 // ⚡ HTTP Keep-Alive - connection'larni qayta ishlatish
 app.use((req, res, next) => {
@@ -142,6 +171,11 @@ app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/partners', partnerRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/monitoring', monitoringRoutes);
+
+// Make io available to routes
+app.set('io', io);
 
 // Production da static fayllarni serve qilish
 if (process.env.NODE_ENV === 'production') {
@@ -204,14 +238,30 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
     } catch (e) {
       // Indexes might not exist, ignore
     }
+    
+    // ⚡ Backup scheduler - har kuni soat 02:00 da
+    if (process.env.NODE_ENV === 'production') {
+      backupService.scheduleBackup();
+      logger.info('Backup scheduler ishga tushdi');
+    }
   })
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    logger.error('MongoDB connection error', { error: err.message });
+    console.error('MongoDB connection error:', err);
+  });
+
+// ⚡ Error handlers - oxirida bo'lishi kerak
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 8000;
 const HOST = '0.0.0.0'; // Barcha network interface'lardan kirish uchun
 server.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on ${HOST}:${PORT}`);
   console.log(`⚡ Socket.IO ready for real-time updates`);
+  console.log(`🔒 Security: Helmet, Rate Limiting, Input Sanitization`);
+  console.log(`📝 Logging: File-based logging enabled`);
+  logger.info('Server started', { port: PORT, host: HOST });
 });
 
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles
+  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -318,6 +318,7 @@ export const adminMenuItems: MenuItem[] = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: 'sidebar.statistics', path: '' },
   { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' },
   { icon: <Package className="w-5 h-5" />, label: 'sidebar.products', path: '/products' },
+  { icon: <Folder className="w-5 h-5" />, label: 'sidebar.categories', path: '/categories' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
   { icon: <UserPlus className="w-5 h-5" />, label: 'sidebar.helpers', path: '/helpers' },

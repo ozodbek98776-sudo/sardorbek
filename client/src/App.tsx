@@ -1,34 +1,49 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+
+// Eager loading - darhol kerak bo'lgan sahifalar
 import Login from './pages/Login';
 import Register from './pages/Register';
-import AdminLayout from './layouts/AdminLayout';
-import Dashboard from './pages/admin/Dashboard';
-import Kassa from './pages/admin/Kassa';
-import KassaPro from './pages/admin/KassaPro';
-import Products from './pages/admin/Products';
-import Warehouses from './pages/admin/Warehouses';
-import Customers from './pages/admin/Customers';
-import Debts from './pages/admin/Debts';
-import DebtApprovals from './pages/admin/DebtApprovals';
-import Orders from './pages/admin/Orders';
-import Helpers from './pages/admin/Helpers';
-import StaffReceipts from './pages/admin/StaffReceipts';
-import CashierLayout from './layouts/CashierLayout';
-import HelperLayout from './layouts/HelperLayout';
-import HelperScanner from './pages/helper/Scanner';
-import KassaLayout from './layouts/KassaLayout';
-import KassaMain from './pages/kassa/KassaMain';
-import KassaReceipts from './pages/kassa/KassaReceipts';
-import KassaClients from './pages/kassa/KassaClients';
-import KassaDebts from './pages/kassa/KassaDebts';
-import KassaProducts from './pages/kassa/KassaProducts';
-import TelegramSettings from './pages/admin/TelegramSettings';
 import KassaLogin from './pages/KassaLogin';
-import ProductView from './pages/ProductView';
-import SwipeNavigator from './components/SwipeNavigator';
+
+// Lazy loading - kerak bo'lganda yuklanadigan sahifalar
+const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
+const Kassa = lazy(() => import('./pages/admin/Kassa'));
+const KassaPro = lazy(() => import('./pages/admin/KassaPro'));
+const Products = lazy(() => import('./pages/admin/Products'));
+const Warehouses = lazy(() => import('./pages/admin/Warehouses'));
+const Customers = lazy(() => import('./pages/admin/Customers'));
+const Debts = lazy(() => import('./pages/admin/Debts'));
+const DebtApprovals = lazy(() => import('./pages/admin/DebtApprovals'));
+const Orders = lazy(() => import('./pages/admin/Orders'));
+const Helpers = lazy(() => import('./pages/admin/Helpers'));
+const StaffReceipts = lazy(() => import('./pages/admin/StaffReceipts'));
+const TelegramSettings = lazy(() => import('./pages/admin/TelegramSettings'));
+const Categories = lazy(() => import('./pages/admin/Categories'));
+const CashierLayout = lazy(() => import('./layouts/CashierLayout'));
+const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
+const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
+const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
+const KassaReceipts = lazy(() => import('./pages/kassa/KassaReceipts'));
+const KassaClients = lazy(() => import('./pages/kassa/KassaClients'));
+const KassaDebts = lazy(() => import('./pages/kassa/KassaDebts'));
+const ProductView = lazy(() => import('./pages/ProductView'));
+const SwipeNavigator = lazy(() => import('./components/SwipeNavigator'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-brand-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600"></div>
+      </div>
+      <p className="text-surface-500 text-sm">Yuklanmoqda...</p>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?: string[] }) => {
   const { user, loading } = useAuth();
@@ -99,81 +114,8 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    // Keyboard shortcut larni bloklash - FAQAT KASSA SAHIFALARIDA
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Faqat kassa sahifalarida ishlaydi
-      if (!window.location.pathname.startsWith('/kassa')) return;
-      
-      // F5 va Ctrl+R ga to'liq ruxsat berish - sahifa refresh bo'lsin
-      if (event.key === 'F5' || (event.ctrlKey && (event.key === 'r' || event.key === 'R'))) {
-        // preventDefault qilmaymiz - sahifa to'liq yangilansin
-        return;
-      }
-      
-      // F12 ga ruxsat berish
-      if (event.key === 'F12') {
-        return;
-      }
-      
-      // Alt+F4, Ctrl+W, Ctrl+T va boshqa chiqish tugmalarini bloklash
-      if (
-        (event.altKey && event.key === 'F4') ||
-        (event.ctrlKey && event.key === 'w') ||
-        (event.ctrlKey && event.key === 'W') ||
-        (event.ctrlKey && event.key === 't') ||
-        (event.ctrlKey && event.key === 'T') ||
-        (event.ctrlKey && event.shiftKey && event.key === 'I') ||
-        (event.ctrlKey && event.shiftKey && event.key === 'J') ||
-        (event.ctrlKey && event.key === 'u') ||
-        (event.ctrlKey && event.key === 'U') ||
-        (event.ctrlKey && event.key === 's') ||
-        (event.ctrlKey && event.key === 'S') ||
-        (event.ctrlKey && event.key === 'p') ||
-        (event.ctrlKey && event.key === 'P')
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        alert('⚠️ Bu amal kassa tizimida taqiqlanadi!');
-        return false;
-      }
-    };
-    
-    // Context menu ni bloklash - FAQAT KASSA SAHIFALARIDA
-    const handleContextMenu = (event: MouseEvent) => {
-      // Faqat kassa sahifalarida ishlaydi
-      if (!window.location.pathname.startsWith('/kassa')) return;
-      
-      event.preventDefault();
-      alert('⚠️ O\'ng tugma kassa tizimida taqiqlanadi!');
-      return false;
-    };
-    
-    // Sahifa yopilishini bloklash - FAQAT KASSA SAHIFALARIDA
-    const handleBeforeUnload = () => {
-      // Kassa sahifalarida faqat navigation va tab yopishni bloklash
-      // F5 refresh ga to'liq ruxsat berish
-      if (window.location.pathname.startsWith('/kassa')) {
-        // Agar bu browser refresh (F5/Ctrl+R) bo'lsa, hech qanday bloklash yo'q
-        return undefined;
-      }
-    };
-    
-    // Sahifa focus yo'qolganda qaytarish
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Sahifa yashirilganda qaytarish
-        setTimeout(() => {
-          window.focus();
-        }, 100);
-      }
-    };
-    
     // Barcha event listener larni qo'shish
     window.addEventListener('popstate', handlePopState);
-    window.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Dastlabki focus
     window.focus();
@@ -182,10 +124,6 @@ const KassaProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return () => {
       document.body.classList.remove('kassa-locked', 'kassa-protected');
       window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('keydown', handleKeyDown, true);
-      window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [navigate]);
   
@@ -287,50 +225,52 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <SwipeNavigator />
+          <Suspense fallback={<PageLoader />}>
+            <SwipeNavigator />
+          </Suspense>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/kassa-login" element={<KassaLogin />} />
-            <Route path="/product/:id" element={<ProductView />} />
+            <Route path="/product/:id" element={<Suspense fallback={<PageLoader />}><ProductView /></Suspense>} />
             <Route path="/" element={<RoleRedirect />} />
             
             {/* Kassa Routes - TO'LIQ HIMOYALANGAN */}
-            <Route path="/kassa" element={<KassaProtectedRoute><KassaLayout /></KassaProtectedRoute>}>
-              <Route index element={<KassaMain />} />
-              <Route path="receipts" element={<KassaReceipts />} />
-              <Route path="clients" element={<KassaClients />} />
-              <Route path="debts" element={<KassaDebts />} />
-              <Route path="products" element={<KassaProducts />} />
+            <Route path="/kassa" element={<KassaProtectedRoute><Suspense fallback={<PageLoader />}><KassaLayout /></Suspense></KassaProtectedRoute>}>
+              <Route index element={<Navigate to="/kassa/pos" replace />} />
+              <Route path="pos" element={<Suspense fallback={<PageLoader />}><KassaPro /></Suspense>} />
+              <Route path="receipts" element={<Suspense fallback={<PageLoader />}><KassaReceipts /></Suspense>} />
+              <Route path="clients" element={<Suspense fallback={<PageLoader />}><KassaClients /></Suspense>} />
+              <Route path="debts" element={<Suspense fallback={<PageLoader />}><KassaDebts /></Suspense>} />
             </Route>
             
             {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminLayout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
-              <Route path="kassa" element={<Kassa />} />
-              <Route path="kassa-pro" element={<KassaPro />} />
-              <Route path="products" element={<Products />} />
-              <Route path="warehouses" element={<Warehouses />} />
-              <Route path="customers" element={<Customers />} />
-              <Route path="debts" element={<Debts />} />
-              <Route path="debt-approvals" element={<DebtApprovals />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="helpers" element={<Helpers />} />
-              <Route path="staff-receipts" element={<StaffReceipts />} />
-              {/* Settings route removed - Task 30 */}
-              <Route path="telegram-settings" element={<TelegramSettings />} />
+            <Route path="/admin" element={<ProtectedRoute roles={['admin']}><Suspense fallback={<PageLoader />}><AdminLayout /></Suspense></ProtectedRoute>}>
+              <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+              <Route path="kassa" element={<Suspense fallback={<PageLoader />}><Kassa /></Suspense>} />
+              <Route path="kassa-pro" element={<Suspense fallback={<PageLoader />}><KassaPro /></Suspense>} />
+              <Route path="products" element={<Suspense fallback={<PageLoader />}><Products /></Suspense>} />
+              <Route path="categories" element={<Suspense fallback={<PageLoader />}><Categories /></Suspense>} />
+              <Route path="warehouses" element={<Suspense fallback={<PageLoader />}><Warehouses /></Suspense>} />
+              <Route path="customers" element={<Suspense fallback={<PageLoader />}><Customers /></Suspense>} />
+              <Route path="debts" element={<Suspense fallback={<PageLoader />}><Debts /></Suspense>} />
+              <Route path="debt-approvals" element={<Suspense fallback={<PageLoader />}><DebtApprovals /></Suspense>} />
+              <Route path="orders" element={<Suspense fallback={<PageLoader />}><Orders /></Suspense>} />
+              <Route path="helpers" element={<Suspense fallback={<PageLoader />}><Helpers /></Suspense>} />
+              <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
+              <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />
             </Route>
 
             {/* Cashier Routes */}
-            <Route path="/cashier" element={<ProtectedRoute roles={['cashier']}><CashierLayout /></ProtectedRoute>}>
-              <Route index element={<Kassa />} />
-              <Route path="debts" element={<Debts />} />
-              <Route path="staff-receipts" element={<StaffReceipts />} />
+            <Route path="/cashier" element={<ProtectedRoute roles={['cashier']}><Suspense fallback={<PageLoader />}><CashierLayout /></Suspense></ProtectedRoute>}>
+              <Route index element={<Suspense fallback={<PageLoader />}><Kassa /></Suspense>} />
+              <Route path="debts" element={<Suspense fallback={<PageLoader />}><Debts /></Suspense>} />
+              <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
             </Route>
 
             {/* Helper Routes */}
-            <Route path="/helper" element={<ProtectedRoute roles={['helper']}><HelperLayout /></ProtectedRoute>}>
-              <Route index element={<HelperScanner />} />
+            <Route path="/helper" element={<ProtectedRoute roles={['helper']}><Suspense fallback={<PageLoader />}><HelperLayout /></Suspense></ProtectedRoute>}>
+              <Route index element={<Suspense fallback={<PageLoader />}><HelperScanner /></Suspense>} />
             </Route>
           </Routes>
         </BrowserRouter>

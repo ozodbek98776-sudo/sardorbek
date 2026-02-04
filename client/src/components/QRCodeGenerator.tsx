@@ -10,6 +10,7 @@ interface QRCodeGeneratorProps {
   fgColor?: string;
   className?: string;
   onError?: (error: Error) => void;
+  debug?: boolean; // Debug mode
 }
 
 /**
@@ -17,17 +18,40 @@ interface QRCodeGeneratorProps {
  * - Instant rendering with memo
  * - Zero re-renders
  * - Optimized for speed
+ * - Debug mode for troubleshooting
  */
 const QRCodeGenerator = memo(forwardRef<HTMLDivElement, QRCodeGeneratorProps>(({
   value,
   size = 150,
-  level = 'H',
+  level = 'M', // Changed from 'H' to 'M' for better performance
   bgColor = '#FFFFFF',
   fgColor = '#000000',
   className = '',
-  onError
+  onError,
+  debug = false
 }, ref) => {
   const [error, setError] = useState<Error | null>(null);
+  const [renderTime, setRenderTime] = useState<number>(0);
+
+  // Debug logging
+  useEffect(() => {
+    if (debug) {
+      const startTime = performance.now();
+      console.log('🔍 QR Code Rendering:', {
+        value: value?.substring(0, 50) + '...',
+        size,
+        level,
+        timestamp: new Date().toISOString()
+      });
+      
+      return () => {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        setRenderTime(duration);
+        console.log(`⏱️ QR Render completed in ${duration.toFixed(2)}ms`);
+      };
+    }
+  }, [value, size, level, debug]);
 
   // Error handling - faqat error bo'lganda
   useEffect(() => {
@@ -37,7 +61,8 @@ const QRCodeGenerator = memo(forwardRef<HTMLDivElement, QRCodeGeneratorProps>(({
   }, [error, onError]);
 
   // Fast validation - minimal checks
-  if (!value) {
+  if (!value || value.trim().length === 0) {
+    if (debug) console.warn('⚠️ QR Code: Empty value provided');
     return (
       <div className={`flex items-center justify-center bg-slate-100 rounded-lg ${className}`} style={{ width: size, height: size }}>
         <AlertCircle className="w-6 h-6 text-slate-400" />
@@ -47,35 +72,57 @@ const QRCodeGenerator = memo(forwardRef<HTMLDivElement, QRCodeGeneratorProps>(({
 
   // Error state - minimal UI
   if (error) {
+    if (debug) console.error('❌ QR Code Error:', error);
+    return (
+      <div className={`flex flex-col items-center justify-center bg-red-50 rounded-lg p-2 ${className}`} style={{ width: size, height: size }}>
+        <AlertCircle className="w-6 h-6 text-red-500 mb-1" />
+        {debug && <span className="text-xs text-red-600 text-center">{error.message}</span>}
+      </div>
+    );
+  }
+
+  // Direct render - with error boundary
+  try {
+    return (
+      <div ref={ref} className={`qr-code-container ${className}`}>
+        <QRCodeComponent
+          value={value}
+          size={size}
+          level={level}
+          bgColor={bgColor}
+          fgColor={fgColor}
+          style={{
+            height: 'auto',
+            maxWidth: '100%',
+            width: '100%'
+          }}
+        />
+        {debug && renderTime > 0 && (
+          <div className="text-xs text-gray-500 mt-1 text-center">
+            {renderTime.toFixed(2)}ms
+          </div>
+        )}
+      </div>
+    );
+  } catch (err) {
+    const errorObj = err as Error;
+    console.error('QR Code render error:', errorObj);
+    if (debug) {
+      console.error('QR Code details:', { value, size, level });
+    }
+    setError(errorObj);
     return (
       <div className={`flex items-center justify-center bg-red-50 rounded-lg ${className}`} style={{ width: size, height: size }}>
         <AlertCircle className="w-6 h-6 text-red-500" />
       </div>
     );
   }
-
-  // Direct render - no try-catch for speed
-  return (
-    <div ref={ref} className={`qr-code-container ${className}`}>
-      <QRCodeComponent
-        value={value}
-        size={size}
-        level={level}
-        bgColor={bgColor}
-        fgColor={fgColor}
-        style={{
-          height: 'auto',
-          maxWidth: '100%',
-          width: '100%'
-        }}
-      />
-    </div>
-  );
 }), (prevProps, nextProps) => {
   // Custom comparison - faqat value o'zgarganda re-render
   return prevProps.value === nextProps.value && 
          prevProps.size === nextProps.size &&
-         prevProps.level === nextProps.level;
+         prevProps.level === nextProps.level &&
+         prevProps.debug === nextProps.debug;
 });
 
 QRCodeGenerator.displayName = 'QRCodeGenerator';

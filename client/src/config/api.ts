@@ -23,7 +23,7 @@ export const WS_URL = isDevelopment
 // Frontend URL - QR code uchun (MUHIM!)
 export const FRONTEND_URL = envFrontendUrl || (isDevelopment
   ? 'http://localhost:5173'
-  : `https://${window.location.host}`);
+  : `${window.location.protocol}//${window.location.host}`);
 
 console.log('API Base URL:', API_BASE_URL);
 console.log('Uploads URL:', UPLOADS_URL);

@@ -22,6 +22,24 @@ export default function AlertModal({
 }: AlertModalProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
 
+  // Body scroll lock when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   // Avtomatik yopilish - faqat success va info uchun
   useEffect(() => {
     if (isOpen && autoClose && (type === 'success' || type === 'info')) {
@@ -68,17 +86,26 @@ export default function AlertModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6">
+    <div 
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4 sm:p-6"
+      style={{ pointerEvents: 'auto' }}
+    >
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 transition-opacity duration-100" 
-        onClick={onClose}
-        style={{ animation: 'fadeIn 0.1s ease-out' }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+        style={{ animation: 'fadeIn 0.1s ease-out', pointerEvents: 'auto' }}
       />
       <div 
         className="bg-white rounded-t-2xl sm:rounded-3xl w-full sm:w-auto sm:min-w-[480px] sm:max-w-xl md:max-w-2xl p-6 sm:p-8 md:p-10 shadow-2xl relative z-10 border border-slate-200/50"
+        onClick={(e) => e.stopPropagation()}
         style={{ 
           animation: 'modalSlideUp 0.1s ease-out',
-          willChange: 'transform, opacity'
+          willChange: 'transform, opacity',
+          pointerEvents: 'auto'
         }}
       >
         {/* Close button */}

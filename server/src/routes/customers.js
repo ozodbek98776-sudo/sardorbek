@@ -189,6 +189,74 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// Mijoz statistikasi
+router.get('/:id/stats', auth, async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) return res.status(404).json({ message: 'Mijoz topilmadi' });
+
+    const Debt = require('../models/Debt');
+    
+    // Barcha qarzlarni olish
+    const debts = await Debt.find({ customer: req.params.id }).sort({ createdAt: -1 });
+    
+    // Jami qarz va to'langan miqdorni hisoblash
+    let totalDebt = 0;
+    let totalPaid = 0;
+    
+    debts.forEach(debt => {
+      totalDebt += debt.amount || 0;
+      totalPaid += debt.paidAmount || 0;
+    });
+
+    // Xaridlar statistikasi
+    const purchaseStats = await Receipt.aggregate([
+      {
+        $match: {
+          customer: customer._id,
+          status: { $in: ['completed', 'approved'] },
+          isReturn: { $ne: true }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPurchases: { $sum: '$total' },
+          purchaseCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = {
+      customer: {
+        _id: customer._id,
+        name: customer.name,
+        phone: customer.phone,
+        address: customer.address
+      },
+      totalDebt,
+      totalPaid,
+      remainingDebt: totalDebt - totalPaid,
+      debts: debts.map(d => ({
+        _id: d._id,
+        amount: d.amount,
+        paidAmount: d.paidAmount || 0,
+        status: d.status,
+        description: d.description,
+        createdAt: d.createdAt,
+        dueDate: d.dueDate
+      })),
+      totalPurchases: purchaseStats[0]?.totalPurchases || 0,
+      purchaseCount: purchaseStats[0]?.purchaseCount || 0
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Statistikani yuklashda xatolik:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 router.post('/', auth, async (req, res) => {
   try {
     const customer = new Customer({ ...req.body, createdBy: req.user._id });

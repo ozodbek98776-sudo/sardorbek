@@ -48,6 +48,59 @@
     padding-bottom: var(--safe-area-inset-bottom);
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
+  }
+
+  /* ============================================
+     PERFORMANCE OPTIMIZATSIYA
+     ============================================ */
+  
+  /* GPU acceleration uchun */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Modal va overlay lar uchun optimizatsiya */
+  [data-modal="true"],
+  .modal-overlay,
+  .modal-content {
+    transform: translateZ(0);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  /* Tez transition lar */
+  .transition-fast {
+    transition-duration: 150ms !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* Button click optimizatsiyasi */
+  button, 
+  [role="button"],
+  .clickable {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    cursor: pointer;
+  }
+
+  /* Image loading optimizatsiyasi */
+  img {
+    content-visibility: auto;
+    loading: lazy;
+  }
+
+  /* Scroll optimizatsiyasi */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* PWA va Standalone mode */
+  body {
     min-height: 100vh;
   }
 
@@ -59,8 +112,8 @@
 
   /* Ingichka va deyarli ko'rinmas scrollbar */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -68,18 +121,44 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(139, 92, 246, 0.2);
-    border-radius: 2px;
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.5);
   }
 
   /* Firefox uchun */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(139, 92, 246, 0.2) transparent;
+    scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+  }
+
+  /* Kassa POS uchun maxsus ingichka scrollbar */
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 2px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.4);
+    border-radius: 2px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.6);
+  }
+
+  /* Firefox uchun */
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.4) rgba(139, 92, 246, 0.05);
   }
 
   ::selection {
@@ -2185,3 +2264,50 @@
 .fixed.inset-0.bg-black\/50 {
   pointer-events: none !important;
 }
+
+/* Custom Scrollbar for Receipts */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9333ea 0%, #6d28d9 100%);
+}
+
+  /* ============================================
+     🎨 Login Page Animations
+     ============================================ */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+      opacity: 0.2;
+    }
+    50% {
+      transform: translateY(-20px) translateX(10px);
+      opacity: 0.5;
+    }
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  .animate-float {
+    animation: float linear infinite;
+  }

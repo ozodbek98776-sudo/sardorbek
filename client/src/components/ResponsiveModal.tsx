@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface ResponsiveModalProps {
@@ -31,6 +31,24 @@ export default function ResponsiveModal({
   closeButton = true,
   className = ''
 }: ResponsiveModalProps) {
+  // Body scroll lock when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -42,12 +60,19 @@ export default function ResponsiveModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div 
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ pointerEvents: 'auto' }}
+    >
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm -z-10 transition-opacity duration-100"
-        onClick={onClose}
-        style={{ animation: 'fadeIn 0.1s ease-out' }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+        style={{ animation: 'fadeIn 0.1s ease-out', pointerEvents: 'auto' }}
       />
 
       {/* Modal Container */}
@@ -63,9 +88,11 @@ export default function ResponsiveModal({
           ${size === 'fullscreen' ? 'h-full sm:h-auto' : ''}
           ${className}
         `}
+        onClick={(e) => e.stopPropagation()}
         style={{ 
           animation: 'modalSlideUp 0.1s ease-out',
-          willChange: 'transform, opacity'
+          willChange: 'transform, opacity',
+          pointerEvents: 'auto'
         }}
       >
         {/* Header */}

@@ -35,6 +35,9 @@ const auth = async (req, res, next) => {
   }
 };
 
+// Alias for auth
+const authenticateToken = auth;
+
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -44,4 +47,13 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { auth, authorize };
+// Admin middleware
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Faqat admin ruxsati' });
+  }
+};
+
+module.exports = { auth, authenticateToken, authorize, isAdmin };
