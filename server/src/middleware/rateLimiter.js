@@ -12,15 +12,23 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Login rate limiter - stricter
+// Login rate limiter - more flexible for development
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 daqiqa
-  max: 5, // 5 ta urinish
+  max: process.env.NODE_ENV === 'production' ? 10 : 100, // Production: 10, Development: 100
   message: {
     success: false,
     message: 'Juda ko\'p login urinishlari. 15 daqiqadan keyin qayta urinib ko\'ring.'
   },
   skipSuccessfulRequests: true, // Muvaffaqiyatli loginlarni hisobga olmaslik
+  skip: (req) => {
+    // Development da localhost uchun skip
+    if (process.env.NODE_ENV !== 'production') {
+      const ip = req.ip || req.connection.remoteAddress;
+      return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    }
+    return false;
+  }
 });
 
 // File upload rate limiter

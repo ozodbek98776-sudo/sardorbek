@@ -2,7 +2,6 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
-const { loginLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -83,7 +82,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { login, password } = req.body;
     
@@ -353,10 +352,10 @@ router.post('/admin/kassa-users', auth, async (req, res) => {
       });
     }
     
-    if (password.length < 4) {
+    if (password.length < 6) {
       return res.status(400).json({ 
         success: false,
-        message: 'Parol kamida 4 ta belgidan iborat bo\'lishi kerak' 
+        message: 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak' 
       });
     }
     
@@ -554,10 +553,10 @@ router.post('/admin/helpers', auth, async (req, res) => {
       });
     }
     
-    if (password.length < 4) {
+    if (password.length < 6) {
       return res.status(400).json({ 
         success: false,
-        message: 'Parol kamida 4 ta belgidan iborat bo\'lishi kerak' 
+        message: 'Parol kamida 6 ta belgidan iborat bo\'lishi kerak' 
       });
     }
     

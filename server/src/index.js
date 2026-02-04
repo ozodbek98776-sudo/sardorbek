@@ -10,7 +10,6 @@ const helmet = require('helmet');
 
 // Middleware imports
 const { errorHandler, notFound } = require('./middleware/errorHandler');
-const { apiLimiter } = require('./middleware/rateLimiter');
 const { sanitizeInput } = require('./middleware/validator');
 const logger = require('./services/loggerService');
 const backupService = require('./services/backupService');
@@ -78,9 +77,6 @@ app.use(performanceMonitor.middleware());
 
 // ⚡ Input sanitization
 app.use(sanitizeInput);
-
-// ⚡ Rate limiting
-app.use('/api/', apiLimiter);
 
 // ⚡ HTTP Keep-Alive - connection'larni qayta ishlatish
 app.use((req, res, next) => {
