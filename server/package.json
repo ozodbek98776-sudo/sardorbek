@@ -11,8 +11,6 @@
     "seed:quantity": "node src/scripts/update-all-products-quantity.js",
     "optimize:kassa": "node src/scripts/add-kassa-performance-indexes.js",
     "optimize:helpers": "node src/scripts/add-helpers-indexes.js",
-    "optimize:expenses": "node src/scripts/optimize-expense-indexes.js",
-    "check:expenses": "node src/scripts/check-expense-performance.js",
     "fix:indexes": "node src/scripts/fix-indexes.js"
   },
   "dependencies": {

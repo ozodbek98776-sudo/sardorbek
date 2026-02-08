@@ -333,12 +333,11 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
 export const adminMenuItems: MenuItem[] = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: 'sidebar.statistics', path: '' },
-  { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' }, // Admin layout ichida
+  { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' },
   { icon: <Package className="w-5 h-5" />, label: 'sidebar.products', path: '/products' },
   { icon: <Folder className="w-5 h-5" />, label: 'sidebar.categories', path: '/categories' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
-  { icon: <DollarSign className="w-5 h-5" />, label: 'sidebar.expenses', path: '/expenses' },
   { icon: <UserPlus className="w-5 h-5" />, label: 'sidebar.helpers', path: '/helpers' },
 ];
 

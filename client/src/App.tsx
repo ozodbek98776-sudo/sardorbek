@@ -18,7 +18,6 @@ const Products = lazy(() => import('./pages/admin/Products'));
 const Warehouses = lazy(() => import('./pages/admin/Warehouses'));
 const Customers = lazy(() => import('./pages/admin/Customers'));
 const Debts = lazy(() => import('./pages/admin/Debts'));
-const Expenses = lazy(() => import('./pages/admin/Expenses'));
 const DebtApprovals = lazy(() => import('./pages/admin/DebtApprovals'));
 const Orders = lazy(() => import('./pages/admin/Orders'));
 const Helpers = lazy(() => import('./pages/admin/Helpers'));
@@ -160,7 +159,6 @@ function App() {
                 <Route path="warehouses" element={<Suspense fallback={<PageLoader />}><Warehouses /></Suspense>} />
                 <Route path="customers" element={<Suspense fallback={<PageLoader />}><Customers /></Suspense>} />
                 <Route path="debts" element={<Suspense fallback={<PageLoader />}><Debts /></Suspense>} />
-                <Route path="expenses" element={<Suspense fallback={<PageLoader />}><Expenses /></Suspense>} />
                 <Route path="debt-approvals" element={<Suspense fallback={<PageLoader />}><DebtApprovals /></Suspense>} />
                 <Route path="orders" element={<Suspense fallback={<PageLoader />}><Orders /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />

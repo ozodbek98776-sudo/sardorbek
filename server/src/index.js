@@ -39,7 +39,6 @@ const productRoutes = require('./routes/products');
 const warehouseRoutes = require('./routes/warehouses');
 const customerRoutes = require('./routes/customers');
 const debtRoutes = require('./routes/debts');
-const expenseRoutes = require('./routes/expenses');
 const productOrderRoutes = require('./routes/productOrders');
 const salesRoutes = require('./routes/sales');
 const orderRoutes = require('./routes/orders');
@@ -221,8 +220,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/warehouses', warehouseRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/debts', debtRoutes);
-app.use('/api/expenses', adminLimiter, expenseRoutes); // Admin operations
-app.use('/api/product-orders', adminLimiter, productOrderRoutes); // Admin operations
+app.use('/api/product-orders', adminLimiter, productOrderRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/receipts', kassaLimiter, receiptRoutes); // Kassa operations
 app.use('/api/users', adminLimiter, userRoutes); // Admin operations

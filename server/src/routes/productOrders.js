@@ -1,7 +1,6 @@
 const express = require('express');
 const ProductOrder = require('../models/ProductOrder');
 const Product = require('../models/Product');
-const Expense = require('../models/Expense');
 const { auth, authorize } = require('../middleware/auth');
 const { serviceWrapper } = require('../middleware/serviceErrorHandler');
 
@@ -88,23 +87,6 @@ router.post('/:id/receive', auth, authorize('admin'), async (req, res) => {
       }
     }
     
-    // Create expense record
-    const expense = new Expense({
-      category: 'tovar',
-      amount: order.totalAmount,
-      description: order.description || 'Tovar buyurtmasi qabul qilindi',
-      date: new Date(),
-      products: order.products.map(p => ({
-        product: p.product,
-        name: p.name,
-        quantity: p.quantity,
-        price: p.price
-      })),
-      createdBy: req.user.id
-    });
-    
-    await expense.save();
-    
     // Update order status
     order.status = 'received';
     order.receivedDate = new Date();
@@ -115,7 +97,7 @@ router.post('/:id/receive', auth, authorize('admin'), async (req, res) => {
     
     console.log('✅ Product order received:', order._id);
     
-    return { order, expense };
+    return { order };
   });
 });
 
