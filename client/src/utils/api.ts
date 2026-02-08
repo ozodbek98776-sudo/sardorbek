@@ -24,7 +24,7 @@ api.interceptors.request.use((config: any) => {
   } else if (config.url?.includes('/products')) {
     config.timeout = 45000; // 45 seconds for admin products
   } else if (config.url?.includes('/expenses')) {
-    config.timeout = 45000; // 45 seconds for expenses - may have large datasets
+    config.timeout = 60000; // 60 seconds for expenses - may have large datasets
   }
   
   // ⚡ Note: Accept-Encoding is automatically handled by browser

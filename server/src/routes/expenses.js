@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all expenses with filters - OPTIMIZED
 router.get('/', auth, authorize('admin'), async (req, res) => {
   await serviceWrapper(req, res, async () => {
-    const { category, startDate, endDate, limit = 10, skip = 0 } = req.query;
+    const { category, startDate, endDate, limit = 20, skip = 0 } = req.query;
     
     console.log('📊 Expenses GET request:', { category, startDate, endDate, limit, skip });
     
@@ -33,8 +33,9 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
       .sort({ date: -1, createdAt: -1 })
       .limit(parseInt(limit))
       .skip(parseInt(skip))
+      .hint({ date: -1, category: 1 }) // Force use of index
       .lean() // Convert to plain JS objects for better performance
-      .maxTimeMS(25000); // Set max execution time to 25 seconds
+      .maxTimeMS(40000); // Set max execution time to 40 seconds
     
     console.log('✅ Expenses found:', expenses.length);
     
@@ -42,7 +43,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
   });
 });
 
-// Get expense statistics - OPTIMIZED
+// Get expense statistics - SUPER OPTIMIZED with single aggregation
 router.get('/stats', auth, authorize('admin'), async (req, res) => {
   await serviceWrapper(req, res, async () => {
     console.log('📊 Stats request received');
@@ -56,48 +57,50 @@ router.get('/stats', auth, authorize('admin'), async (req, res) => {
     const monthAgo = new Date(today);
     monthAgo.setMonth(monthAgo.getMonth() - 1);
     
-    // ⚡ OPTIMIZED: Parallel queries with maxTimeMS and allowDiskUse
-    const [total, todayExpenses, weekExpenses, monthExpenses, byCategory] = await Promise.all([
-      // Total
-      Expense.aggregate([
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]).maxTimeMS(20000).allowDiskUse(true),
-      
-      // Today
-      Expense.aggregate([
-        { $match: { date: { $gte: today } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]).maxTimeMS(20000).allowDiskUse(true),
-      
-      // Week
-      Expense.aggregate([
-        { $match: { date: { $gte: weekAgo } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]).maxTimeMS(20000).allowDiskUse(true),
-      
-      // Month
-      Expense.aggregate([
-        { $match: { date: { $gte: monthAgo } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]).maxTimeMS(20000).allowDiskUse(true),
-      
-      // By category
-      Expense.aggregate([
-        { $group: { 
-          _id: '$category', 
-          total: { $sum: '$amount' },
-          count: { $sum: 1 }
-        } },
-        { $sort: { total: -1 } }
-      ]).maxTimeMS(20000).allowDiskUse(true)
-    ]);
+    // ⚡ SUPER OPTIMIZED: Single aggregation pipeline instead of 5 separate queries
+    const results = await Expense.aggregate([
+      {
+        $facet: {
+          // Total
+          total: [
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          // Today
+          today: [
+            { $match: { date: { $gte: today } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          // Week
+          week: [
+            { $match: { date: { $gte: weekAgo } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          // Month
+          month: [
+            { $match: { date: { $gte: monthAgo } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          // By category
+          byCategory: [
+            { $group: { 
+              _id: '$category', 
+              total: { $sum: '$amount' },
+              count: { $sum: 1 }
+            } },
+            { $sort: { total: -1 } }
+          ]
+        }
+      }
+    ]).maxTimeMS(40000).allowDiskUse(true);
+    
+    const data = results[0];
     
     const stats = {
-      total: total[0]?.total || 0,
-      today: todayExpenses[0]?.total || 0,
-      week: weekExpenses[0]?.total || 0,
-      month: monthExpenses[0]?.total || 0,
-      byCategory: byCategory || []
+      total: data.total[0]?.total || 0,
+      today: data.today[0]?.total || 0,
+      week: data.week[0]?.total || 0,
+      month: data.month[0]?.total || 0,
+      byCategory: data.byCategory || []
     };
     
     console.log('✅ Stats calculated:', stats);
@@ -140,11 +143,21 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 // Update expense
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   await serviceWrapper(req, res, async () => {
-    const { category, amount, description, date } = req.body;
+    const { category, amount, description, date, products } = req.body;
+    
+    const updateData = { category, amount, description, date };
+    
+    // Agar tovar kategoriyasi bo'lsa va products mavjud bo'lsa
+    if (category === 'tovar' && products && Array.isArray(products)) {
+      updateData.products = products;
+    } else {
+      // Boshqa kategoriyalarga o'tganda products ni o'chirish
+      updateData.products = [];
+    }
     
     const expense = await Expense.findByIdAndUpdate(
       req.params.id,
-      { category, amount, description, date },
+      updateData,
       { new: true, runValidators: true }
     ).populate('createdBy', 'name');
     

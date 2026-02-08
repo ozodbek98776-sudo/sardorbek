@@ -572,47 +572,32 @@ export default function Helpers() {
             <form onSubmit={handleAddHelper} className="space-y-2 sm:space-y-3 flex flex-col h-full">
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Ism</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="text" className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Yordamchi ismi" value={addHelperData.name}
-                    onChange={e => setAddHelperData({...addHelperData, name: e.target.value})} disabled={addingHelper} required />
-                </div>
+                <input type="text" className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Hodim ismi" value={addHelperData.name}
+                  onChange={e => setAddHelperData({...addHelperData, name: e.target.value})} disabled={addingHelper} required />
               </div>
 
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Login</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="text" className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Login (foydalanuvchi nomi)" value={addHelperData.login}
-                    onChange={e => setAddHelperData({...addHelperData, login: e.target.value})} disabled={addingHelper} required />
-                </div>
+                <input type="text" className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Login" value={addHelperData.login}
+                  onChange={e => setAddHelperData({...addHelperData, login: e.target.value})} disabled={addingHelper} required />
               </div>
 
               <div>
-                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Telefon raqam</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="tel" className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="+998 (XX) XXX-XX-XX" value={addHelperData.phone}
-                    onChange={e => setAddHelperData({...addHelperData, phone: formatPhone(e.target.value)})} disabled={addingHelper} required />
-                </div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Telefon</label>
+                <input type="tel" className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="+998 XX XXX XX XX" value={addHelperData.phone}
+                  onChange={e => setAddHelperData({...addHelperData, phone: formatPhone(e.target.value)})} disabled={addingHelper} required />
               </div>
 
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Parol</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="password" className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Kamida 6 ta belgi" value={addHelperData.password}
-                    onChange={e => setAddHelperData({...addHelperData, password: e.target.value})} disabled={addingHelper} required minLength={6} />
-                </div>
+                <input type="password" className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Parol" value={addHelperData.password}
+                  onChange={e => setAddHelperData({...addHelperData, password: e.target.value})} disabled={addingHelper} required minLength={6} />
               </div>
 
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Parolni tasdiqlash</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="password" className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Parolni qayta kiriting" value={addHelperData.confirmPassword}
-                    onChange={e => setAddHelperData({...addHelperData, confirmPassword: e.target.value})} disabled={addingHelper} required minLength={6} />
-                </div>
+                <input type="password" className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Parolni qayta kiriting" value={addHelperData.confirmPassword}
+                  onChange={e => setAddHelperData({...addHelperData, confirmPassword: e.target.value})} disabled={addingHelper} required minLength={6} />
               </div>
 
               <div>
@@ -653,20 +638,17 @@ export default function Helpers() {
                   <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">
                     Bonus foizi (%)
                   </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                    <input 
-                      type="number" 
-                      className="input pl-9 text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
-                      placeholder="Masalan: 1" 
-                      value={addHelperData.bonusPercentage}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      disabled={addingHelper}
-                      onChange={e => setAddHelperData({...addHelperData, bonusPercentage: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
+                  <input 
+                    type="number" 
+                    className="input text-sm disabled:opacity-50 disabled:cursor-not-allowed" 
+                    placeholder="Masalan: 1" 
+                    value={addHelperData.bonusPercentage}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    disabled={addingHelper}
+                    onChange={e => setAddHelperData({...addHelperData, bonusPercentage: parseFloat(e.target.value) || 0})}
+                  />
                   <p className="text-[10px] sm:text-xs text-surface-500 mt-0.5 sm:mt-1">
                     {addHelperData.bonusPercentage}% bonus
                   </p>
@@ -706,39 +688,27 @@ export default function Helpers() {
             <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3 flex flex-col h-full">
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Ism</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="text" className="input pl-9 text-sm" placeholder="Yordamchi ismi" value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})} required />
-                </div>
+                <input type="text" className="input text-sm" placeholder="Hodim ismi" value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})} required />
               </div>
               
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Login</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="text" className="input pl-9 text-sm" placeholder="Login (foydalanuvchi nomi)" value={formData.login}
-                    onChange={e => setFormData({...formData, login: e.target.value})} required />
-                </div>
+                <input type="text" className="input text-sm" placeholder="Login" value={formData.login}
+                  onChange={e => setFormData({...formData, login: e.target.value})} required />
               </div>
               
               <div>
-                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Telefon raqam</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="tel" className="input pl-9 text-sm" placeholder="+998 (XX) XXX-XX-XX" value={formData.phone}
-                    onChange={handlePhoneChange} required />
-                </div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Telefon</label>
+                <input type="tel" className="input text-sm" placeholder="+998 XX XXX XX XX" value={formData.phone}
+                  onChange={handlePhoneChange} required />
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">
                   {editingUser ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
                 </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                  <input type="password" className="input pl-9 text-sm" placeholder={editingUser ? "O'zgartirmaslik uchun bo'sh qoldiring" : "Parol"} value={formData.password}
-                    onChange={e => setFormData({...formData, password: e.target.value})} {...(!editingUser && { required: true, minLength: 6 })} />
-                </div>
+                <input type="password" className="input text-sm" placeholder={editingUser ? "O'zgartirmaslik uchun bo'sh qoldiring" : "Parol"} value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})} {...(!editingUser && { required: true, minLength: 6 })} />
               </div>
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-2 block">Rol</label>
@@ -776,19 +746,16 @@ export default function Helpers() {
                   <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">
                     Bonus foizi (%)
                   </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
-                    <input 
-                      type="number" 
-                      className="input pl-9 text-sm" 
-                      placeholder="Masalan: 1" 
-                      value={formData.bonusPercentage}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      onChange={e => setFormData({...formData, bonusPercentage: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
+                  <input 
+                    type="number" 
+                    className="input text-sm" 
+                    placeholder="Masalan: 1" 
+                    value={formData.bonusPercentage}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    onChange={e => setFormData({...formData, bonusPercentage: parseFloat(e.target.value) || 0})}
+                  />
                   <p className="text-[10px] sm:text-xs text-surface-500 mt-0.5 sm:mt-1">
                     {formData.bonusPercentage}% bonus
                   </p>

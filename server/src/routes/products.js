@@ -304,7 +304,7 @@ router.post('/kassa', async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10 } = req.query; // 10 ta default
+    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10, lowStock } = req.query; // lowStock filter qo'shildi
     const query = {};
 
     if (search) {
@@ -325,15 +325,19 @@ router.get('/', auth, async (req, res) => {
     }
     if (warehouse) query.warehouse = warehouse;
     if (mainOnly === 'true') query.isMainWarehouse = true;
-    if (category) query.category = category; // ⚡ Kategoriya filtri
+    if (category) query.category = category;
+    
+    // ⚡ LOW STOCK FILTER - Kam qolgan tovarlar (0 < quantity <= 50)
+    if (lowStock === 'true') {
+      query.quantity = { $gt: 0, $lte: 50 };
+    }
 
     // ⚡ KASSA VIEW - ULTRA MINIMAL - faqat kerakli fieldlar
     if (kassaView === 'true') {
       const products = await Product.find(query)
-        .select('name code price quantity images category section') // section ham qo'shildi
-        .lean(); // 40% tezroq! - LIMIT OLIB TASHLANDI, barcha tovarlar
+        .select('name code price quantity images category section')
+        .lean();
 
-      // ⚡ Raqamli sort - tez
       products.sort((a, b) => {
         const codeA = parseInt(a.code) || 999999;
         const codeB = parseInt(b.code) || 999999;
@@ -343,8 +347,7 @@ router.get('/', auth, async (req, res) => {
         return codeA - codeB;
       });
 
-      // ⚡ Cache headers - brauzer cache qiladi
-      res.set('Cache-Control', 'public, max-age=60'); // 1 daqiqa cache
+      res.set('Cache-Control', 'public, max-age=60');
       res.set('X-Content-Type-Options', 'nosniff');
       
       return res.json(products);

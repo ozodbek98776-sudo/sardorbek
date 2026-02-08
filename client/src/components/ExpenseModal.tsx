@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Package, Plus, Minus, Search, AlertTriangle } from 'lucide-react';
+import { X, Package, Plus, Minus, Search } from 'lucide-react';
 import api from '../utils/api';
 import { formatNumber } from '../utils/format';
 
@@ -23,7 +23,7 @@ interface SelectedProduct {
 interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<void>;
   editingExpense: any | null;
   initialData: {
     category: string;
@@ -31,7 +31,6 @@ interface ExpenseModalProps {
     description: string;
     date: string;
   };
-  onOrderCreated?: () => void; // Buyurtma yaratilganda callback
 }
 
 const categoryLabels: Record<string, string> = {
@@ -47,39 +46,47 @@ export function ExpenseModal({
   onClose, 
   onSubmit, 
   editingExpense,
-  initialData,
-  onOrderCreated
+  initialData
 }: ExpenseModalProps) {
   const [formData, setFormData] = useState(initialData);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Tovarlar kategoriyasi tanlanganda tovarlarni yuklash
+  // Sync formData with initialData when modal opens or editingExpense changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(initialData);
+      setErrors({});
+      
+      // Agar edit qilayotgan bo'lsa va tovar kategoriyasi bo'lsa
+      if (editingExpense && editingExpense.category === 'tovar' && editingExpense.products) {
+        setSelectedProducts(editingExpense.products);
+      } else {
+        setSelectedProducts([]);
+      }
+    }
+  }, [isOpen, initialData, editingExpense]);
+
+  // Tovarlar kategoriyasi tanlanganda KAM QOLGAN tovarlarni yuklash
   useEffect(() => {
     if (formData.category === 'tovar' && isOpen) {
-      fetchProducts();
+      fetchLowStockProducts();
     }
   }, [formData.category, isOpen]);
 
-  // Kategoriya o'zgarganda formani tozalash
-  useEffect(() => {
-    if (formData.category !== 'tovar') {
-      setSelectedProducts([]);
-    }
-  }, [formData.category]);
-
-  const fetchProducts = async () => {
+  const fetchLowStockProducts = async () => {
     try {
       setLoadingProducts(true);
-      const res = await api.get('/products');
-      const productsData = Array.isArray(res.data) ? res.data : [];
-      // Barcha tovarlarni ko'rsatish
-      setProducts(productsData);
+      // lowStock=true parametri bilan faqat kam qolgan tovarlarni olish
+      const res = await api.get('/products?lowStock=true&limit=1000');
+      const productsData = res.data.data || res.data || [];
+      setProducts(Array.isArray(productsData) ? productsData : []);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error('Error fetching low stock products:', err);
       setProducts([]);
     } finally {
       setLoadingProducts(false);
@@ -125,59 +132,65 @@ export function ExpenseModal({
     return parseFloat(formData.amount) || 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const submitData: any = {
-      category: formData.category,
-      description: formData.description,
-      date: formData.date
-    };
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.category) {
+      newErrors.category = 'Kategoriya tanlang';
+    }
 
     if (formData.category === 'tovar') {
       if (selectedProducts.length === 0) {
-        alert('Kamida bitta tovar tanlang!');
-        return;
+        newErrors.products = 'Kamida bitta tovar tanlang';
       }
-      submitData.products = selectedProducts;
-      submitData.amount = calculateTotal();
     } else {
-      submitData.amount = parseFloat(formData.amount);
+      const amount = parseFloat(formData.amount);
+      if (!formData.amount || isNaN(amount) || amount <= 0) {
+        newErrors.amount = 'To\'g\'ri summa kiriting';
+      }
     }
 
-    onSubmit(submitData);
+    if (!formData.description || formData.description.trim().length < 3) {
+      newErrors.description = 'Tavsif kamida 3 ta belgidan iborat bo\'lishi kerak';
+    }
+
+    if (!formData.date) {
+      newErrors.date = 'Sana tanlang';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreateOrder = async () => {
-    if (selectedProducts.length === 0) {
-      alert('Kamida bitta tovar tanlang!');
-      return;
-    }
-
-    if (!confirm('Buyurtma yaratilsinmi? Bu tovarlar keyinchalik qabul qilinadi.')) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validate()) {
       return;
     }
 
     try {
-      setIsCreatingOrder(true);
-      const orderData = {
-        products: selectedProducts,
-        description: formData.description || 'Tovar buyurtmasi'
+      setIsSubmitting(true);
+      
+      const submitData: any = {
+        category: formData.category,
+        description: formData.description.trim(),
+        date: formData.date
       };
 
-      await api.post('/product-orders', orderData);
-      alert('Buyurtma muvaffaqiyatli yaratildi! Tovarlar sahifasidan qabul qilishingiz mumkin.');
-      
-      if (onOrderCreated) {
-        onOrderCreated();
+      if (formData.category === 'tovar') {
+        submitData.products = selectedProducts;
+        submitData.amount = calculateTotal();
+      } else {
+        submitData.amount = parseFloat(formData.amount);
       }
-      
+
+      await onSubmit(submitData);
       onClose();
-    } catch (err: any) {
-      console.error('Error creating order:', err);
-      alert(err.response?.data?.message || 'Buyurtma yaratishda xatolik');
+    } catch (err) {
+      console.error('Submit error:', err);
     } finally {
-      setIsCreatingOrder(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -195,10 +208,10 @@ export function ExpenseModal({
         onClick={onClose} 
       />
       
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-4">
-        <div className="bg-white rounded-2xl lg:rounded-3xl p-6 lg:p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-4 lg:mb-6">
-            <h3 className="text-xl lg:text-2xl font-bold text-slate-900">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 max-w-2xl w-full shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4 lg:mb-6 sticky top-0 bg-white pb-3 border-b border-slate-200">
+            <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
               {editingExpense ? 'Xarajatni tahrirlash' : 'Yangi xarajat'}
             </h3>
             <button 
@@ -213,18 +226,23 @@ export function ExpenseModal({
             {/* Kategoriya */}
             <div>
               <label className="block text-xs lg:text-sm font-semibold text-slate-700 mb-2">
-                Kategoriya
+                Kategoriya *
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base"
+                className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border ${
+                  errors.category ? 'border-red-500' : 'border-slate-200'
+                } focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base`}
                 required
               >
                 {Object.entries(categoryLabels).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
                 ))}
               </select>
+              {errors.category && (
+                <p className="text-xs text-red-600 mt-1">{errors.category}</p>
+              )}
             </div>
 
             {/* Tovar kategoriyasi uchun maxsus UI */}
@@ -232,40 +250,40 @@ export function ExpenseModal({
               <>
                 {/* Tanlangan tovarlar */}
                 {selectedProducts.length > 0 && (
-                  <div className="bg-purple-50 rounded-xl p-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-purple-900 mb-2">
+                  <div className="bg-purple-50 rounded-xl p-3 sm:p-4 space-y-2">
+                    <h4 className="text-xs sm:text-sm font-semibold text-purple-900 mb-2">
                       Tanlangan tovarlar ({selectedProducts.length})
                     </h4>
                     {selectedProducts.map(item => (
-                      <div key={item.product} className="flex items-center justify-between bg-white rounded-lg p-3">
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-900">{item.name}</p>
+                      <div key={item.product} className="flex items-center justify-between bg-white rounded-lg p-2 sm:p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.name}</p>
                           <p className="text-xs text-slate-500">
-                            {formatNumber(item.price)} so'm × {item.quantity} = {formatNumber(item.price * item.quantity)} so'm
+                            {formatNumber(item.price)} × {item.quantity} = {formatNumber(item.price * item.quantity)} so'm
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 ml-2">
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product, item.quantity - 1)}
                             className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
-                          <span className="text-sm font-bold w-8 text-center">{item.quantity}</span>
+                          <span className="text-xs sm:text-sm font-bold w-6 sm:w-8 text-center">{item.quantity}</span>
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product, item.quantity + 1)}
                             className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRemoveProduct(item.product)}
-                            className="p-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 ml-2"
+                            className="p-1 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 ml-1"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       </div>
@@ -278,13 +296,16 @@ export function ExpenseModal({
                   </div>
                 )}
 
+                {errors.products && (
+                  <p className="text-xs text-red-600">{errors.products}</p>
+                )}
+
                 {/* Tovarlar qidiruvi */}
                 <div>
                   <label className="block text-xs lg:text-sm font-semibold text-slate-700 mb-2">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4" />
-                      Tovarlar ro'yxati (kam qolgan)
-                      <AlertTriangle className="w-4 h-4 text-orange-500" />
+                      Kam qolgan tovarlar
                     </div>
                   </label>
                   <div className="relative mb-2">
@@ -324,13 +345,13 @@ export function ExpenseModal({
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-slate-900">{product.name}</p>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 truncate">{product.name}</p>
                                 <p className="text-xs text-slate-500">
                                   Kod: {product.code} | Qoldi: {product.quantity} ta
                                 </p>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right ml-2">
                                 <p className="text-sm font-bold text-purple-600">
                                   {formatNumber(product.price)} so'm
                                 </p>
@@ -350,47 +371,64 @@ export function ExpenseModal({
               /* Oddiy kategoriyalar uchun summa kiritish */
               <div>
                 <label className="block text-xs lg:text-sm font-semibold text-slate-700 mb-2">
-                  Summa (so'm)
+                  Summa (so'm) *
                 </label>
                 <input
                   type="number"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base"
+                  className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border ${
+                    errors.amount ? 'border-red-500' : 'border-slate-200'
+                  } focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base`}
                   placeholder="0"
                   required
                   min="0"
+                  step="0.01"
                 />
+                {errors.amount && (
+                  <p className="text-xs text-red-600 mt-1">{errors.amount}</p>
+                )}
               </div>
             )}
 
             {/* Tavsif */}
             <div>
               <label className="block text-xs lg:text-sm font-semibold text-slate-700 mb-2">
-                Tavsif
+                Tavsif *
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base resize-none"
+                className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border ${
+                  errors.description ? 'border-red-500' : 'border-slate-200'
+                } focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base resize-none`}
                 rows={3}
                 placeholder="Xarajat haqida qisqacha ma'lumot..."
                 required
+                minLength={3}
               />
+              {errors.description && (
+                <p className="text-xs text-red-600 mt-1">{errors.description}</p>
+              )}
             </div>
 
             {/* Sana */}
             <div>
               <label className="block text-xs lg:text-sm font-semibold text-slate-700 mb-2">
-                Sana
+                Sana *
               </label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base"
+                className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl border ${
+                  errors.date ? 'border-red-500' : 'border-slate-200'
+                } focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm lg:text-base`}
                 required
               />
+              {errors.date && (
+                <p className="text-xs text-red-600 mt-1">{errors.date}</p>
+              )}
             </div>
 
             {/* Jami summa ko'rsatish */}
@@ -406,34 +444,22 @@ export function ExpenseModal({
             )}
 
             {/* Tugmalar */}
-            <div className="space-y-2">
-              {/* Tovar kategoriyasi uchun buyurtma tugmasi */}
-              {formData.category === 'tovar' && selectedProducts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleCreateOrder}
-                  disabled={isCreatingOrder}
-                  className="w-full px-4 py-2.5 lg:py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl transition-all shadow-lg text-sm lg:text-base disabled:opacity-50"
-                >
-                  {isCreatingOrder ? 'Yuklanmoqda...' : '📦 Buyurtma berish (keyinchalik qabul qilish)'}
-                </button>
-              )}
-              
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2.5 lg:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm lg:text-base"
-                >
-                  Bekor qilish
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 lg:py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl transition-all shadow-lg text-sm lg:text-base"
-                >
-                  {editingExpense ? 'Saqlash' : 'Qo\'shish'}
-                </button>
-              </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 lg:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm lg:text-base disabled:opacity-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 lg:py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl transition-all shadow-lg text-sm lg:text-base disabled:opacity-50"
+              >
+                {isSubmitting ? 'Yuklanmoqda...' : (editingExpense ? 'Saqlash' : 'Qo\'shish')}
+              </button>
             </div>
           </form>
         </div>

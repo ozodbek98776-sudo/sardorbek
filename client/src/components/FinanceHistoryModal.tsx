@@ -139,86 +139,86 @@ export function FinanceHistoryModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fadeIn"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-fadeIn"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slideUp"
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slideUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-4 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-white" />
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 sm:px-6 py-3 sm:py-4 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <h3 className="text-xl font-bold">{title}</h3>
+            <h3 className="text-base sm:text-xl font-bold">{title}</h3>
           </div>
           <button 
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-xl transition-all"
+            className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white/20 rounded-xl transition-all"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Summary Cards */}
-        <div className="p-6 bg-gradient-to-br from-slate-50 to-purple-50/30 border-b border-slate-200">
-          <div className="grid grid-cols-3 gap-4">
+        <div className="p-3 sm:p-6 bg-gradient-to-br from-slate-50 to-purple-50/30 border-b border-slate-200">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {/* Total Income */}
-            <div className="bg-white rounded-xl p-4 border-2 border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
+            <div className="bg-white rounded-xl p-2 sm:p-4 border-2 border-green-200">
+              <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Kirim</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-slate-600">Kirim</p>
               </div>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-sm sm:text-2xl font-bold text-green-600">
                 {formatNumber(totalIncome)}
               </p>
-              <p className="text-xs text-slate-500 mt-1">so'm</p>
+              <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">so'm</p>
             </div>
 
             {/* Total Expense */}
-            <div className="bg-white rounded-xl p-4 border-2 border-red-200">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                  <TrendingDown className="w-4 h-4 text-red-600" />
+            <div className="bg-white rounded-xl p-2 sm:p-4 border-2 border-red-200">
+              <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                  <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Chiqim</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-slate-600">Chiqim</p>
               </div>
-              <p className="text-2xl font-bold text-red-600">
+              <p className="text-sm sm:text-2xl font-bold text-red-600">
                 {formatNumber(totalExpense)}
               </p>
-              <p className="text-xs text-slate-500 mt-1">so'm</p>
+              <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">so'm</p>
             </div>
 
             {/* Net Profit */}
-            <div className={`bg-white rounded-xl p-4 border-2 ${netProfit >= 0 ? 'border-blue-200' : 'border-orange-200'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${netProfit >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                  <DollarSign className={`w-4 h-4 ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+            <div className={`bg-white rounded-xl p-2 sm:p-4 border-2 ${netProfit >= 0 ? 'border-blue-200' : 'border-orange-200'}`}>
+              <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${netProfit >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                  <DollarSign className={`w-3 h-3 sm:w-4 sm:h-4 ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
                 </div>
-                <p className="text-xs font-semibold text-slate-600">Sof foyda</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-slate-600">Sof foyda</p>
               </div>
-              <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              <p className={`text-sm sm:text-2xl font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
                 {formatNumber(Math.abs(netProfit))}
               </p>
-              <p className="text-xs text-slate-500 mt-1">so'm</p>
+              <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">so'm</p>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="p-4 bg-white border-b border-slate-200">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="p-3 sm:p-4 bg-white border-b border-slate-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
             {/* Type Filter - Left */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-slate-500" />
-              <div className="flex gap-1">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 flex-shrink-0" />
+              <div className="flex gap-1 flex-1 sm:flex-initial">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                     filter === 'all' 
                       ? 'bg-purple-500 text-white' 
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -228,7 +228,7 @@ export function FinanceHistoryModal({
                 </button>
                 <button
                   onClick={() => setFilter('income')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                     filter === 'income' 
                       ? 'bg-green-500 text-white' 
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -238,7 +238,7 @@ export function FinanceHistoryModal({
                 </button>
                 <button
                   onClick={() => setFilter('expense')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                     filter === 'expense' 
                       ? 'bg-red-500 text-white' 
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -251,12 +251,12 @@ export function FinanceHistoryModal({
 
             {/* Date Filter - Right (faqat bugungi savdo uchun yashirilgan) */}
             {initialDateFilter !== 'today' && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                <div className="flex gap-1">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 flex-shrink-0" />
+                <div className="flex gap-1 flex-1 sm:flex-initial overflow-x-auto">
                   <button
                     onClick={() => setDateFilter('today')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                       dateFilter === 'today' 
                         ? 'bg-purple-500 text-white' 
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -266,7 +266,7 @@ export function FinanceHistoryModal({
                   </button>
                   <button
                     onClick={() => setDateFilter('week')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                       dateFilter === 'week' 
                         ? 'bg-purple-500 text-white' 
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -276,7 +276,7 @@ export function FinanceHistoryModal({
                   </button>
                   <button
                     onClick={() => setDateFilter('month')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                       dateFilter === 'month' 
                         ? 'bg-purple-500 text-white' 
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -286,7 +286,7 @@ export function FinanceHistoryModal({
                   </button>
                   <button
                     onClick={() => setDateFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                       dateFilter === 'all' 
                         ? 'bg-purple-500 text-white' 
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

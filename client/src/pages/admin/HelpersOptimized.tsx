@@ -310,46 +310,47 @@ export default function HelpersOptimized() {
   }, [sortBy, sortOrder, setSortBy, setSortOrder]);
 
   return (
-    <div className="p-6">
+    <div className="p-2 sm:p-4 lg:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center">
-            <Users className="w-6 h-6 text-white" />
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-surface-900">Hodimlar</h1>
-            <p className="text-sm text-surface-500">{filteredHelpers.length} ta hodim</p>
+            <h1 className="text-lg sm:text-2xl font-bold text-surface-900">Hodimlar</h1>
+            <p className="text-xs sm:text-sm text-surface-500">{filteredHelpers.length} ta hodim</p>
           </div>
         </div>
-        <button onClick={openAddModal} className="btn-primary">
-          <Plus className="w-5 h-5" />
-          Hodim qo'shish
+        <button onClick={openAddModal} className="btn-primary text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-2">
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Hodim qo'shish</span>
+          <span className="sm:hidden">Qo'shish</span>
         </button>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className="mb-4 p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-center justify-between">
+        <div className="mb-4 p-3 sm:p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-center justify-between text-sm">
           <p className="text-danger-700">{error}</p>
           <button onClick={clearError} className="text-danger-700 hover:text-danger-900">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       )}
 
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Search */}
-        <div className="md:col-span-2">
+        <div className="sm:col-span-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-surface-400" />
             <input
               type="text"
-              placeholder="Ism, telefon yoki login bo'yicha qidirish..."
+              placeholder="Qidirish..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input pl-10"
+              className="input pl-9 sm:pl-10 text-sm"
             />
           </div>
         </div>
@@ -359,7 +360,7 @@ export default function HelpersOptimized() {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as any)}
-            className="input"
+            className="input text-sm"
           >
             <option value="all">Barcha rollar</option>
             <option value="cashier">Kassir</option>
@@ -372,7 +373,7 @@ export default function HelpersOptimized() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="input"
+            className="input text-sm"
           >
             <option value="name">Ism bo'yicha</option>
             <option value="receipts">Cheklar soni</option>
@@ -383,20 +384,20 @@ export default function HelpersOptimized() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="spinner w-8 h-8 text-brand-600" />
+        <div className="flex justify-center py-12 sm:py-20">
+          <div className="spinner w-6 h-6 sm:w-8 sm:h-8 text-brand-600" />
         </div>
       ) : filteredHelpers.length === 0 ? (
-        <div className="text-center py-20">
-          <Users className="w-16 h-16 mx-auto mb-4 text-surface-400" />
-          <p className="text-surface-500">Hodimlar topilmadi</p>
-          <button onClick={openAddModal} className="btn-primary mt-4">
-            <Plus className="w-5 h-5" />
+        <div className="text-center py-12 sm:py-20">
+          <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-surface-400" />
+          <p className="text-sm sm:text-base text-surface-500">Hodimlar topilmadi</p>
+          <button onClick={openAddModal} className="btn-primary mt-4 text-sm">
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             Birinchi hodimni qo'shing
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 sm:gap-3">
           {filteredHelpers.map(helper => (
             <HelperCard
               key={helper._id}
@@ -411,112 +412,100 @@ export default function HelpersOptimized() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
-          <div className="relative z-10 w-full max-w-md p-6 bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4 pb-4 border-b">
-              <h3 className="text-xl font-bold">
+          <div className="relative z-10 w-full sm:max-w-md p-4 sm:p-6 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 pb-3 sm:pb-4 border-b">
+              <h3 className="text-lg sm:text-xl font-bold">
                 {editingUser ? 'Hodimni tahrirlash' : 'Yangi hodim'}
               </h3>
               <button onClick={closeModal} className="btn-icon-sm">
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {/* Name */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Ism</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-                  <input
-                    type="text"
-                    className="input pl-10"
-                    placeholder="Hodim ismi"
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Ism</label>
+                <input
+                  type="text"
+                  className="input text-sm"
+                  placeholder="Hodim ismi"
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
               </div>
 
               {/* Login */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Login</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-                  <input
-                    type="text"
-                    className="input pl-10"
-                    placeholder="Login"
-                    value={formData.login}
-                    onChange={e => setFormData({ ...formData, login: e.target.value })}
-                    required
-                  />
-                </div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Login</label>
+                <input
+                  type="text"
+                  className="input text-sm"
+                  placeholder="Login"
+                  value={formData.login}
+                  onChange={e => setFormData({ ...formData, login: e.target.value })}
+                  required
+                />
               </div>
 
               {/* Phone */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Telefon</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-                  <input
-                    type="tel"
-                    className="input pl-10"
-                    placeholder="+998 XX XXX XX XX"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    required
-                  />
-                </div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Telefon</label>
+                <input
+                  type="tel"
+                  className="input text-sm"
+                  placeholder="+998 XX XXX XX XX"
+                  value={formData.phone}
+                  onChange={handlePhoneChange}
+                  required
+                />
               </div>
 
               {/* Password */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">
                   {editingUser ? 'Yangi parol (ixtiyoriy)' : 'Parol'}
                 </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-                  <input
-                    type="password"
-                    className="input pl-10"
-                    placeholder={editingUser ? "O'zgartirmaslik uchun bo'sh qoldiring" : "Parol"}
-                    value={formData.password}
-                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    {...(!editingUser && { required: true, minLength: 6 })}
-                  />
-                </div>
+                <input
+                  type="password"
+                  className="input text-sm"
+                  placeholder={editingUser ? "O'zgartirmaslik uchun bo'sh qoldiring" : "Parol"}
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  {...(!editingUser && { required: true, minLength: 6 })}
+                />
               </div>
 
               {/* Role */}
               <div>
-                <label className="text-sm font-medium text-surface-700 mb-2 block">Rol</label>
-                <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">Rol</label>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, role: 'cashier' })}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                       formData.role === 'cashier'
                         ? 'border-success-500 bg-success-50'
                         : 'border-surface-200 hover:border-surface-300'
                     }`}
                   >
-                    <ShoppingCart className={`w-5 h-5 mx-auto mb-1 ${formData.role === 'cashier' ? 'text-success-600' : 'text-surface-400'}`} />
-                    <p className="font-medium text-surface-900">Kassir</p>
+                    <ShoppingCart className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${formData.role === 'cashier' ? 'text-success-600' : 'text-surface-400'}`} />
+                    <p className="font-medium text-surface-900 text-xs sm:text-sm">Kassir</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, role: 'helper' })}
-                    className={`p-3 rounded-lg border-2 transition-all ${
+                    className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                       formData.role === 'helper'
                         ? 'border-brand-500 bg-brand-50'
                         : 'border-surface-200 hover:border-surface-300'
                     }`}
                   >
-                    <Shield className={`w-5 h-5 mx-auto mb-1 ${formData.role === 'helper' ? 'text-brand-600' : 'text-surface-400'}`} />
-                    <p className="font-medium text-surface-900">Yordamchi</p>
+                    <Shield className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${formData.role === 'helper' ? 'text-brand-600' : 'text-surface-400'}`} />
+                    <p className="font-medium text-surface-900 text-xs sm:text-sm">Yordamchi</p>
                   </button>
                 </div>
               </div>
@@ -524,22 +513,19 @@ export default function HelpersOptimized() {
               {/* Bonus Percentage */}
               {formData.role === 'cashier' && (
                 <div>
-                  <label className="text-sm font-medium text-surface-700 mb-2 block">
+                  <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1.5 sm:mb-2 block">
                     Bonus foizi (%)
                   </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-                    <input
-                      type="number"
-                      className="input pl-10"
-                      placeholder="Masalan: 1"
-                      value={formData.bonusPercentage ?? 0}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      onChange={e => setFormData({ ...formData, bonusPercentage: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    className="input text-sm"
+                    placeholder="Masalan: 1"
+                    value={formData.bonusPercentage ?? 0}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    onChange={e => setFormData({ ...formData, bonusPercentage: parseFloat(e.target.value) || 0 })}
+                  />
                   <p className="text-xs text-surface-500 mt-1">
                     {formData.bonusPercentage ?? 0}% bonus
                   </p>
@@ -547,15 +533,16 @@ export default function HelpersOptimized() {
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={closeModal} disabled={submitting} className="btn-secondary flex-1">
+              <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+                <button type="button" onClick={closeModal} disabled={submitting} className="btn-secondary flex-1 text-sm">
                   Bekor
                 </button>
-                <button type="submit" disabled={submitting} className="btn-primary flex-1">
+                <button type="submit" disabled={submitting} className="btn-primary flex-1 text-sm">
                   {submitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Saqlanmoqda...</span>
+                      <span className="hidden sm:inline">Saqlanmoqda...</span>
+                      <span className="sm:hidden">...</span>
                     </>
                   ) : (
                     'Saqlash'

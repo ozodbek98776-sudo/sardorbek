@@ -1,22 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '../../components/Header';
 import { 
-  DollarSign, Plus, Calendar, TrendingDown, X, Edit2, Trash2, Search, Package, AlertTriangle
+  DollarSign, Plus, Calendar, TrendingDown, Edit2, Trash2, Search
 } from 'lucide-react';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { ExpenseModal } from '../../components/ExpenseModal';
-
-interface Product {
-  _id: string;
-  name: string;
-  code: string;
-  quantity: number;
-  price: number;
-  category?: string;
-  image?: string;
-}
 
 interface Expense {
   _id: string;
@@ -91,23 +81,12 @@ export default function Expenses() {
   const [showModal, setShowModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('month'); // Default: oxirgi 30 kun
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  
-  // Tovarlar uchun state
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<Array<{
-    product: string;
-    name: string;
-    quantity: number;
-    price: number;
-  }>>([]);
-  const [productSearchQuery, setProductSearchQuery] = useState('');
   
   const [formData, setFormData] = useState({
     category: 'kommunal',
@@ -116,24 +95,45 @@ export default function Expenses() {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Fetch statistics first (priority)
+  // ⚡ OPTIMIZED: Fetch statistics with caching (5 minutes)
   const fetchStatistics = useCallback(async () => {
     try {
       setLoadingStats(true);
+      
+      // Check cache first with filter-specific key
+      const cacheKey = `expenses_stats_${categoryFilter}_${dateFilter}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+      
+      if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        if (age < 300000) { // 5 minutes cache
+          console.log('📊 Using cached stats');
+          setStats(JSON.parse(cached));
+          setLoadingStats(false);
+          return;
+        }
+      }
+      
       const statsRes = await api.get('/expenses/stats');
       console.log('📊 Stats response:', statsRes.data);
       
       const statsData = statsRes.data.success ? statsRes.data.data : statsRes.data;
       setStats(statsData);
+      
+      // Cache the stats with filter-specific key
+      sessionStorage.setItem(cacheKey, JSON.stringify(statsData));
+      sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
     } catch (err: any) {
       console.error('❌ Error fetching stats:', err);
+      // Don't show error for stats - page can still work without them
     } finally {
       setLoadingStats(false);
     }
-  }, []);
+  }, [categoryFilter, dateFilter]);
 
-  // Fetch expenses with pagination
-  const fetchExpenses = useCallback(async (pageNum: number, append: boolean = false) => {
+  // ⚡ OPTIMIZED: Fetch expenses with pagination and retry logic
+  const fetchExpenses = useCallback(async (pageNum: number, append: boolean = false, retryCount: number = 0) => {
     try {
       if (pageNum === 1) {
         setLoadingExpenses(true);
@@ -143,8 +143,8 @@ export default function Expenses() {
 
       const params: any = { 
         category: categoryFilter,
-        limit: 10,
-        skip: (pageNum - 1) * 10
+        limit: 20,
+        skip: (pageNum - 1) * 20
       };
       
       if (dateFilter !== 'all') {
@@ -176,23 +176,58 @@ export default function Expenses() {
         setExpenses(newExpenses);
       }
       
-      setHasMore(newExpenses.length === 10);
+      setHasMore(newExpenses.length === 20);
       setPage(pageNum);
     } catch (err: any) {
       console.error('❌ Error fetching expenses:', err);
-      showAlert(err.response?.data?.message || 'Ma\'lumotlarni yuklashda xatolik', 'Xatolik', 'danger');
-      setExpenses([]);
+      
+      // Retry once if timeout
+      if (err.message.includes('vaqti tugadi') && retryCount === 0) {
+        console.log('🔄 Retrying expenses request...');
+        setTimeout(() => {
+          fetchExpenses(pageNum, append, retryCount + 1);
+        }, 1000);
+        return;
+      }
+      
+      // Show user-friendly error
+      if (err.message.includes('vaqti tugadi')) {
+        showAlert(
+          'Server juda sekin javob beryapti. Internet tezligingizni tekshiring yoki keyinroq qayta urinib ko\'ring.',
+          'Ulanish muammosi',
+          'danger'
+        );
+      } else {
+        showAlert(err.response?.data?.message || 'Ma\'lumotlarni yuklashda xatolik', 'Xatolik', 'danger');
+      }
+      
+      // Set empty array on error
+      if (!append) {
+        setExpenses([]);
+      }
     } finally {
       setLoadingExpenses(false);
       setLoadingMore(false);
     }
   }, [categoryFilter, dateFilter, showAlert]);
 
-  // Initial load - stats first, then expenses
+  // ⚡ OPTIMIZED: Parallel loading - expenses first (priority), then stats
   useEffect(() => {
-    fetchStatistics();
+    // Clear all cache when filters change
+    const cacheKey = `expenses_stats_${categoryFilter}_${dateFilter}`;
+    sessionStorage.removeItem(cacheKey);
+    sessionStorage.removeItem(`${cacheKey}_time`);
+    
+    // Load expenses immediately (priority)
     fetchExpenses(1, false);
-  }, [categoryFilter, dateFilter]);
+    
+    // Load stats after a short delay (lazy loading)
+    const statsTimer = setTimeout(() => {
+      fetchStatistics();
+    }, 100);
+    
+    return () => clearTimeout(statsTimer);
+  }, [categoryFilter, dateFilter, fetchExpenses, fetchStatistics]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -212,15 +247,14 @@ export default function Expenses() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadingExpenses, page, fetchExpenses]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (submitData: any) => {
     try {
       if (editingExpense) {
-        const res = await api.put(`/expenses/${editingExpense._id}`, formData);
+        const res = await api.put(`/expenses/${editingExpense._id}`, submitData);
         console.log('✅ Update response:', res.data);
         showAlert('Xarajat yangilandi', 'Muvaffaqiyat', 'success');
       } else {
-        const res = await api.post('/expenses', formData);
+        const res = await api.post('/expenses', submitData);
         console.log('✅ Create response:', res.data);
         showAlert('Xarajat qo\'shildi', 'Muvaffaqiyat', 'success');
       }
@@ -233,11 +267,18 @@ export default function Expenses() {
         description: '',
         date: new Date().toISOString().split('T')[0]
       });
+      
+      // Clear all stats cache to force refresh
+      const cacheKey = `expenses_stats_${categoryFilter}_${dateFilter}`;
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(`${cacheKey}_time`);
+      
       fetchStatistics();
       fetchExpenses(1, false);
     } catch (err: any) {
       console.error('❌ Submit error:', err);
       showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
+      throw err; // Re-throw to let modal handle it
     }
   };
 
@@ -259,6 +300,12 @@ export default function Expenses() {
       const res = await api.delete(`/expenses/${id}`);
       console.log('✅ Delete response:', res.data);
       showAlert('Xarajat o\'chirildi', 'Muvaffaqiyat', 'success');
+      
+      // Clear all stats cache to force refresh
+      const cacheKey = `expenses_stats_${categoryFilter}_${dateFilter}`;
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(`${cacheKey}_time`);
+      
       fetchStatistics();
       fetchExpenses(1, false);
     } catch (err: any) {
@@ -267,9 +314,27 @@ export default function Expenses() {
     }
   };
 
-  const filteredExpenses = expenses.filter(expense => 
-    expense.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Enhanced search - category, amount, date bo'yicha ham qidirish
+  const filteredExpenses = expenses.filter(expense => {
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Description bo'yicha
+    if (expense.description.toLowerCase().includes(searchLower)) return true;
+    
+    // Category bo'yicha
+    if (categoryLabels[expense.category].toLowerCase().includes(searchLower)) return true;
+    
+    // Amount bo'yicha
+    if (expense.amount.toString().includes(searchQuery)) return true;
+    
+    // Date bo'yicha
+    if (formatDate(expense.date).includes(searchQuery)) return true;
+    
+    // Created by bo'yicha
+    if (expense.createdBy?.name?.toLowerCase().includes(searchLower)) return true;
+    
+    return false;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-100/30 to-slate-100">
@@ -446,11 +511,15 @@ export default function Expenses() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                           <ExpenseRowSkeleton key={i} />
                         ))}
                       </tbody>
                     </table>
+                    <div className="p-4 text-center">
+                      <p className="text-slate-500 text-sm">Ma'lumotlar yuklanmoqda...</p>
+                      <p className="text-slate-400 text-xs mt-1">Agar uzoq vaqt davom etsa, internet tezligingizni tekshiring</p>
+                    </div>
                   </div>
                 ) : filteredExpenses.length === 0 ? (
                   <div className="p-8 lg:p-12 text-center">
@@ -497,7 +566,7 @@ export default function Expenses() {
                         {filteredExpenses.map((expense) => (
                           <tr key={expense._id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-3 lg:px-6 py-3 lg:py-4 text-xs lg:text-sm text-slate-600">
-                              {new Date(expense.date).toLocaleDateString('uz-UZ')}
+                              {formatDate(expense.date)}
                             </td>
                             <td className="px-3 lg:px-6 py-3 lg:py-4">
                               <span className={`inline-flex px-2 lg:px-3 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r ${categoryColors[expense.category]} text-white`}>
@@ -548,7 +617,7 @@ export default function Expenses() {
                     {/* Infinite scroll trigger */}
                     {hasMore && !loadingMore && (
                       <div ref={loadMoreRef} className="h-16 lg:h-20 flex items-center justify-center">
-                        <p className="text-slate-400 text-xs lg:text-sm">Scroll qiling...</p>
+                        <p className="text-slate-400 text-xs lg:text-sm">Yana yuklash uchun scroll qiling...</p>
                       </div>
                     )}
                     

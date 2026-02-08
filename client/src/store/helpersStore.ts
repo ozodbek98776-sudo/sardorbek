@@ -313,9 +313,9 @@ export const useHelpersStore = create<HelpersState>((set, get) => ({
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(h => 
-        h.name.toLowerCase().includes(query) ||
-        h.phone.includes(query) ||
-        h.login?.toLowerCase().includes(query)
+        (h.name && h.name.toLowerCase().includes(query)) ||
+        (h.phone && h.phone.includes(query)) ||
+        (h.login && h.login.toLowerCase().includes(query))
       );
     }
     

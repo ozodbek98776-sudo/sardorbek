@@ -42,6 +42,7 @@ export default function HelperScanner() {
   const [addingCustomer, setAddingCustomer] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -120,9 +121,11 @@ export default function HelperScanner() {
   const fetchCustomers = async () => {
     try {
       const res = await api.get('/customers');
-      setCustomers(res.data.data || res.data || []);
+      const customersData = res.data.data || res.data || [];
+      setCustomers(Array.isArray(customersData) ? customersData : []);
     } catch (err) { 
       console.error('Error fetching customers:', err);
+      setCustomers([]); // Set empty array on error
     }
   };
 
@@ -142,7 +145,7 @@ export default function HelperScanner() {
       const createdCustomer = res.data;
       
       // Mijozlar ro'yxatiga qo'shish
-      setCustomers(prev => [createdCustomer, ...prev]);
+      setCustomers(prev => Array.isArray(prev) ? [createdCustomer, ...prev] : [createdCustomer]);
       
       // Yangi mijozni tanlash
       setSelectedCustomer(createdCustomer);
@@ -298,30 +301,63 @@ export default function HelperScanner() {
     }
   };
 
-  const handleSearch = (query: string) => {
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
     setScannedProduct(null);
-    if (query.length > 0) {
-      let results = products.filter(p =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.code.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      // Kategoriya bo'yicha filtrlash
-      if (selectedCategory) {
-        results = results.filter(p => p.category === selectedCategory);
-      }
-      
-      setSearchResults(results);
-    } else {
-      // Agar qidiruv bo'sh bo'lsa, faqat kategoriya bo'yicha filtrlash
-      if (selectedCategory) {
-        const results = products.filter(p => p.category === selectedCategory);
-        setSearchResults(results);
-      } else {
-        setSearchResults([]);
-      }
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+    
+    // Debounce: 500ms kutish
+    searchTimeoutRef.current = setTimeout(async () => {
+      if (query.length > 0) {
+        try {
+          // Serverdan qidirish - barcha mahsulotlar orasidan
+          const res = await api.get('/products', {
+            params: {
+              search: query,
+              category: selectedCategory || undefined
+            }
+          });
+          
+          const productsData = res.data.data || res.data;
+          const results = Array.isArray(productsData) ? productsData : [];
+          setSearchResults(results);
+        } catch (err) {
+          console.error('Search error:', err);
+          // Xatolik bo'lsa, local'dan qidirish
+          let results = products.filter(p =>
+            p.name.toLowerCase().includes(query.toLowerCase()) ||
+            p.code.toLowerCase().includes(query.toLowerCase())
+          );
+          
+          if (selectedCategory) {
+            results = results.filter(p => p.category === selectedCategory);
+          }
+          
+          setSearchResults(results);
+        }
+      } else {
+        // Agar qidiruv bo'sh bo'lsa, faqat kategoriya bo'yicha filtrlash
+        if (selectedCategory) {
+          try {
+            const res = await api.get('/products', {
+              params: { category: selectedCategory }
+            });
+            const productsData = res.data.data || res.data;
+            const results = Array.isArray(productsData) ? productsData : [];
+            setSearchResults(results);
+          } catch (err) {
+            const results = products.filter(p => p.category === selectedCategory);
+            setSearchResults(results);
+          }
+        } else {
+          setSearchResults([]);
+        }
+      }
+    }, 500);
   };
 
   // Miqdorga qarab narx hisoblash funksiyasi (chegirma tizimi)

@@ -4,7 +4,7 @@ import {
   ShoppingCart, 
   Package, 
   Receipt,
-  Folder
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -33,7 +33,7 @@ export default function BottomNavigation() {
       }
     },
     { path: '/admin/products', icon: Package, label: 'Tovarlar' },
-    { path: '/admin/categories', icon: Folder, label: 'Kategoriyalar' },
+    { path: '/admin/expenses', icon: DollarSign, label: 'Xarajatlar' },
     { path: '/admin/debts', icon: Receipt, label: 'Qarzlar' }
   ];
 
