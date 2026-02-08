@@ -22,7 +22,14 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const warehouse = new Warehouse({ ...req.body, createdBy: req.user._id });
+    const warehouseData = { ...req.body };
+    
+    // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      warehouseData.createdBy = req.user._id;
+    }
+    
+    const warehouse = new Warehouse(warehouseData);
     await warehouse.save();
     res.status(201).json(warehouse);
   } catch (error) {

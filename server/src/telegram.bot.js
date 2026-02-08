@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const Customer = require('./models/Customer');
+const logger = require('./services/loggerService');
 
 class POSTelegramBot {
   constructor() {
@@ -12,7 +13,7 @@ class POSTelegramBot {
     this.pollingEnabled = false;
 
     if (!this.token) {
-      console.error('❌ POS_TELEGRAM_BOT_TOKEN topilmadi .env faylida');
+      logger.error('❌ POS_TELEGRAM_BOT_TOKEN topilmadi .env faylida');
       return;
     }
 

@@ -69,7 +69,7 @@ export default function DebtApprovals() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
       
       <Header 
@@ -85,9 +85,9 @@ export default function DebtApprovals() {
         }
       />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
+      <div className="p-1 sm:p-2 space-y-2 sm:space-y-3 w-full">
         {/* Header Info */}
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-3 sm:p-4 border border-amber-200">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-amber-600" />

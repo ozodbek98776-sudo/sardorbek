@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as QRCode from 'qrcode';
 import { FRONTEND_URL } from '../config/api';
 import { X, Printer, Plus, Minus, Settings } from 'lucide-react';
+import { getUnitPrice } from '../utils/pricing';
 
 interface Product {
   _id: string;
@@ -110,6 +111,10 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     let labelsHtml = '';
     printItems.forEach(item => {
       for (let i = 0; i < item.copies; i++) {
+        // YANGI NARX TIZIMI - eng yaxshi narxni hisoblash
+        const unitPrice = getUnitPrice(item.product);
+        const displayPrice = unitPrice || item.product.price || 0;
+        
         labelsHtml += `
           <div class="label">
             <div class="qr-section">
@@ -118,7 +123,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             <div class="info-section">
               <div class="product-name">${item.product.name.length > 18 ? item.product.name.substring(0, 18) + '...' : item.product.name}</div>
               ${labelSettings.showCode ? `<div class="product-code">Kod: ${item.product.code}</div>` : ''}
-              ${labelSettings.showPrice ? `<div class="product-price">${formatPrice(item.product.price)} so'm</div>` : ''}
+              ${labelSettings.showPrice ? `<div class="product-price">${formatPrice(displayPrice)} so'm</div>` : ''}
             </div>
           </div>
         `;

@@ -6,32 +6,46 @@ const auth = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ message: 'Avtorizatsiya talab qilinadi' });
     
+    // JWT_SECRET majburiy tekshirish
     if (!process.env.JWT_SECRET) {
-      console.error('JWT_SECRET is not defined in environment variables');
+      console.error('❌ XAVFSIZLIK: JWT_SECRET environment variable o\'rnatilmagan!');
+      return res.status(500).json({ message: 'Server konfiguratsiya xatosi' });
+    }
+    
+    // JWT_SECRET uzunligini tekshirish (minimum 32 belgi)
+    if (process.env.JWT_SECRET.length < 32) {
+      console.error('❌ XAVFSIZLIK: JWT_SECRET juda qisqa! Minimum 32 belgi kerak.');
       return res.status(500).json({ message: 'Server konfiguratsiya xatosi' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Kassa user uchun maxsus holat
-    if (decoded.id === 'kassa-user') {
+    // Hardcoded admin check
+    if (decoded.id === 'hardcoded-admin-id') {
       req.user = {
-        _id: 'kassa-user',
-        name: decoded.name || 'Kassa',
-        role: decoded.role || 'cashier',
-        login: 'kassachi'
+        _id: 'hardcoded-admin-id',
+        name: 'System Admin',
+        login: 'admin',
+        role: 'admin'
       };
       return next();
     }
     
-    // Oddiy user uchun database dan olish
+    // Database dan foydalanuvchi qidirish
     const user = await User.findById(decoded.id).select('-password');
     if (!user) return res.status(401).json({ message: 'Foydalanuvchi topilmadi' });
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Token yaroqsiz' });
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Token yaroqsiz' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token muddati tugagan' });
+    }
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ message: 'Avtorizatsiya xatosi' });
   }
 };
 

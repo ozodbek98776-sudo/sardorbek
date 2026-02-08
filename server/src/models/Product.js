@@ -1,21 +1,121 @@
 const mongoose = require('mongoose');
 
+// Narx turlari uchun enum
+const PRICE_TYPES = {
+  COST: 'cost',           // Tan narxi
+  UNIT: 'unit',           // Dona/kg/metr narxi
+  BOX: 'box',             // Karobka narxi
+  DISCOUNT_1: 'discount1', // 1-chi skidka
+  DISCOUNT_2: 'discount2', // 2-chi skidka  
+  DISCOUNT_3: 'discount3'  // 3-chi skidka
+};
+
+// O'lchov birliklari
+const UNIT_TYPES = {
+  PIECE: 'dona',     // Dona
+  KILOGRAM: 'kg',    // Kilogram
+  METER: 'metr',     // Metr
+  LITER: 'litr',     // Litr
+  BOX: 'karobka'     // Karobka
+};
+
+// Narx sxemasi - har bir narx turi uchun
+const priceSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: Object.values(PRICE_TYPES),
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  // Skidka narxlari uchun minimal miqdor
+  minQuantity: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  // Skidka foizi (faqat skidka narxlari uchun)
+  discountPercent: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, { _id: false });
+
 const productSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  description: { type: String, default: '' }, // Qisqacha tavsif
-  costPrice: { type: Number, default: 0 }, // Tan narxi
-  unitPrice: { type: Number, default: 0 }, // Dona narxi
-  boxPrice: { type: Number, default: 0 }, // Karobka narxi
-  price: { type: Number, required: true }, // Base price (cost price)
-  previousPrice: { type: Number, default: 0 }, // Oldingi narxi
-  currentPrice: { type: Number, default: 0 }, // Hozirgi narxi
-  quantity: { type: Number, default: 0 },
-  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
-  isMainWarehouse: { type: Boolean, default: false },
+  code: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    trim: true
+  },
+  name: { 
+    type: String, 
+    required: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 200
+  },
+  description: { 
+    type: String, 
+    default: '',
+    maxlength: 1000
+  },
+  
+  // ASOSIY NARXLAR - Sizning talabingiz bo'yicha
+  prices: [priceSchema],
+  
+  // Hozirgi miqdor
+  quantity: { 
+    type: Number, 
+    default: 0,
+    min: 0
+  },
+  
+  // O'lchov birligi
+  unit: {
+    type: String,
+    enum: Object.values(UNIT_TYPES),
+    default: UNIT_TYPES.PIECE,
+    required: true
+  },
+  
+  // Karobka ma'lumotlari (agar karobkada sotilsa)
+  boxInfo: {
+    unitsPerBox: {
+      type: Number,
+      default: 1,
+      min: 1
+    },
+    boxWeight: {
+      type: Number,
+      default: 0
+    }
+  },
+  
+  warehouse: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Warehouse' 
+  },
+  isMainWarehouse: { 
+    type: Boolean, 
+    default: false 
+  },
   category: { 
     type: String, 
-    default: 'Boshqa'
+    default: ''
+  },
+  subcategory: {
+    type: String,
+    default: ''
   },
   categoryId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -23,146 +123,182 @@ const productSchema = new mongoose.Schema({
     default: null
   },
   images: [{ 
-    path: { type: String, required: true }, // Rasm yo'li
-    uploadedBy: { type: String, enum: ['admin', 'cashier'], default: 'admin' }, // Kim yuklagan
-    uploadedAt: { type: Date, default: Date.now } // Qachon yuklangan
-  }], // Array of image objects with metadata
-  minStock: { type: Number, default: 50 },
-
-  // Mahsulot o'lchamlari (sm/mm)
-  dimensions: {
-    width: { type: String, default: '' },   // Eni (sm)
-    height: { type: String, default: '' },  // Bo'yi (mm)
-    length: { type: String, default: '' }   // Uzunligi (sm)
-  },
-
-  // O'lchov birliklari
-  unit: {
-    type: String,
-    enum: ['dona', 'metr', 'rulon', 'karobka', 'gram', 'kg', 'litr'],
-    default: 'dona'
-  },
-
-  // Rulon/Karobka uchun qo'shimcha ma'lumotlar
-  unitConversion: {
-    enabled: { type: Boolean, default: false },
-    // Masalan: 1 rulon = 30 metr, 1 karobka = 12 dona
-    baseUnit: { type: String, enum: ['dona', 'metr', 'gram', 'kg', 'litr'], default: 'dona' },
-    conversionRate: { type: Number, default: 1 }, // 1 rulon = X metr
-    packageCount: { type: Number, default: 0 }, // Nechta rulon/karobka bor
-    totalBaseUnits: { type: Number, default: 0 } // Jami metr/dona
-  },
-
-  // Turli narxlar
-  prices: {
-    perUnit: { type: Number, default: 0 }, // Dona narxi
-    perMeter: { type: Number, default: 0 }, // Metr narxi
-    perGram: { type: Number, default: 0 }, // Gram narxi
-    perKg: { type: Number, default: 0 }, // Kg narxi
-    perRoll: { type: Number, default: 0 }, // Rulon narxi
-    perBox: { type: Number, default: 0 } // Karobka narxi
-  },
-  // Wholesale pricing tiers - Foizli chegirmalar
-  pricingTiers: {
-    tier1: { // 1-dan X gacha
-      minQuantity: { type: Number, default: 1 },
-      maxQuantity: { type: Number, default: 5 },
-      discountPercent: { type: Number, default: 1 } // 1% chegirma
-    },
-    tier2: { // X dan Y gacha
-      minQuantity: { type: Number, default: 6 },
-      maxQuantity: { type: Number, default: 20 },
-      discountPercent: { type: Number, default: 3 } // 3% chegirma
-    },
-    tier3: { // Y dan Z gacha
-      minQuantity: { type: Number, default: 21 },
-      maxQuantity: { type: Number, default: 100 },
-      discountPercent: { type: Number, default: 5 } // 5% chegirma
-    }
-  },
-  // Package/batch information
-  packages: [{
-    packageCount: { type: Number, required: true }, // Nechta qop
-    unitsPerPackage: { type: Number, required: true }, // Har qopda nechta
-    totalCost: { type: Number, required: true }, // Jami narxi
-    costPerUnit: { type: Number, required: true }, // Bir dona narxi
-    dateAdded: { type: Date, default: Date.now }
+    path: { type: String, required: true },
+    uploadedBy: { type: String, enum: ['admin', 'cashier'], default: 'admin' },
+    uploadedAt: { type: Date, default: Date.now }
   }],
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  minStock: { 
+    type: Number, 
+    default: 50,
+    min: 0
+  },
+
+  // Mahsulot o'lchamlari
+  dimensions: {
+    width: { type: Number, default: 0 },   // Eni (sm)
+    height: { type: Number, default: 0 },  // Bo'yi (sm)
+    length: { type: Number, default: 0 }   // Uzunligi (sm)
+  },
   
-  // Dollar narxlari
-  costPriceInDollar: { type: Number, default: 0 }, // Tan narxi dollarda
-  dollarRate: { type: Number, default: 12500 }, // Dollar kursi (1 dollar = X so'm)
+  createdBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  },
+  
+  // Dollar kursi (agar kerak bo'lsa)
+  dollarRate: { 
+    type: Number, 
+    default: 12500 
+  },
   
   // QR Code
-  qrCode: { type: String, default: null } // QR code data URL yoki path
-}, { timestamps: true });
-
-// Miqdorga qarab narx hisoblash method (chegirma bilan)
-productSchema.methods.calculatePrice = function (quantity) {
-  const basePrice = this.unitPrice || this.price; // Dona narxi
-  let discountPercent = 0; // Default chegirma yo'q
-
-  // Pricing tier aniqlash
-  const tier1 = this.pricingTiers?.tier1;
-  const tier2 = this.pricingTiers?.tier2;
-  const tier3 = this.pricingTiers?.tier3;
-
-  if (tier3 && quantity >= tier3.minQuantity) {
-    discountPercent = tier3.discountPercent || 5;
-  } else if (tier2 && quantity >= tier2.minQuantity) {
-    discountPercent = tier2.discountPercent || 3;
-  } else if (tier1 && quantity >= tier1.minQuantity) {
-    discountPercent = tier1.discountPercent || 1;
+  qrCode: { 
+    type: String, 
+    default: null 
   }
+}, { 
+  timestamps: true 
+});
 
-  // Narxni hisoblash (chegirma bilan)
-  const finalPrice = basePrice * (1 - discountPercent / 100);
-  return Math.round(finalPrice); // Yaxlitlash
+// METODLAR - Sizning talabingiz bo'yicha
+
+// 1. Tan narxini olish
+productSchema.methods.getCostPrice = function() {
+  const costPrice = this.prices.find(p => p.type === PRICE_TYPES.COST && p.isActive);
+  return costPrice ? costPrice.amount : 0;
 };
 
-// Pricing tier ma'lumotini olish method
-productSchema.methods.getPricingTier = function (quantity) {
-  const tier1 = this.pricingTiers?.tier1;
-  const tier2 = this.pricingTiers?.tier2;
-  const tier3 = this.pricingTiers?.tier3;
+// 2. Dona/kg/metr narxini olish
+productSchema.methods.getUnitPrice = function() {
+  const unitPrice = this.prices.find(p => p.type === PRICE_TYPES.UNIT && p.isActive);
+  return unitPrice ? unitPrice.amount : 0;
+};
 
-  if (tier3 && quantity >= tier3.minQuantity) {
-    return {
-      tier: 'tier3',
-      name: `${tier3.minQuantity}+ dona`,
-      discountPercent: tier3.discountPercent || 5,
-      minQuantity: tier3.minQuantity,
-      maxQuantity: tier3.maxQuantity
-    };
-  } else if (tier2 && quantity >= tier2.minQuantity) {
-    return {
-      tier: 'tier2',
-      name: `${tier2.minQuantity}-${tier2.maxQuantity} dona`,
-      discountPercent: tier2.discountPercent || 3,
-      minQuantity: tier2.minQuantity,
-      maxQuantity: tier2.maxQuantity
-    };
+// 3. Karobka narxini olish
+productSchema.methods.getBoxPrice = function() {
+  const boxPrice = this.prices.find(p => p.type === PRICE_TYPES.BOX && p.isActive);
+  return boxPrice ? boxPrice.amount : 0;
+};
+
+// 4. Skidka narxlarini olish
+productSchema.methods.getDiscountPrices = function() {
+  return this.prices.filter(p => 
+    [PRICE_TYPES.DISCOUNT_1, PRICE_TYPES.DISCOUNT_2, PRICE_TYPES.DISCOUNT_3].includes(p.type) && 
+    p.isActive
+  ).sort((a, b) => a.minQuantity - b.minQuantity);
+};
+
+// 5. Miqdorga qarab eng yaxshi narxni hisoblash
+productSchema.methods.calculateBestPrice = function(quantity, saleType = 'unit') {
+  let basePrice = 0;
+  let appliedDiscount = null;
+
+  // Sotish turiga qarab asosiy narxni aniqlash
+  switch(saleType) {
+    case 'unit':
+      basePrice = this.getUnitPrice();
+      break;
+    case 'box':
+      basePrice = this.getBoxPrice();
+      // Agar karobka narxi yo'q bo'lsa, dona narxini karobka miqdoriga ko'paytirish
+      if (!basePrice && this.boxInfo.unitsPerBox > 0) {
+        basePrice = this.getUnitPrice() * this.boxInfo.unitsPerBox;
+      }
+      break;
+    default:
+      basePrice = this.getUnitPrice();
+  }
+
+  // Skidka narxlarini tekshirish
+  const discountPrices = this.getDiscountPrices();
+  for (const discount of discountPrices) {
+    if (quantity >= discount.minQuantity) {
+      const discountedPrice = basePrice * (1 - discount.discountPercent / 100);
+      if (discountedPrice < basePrice) {
+        basePrice = discountedPrice;
+        appliedDiscount = {
+          type: discount.type,
+          percent: discount.discountPercent,
+          minQuantity: discount.minQuantity
+        };
+      }
+    }
+  }
+
+  return {
+    price: Math.round(basePrice),
+    originalPrice: saleType === 'unit' ? this.getUnitPrice() : this.getBoxPrice(),
+    appliedDiscount,
+    saleType,
+    unit: this.unit
+  };
+};
+
+// 6. Barcha narxlarni olish (admin panel uchun)
+productSchema.methods.getAllPrices = function() {
+  return {
+    costPrice: this.getCostPrice(),
+    unitPrice: this.getUnitPrice(),
+    boxPrice: this.getBoxPrice(),
+    discountPrices: this.getDiscountPrices(),
+    unit: this.unit,
+    boxInfo: this.boxInfo
+  };
+};
+
+// 7. Narx qo'shish/yangilash metodlari
+productSchema.methods.updatePrice = function(priceType, amount, options = {}) {
+  const existingPriceIndex = this.prices.findIndex(p => p.type === priceType);
+  
+  const priceData = {
+    type: priceType,
+    amount: amount,
+    minQuantity: options.minQuantity || 1,
+    discountPercent: options.discountPercent || 0,
+    isActive: options.isActive !== undefined ? options.isActive : true
+  };
+
+  if (existingPriceIndex >= 0) {
+    // Mavjud narxni yangilash
+    this.prices[existingPriceIndex] = priceData;
   } else {
-    return {
-      tier: 'tier1',
-      name: `${tier1?.minQuantity || 1}-${tier1?.maxQuantity || 5} dona`,
-      discountPercent: tier1?.discountPercent || 1,
-      minQuantity: tier1?.minQuantity || 1,
-      maxQuantity: tier1?.maxQuantity || 5
-    };
+    // Yangi narx qo'shish
+    this.prices.push(priceData);
   }
 };
 
-// Performance indexes for faster queries
-// Note: code index avtomatik yaratiladi (unique: true)
+// 8. Karobka ma'lumotlarini yangilash
+productSchema.methods.updateBoxInfo = function(unitsPerBox, boxWeight = 0) {
+  this.boxInfo = {
+    unitsPerBox: unitsPerBox,
+    boxWeight: boxWeight
+  };
+};
+
+// STATIC METODLAR
+
+// Narx turlari ro'yxatini olish
+productSchema.statics.getPriceTypes = function() {
+  return PRICE_TYPES;
+};
+
+// O'lchov birliklari ro'yxatini olish
+productSchema.statics.getUnitTypes = function() {
+  return UNIT_TYPES;
+};
+
+// Performance indexes
+productSchema.index({ code: 1 }, { unique: true });
 productSchema.index({ name: 1 });
 productSchema.index({ warehouse: 1, isMainWarehouse: 1 });
-productSchema.index({ isMainWarehouse: 1, code: 1 }); // Compound index - juda tez!
+productSchema.index({ isMainWarehouse: 1, code: 1 });
 productSchema.index({ category: 1 });
+productSchema.index({ subcategory: 1 });
+productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ createdAt: -1 });
-productSchema.index({ name: 'text', code: 'text' }); // Text search index
-productSchema.index({ quantity: 1 }); // Quantity index - statistika uchun
-productSchema.index({ price: 1, quantity: 1 }); // Compound index - totalValue hisoblash uchun
+productSchema.index({ name: 'text', code: 'text' });
+productSchema.index({ quantity: 1 });
+productSchema.index({ 'prices.type': 1, 'prices.isActive': 1 });
+productSchema.index({ unit: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

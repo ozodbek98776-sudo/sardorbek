@@ -83,100 +83,16 @@
         });
       }
 
-      // iOS PWA Install Prompt
-      let deferredPrompt;
-      let installButton;
-
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        showInstallButton();
-      });
-
-      function showInstallButton() {
-        installButton = document.createElement('button');
-        installButton.textContent = 'Install App';
-        installButton.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          z-index: 1000;
-          background: #3b82f6;
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 12px;
-          font-weight: 600;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-          cursor: pointer;
-          font-size: 14px;
-        `;
-        
-        installButton.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-            installButton.remove();
-          }
-        });
-        
-        document.body.appendChild(installButton);
-      }
-
-      // iOS Safari Install Instructions
-      function isIOS() {
-        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      }
-
-      function isInStandaloneMode() {
-        return ('standalone' in window.navigator) && (window.navigator.standalone);
-      }
-
-      if (isIOS() && !isInStandaloneMode()) {
-        // Show iOS install instructions
-        setTimeout(() => {
-          const iosPrompt = document.createElement('div');
-          iosPrompt.innerHTML = `
-            <div style="
-              position: fixed;
-              bottom: 0;
-              left: 0;
-              right: 0;
-              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-              color: white;
-              padding: 16px;
-              text-align: center;
-              z-index: 1000;
-              box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
-            ">
-              <p style="margin: 0 0 8px 0; font-weight: 600;">Install Sardorbek.Furnetura App</p>
-              <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-                Tap <strong>Share</strong> → <strong>Add to Home Screen</strong>
-              </p>
-              <button onclick="this.parentElement.parentElement.remove()" style="
-                position: absolute;
-                top: 8px;
-                right: 12px;
-                background: none;
-                border: none;
-                color: white;
-                font-size: 18px;
-                cursor: pointer;
-              ">×</button>
-            </div>
-          `;
-          document.body.appendChild(iosPrompt);
-        }, 3000);
-      }
-
       // Prevent zoom on iOS
       document.addEventListener('gesturestart', function (e) {
         e.preventDefault();
       });
 
       // Handle iOS safe areas
+      function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      }
+
       if (isIOS()) {
         document.documentElement.style.setProperty('--safe-area-inset-top', 'env(safe-area-inset-top)');
         document.documentElement.style.setProperty('--safe-area-inset-bottom', 'env(safe-area-inset-bottom)');

@@ -15,6 +15,86 @@ router.use((req, res, next) => {
   next();
 });
 
+// ⚡ STATISTICS ENDPOINT - Faqat statistika ma'lumotlari
+router.get('/statistics', auth, async (req, res) => {
+  try {
+    const { search, category } = req.query;
+    const query = {};
+
+    // Search filter
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const searchTerm = search.trim();
+      const isNumericSearch = /^\d+$/.test(searchTerm);
+      
+      if (isNumericSearch) {
+        query.$or = [
+          { code: { $regex: `^${searchTerm}`, $options: 'i' } },
+          { code: { $regex: searchTerm, $options: 'i' } },
+          { name: { $regex: searchTerm, $options: 'i' } }
+        ];
+      } else {
+        query.$or = [
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { code: { $regex: searchTerm, $options: 'i' } }
+        ];
+      }
+    }
+
+    // Category filter
+    if (category) {
+      query.category = category;
+    }
+
+    // ⚡ Parallel aggregation - tez va samarali
+    const [stats] = await Product.aggregate([
+      { $match: query },
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          lowStock: [
+            { $match: { quantity: { $gt: 0, $lte: 50 } } },
+            { $count: 'count' }
+          ],
+          outOfStock: [
+            { $match: { quantity: 0 } },
+            { $count: 'count' }
+          ],
+          totalValue: [
+            {
+              $group: {
+                _id: null,
+                value: {
+                  $sum: {
+                    $multiply: [
+                      { $ifNull: ['$unitPrice', { $ifNull: ['$price', 0] }] },
+                      '$quantity'
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const result = {
+      total: stats.total[0]?.count || 0,
+      lowStock: stats.lowStock[0]?.count || 0,
+      outOfStock: stats.outOfStock[0]?.count || 0,
+      totalValue: stats.totalValue[0]?.value || 0
+    };
+
+    console.log(`📊 Statistics calculated in ${Date.now() - req.startTime}ms:`, result);
+
+    res.set('Cache-Control', 'public, max-age=30'); // 30 soniya cache
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error in GET /products/statistics:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Lazy load sharp - only when needed
 let sharp = null;
 let sharpLoaded = false;
@@ -68,32 +148,43 @@ const upload = multer({
 // Kassa uchun alohida endpoint - token talab qilmaydi
 router.get('/kassa', async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, page = 1, limit = 10 } = req.query; // 10 ta mahsulot
     const query = {};
 
-    if (search) {
+    // Search query faqat string va bo'sh bo'lmasa
+    if (search && typeof search === 'string' && search.trim() !== '' && search !== 'undefined') {
+      const searchTerm = search.trim();
       // Agar qidiruv faqat raqamlardan iborat bo'lsa, kod bo'yicha qidirish
-      const isNumericSearch = /^\d+$/.test(search);
+      const isNumericSearch = /^\d+$/.test(searchTerm);
 
       if (isNumericSearch) {
         query.$or = [
-          { code: { $regex: `^${search}`, $options: 'i' } }, // Kod bilan boshlanadi (yuqori prioritet)
-          { code: { $regex: search, $options: 'i' } }, // Kod tarkibida bor
-          { name: { $regex: search, $options: 'i' } } // Nom ichida ham qidirish
+          { code: { $regex: `^${searchTerm}`, $options: 'i' } }, // Kod bilan boshlanadi (yuqori prioritet)
+          { code: { $regex: searchTerm, $options: 'i' } }, // Kod tarkibida bor
+          { name: { $regex: searchTerm, $options: 'i' } } // Nom ichida ham qidirish
         ];
       } else {
         query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { code: { $regex: search, $options: 'i' } },
-          { code: search } // Aniq kod bo'yicha qidirish
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { code: { $regex: searchTerm, $options: 'i' } },
+          { code: searchTerm } // Aniq kod bo'yicha qidirish
         ];
       }
     }
 
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Total count - statistika uchun
+    const total = await Product.countDocuments(query);
+
+    // Minimal ma'lumotlar - faqat card uchun kerakli
     const products = await Product.find(query)
-      .select('name code price quantity description warehouse isMainWarehouse category images')
-      .populate('warehouse', 'name')
-      .limit(search ? 50 : 1000)
+      .select('name code price quantity images') // Minimal fields
+      .limit(limitNum)
+      .skip(skip)
       .lean()
       .hint({ code: 1 });
     
@@ -129,10 +220,21 @@ router.get('/kassa', async (req, res) => {
       return hasValidName && hasValidCode && hasValidData;
     });
 
-    console.log(`Kassa endpoint: Found ${products.length} total products, ${validProducts.length} valid products`);
-    console.log(`Search query: "${search}", Results: ${validProducts.length}`);
+    console.log(`Kassa endpoint: Page ${pageNum}/${Math.ceil(total / limitNum)}, Found ${validProducts.length} products`);
+    if (search && search !== 'undefined') {
+      console.log(`Search query: "${search}", Results: ${validProducts.length}`);
+    }
 
-    res.json(validProducts);
+    res.json({
+      products: validProducts,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+        hasMore: pageNum < Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Kassa products error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
@@ -202,7 +304,7 @@ router.post('/kassa', async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 50 } = req.query;
+    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10 } = req.query; // 10 ta default
     const query = {};
 
     if (search) {
@@ -228,9 +330,8 @@ router.get('/', auth, async (req, res) => {
     // ⚡ KASSA VIEW - ULTRA MINIMAL - faqat kerakli fieldlar
     if (kassaView === 'true') {
       const products = await Product.find(query)
-        .select('name code price quantity images category') // 6 ta field - category qo'shildi!
-        .limit(search ? 50 : 50) // Maksimal 50 ta
-        .lean(); // 40% tezroq!
+        .select('name code price quantity images category section') // section ham qo'shildi
+        .lean(); // 40% tezroq! - LIMIT OLIB TASHLANDI, barcha tovarlar
 
       // ⚡ Raqamli sort - tez
       products.sort((a, b) => {
@@ -1000,11 +1101,15 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       code: productCode,
       warehouse: finalWarehouse,
       isMainWarehouse,
-      createdBy: req.user._id,
       costPriceInDollar: costPriceInDollar || 0,
       dollarRate: dollarRate || 12500,
       images: formattedImages
     };
+
+    // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      productData.createdBy = req.user._id;
+    }
 
     // Add package information if provided
     if (packageInfo) {

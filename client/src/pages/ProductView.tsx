@@ -98,7 +98,7 @@ export default function ProductView() {
   const menuItems = [
     { icon: Home, label: 'Bosh sahifa', path: '/' },
     { icon: Package2, label: 'Mahsulotlar', path: '/admin/products' },
-    { icon: ShoppingCart, label: 'Kassa', path: '/admin/kassa' },
+    { icon: ShoppingCart, label: 'Kassa', path: '/kassa/pos' }, // External link
     { icon: Users, label: 'Mijozlar', path: '/admin/customers' },
     { icon: FileText, label: 'Qarzlar', path: '/admin/debts' },
     { icon: Warehouse, label: 'Omborlar', path: '/admin/warehouses' },
@@ -143,18 +143,18 @@ export default function ProductView() {
   const unitLabel = getUnitLabel(product.unit);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-surface-100 to-white">
-      {/* Header - Mobil uchun optimallashtirilgan */}
+    <div className="min-h-screen bg-gradient-to-b from-surface-100 to-white w-full h-full">
+      {/* Header - FULL WIDTH */}
       <div className="bg-white/80 backdrop-blur-lg border-b border-surface-200/50 sticky top-0 z-40">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="w-full px-2 sm:px-3 py-2 flex items-center gap-2">
           <button 
             onClick={() => navigate(-1)}
-            className="w-10 h-10 bg-surface-100 rounded-xl flex items-center justify-center hover:bg-surface-200 transition-colors active:scale-95"
+            className="w-8 h-8 bg-surface-100 rounded-lg flex items-center justify-center hover:bg-surface-200 transition-colors active:scale-95"
           >
-            <ArrowLeft className="w-5 h-5 text-surface-700" />
+            <ArrowLeft className="w-4 h-4 text-surface-700" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-surface-900 truncate">{product.name}</h1>
+            <h1 className="text-sm font-semibold text-surface-900 truncate">{product.name}</h1>
             <p className="text-xs text-surface-500">Kod: {product.code}</p>
           </div>
           <button 
@@ -242,8 +242,8 @@ export default function ProductView() {
         </>
       )}
 
-      <div className="max-w-lg mx-auto pb-8">
-        {/* Product Image - Full width */}
+      <div className="w-full pb-4">
+        {/* Product Image - FULL WIDTH */}
         <div className="relative">
           {product.images && product.images.length > 0 ? (
             <div className="aspect-square bg-white">

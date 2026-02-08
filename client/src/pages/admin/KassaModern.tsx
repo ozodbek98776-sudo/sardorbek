@@ -43,16 +43,18 @@ export default function KassaModern() {
   const fetchCustomers = async () => {
     try {
       const res = await api.get('/customers');
-      setCustomers(res.data);
+      setCustomers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching customers:', err);
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.code.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 50); // Increased to 50 for better UX
+  const filteredProducts = Array.isArray(products) 
+    ? products.filter(p => 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.code.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 50) // Increased to 50 for better UX
+    : [];
 
   const handleImageLoad = (productId: string) => {
     setImageLoadedMap(prev => ({ ...prev, [productId]: true }));

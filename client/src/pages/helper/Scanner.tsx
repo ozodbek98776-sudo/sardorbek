@@ -7,6 +7,7 @@ import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
+import { getDiscountPrices, getUnitLabel, getUnitPrice, getCostPrice } from '../../utils/pricing';
 
 interface Customer {
   _id: string;
@@ -436,27 +437,29 @@ export default function HelperScanner() {
     }
   };
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-    c.phone.includes(customerSearchQuery)
-  );
+  const filteredCustomers = Array.isArray(customers) 
+    ? customers.filter(c =>
+        c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+        c.phone.includes(customerSearchQuery)
+      )
+    : [];
 
   const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-1 sm:p-2 w-full h-full">
       {AlertComponent}
 
       {/* Modern Header with Glassmorphism */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/5 border border-white/20 p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
-                <QrCode className="w-7 h-7 text-white" />
+      <div className="w-full mb-2 sm:mb-3">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-900/5 border border-white/20 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <QrCode className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
                   QR Skaner
                 </h1>
                 <p className="text-sm text-slate-600 mt-1">
@@ -862,73 +865,41 @@ export default function HelperScanner() {
                     </div>
                   )}
 
-                  {/* Chegirmalar */}
-                  {(scannedProduct as any).pricingTiers && (
-                    <div>
-                      <label className="text-xs font-medium text-surface-500 uppercase tracking-wide mb-2 block">Miqdorga qarab chegirmalar</label>
-                      <div className="space-y-2">
-                        {(scannedProduct as any).pricingTiers.tier1 && (
-                          <div className="px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-emerald-700">
-                                {(scannedProduct as any).pricingTiers.tier1.minQuantity}-
-                                {(scannedProduct as any).pricingTiers.tier1.maxQuantity} dona
-                              </span>
-                              <span className="text-lg font-bold text-emerald-700">
-                                {(scannedProduct as any).pricingTiers.tier1.discountPercent}% chegirma
-                              </span>
-                            </div>
-                            <p className="text-sm text-emerald-600 mt-1">
-                              Narx: {formatNumber(
-                                Math.round(
-                                  scannedProduct.price * (1 - (scannedProduct as any).pricingTiers.tier1.discountPercent / 100)
-                                )
-                              )} so'm
-                            </p>
-                          </div>
-                        )}
-                        {(scannedProduct as any).pricingTiers.tier2 && (
-                          <div className="px-4 py-3 rounded-xl border border-sky-200 bg-sky-50">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-sky-700">
-                                {(scannedProduct as any).pricingTiers.tier2.minQuantity}-
-                                {(scannedProduct as any).pricingTiers.tier2.maxQuantity} dona
-                              </span>
-                              <span className="text-lg font-bold text-sky-700">
-                                {(scannedProduct as any).pricingTiers.tier2.discountPercent}% chegirma
-                              </span>
-                            </div>
-                            <p className="text-sm text-sky-600 mt-1">
-                              Narx: {formatNumber(
-                                Math.round(
-                                  scannedProduct.price * (1 - (scannedProduct as any).pricingTiers.tier2.discountPercent / 100)
-                                )
-                              )} so'm
-                            </p>
-                          </div>
-                        )}
-                        {(scannedProduct as any).pricingTiers.tier3 && (
-                          <div className="px-4 py-3 rounded-xl border border-violet-200 bg-violet-50">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-violet-700">
-                                {(scannedProduct as any).pricingTiers.tier3.minQuantity}+ dona
-                              </span>
-                              <span className="text-lg font-bold text-violet-700">
-                                {(scannedProduct as any).pricingTiers.tier3.discountPercent}% chegirma
-                              </span>
-                            </div>
-                            <p className="text-sm text-violet-600 mt-1">
-                              Narx: {formatNumber(
-                                Math.round(
-                                  scannedProduct.price * (1 - (scannedProduct as any).pricingTiers.tier3.discountPercent / 100)
-                                )
-                              )} so'm
-                            </p>
-                          </div>
-                        )}
+                  {/* Chegirmalar - YANGI NARX TIZIMI */}
+                  {(() => {
+                    const discountPrices = getDiscountPrices(scannedProduct);
+                    return discountPrices.length > 0 && (
+                      <div>
+                        <label className="text-xs font-medium text-surface-500 uppercase tracking-wide mb-2 block">Miqdorga qarab chegirmalar</label>
+                        <div className="space-y-2">
+                          {discountPrices.map((discount, index) => {
+                            const colors = [
+                              { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', textLight: 'text-emerald-600' },
+                              { bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700', textLight: 'text-sky-600' },
+                              { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', textLight: 'text-violet-600' }
+                            ];
+                            const color = colors[index] || colors[0];
+                            
+                            return (
+                              <div key={discount.type} className={`px-4 py-3 rounded-xl border ${color.border} ${color.bg}`}>
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-sm font-medium ${color.text}`}>
+                                    {discount.minQuantity}+ {getUnitLabel(scannedProduct.unit || 'dona')}
+                                  </span>
+                                  <span className={`text-lg font-bold ${color.text}`}>
+                                    {discount.discountPercent}% chegirma
+                                  </span>
+                                </div>
+                                <p className={`text-sm ${color.textLight} mt-1`}>
+                                  Narx: {formatNumber(discount.amount)} so'm
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Savatga qo'shish tugmasi */}
                   <div className="flex gap-3 pt-2">

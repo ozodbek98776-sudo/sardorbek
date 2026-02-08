@@ -5,8 +5,7 @@ import api from '../utils/api';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (phone: string, password: string) => Promise<void>;
-  loginWithCredentials: (login: string, password: string) => Promise<void>;
+  login: (loginOrPhone: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: User) => void;
 }
@@ -18,64 +17,129 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Retry logic bilan user ma'lumotlarini olish
-      const fetchUserWithRetry = async (retries = 3, delay = 1000) => {
-        for (let i = 0; i < retries; i++) {
-          try {
-            const res = await api.get('/auth/me', {
-              timeout: 5000, // 5 soniya timeout
-            });
-            setUser(res.data);
-            setLoading(false);
-            return; // Muvaffaqiyatli bo'lsa, chiqish
-          } catch (error: any) {
-            console.warn(`User fetch attempt ${i + 1}/${retries} failed:`, error.message);
-            
-            // Agar oxirgi urinish bo'lsa yoki 401/403 xatolik bo'lsa, token o'chirish
-            if (i === retries - 1 || error.response?.status === 401 || error.response?.status === 403) {
-              console.error('Failed to fetch user after retries, clearing token');
-              localStorage.removeItem('token');
-              setLoading(false);
-              return;
+    const initializeAuth = async () => {
+      console.log('🔍 [AuthContext] initializeAuth started');
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      console.log('🔍 [AuthContext] token:', token ? 'MAVJUD (' + token.substring(0, 20) + '...)' : 'YO\'Q');
+      console.log('🔍 [AuthContext] savedUser:', savedUser ? 'MAVJUD' : 'YO\'Q');
+      
+      if (token) {
+        try {
+          console.log('🔄 Token topildi, user ma\'lumotlarini yuklash...');
+          
+          // First try to use cached user data for immediate UI update
+          if (savedUser) {
+            try {
+              const parsedUser = JSON.parse(savedUser);
+              console.log('📦 Cached user ma\'lumotlari darhol yuklandi:', parsedUser);
+              setUser(parsedUser);
+              setLoading(false); // Darhol loading ni to'xtatish
+            } catch (parseError) {
+              console.error('❌ Cached user parse error:', parseError);
             }
-            
-            // Keyingi urinishdan oldin kutish
-            await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+          }
+          
+          // Then validate token with server in background
+          console.log('🔍 [AuthContext] /auth/me so\'rovi yuborilmoqda...');
+          const res = await api.get('/auth/me');
+          console.log('✅ Server dan user ma\'lumotlari tasdiqlandi:', res.data);
+          
+          // Extract user data from response
+          const serverUser = res.data.success ? res.data.data : res.data;
+          console.log('📦 Extracted serverUser:', serverUser);
+          console.log('📦 serverUser.role:', serverUser.role);
+          
+          // Update user data if different from cached
+          if (!savedUser || JSON.stringify(serverUser) !== savedUser) {
+            console.log('🔄 Updating user in state and localStorage');
+            localStorage.setItem('user', JSON.stringify(serverUser));
+            setUser(serverUser);
+          } else {
+            console.log('✅ Server user matches cached user, no update needed');
+          }
+          
+        } catch (error: any) {
+          console.error('❌ User ma\'lumotlarini yuklashda xatolik:', error);
+          console.error('❌ Error response:', error.response?.status, error.response?.data);
+          
+          // Faqat 401 (Unauthorized) bo'lsa token va user ni o'chirish
+          if (error.response?.status === 401) {
+            console.warn('🔑 Token yaroqsiz, o\'chirilmoqda...');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+          } else {
+            // Boshqa xatoliklar uchun (network, server down) cached user ni saqlab qolish
+            console.warn('⚠️ Vaqtinchalik xatolik, cached user saqlanib qoldi');
+            if (savedUser && !user) {
+              // Agar user hali o'rnatilmagan bo'lsa (cached user yuklash muvaffaqiyatsiz bo'lgan)
+              try {
+                const parsedUser = JSON.parse(savedUser);
+                console.log('📦 Cached user ma\'lumotlari ishlatilmoqda (xato tufayli):', parsedUser);
+                setUser(parsedUser);
+              } catch (parseError) {
+                console.error('❌ Cached user parse error:', parseError);
+                // If cached user is corrupted, clear everything
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setUser(null);
+              }
+            }
+            // Agar user allaqachon o'rnatilgan bo'lsa (cached user yuklash muvaffaqiyatli bo'lgan), hech narsa qilmaslik
           }
         }
-      };
+      } else {
+        console.log('🔍 Token topilmadi');
+        // Clear any stale user data
+        localStorage.removeItem('user');
+        setUser(null);
+      }
       
-      fetchUserWithRetry();
-    } else {
+      console.log('🔍 [AuthContext] setLoading(false) chaqirilmoqda...');
       setLoading(false);
-    }
+      console.log('🔍 [AuthContext] initializeAuth yakunlandi');
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = async (phone: string, password: string) => {
-    const res = await api.post('/auth/login', { phone, password });
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
-  };
-
-  const loginWithCredentials = async (loginUsername: string, password: string) => {
-    const res = await api.post('/auth/login', { login: loginUsername, password });
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
+  const login = async (loginOrPhone: string, password: string) => {
+    try {
+      console.log('🔐 Login so\'rovi yuborilmoqda...');
+      const res = await api.post('/auth/login', { login: loginOrPhone, password });
+      
+      const { token, user: userData } = res.data;
+      
+      // Token va user ma'lumotlarini saqlash
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData)); // User ma'lumotlarini ham saqlash
+      
+      console.log('✅ Login muvaffaqiyatli:', userData);
+      setUser(userData);
+    } catch (error) {
+      console.error('❌ Login xatosi:', error);
+      throw error;
+    }
   };
 
   const logout = () => {
+    console.log('🚪 Logout...');
     localStorage.removeItem('token');
+    localStorage.removeItem('user'); // User ma'lumotlarini ham o'chirish
     setUser(null);
   };
 
   const updateUser = (userData: User) => {
+    console.log('🔄 User ma\'lumotlari yangilanmoqda:', userData);
     setUser(userData);
+    // localStorage ni ham yangilash
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithCredentials, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

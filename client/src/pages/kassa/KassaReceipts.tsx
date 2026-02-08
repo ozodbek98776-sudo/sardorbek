@@ -356,18 +356,18 @@ export default function KassaReceipts() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 p-2 sm:p-4 pb-20">
+    <div className="min-h-screen bg-surface-50 p-1 w-full h-full">
       {AlertComponent}
       
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 mb-3 sm:mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 mb-2">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-base sm:text-xl font-bold text-surface-900 truncate">Cheklar</h1>
+              <h1 className="text-sm sm:text-base font-bold text-surface-900 truncate">Cheklar</h1>
             </div>
           </div>
           <button

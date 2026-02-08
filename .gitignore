@@ -16,15 +16,18 @@ client/.env.production
 # Build outputs
 dist/
 build/
+client/dist/
 
 # Logs
 logs/
 *.log
 npm-debug.log*
+server/logs/
 
 # IDE
 .vscode/
 .idea/
+.kiro/
 
 # OS
 .DS_Store
@@ -36,3 +39,33 @@ Thumbs.db
 
 # Uploaded files
 uploads/
+server/uploads/
+
+# Backups
+backups/
+server/backups/
+
+# Test files
+test-*.js
+test-*.html
+test-*.md
+
+# Documentation (development notes)
+*_TAHLIL.md
+*_TUZATISH.md
+*_FIX.md
+*_OPTIMIZATSIYA.md
+*_FUNKSIYASI.md
+*_INSTRUCTIONS.md
+*_README.md
+LOYIHA_*.md
+KASSA_*.md
+QARZ_*.md
+KATEGORIYA_*.md
+MOLIYAVIY_*.md
+PWA_*.md
+SCANNER_*.md
+LOGOUT_*.md
+XATOLAR_*.md
+CACHE_*.md
+DASHBOARD_*.md

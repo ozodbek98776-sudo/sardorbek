@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
+import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 
 export default function Warehouses() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
@@ -35,19 +36,27 @@ export default function Warehouses() {
 
   const fetchWarehouses = async () => {
     try {
+      setLoading(true);
       const res = await api.get('/warehouses');
+      const warehousesData = extractArrayFromResponse<Warehouse>(res);
       // Filter out "Asosiy ombor"
-      const filtered = res.data.filter((w: Warehouse) => w.name !== 'Asosiy ombor');
+      const filtered = safeFilter<Warehouse>(warehousesData, (w: Warehouse) => w.name !== 'Asosiy ombor');
       setWarehouses(filtered);
-    } catch (err) { console.error('Error fetching warehouses:', err); }
-    finally { setLoading(false); }
+    } catch (err) { 
+      console.error('Error fetching warehouses:', err);
+      showAlert('Omborlarni yuklashda xatolik', 'Xatolik', 'danger');
+      setWarehouses([]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const fetchWarehouseProducts = async (warehouseId: string) => {
     setProductsLoading(true);
     try {
       const res = await api.get(`/products?warehouse=${warehouseId}`);
-      setWarehouseProducts(res.data);
+      const productsData = extractArrayFromResponse<Product>(res);
+      setWarehouseProducts(productsData);
     } catch (err) { console.error('Error fetching products:', err); }
     finally { setProductsLoading(false); }
   };
@@ -227,7 +236,7 @@ export default function Warehouses() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
       <Header 
         title="Omborlar"
@@ -239,7 +248,7 @@ export default function Warehouses() {
         }
       />
 
-      <div className="p-4 lg:p-6">
+      <div className="p-1 sm:p-2 w-full">
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="spinner text-brand-600 w-8 h-8" />

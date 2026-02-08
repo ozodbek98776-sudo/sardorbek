@@ -1,0 +1,178 @@
+/* ============================================
+   📝 CARD TEXT SIZE ENHANCEMENT
+   Barcha cardlardagi yozuvlarni kattalashtirish
+   Card o'lchamlari o'zgarmaydi
+   ============================================ */
+
+/* Card ichidagi barcha text elementlar */
+.card h1, .card-hover h1, .card-purple h1, .card-premium h1,
+.stat-card h1, .product-card h1, .modal h1 {
+  font-size: 1.75rem !important; /* 28px */
+  line-height: 1.3 !important;
+}
+
+.card h2, .card-hover h2, .card-purple h2, .card-premium h2,
+.stat-card h2, .product-card h2, .modal h2 {
+  font-size: 1.5rem !important; /* 24px */
+  line-height: 1.3 !important;
+}
+
+.card h3, .card-hover h3, .card-purple h3, .card-premium h3,
+.stat-card h3, .product-card h3, .modal h3 {
+  font-size: 1.25rem !important; /* 20px */
+  line-height: 1.4 !important;
+  font-weight: 600 !important;
+}
+
+.card h4, .card-hover h4, .card-purple h4, .card-premium h4,
+.stat-card h4, .product-card h4, .modal h4 {
+  font-size: 1.125rem !important; /* 18px */
+  line-height: 1.4 !important;
+}
+
+.card p, .card-hover p, .card-purple p, .card-premium p,
+.stat-card p, .product-card p, .modal p {
+  font-size: 1rem !important; /* 16px */
+  line-height: 1.6 !important;
+}
+
+.card span, .card-hover span, .card-purple span, .card-premium span,
+.stat-card span, .product-card span, .modal span {
+  font-size: 0.9375rem !important; /* 15px */
+}
+
+.card label, .card-hover label, .card-purple label, .card-premium label,
+.stat-card label, .product-card label, .modal label {
+  font-size: 1rem !important; /* 16px */
+  font-weight: 500 !important;
+}
+
+/* Stat values - kattaroq */
+.stat-value {
+  font-size: 2.5rem !important; /* 40px */
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+.stat-label {
+  font-size: 1rem !important; /* 16px */
+  font-weight: 500 !important;
+}
+
+/* Product card price */
+.product-card-price {
+  font-size: 1.75rem !important; /* 28px */
+  font-weight: 700 !important;
+}
+
+/* Badge text */
+.badge, .badge-default, .badge-primary, .badge-success, 
+.badge-warning, .badge-danger, .badge-cyan {
+  font-size: 0.875rem !important; /* 14px */
+  font-weight: 600 !important;
+  padding: 0.375rem 0.75rem !important;
+}
+
+/* Table text */
+.table-header-cell {
+  font-size: 0.875rem !important; /* 14px */
+  font-weight: 600 !important;
+}
+
+.table-cell {
+  font-size: 1rem !important; /* 16px */
+}
+
+/* Button text */
+.btn, .btn-primary, .btn-secondary, .btn-accent, 
+.btn-success, .btn-danger, .btn-warning {
+  font-size: 1rem !important; /* 16px */
+  font-weight: 600 !important;
+}
+
+.btn-sm {
+  font-size: 0.875rem !important; /* 14px */
+}
+
+.btn-lg {
+  font-size: 1.125rem !important; /* 18px */
+}
+
+/* Input text */
+.input, .select {
+  font-size: 1rem !important; /* 16px */
+}
+
+.input::placeholder {
+  font-size: 0.9375rem !important; /* 15px */
+}
+
+/* Navigation text */
+.nav-item, .nav-item-active {
+  font-size: 1rem !important; /* 16px */
+  font-weight: 500 !important;
+}
+
+/* Bottom navigation */
+.bottom-nav-item, .bottom-nav-item-active {
+  font-size: 0.75rem !important; /* 12px */
+  font-weight: 500 !important;
+}
+
+/* Modal header */
+.modal-header h2, .modal-header h3 {
+  font-size: 1.5rem !important; /* 24px */
+  font-weight: 700 !important;
+}
+
+/* List items in cards */
+.card li, .card-hover li, .card-purple li, .card-premium li,
+.stat-card li, .product-card li, .modal li {
+  font-size: 1rem !important; /* 16px */
+  line-height: 1.6 !important;
+}
+
+/* Small text - lekin hali ham o'qilishi oson */
+.card .text-xs, .card-hover .text-xs, .card-purple .text-xs,
+.stat-card .text-xs, .product-card .text-xs, .modal .text-xs {
+  font-size: 0.875rem !important; /* 14px */
+}
+
+.card .text-sm, .card-hover .text-sm, .card-purple .text-sm,
+.stat-card .text-sm, .product-card .text-sm, .modal .text-sm {
+  font-size: 0.9375rem !important; /* 15px */
+}
+
+/* Mobile responsive - kichik ekranlarda biroz kichikroq */
+@media (max-width: 640px) {
+  .card h1, .stat-card h1, .product-card h1, .modal h1 {
+    font-size: 1.5rem !important; /* 24px */
+  }
+
+  .card h2, .stat-card h2, .product-card h2, .modal h2 {
+    font-size: 1.25rem !important; /* 20px */
+  }
+
+  .card h3, .stat-card h3, .product-card h3, .modal h3 {
+    font-size: 1.125rem !important; /* 18px */
+  }
+
+  .stat-value {
+    font-size: 2rem !important; /* 32px */
+  }
+
+  .product-card-price {
+    font-size: 1.5rem !important; /* 24px */
+  }
+}
+
+/* Tablet - o'rtacha */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .card h1, .stat-card h1, .product-card h1, .modal h1 {
+    font-size: 1.625rem !important; /* 26px */
+  }
+
+  .stat-value {
+    font-size: 2.25rem !important; /* 36px */
+  }
+}

@@ -1,20 +1,47 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, User, Lock, ArrowRight, Building2 } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, ArrowRight, Shield } from 'lucide-react';
 import api from '../utils/api';
 
 export default function Login() {
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    login: '',
+    password: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { loginWithCredentials } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  const successMessage = location.state?.message;
+
+  // Agar user allaqachon login qilgan bo'lsa, role bo'yicha yo'naltirish
+  useEffect(() => {
+    if (!authLoading && user) {
+      console.log('🔄 User allaqachon login qilgan, redirect qilinmoqda:', user);
+      
+      // Agar user response wrapper bo'lsa, ichidagi data ni olish
+      const userData = (user as any).success && (user as any).data ? (user as any).data : user;
+      
+      console.log('📦 Actual user data:', userData);
+      
+      switch (userData.role) {
+        case 'admin':
+          navigate('/admin', { replace: true });
+          break;
+        case 'cashier':
+          navigate('/kassa/pos', { replace: true });
+          break;
+        case 'helper':
+          navigate('/helper', { replace: true });
+          break;
+        default:
+          console.warn('⚠️ Noma\'lum role:', userData.role);
+          // Noma'lum role bo'lsa login sahifasida qolish
+          break;
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,229 +49,170 @@ export default function Login() {
     setLoading(true);
     
     try {
-      // AuthContext dan loginWithCredentials funksiyasini ishlatish
-      await loginWithCredentials(login, password);
+      await login(formData.login, formData.password);
       
-      // Login muvaffaqiyatli bo'lgandan keyin, user data ni olish
-      const response = await api.get('/auth/me');
-      const userData = response.data;
+      // Login muvaffaqiyatli bo'lsa, user ma'lumotlarini olish
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
       
-      // Role-based routing
-      if (userData.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else if (userData.role === 'cashier') {
-        navigate('/kassa', { replace: true });
-      } else if (userData.role === 'helper') {
-        navigate('/helper', { replace: true });
-      } else {
-        navigate('/', { replace: true });
+      // Role bo'yicha yo'naltirish
+      console.log('✅ Login muvaffaqiyatli, role:', userData.role);
+      switch (userData.role) {
+        case 'admin':
+          navigate('/admin', { replace: true });
+          break;
+        case 'cashier':
+          navigate('/kassa/pos', { replace: true });
+          break;
+        case 'helper':
+          navigate('/helper', { replace: true });
+          break;
+        default:
+          console.warn('⚠️ Noma\'lum role:', userData.role);
+          navigate('/admin', { replace: true }); // Default admin paneliga
+          break;
       }
+      
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login yoki parol noto\'g\'ri');
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || err.message || 'Login ma\'lumotlari noto\'g\'ri');
+    } finally {
       setLoading(false);
     }
   };
 
+  // Auth loading holatida
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-brand-100 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-slate-600 text-sm">Tekshirilmoqda...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}
-    >
-      {/* Background Elements */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%)' }}
-        />
-        <div 
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgba(109, 40, 217, 0.15) 0%, transparent 70%)' }}
-        />
-        <div 
-          className="absolute top-1/4 right-1/4 w-64 h-64 rounded-full blur-2xl"
-          style={{ background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%)' }}
-        />
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl animate-pulse opacity-20 bg-gradient-to-r from-blue-400 to-purple-600" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl animate-pulse opacity-20 bg-gradient-to-r from-green-400 to-blue-600" />
       </div>
 
-      <div className="w-full max-w-sm relative z-10">
-        {/* Header */}
-        <div className="text-center mb-6 animate-fade-up">
-          <h1 
-            className="text-3xl font-bold mb-2"
-            style={{ 
-              background: 'linear-gradient(135deg, #2e1065 0%, #5b21b6 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}
-          >
-            Sardor Furnitura
-          </h1>
-          <p className="font-medium" style={{ color: '#71717a' }}>Admin boshqaruv tizimi</p>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#22c55e' }} />
-            <span className="text-sm" style={{ color: '#a1a1aa' }}>Xavfsiz kirish</span>
-          </div>
-        </div>
-
+      <div className="w-full max-w-md relative z-10">
         {/* Login Card */}
-        <div 
-          className="rounded-2xl p-6 animate-fade-up"
-          style={{
-            background: 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 245, 255, 0.95) 100%)',
-            border: '1px solid rgba(139, 92, 246, 0.15)',
-            boxShadow: '0 20px 40px -12px rgba(109, 40, 217, 0.2)',
-            backdropFilter: 'blur(20px)'
-          }}
-        >
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold mb-1" style={{ color: '#2e1065' }}>Xush kelibsiz!</h2>
-            <p style={{ color: '#71717a' }}>Login va parolingizni kiriting</p>
+        <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-8 text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="relative z-10 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <Shield className="w-8 h-8" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">Sardor Furnitura</h1>
+              <p className="text-white/80 text-sm">Biznes boshqaruv tizimi</p>
+            </div>
           </div>
 
-          {successMessage && (
-            <div 
-              className="rounded-xl p-4 mb-6 animate-fade-in"
-              style={{ background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', border: '1px solid #86efac' }}
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#22c55e' }}>
-                  <span className="text-white text-xs font-bold">✓</span>
+          {/* Form */}
+          <div className="p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Login Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Login yoki Telefon
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.login}
+                    onChange={(e) => setFormData(prev => ({ ...prev, login: e.target.value }))}
+                    placeholder="Login yoki telefon raqam"
+                    className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                    required
+                  />
                 </div>
-                <div>
-                  <p className="font-medium text-sm" style={{ color: '#166534' }}>Muvaffaqiyat</p>
-                  <p className="text-sm mt-1" style={{ color: '#15803d' }}>{successMessage}</p>
+                <div className="mt-2 text-xs text-gray-500 space-y-1">
+                  <div>• <strong>Admin:</strong> login = <code className="bg-gray-100 px-1 rounded">admin</code>, parol = <code className="bg-gray-100 px-1 rounded">admin123</code></div>
+                  <div>• <strong>Kassir/Yordamchi:</strong> telefon raqam va parol (admin tomonidan yaratilgan)</div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {error && (
-            <div 
-              className="rounded-xl p-4 mb-6 animate-fade-in"
-              style={{ background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)', border: '1px solid #fca5a5' }}
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: '#ef4444' }}>
-                  <span className="text-white text-xs font-bold">!</span>
-                </div>
-                <div>
-                  <p className="font-medium text-sm" style={{ color: '#991b1b' }}>Xatolik</p>
-                  <p className="text-sm mt-1" style={{ color: '#b91c1c' }}>{error}</p>
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Parol
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Parolni kiriting"
+                    className="w-full pl-12 pr-12 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold flex items-center gap-2" style={{ color: '#5b21b6' }}>
-                <User className="w-3.5 h-3.5" />
-                Login
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="w-4 h-4 transition-colors" style={{ color: '#a1a1aa' }} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Loginingizni kiriting"
-                  value={login}
-                  onChange={e => setLogin(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl transition-all duration-200 focus:outline-none text-sm"
-                  style={{
-                    background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
-                    border: '1.5px solid #ddd6fe',
-                    color: '#2e1065'
-                  }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold flex items-center gap-2" style={{ color: '#5b21b6' }}>
-                <Lock className="w-3.5 h-3.5" />
-                Parol
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="w-4 h-4 transition-colors" style={{ color: '#a1a1aa' }} />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Parolingizni kiriting"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 rounded-xl transition-all duration-200 focus:outline-none text-sm"
-                  style={{
-                    background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
-                    border: '1.5px solid #ddd6fe',
-                    color: '#2e1065'
-                  }}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center transition-colors"
-                  style={{ color: '#a1a1aa' }}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className="w-full text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
-              style={{
-                background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-                boxShadow: '0 4px 14px -2px rgba(124, 58, 237, 0.4)'
-              }}
-            >
-              {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Kirish...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <span>Kirish</span>
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </div>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <div 
-              className="p-3 rounded-xl"
-              style={{ background: 'linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%)', border: '1px solid rgba(6, 182, 212, 0.3)' }}
-            >
-              <p className="text-xs font-medium mb-1" style={{ color: '#155e75' }}>Kassa paneli:</p>
+              {/* Submit Button */}
               <button
-                onClick={() => navigate('/kassa-login')}
-                className="text-sm font-semibold underline transition-colors"
-                style={{ color: '#0891b2' }}
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white py-4 px-6 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
               >
-                Kassa tizimiga kirish →
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Kirish
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
-            </div>
+            </form>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-6 animate-fade-up">
-          <p className="text-sm" style={{ color: '#71717a' }}>
-            © 2025 Sardor Furnitura. Barcha huquqlar himoyalangan.
-          </p>
-          <div className="flex items-center justify-center gap-3 mt-2 text-xs" style={{ color: '#a1a1aa' }}>
-            <span>Xavfsiz</span>
-            <div className="w-1 h-1 rounded-full" style={{ background: '#ddd6fe' }} />
-            <span>Professional</span>
-            <div className="w-1 h-1 rounded-full" style={{ background: '#ddd6fe' }} />
-            <span>Ishonchli</span>
+        {/* Info Card */}
+        <div className="mt-6 bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Tizimga kirish ma'lumotlari:</h3>
+          <div className="space-y-3 text-sm">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="font-medium text-blue-800">👨‍💼 Admin (Hardcoded)</div>
+              <div className="text-blue-600 mt-1">
+                Login: <code className="bg-blue-100 px-2 py-1 rounded">admin</code><br />
+                Parol: <code className="bg-blue-100 px-2 py-1 rounded">admin123</code>
+              </div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="font-medium text-green-800">💰 Kassir & 🔧 Yordamchi</div>
+              <div className="text-green-600 mt-1">
+                Admin tomonidan yaratilgan telefon va parol bilan kirish
+              </div>
+            </div>
           </div>
         </div>
       </div>

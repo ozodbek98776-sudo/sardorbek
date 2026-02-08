@@ -74,17 +74,22 @@ export default function KassaClients() {
       setError('');
       const res = await api.get('/customers/kassa');
       
-      const cleanCustomers = res.data.filter((customer: Customer) => {
-        const hasValidName = customer.name && customer.name.trim().length > 0;
-        const hasValidPhone = customer.phone && customer.phone.trim().length > 0;
-        return hasValidName && hasValidPhone;
-      }).map((customer: Customer) => ({
-        ...customer,
-        name: customer.name.trim(),
-        phone: customer.phone.trim(),
-        totalPurchases: Number(customer.totalPurchases) || 0,
-        debt: Number(customer.debt) || 0
-      }));
+      // Handle wrapped response format
+      const customersData = res.data.data || res.data;
+      // Ensure customersData is an array before filtering
+      const cleanCustomers = Array.isArray(customersData) 
+        ? customersData.filter((customer: Customer) => {
+            const hasValidName = customer.name && customer.name.trim().length > 0;
+            const hasValidPhone = customer.phone && customer.phone.trim().length > 0;
+            return hasValidName && hasValidPhone;
+          }).map((customer: Customer) => ({
+            ...customer,
+            name: customer.name.trim(),
+            phone: customer.phone.trim(),
+            totalPurchases: Number(customer.totalPurchases) || 0,
+            debt: Number(customer.debt) || 0
+          }))
+        : [];
       
       setCustomers(cleanCustomers);
     } catch (err: any) {
@@ -99,24 +104,24 @@ export default function KassaClients() {
 
   // Statistika
   const stats = {
-    total: customers.length,
-    withDebt: customers.filter(c => c.debt > 0).length,
-    totalDebt: customers.reduce((sum, c) => sum + c.debt, 0),
-    totalPurchases: customers.reduce((sum, c) => sum + (c.totalPurchases || 0), 0)
+    total: Array.isArray(customers) ? customers.length : 0,
+    withDebt: Array.isArray(customers) ? customers.filter(c => c.debt > 0).length : 0,
+    totalDebt: Array.isArray(customers) ? customers.reduce((sum, c) => sum + c.debt, 0) : 0,
+    totalPurchases: Array.isArray(customers) ? customers.reduce((sum, c) => sum + (c.totalPurchases || 0), 0) : 0
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 w-full">
       {AlertComponent}
       
       {/* Sticky Header va Qidiruv */}
       <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
-        <div className="p-3 lg:p-4 space-y-3">
+        <div className="p-1 sm:p-2 space-y-2">
           {/* Statistika Kartalari */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-2">
             <div 
               onClick={() => setDebtFilter('all')}
-              className={`p-3 rounded-lg cursor-pointer transition-all ${
+              className={`p-2 rounded-lg cursor-pointer transition-all ${
                 debtFilter === 'all' 
                   ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md' 
                   : 'bg-slate-50 hover:bg-slate-100'

@@ -12,29 +12,32 @@ export function useSocket() {
     const socketUrl = envApiUrl 
       ? envApiUrl.replace('/api', '')
       : (isDevelopment 
-        ? 'http://localhost:8000'
+        ? 'http://localhost:8002'  // Server port 8002 da
         : `${window.location.protocol}//${window.location.host}`);
 
     console.log('🔌 Socket.IO connecting to:', socketUrl);
 
-    // Socket.IO connection
+    // Socket.IO connection with better error handling
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 3, // Faqat 3 marta urinish
+      timeout: 10000
     });
 
     socket.on('connect', () => {
       console.log('✅ Socket.IO connected:', socket.id);
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket.IO disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Socket.IO disconnected:', reason);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket.IO connection error:', error);
+      console.warn('⚠️ Socket.IO connection error (this is OK if server is not running):', error.message);
+      // Don't spam console with errors
     });
 
     socketRef.current = socket;
@@ -46,3 +49,4 @@ export function useSocket() {
 
   return socketRef.current;
 }
+

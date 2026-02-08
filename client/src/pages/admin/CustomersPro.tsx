@@ -49,10 +49,29 @@ export default function CustomersPro() {
   const fetchCustomers = async () => {
     try {
       const res = await api.get('/customers');
-      setCustomers(res.data);
+      // Handle both old format (direct array) and new format (wrapped in success object)
+      let customersData = [];
+      
+      if (res.data && res.data.success && res.data.data) {
+        // New format: { success: true, data: { data: [...], pagination: {...} } }
+        customersData = Array.isArray(res.data.data.data) ? res.data.data.data : [];
+      } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
+        // Format: { data: [...], pagination: {...} }
+        customersData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        // Old format: direct array
+        customersData = res.data;
+      } else {
+        console.warn('Unexpected customers API response format:', res.data);
+        customersData = [];
+      }
+      
+      setCustomers(customersData);
     } catch (err) { 
-      console.error(err);
+      console.error('Error fetching customers:', err);
       showAlert('Mijozlarni yuklashda xatolik', 'Xatolik', 'danger');
+      // Set empty array on error
+      setCustomers([]);
     } finally { 
       setLoading(false); 
     }
@@ -87,7 +106,7 @@ export default function CustomersPro() {
     setDeletingId(id);
     try {
       await api.delete(`/customers/${id}`);
-      setCustomers(customers.filter(c => c._id !== id));
+      setCustomers(prevCustomers => Array.isArray(prevCustomers) ? prevCustomers.filter(c => c._id !== id) : []);
       showAlert('Mijoz o\'chirildi', 'Muvaffaqiyat', 'success');
       setTimeout(() => setDeletingId(null), 2000);
     } catch (err) { 
@@ -134,7 +153,7 @@ export default function CustomersPro() {
     setSelectedCustomerStats(null);
   };
 
-  const filteredCustomers = customers.filter(c => {
+  const filteredCustomers = (Array.isArray(customers) ? customers : []).filter(c => {
     const matchesSearch = searchQuery.trim() === '' ||
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.phone.includes(searchQuery);
@@ -157,10 +176,10 @@ export default function CustomersPro() {
   });
 
   const stats = {
-    total: customers.length,
-    withDebt: customers.filter(c => c.debt > 0).length,
-    totalDebt: customers.reduce((sum, c) => sum + (c.debt || 0), 0),
-    totalPurchases: customers.reduce((sum, c) => sum + ((c as any).totalPurchases || 0), 0)
+    total: Array.isArray(customers) ? customers.length : 0,
+    withDebt: Array.isArray(customers) ? customers.filter(c => c.debt > 0).length : 0,
+    totalDebt: Array.isArray(customers) ? customers.reduce((sum, c) => sum + (c.debt || 0), 0) : 0,
+    totalPurchases: Array.isArray(customers) ? customers.reduce((sum, c) => sum + ((c as any).totalPurchases || 0), 0) : 0
   };
 
   const clearFilter = () => {
@@ -169,7 +188,7 @@ export default function CustomersPro() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 w-full h-full">
       {AlertComponent}
       
       <Header
@@ -179,15 +198,15 @@ export default function CustomersPro() {
         actions={
           <button 
             onClick={() => setShowModal(true)} 
-            className="flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm sm:text-base font-semibold rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Plus className="w-4 h-4" />
             <span>Qo'shish</span>
           </button>
         }
       />
 
-      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 space-y-4">
+      <div className="w-full p-1 sm:p-2 space-y-2 sm:space-y-3">
 
         {/* Stats Cards - Minimal & Clean */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -1,215 +1,199 @@
-# Biznesjon - Universal Business Management System
+# Sardorbek Furnitura - Kassa Tizimi
 
-Modern, professional POS va biznes boshqaruv tizimi.
+Modern va professional kassa boshqaruv tizimi. React, Node.js, Express va MongoDB texnologiyalari asosida qurilgan.
 
-## 🚀 Features
+## 🚀 Xususiyatlar
 
-- ✅ **POS System** - Professional point of sale
-- ✅ **Inventory Management** - Mahsulotlar va omborxona
-- ✅ **Customer Management** - Mijozlar va qarzlar
-- ✅ **Real-time Updates** - Socket.IO bilan jonli yangilanishlar
-- ✅ **Offline Support** - Internet yo'qligida ishlash
-- ✅ **Multi-user Roles** - Admin, Cashier, Helper
-- ✅ **QR Code** - Mahsulotlar uchun QR kod
-- ✅ **Telegram Integration** - Bot orqali xabarlar
-- ✅ **PWA Support** - Mobile app sifatida o'rnatish
-- ✅ **Responsive Design** - Barcha qurilmalarda ishlaydi
+### 📊 Boshqaruv Paneli
+- Real-time statistika va hisobotlar
+- Bugungi, haftalik va oylik savdo ko'rsatkichlari
+- Eng ko'p sotiladigan mahsulotlar
+- Moliyaviy tarix va tranzaksiyalar
 
-## 📋 Requirements
+### 🛒 Kassa Tizimi
+- Tez va oson mahsulot qidirish
+- QR kod skanerlash
+- Savdo savatini boshqarish
+- Naqd va karta to'lovlari
+- Chekni saqlash va yuklash
+- Offline rejimda ishlash
 
-- Node.js 18+ 
-- MongoDB 6+
-- npm or yarn
+### 📦 Mahsulotlar
+- Mahsulotlarni qo'shish, tahrirlash va o'chirish
+- Kategoriyalar bo'yicha filtrlash
+- Narx tarixi va o'zgarishlar
+- Ombor boshqaruvi
+- QR kod generatsiyasi
+- Batch QR kod chop etish
 
-## 🛠️ Installation
+### 💰 Qarzlar
+- Mijozlar qarzlarini boshqarish
+- Qarz to'lovlari tarixi
+- Qarzlarni arxivlash
+- Telegram orqali bildirishnomalar
 
-### 1. Clone repository
-```bash
-git clone <repository-url>
-cd sardorbek.biznesjon.uz
-```
+### 💵 Xarajatlar
+- Xarajatlarni kategoriyalar bo'yicha boshqarish
+- Statistika va hisobotlar
+- Sana bo'yicha filtrlash
 
-### 2. Install dependencies
+### 👥 Foydalanuvchilar
+- Rol asosida kirish huquqlari (Admin, Kassa, Yordamchi)
+- Xavfsiz autentifikatsiya
+- Foydalanuvchilarni boshqarish
 
-#### Server
-```bash
-cd server
-npm install
-```
-
-#### Client
-```bash
-cd client
-npm install
-```
-
-### 3. Environment Setup
-
-#### Server (.env)
-```env
-PORT=8000
-MONGODB_URI=mongodb://localhost:27017/biznesjon
-JWT_SECRET=your_jwt_secret_key_here
-NODE_ENV=development
-
-# Telegram Bot (optional)
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-```
-
-#### Client (.env)
-```env
-VITE_API_URL=http://localhost:8000
-VITE_FRONTEND_URL=http://localhost:5173
-```
-
-### 4. Start Development
-
-#### Terminal 1 - Server
-```bash
-cd server
-npm run dev
-```
-
-#### Terminal 2 - Client
-```bash
-cd client
-npm run dev
-```
-
-Server: http://localhost:8000
-Client: http://localhost:5173
-
-## 📦 Production Build
-
-### 1. Build Client
-```bash
-cd client
-npm run build
-```
-
-### 2. Copy build to server
-```bash
-cp -r client/dist/* server/public/
-```
-
-### 3. Start Production Server
-```bash
-cd server
-npm run start:prod
-```
-
-## 🔒 Security Features
-
-- **Helmet** - HTTP headers security
-- **Rate Limiting** - API abuse prevention
-- **Input Sanitization** - XSS protection
-- **JWT Authentication** - Secure auth
-- **CORS** - Cross-origin protection
-- **Request Logging** - Audit trail
-- **Automatic Backups** - Daily database backups
-
-## 📊 Database Backup
-
-### Automatic
-- Daily backups at 02:00 AM
-- Keeps last 7 backups
-- Location: `server/backups/`
-
-### Manual Backup
-```bash
-mongodump --uri="mongodb://localhost:27017/biznesjon" --archive="backup.gz" --gzip
-```
-
-### Restore
-```bash
-mongorestore --uri="mongodb://localhost:27017/biznesjon" --archive="backup.gz" --gzip --drop
-```
-
-## 👥 Default Users
-
-### First Admin
-Register at: http://localhost:5173/register
-
-After first admin is created, registration is closed.
-
-### Kassa Login
-Login at: http://localhost:5173/kassa-login
-- Username: `kassa`
-- Password: `kassa123`
-
-## 📱 Mobile App (PWA)
-
-1. Open site in mobile browser
-2. Click "Add to Home Screen"
-3. Use as native app
-
-## 🔧 Tech Stack
+## 🛠️ Texnologiyalar
 
 ### Frontend
-- React 18
-- TypeScript
-- Vite
-- TailwindCSS
-- Socket.IO Client
-- React Router
-- Lucide Icons
+- **React 18** - UI kutubxonasi
+- **TypeScript** - Tip xavfsizligi
+- **Vite** - Build tool
+- **TailwindCSS** - Styling
+- **Lucide React** - Ikonlar
+- **Axios** - HTTP client
+- **Zustand** - State management
 
 ### Backend
-- Node.js
-- Express
-- MongoDB + Mongoose
-- Socket.IO
-- JWT
-- Multer (file upload)
-- Sharp (image processing)
-- Telegram Bot API
+- **Node.js** - Runtime
+- **Express** - Web framework
+- **MongoDB** - Database
+- **Mongoose** - ODM
+- **JWT** - Autentifikatsiya
+- **Bcrypt** - Parol shifrlash
+- **Multer** - Fayl yuklash
 
-## 📖 API Documentation
+## 📋 O'rnatish
 
-See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+### Talablar
+- Node.js 18+
+- MongoDB 6+
+- npm yoki yarn
 
-## 🐛 Troubleshooting
-
-### MongoDB Connection Error
+### 1. Repositoriyani klonlash
 ```bash
-# Check if MongoDB is running
-sudo systemctl status mongod
-
-# Start MongoDB
-sudo systemctl start mongod
+git clone https://github.com/ozodbek98776-sudo/sardorbek.git
+cd sardorbek
 ```
 
-### Port Already in Use
+### 2. Server o'rnatish
 ```bash
-# Kill process on port 8000
-npx kill-port 8000
-
-# Kill process on port 5173
-npx kill-port 5173
-```
-
-### Clear Cache
-```bash
-# Server
 cd server
-rm -rf node_modules package-lock.json
-npm install
-
-# Client
-cd client
-rm -rf node_modules package-lock.json
 npm install
 ```
 
-## 📝 License
+`.env` faylini yarating va quyidagi o'zgaruvchilarni to'ldiring:
+```env
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
+PORT=8002
+CLIENT_URL=http://localhost:5173
+NODE_ENV=development
+```
 
-Private - All rights reserved
+### 3. Client o'rnatish
+```bash
+cd client
+npm install
+```
 
-## 👨‍💻 Support
+`.env` faylini yarating:
+```env
+VITE_API_URL=http://localhost:8002/api
+```
 
-For support, contact: [your-email@example.com]
+### 4. Ishga tushirish
+
+**Development rejimda:**
+
+Terminal 1 - Server:
+```bash
+cd server
+npm run dev
+```
+
+Terminal 2 - Client:
+```bash
+cd client
+npm run dev
+```
+
+**Production rejimda:**
+
+```bash
+# Client build
+cd client
+npm run build
+
+# Server ishga tushirish
+cd server
+npm start
+```
+
+## 🔐 Standart Foydalanuvchi
+
+Tizimga kirish uchun admin foydalanuvchi yarating:
+
+```bash
+cd server
+node src/scripts/create-hardcoded-admin.js
+```
+
+Standart login ma'lumotlari:
+- **Username:** admin
+- **Password:** admin123
+
+⚠️ **Muhim:** Production muhitida parolni o'zgartiring!
+
+## 📱 PWA Xususiyatlari
+
+- Offline rejimda ishlash
+- Mobil qurilmalarga o'rnatish
+- Push bildirishnomalar
+- Service Worker keshi
+
+## 🔒 Xavfsizlik
+
+- JWT token autentifikatsiyasi
+- Bcrypt parol shifrlash
+- CORS himoyasi
+- Rate limiting
+- Input validatsiya
+- XSS himoyasi
+
+## 📊 Database Indekslar
+
+Tezkor ishlash uchun quyidagi indekslarni yarating:
+
+```bash
+cd server
+node src/scripts/add-performance-indexes.js
+node src/scripts/add-kassa-performance-indexes.js
+node src/scripts/add-expense-indexes.js
+```
+
+## 🤝 Hissa qo'shish
+
+1. Fork qiling
+2. Feature branch yarating (`git checkout -b feature/AmazingFeature`)
+3. O'zgarishlarni commit qiling (`git commit -m 'Add some AmazingFeature'`)
+4. Branch ga push qiling (`git push origin feature/AmazingFeature`)
+5. Pull Request oching
+
+## 📝 Litsenziya
+
+Bu loyiha shaxsiy foydalanish uchun mo'ljallangan.
+
+## 👨‍💻 Muallif
+
+**Ozodbek**
+- GitHub: [@ozodbek98776-sudo](https://github.com/ozodbek98776-sudo)
+
+## 🙏 Minnatdorchilik
+
+- React jamoasi
+- MongoDB jamoasi
+- Barcha open-source hissa qo'shuvchilarga
 
 ---
 
-Made with ❤️ by Kiro AI
+**Sardorbek Furnitura** - Professional kassa tizimi 🚀

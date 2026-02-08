@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
 import { 
   Plus, AlertTriangle, X, DollarSign, Calendar, User, 
-  CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, Edit
+  CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, TrendingUp
 } from 'lucide-react';
 import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
@@ -31,6 +31,7 @@ export default function Debts() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showArchive, setShowArchive] = useState(false); // Arxiv ko'rinishi
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', region: '', district: '' });
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
@@ -44,16 +45,68 @@ export default function Debts() {
   const fetchDebts = async () => {
     try {
       const res = await api.get(`/debts?type=${debtType}`);
-      setDebts(res.data);
-    } catch (err) { console.error('Error fetching debts:', err); }
-    finally { setLoading(false); }
+      
+      // Handle response format from serviceWrapper
+      let debtsData = [];
+      
+      if (res.data && res.data.success && Array.isArray(res.data.data)) {
+        // ServiceWrapper format: { success: true, data: [...] }
+        debtsData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        // Direct array format (fallback)
+        debtsData = res.data;
+      } else {
+        console.warn('Unexpected debts API response format:', res.data);
+        debtsData = [];
+      }
+      
+      setDebts(debtsData);
+    } catch (err) { 
+      console.error('Error fetching debts:', err);
+      showAlert(
+        err.response?.data?.message || 'Qarzlarni yuklashda xatolik yuz berdi', 
+        'Xatolik', 
+        'danger'
+      );
+      setDebts([]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const fetchCustomers = async () => {
     try {
       const res = await api.get('/customers');
-      setCustomers(res.data);
-    } catch (err) { console.error('Error fetching customers:', err); }
+      
+      // Handle response format from serviceWrapper
+      let customersData = [];
+      
+      if (res.data && res.data.success && res.data.data) {
+        // ServiceWrapper format with pagination: { success: true, data: { data: [...], pagination: {...} } }
+        if (Array.isArray(res.data.data.data)) {
+          customersData = res.data.data.data;
+        } else if (Array.isArray(res.data.data)) {
+          // ServiceWrapper format without pagination: { success: true, data: [...] }
+          customersData = res.data.data;
+        }
+      } else if (Array.isArray(res.data)) {
+        // Direct array format (fallback)
+        customersData = res.data;
+      } else {
+        console.warn('Unexpected customers API response format:', res.data);
+        customersData = [];
+      }
+      
+      setCustomers(customersData);
+    } catch (err) { 
+      console.error('Error fetching customers:', err);
+      showAlert(
+        err.response?.data?.message || 'Mijozlarni yuklashda xatolik yuz berdi', 
+        'Xatolik', 
+        'danger'
+      );
+      setCustomers([]);
+    }
   };
 
   const fetchStats = async () => {
@@ -201,11 +254,16 @@ export default function Debts() {
     } catch (err) { console.error('Error creating customer:', err); }
   };
 
-  const filteredDebts = debts.filter(debt => {
+  const filteredDebts = (Array.isArray(debts) ? debts : []).filter(debt => {
     const name = debt.customer?.name || debt.creditorName || '';
     const phone = debt.customer?.phone || '';
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          phone.includes(searchQuery);
+    
+    // Arxiv filtri - faqat to'langan yoki to'lanmagan qarzlarni ko'rsatish
+    const isPaid = debt.status === 'paid';
+    if (showArchive && !isPaid) return false; // Arxivda faqat to'langan qarzlar
+    if (!showArchive && isPaid) return false; // Asosiy sahifada to'langan qarzlar ko'rinmasin
     
     let matchesStatus = true;
     if (statusFilter === 'today') {
@@ -225,6 +283,7 @@ export default function Debts() {
     { label: 'AKTIV', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
     { label: "QORA RO'YXAT", value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
     { label: "MUDDATI O'TGAN", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
+    { label: "TO'LANGAN (ARXIV)", value: stats.paid, icon: CheckCircle2, color: 'info', filter: 'archive' },
     { label: 'JAMI QARZ', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
   ];
 
@@ -238,34 +297,47 @@ export default function Debts() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
       <Header 
-        title="Qarz daftarcha"
+        title={showArchive ? "Qarz daftarcha - Arxiv" : "Qarz daftarcha"}
         showSearch
         onSearch={setSearchQuery}
         actions={
           <div className="flex items-center gap-1">
+            {showArchive && (
+              <button 
+                onClick={() => {
+                  setShowArchive(false);
+                  setStatusFilter('all');
+                }} 
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-surface-500 hover:bg-surface-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
+                title="Asosiy sahifaga qaytish"
+              >
+                <X className="w-3 h-3" />
+                <span className="text-[10px] font-medium">Orqaga</span>
+              </button>
+            )}
             <button 
               onClick={() => setShowModal(true)} 
-              className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-2 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
               title="Yangi qarz qo'shish"
             >
-              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-[10px] sm:text-xs font-medium">Qo'shish</span>
+              <Plus className="w-3 h-3" />
+              <span className="text-[10px] font-medium">Qo'shish</span>
             </button>
           </div>
         }
       />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
+      <div className="p-1 sm:p-2 space-y-2 sm:space-y-3 w-full">
         {/* Type Toggle - only for admin */}
         {isAdmin && (
           <div className="flex justify-center">
-            <div className="inline-flex p-1 bg-surface-100 rounded-xl">
+            <div className="inline-flex p-1 bg-surface-100 rounded-lg">
               <button
                 onClick={() => { setDebtType('receivable'); setStatusFilter('all'); }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   debtType === 'receivable' 
                     ? 'bg-white text-success-600 shadow-sm' 
                     : 'text-surface-500 hover:text-surface-700'
@@ -276,7 +348,7 @@ export default function Debts() {
               </button>
               <button
                 onClick={() => { setDebtType('payable'); setStatusFilter('all'); }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   debtType === 'payable' 
                     ? 'bg-white text-danger-600 shadow-sm' 
                     : 'text-surface-500 hover:text-surface-700'
@@ -289,60 +361,116 @@ export default function Debts() {
           </div>
         )}
 
-        {/* Stats - Compact Design */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        {/* Stats - Ultra Professional Design */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           {statItems.map((stat, i) => (
             <div 
               key={i} 
-              onClick={() => stat.filter && setStatusFilter(stat.filter)}
+              onClick={() => {
+                if (stat.filter === 'archive') {
+                  setShowArchive(true);
+                  setStatusFilter('all');
+                } else if (stat.filter) {
+                  setShowArchive(false);
+                  setStatusFilter(stat.filter);
+                }
+              }}
               className={`group relative ${stat.filter ? 'cursor-pointer' : ''}`}
             >
-              {/* Compact Card */}
-              <div className={`relative bg-white rounded-xl p-2 sm:p-3 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] overflow-hidden h-[80px] sm:h-[90px] flex flex-col ${
-                statusFilter === stat.filter ? 'ring-2 ring-brand-500' : 'border border-surface-200'
-              }`}>
-                {/* Top Border Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${
-                  stat.color === 'success' ? 'from-emerald-500 to-emerald-600' :
-                  stat.color === 'danger' ? 'from-red-500 to-red-600' :
-                  stat.color === 'accent' ? 'from-purple-500 to-purple-600' :
-                  'from-purple-500 to-purple-600'
+              {/* Glassmorphism Card */}
+              <div className={`relative bg-gradient-to-br from-white to-slate-50/50 backdrop-blur-xl rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-all duration-700 ${stat.filter ? 'hover:-translate-y-2 hover:scale-105' : ''} overflow-hidden border border-white/20`}>
+                {/* Animated Gradient Border */}
+                <div className={`absolute inset-0 rounded-3xl bg-gradient-to-r ${
+                  stat.color === 'success' ? 'from-emerald-400 via-teal-400 to-cyan-400' :
+                  stat.color === 'danger' ? 'from-red-400 via-rose-400 to-pink-400' :
+                  stat.color === 'info' ? 'from-blue-400 via-indigo-400 to-purple-400' :
+                  stat.color === 'accent' ? 'from-purple-400 via-violet-400 to-indigo-400' :
+                  'from-blue-400 via-sky-400 to-cyan-400'
+                } opacity-0 group-hover:opacity-10 transition-opacity duration-700`} />
+                
+                {/* Top Accent Line with Glow */}
+                <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${
+                  stat.color === 'success' ? 'from-emerald-400 via-teal-500 to-emerald-400' :
+                  stat.color === 'danger' ? 'from-red-400 via-rose-500 to-red-400' :
+                  stat.color === 'info' ? 'from-blue-400 via-indigo-500 to-blue-400' :
+                  stat.color === 'accent' ? 'from-purple-400 via-violet-500 to-purple-400' :
+                  'from-blue-400 via-sky-500 to-blue-400'
+                } shadow-lg ${
+                  stat.color === 'success' ? 'shadow-emerald-500/50' :
+                  stat.color === 'danger' ? 'shadow-red-500/50' :
+                  stat.color === 'info' ? 'shadow-blue-500/50' :
+                  stat.color === 'accent' ? 'shadow-purple-500/50' :
+                  'shadow-blue-500/50'
                 }`} />
                 
-                {/* Content */}
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                  {/* Icon - Small */}
-                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center ${
-                    stat.color === 'success' ? 'bg-emerald-50' :
-                    stat.color === 'danger' ? 'bg-red-50' :
-                    stat.color === 'accent' ? 'bg-purple-50' :
-                    'bg-purple-50'
-                  }`}>
-                    <stat.icon className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                {/* Icon Container with Glow */}
+                <div className="flex items-start justify-between mb-5">
+                  <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center ${
+                    stat.color === 'success' ? 'bg-gradient-to-br from-emerald-50 to-teal-50' :
+                    stat.color === 'danger' ? 'bg-gradient-to-br from-red-50 to-rose-50' :
+                    stat.color === 'info' ? 'bg-gradient-to-br from-blue-50 to-indigo-50' :
+                    stat.color === 'accent' ? 'bg-gradient-to-br from-purple-50 to-violet-50' :
+                    'bg-gradient-to-br from-blue-50 to-sky-50'
+                  } group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-md`}>
+                    {/* Icon Glow Effect */}
+                    <div className={`absolute inset-0 rounded-2xl ${
+                      stat.color === 'success' ? 'bg-emerald-400' :
+                      stat.color === 'danger' ? 'bg-red-400' :
+                      stat.color === 'info' ? 'bg-blue-400' :
+                      stat.color === 'accent' ? 'bg-purple-400' :
+                      'bg-blue-400'
+                    } opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500`} />
+                    <stat.icon className={`w-7 h-7 relative z-10 ${
                       stat.color === 'success' ? 'text-emerald-600' :
                       stat.color === 'danger' ? 'text-red-600' :
+                      stat.color === 'info' ? 'text-blue-600' :
                       stat.color === 'accent' ? 'text-purple-600' :
-                      'text-purple-600'
+                      'text-blue-600'
                     }`} />
                   </div>
-                  
-                  {/* Value & Label */}
-                  <div>
-                    <p className={`text-base sm:text-lg font-bold mb-0.5 ${
-                      stat.color === 'success' ? 'text-emerald-600' :
-                      stat.color === 'danger' ? 'text-red-600' :
-                      stat.color === 'accent' ? 'text-purple-600' :
-                      'text-purple-600'
-                    }`}>
-                      {stat.value}
-                    </p>
-                    
-                    {/* Label - Larger for mobile readability */}
-                    <p className="text-[10px] sm:text-[11px] font-semibold text-slate-600 uppercase tracking-wide leading-tight truncate">
-                      {stat.label}
-                    </p>
-                  </div>
+                  {/* Trending Indicator */}
+                  {stat.filter && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/60 backdrop-blur-sm">
+                      <TrendingUp className="w-3 h-3 text-green-600" />
+                      <span className="text-[10px] font-bold text-green-600">Live</span>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Value Section with Animation */}
+                <div className="space-y-2 relative z-10">
+                  {/* Main Value with Gradient Text */}
+                  <h3 className={`text-3xl font-black leading-none tracking-tight bg-gradient-to-br ${
+                    stat.color === 'success' ? 'from-emerald-600 to-teal-600' :
+                    stat.color === 'danger' ? 'from-red-600 to-rose-600' :
+                    stat.color === 'info' ? 'from-blue-600 to-indigo-600' :
+                    stat.color === 'accent' ? 'from-purple-600 to-violet-600' :
+                    'from-blue-600 to-sky-600'
+                  } bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500 origin-left`}>
+                    {stat.value}
+                  </h3>
+                  
+                  {/* Label with Better Typography */}
+                  <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">
+                    {stat.label}
+                  </p>
+                </div>
+
+                {/* Animated Background Orbs */}
+                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full ${
+                  stat.color === 'success' ? 'bg-gradient-to-br from-emerald-200 to-teal-200' :
+                  stat.color === 'danger' ? 'bg-gradient-to-br from-red-200 to-rose-200' :
+                  stat.color === 'info' ? 'bg-gradient-to-br from-blue-200 to-indigo-200' :
+                  stat.color === 'accent' ? 'bg-gradient-to-br from-purple-200 to-violet-200' :
+                  'bg-gradient-to-br from-blue-200 to-sky-200'
+                } opacity-20 group-hover:scale-150 group-hover:opacity-30 transition-all duration-700 blur-2xl`} />
+                <div className={`absolute -left-4 -top-4 w-24 h-24 rounded-full ${
+                  stat.color === 'success' ? 'bg-gradient-to-br from-teal-200 to-emerald-200' :
+                  stat.color === 'danger' ? 'bg-gradient-to-br from-rose-200 to-red-200' :
+                  stat.color === 'info' ? 'bg-gradient-to-br from-indigo-200 to-blue-200' :
+                  stat.color === 'accent' ? 'bg-gradient-to-br from-violet-200 to-purple-200' :
+                  'bg-gradient-to-br from-sky-200 to-blue-200'
+                } opacity-10 group-hover:scale-125 group-hover:opacity-20 transition-all duration-700 blur-2xl`} />
               </div>
             </div>
           ))}
@@ -367,8 +495,8 @@ export default function Debts() {
             </div>
           ) : (
             <>
-              {/* Pro Design Cards - barcha ekranlar uchun */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3 p-2.5 sm:p-3">
+              {/* Minimal Professional Design Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                 {filteredDebts.map(debt => {
                   const isPaid = debt.status === 'paid';
                   const isOverdue = debt.status === 'overdue';
@@ -377,88 +505,76 @@ export default function Debts() {
                   const remaining = debt.amount - debt.paidAmount;
                   const paidPercent = Math.round((debt.paidAmount / debt.amount) * 100);
                   
-                  // To'lov muddati yaqinlashganini tekshirish
                   const dueDate = new Date(debt.dueDate);
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                   
-                  // Rang logikasi: 
-                  // - Muddati o'tgan yoki bugun = qizil
-                  // - 3 kun qolgan = to'q sariq (orange)
-                  // - 7 kun qolgan = sariq
-                  // - Boshqa = normal
-                  const isUrgent = !isPaid && (isOverdue || daysUntilDue <= 0); // Muddati o'tgan
-                  const isWarning = !isPaid && !isUrgent && daysUntilDue <= 3; // 3 kun qolgan
-                  const isCaution = !isPaid && !isUrgent && !isWarning && daysUntilDue <= 7; // 7 kun qolgan
+                  const isUrgent = !isPaid && (isOverdue || daysUntilDue <= 0);
+                  const isWarning = !isPaid && !isUrgent && daysUntilDue <= 3;
+                  const isCaution = !isPaid && !isUrgent && !isWarning && daysUntilDue <= 7;
                   
-                  // Karta chegarasi rangi
-                  const borderColor = isUrgent ? 'border-red-400 ring-2 ring-red-200' : 
-                                     isWarning ? 'border-orange-400 ring-2 ring-orange-200' : 
+                  const borderColor = isUrgent ? 'border-red-400 ring-1 ring-red-200' : 
+                                     isWarning ? 'border-orange-400 ring-1 ring-orange-200' : 
                                      isCaution ? 'border-amber-400 ring-1 ring-amber-200' : 
-                                     isBlacklist ? 'border-slate-700 ring-2 ring-slate-400' :
+                                     isBlacklist ? 'border-slate-700 ring-1 ring-slate-400' :
                                      'border-surface-200 hover:border-brand-300';
                   
                   return (
-                    <div key={debt._id} className={`bg-white rounded-xl border ${borderColor} hover:shadow-xl transition-all duration-300 overflow-hidden group ${isUrgent ? 'animate-pulse-slow' : ''}`}>
-                      {/* Header with Avatar and Status - Compact */}
-                      <div className={`relative p-2.5 ${
+                    <div key={debt._id} className={`group relative bg-white rounded-2xl border-2 ${borderColor} hover:shadow-2xl transition-all duration-300 overflow-hidden ${isUrgent ? 'animate-pulse-slow' : ''}`}>
+                      {/* Minimal Header */}
+                      <div className={`relative p-4 ${
                         isBlacklist ? 'bg-gradient-to-br from-slate-800 to-slate-900' :
-                        isUrgent ? 'bg-gradient-to-br from-red-100 to-rose-100' :
+                        isUrgent ? 'bg-gradient-to-br from-red-50 to-rose-50' :
                         isWarning ? 'bg-gradient-to-br from-orange-50 to-amber-50' :
                         isCaution ? 'bg-gradient-to-br from-amber-50 to-yellow-50' :
                         debtType === 'receivable' 
                           ? 'bg-gradient-to-br from-emerald-50 to-green-50' 
                           : 'bg-gradient-to-br from-red-50 to-rose-50'
                       }`}>
-                        {/* Muddat ogohlantirishi */}
+                        {/* Muddat badge */}
                         {!isPaid && daysUntilDue <= 7 && (
-                          <div className={`absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                          <div className={`absolute top-2 right-2 px-2.5 py-1 rounded-lg text-xs font-bold ${
                             isUrgent ? 'bg-red-500 text-white animate-pulse' :
                             isWarning ? 'bg-orange-500 text-white' :
                             'bg-amber-500 text-white'
                           }`}>
-                            {isOverdue || daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} kun o'tdi!` :
-                             daysUntilDue === 0 ? 'Bugun!' :
+                            {isOverdue || daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} kun kech` :
+                             daysUntilDue === 0 ? 'Bugun' :
                              `${daysUntilDue} kun qoldi`}
                           </div>
                         )}
                         
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
-                              isBlacklist ? 'bg-gradient-to-br from-slate-900 to-black' :
-                              isUrgent ? 'bg-gradient-to-br from-red-500 to-rose-600' :
-                              isWarning ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
-                              isCaution ? 'bg-gradient-to-br from-amber-400 to-yellow-500' :
-                              debtType === 'receivable' 
-                                ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
-                                : 'bg-gradient-to-br from-red-400 to-rose-500'
-                            }`}>
-                              <User className={`w-5 h-5 ${isBlacklist ? 'text-amber-300' : 'text-white'}`} />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-surface-900 truncate text-sm">{getDebtorName(debt)}</h4>
-                              {getDebtorPhone(debt) && (
-                                <p className="text-xs text-surface-500 flex items-center gap-1">
-                                  <Phone className="w-3 h-3" />
-                                  {getDebtorPhone(debt)}
-                                </p>
-                              )}
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg ${
+                            isBlacklist ? 'bg-gradient-to-br from-slate-900 to-black' :
+                            isUrgent ? 'bg-gradient-to-br from-red-500 to-rose-600' :
+                            isWarning ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
+                            isCaution ? 'bg-gradient-to-br from-amber-400 to-yellow-500' :
+                            debtType === 'receivable' 
+                              ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
+                              : 'bg-gradient-to-br from-red-400 to-rose-500'
+                          }`}>
+                            <User className={`w-7 h-7 ${isBlacklist ? 'text-amber-300' : 'text-white'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-surface-900 truncate text-base">{getDebtorName(debt)}</h4>
+                            {getDebtorPhone(debt) && (
+                              <p className="text-sm text-surface-500 truncate">{getDebtorPhone(debt)}</p>
+                            )}
                           </div>
                           
-                          {/* Status Badge - Compact */}
-                          <div className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 ${
+                          {/* Status Badge */}
+                          <div className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
                             isBlacklist
-                              ? 'bg-gradient-to-r from-slate-900 to-black text-amber-300 shadow-lg shadow-slate-500'
+                              ? 'bg-gradient-to-r from-slate-900 to-black text-amber-300'
                               : isApproved
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200'
-                                : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-200'
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                                : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white'
                           }`}>
-                            {isBlacklist ? <AlertTriangle className="w-3 h-3" /> : isApproved ? <CheckCircle2 className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                            {isBlacklist ? <AlertTriangle className="w-3.5 h-3.5" /> : isApproved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
                             <span>
-                              {isBlacklist ? 'Qora' :
+                              {isBlacklist ? 'Qora ro\'yxat' :
                                isPaid ? "To'landi" :
                                isOverdue ? "Muddati o'tdi" : 
                                isApproved ? 'Aktiv' : 'Kutish'}
@@ -466,14 +582,14 @@ export default function Debts() {
                           </div>
                         </div>
 
-                        {/* Progress Bar - Compact */}
+                        {/* Progress Bar */}
                         {!isPaid && (
-                          <div className="mt-2">
-                            <div className="flex justify-between text-[9px] text-surface-600 mb-1">
-                              <span>To'langan: {paidPercent}%</span>
-                              <span>{formatNumber(debt.paidAmount)}</span>
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs text-surface-600 mb-1.5">
+                              <span className="font-semibold">{paidPercent}% to'landi</span>
+                              <span className="font-semibold">{formatNumber(debt.paidAmount)} so'm</span>
                             </div>
-                            <div className={`h-1.5 rounded-full overflow-hidden ${
+                            <div className={`h-2 rounded-full overflow-hidden ${
                               isUrgent ? 'bg-red-200' : isWarning ? 'bg-orange-200' : isCaution ? 'bg-amber-200' : 'bg-white/60'
                             }`}>
                               <div 
@@ -491,48 +607,48 @@ export default function Debts() {
                       </div>
 
                       {/* Content */}
-                      <div className="p-2.5 sm:p-3">
-                        {/* Amount Cards - More Compact */}
-                        <div className="grid grid-cols-2 gap-1.5 mb-2">
-                          <div className="bg-surface-50 rounded-lg p-1.5 border border-surface-100">
-                            <p className="text-[9px] text-surface-500 uppercase tracking-wide font-semibold mb-0.5">Jami</p>
-                            <p className="font-bold text-surface-900 text-xs">{formatNumber(debt.amount)}</p>
+                      <div className="p-4">
+                        {/* Amount Cards - Minimal */}
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="bg-surface-50 rounded-xl p-3 border border-surface-200">
+                            <p className="text-xs text-surface-500 uppercase font-semibold mb-1">Jami qarz</p>
+                            <p className="font-bold text-surface-900 text-base">{formatNumber(debt.amount)} so'm</p>
                           </div>
-                          <div className={`rounded-lg p-1.5 border ${
+                          <div className={`rounded-xl p-3 border ${
                             debtType === 'receivable' 
                               ? 'bg-emerald-50 border-emerald-200' 
                               : 'bg-red-50 border-red-200'
                           }`}>
-                            <p className="text-[9px] text-surface-500 uppercase tracking-wide font-semibold mb-0.5">Qoldiq</p>
-                            <p className={`font-bold text-xs ${
+                            <p className="text-xs text-surface-500 uppercase font-semibold mb-1">Qoldiq</p>
+                            <p className={`font-bold text-base ${
                               debtType === 'receivable' ? 'text-emerald-600' : 'text-red-600'
-                            }`}>{formatNumber(remaining)}</p>
+                            }`}>{formatNumber(remaining)} so'm</p>
                           </div>
                         </div>
 
-                        {/* Due Date & Collateral - Compact */}
-                        <div className="flex items-center justify-between mb-2 text-[10px]">
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1 text-surface-600">
-                              <Calendar className="w-3 h-3" />
-                              <span>{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
+                        {/* Due Date & Collateral - Minimal */}
+                        <div className="flex items-center justify-between mb-4 text-sm">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 text-surface-600">
+                              <Calendar className="w-4 h-4" />
+                              <span className="font-medium">{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
                             </div>
                             {/* Muddat berilgan kunlar */}
                             {debt.extensionDays > 0 && (
-                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded text-blue-700 text-[9px] font-medium border border-blue-200">
-                                📅 {debt.extensionDays} kun
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg text-blue-700 text-xs font-semibold border border-blue-200">
+                                📅 {debt.extensionDays} kun muddat
                               </div>
                             )}
                           </div>
                           {debtType === 'receivable' && debt.collateral && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 rounded text-amber-700 text-[9px] font-medium border border-amber-200 max-w-[90px] truncate">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-lg text-amber-700 text-xs font-semibold border border-amber-200 max-w-[120px] truncate">
                               🔒 {debt.collateral}
                             </div>
                           )}
                         </div>
 
-                        {/* Actions - Compact */}
-                        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-surface-100 flex-wrap">
+                        {/* Actions - Minimal */}
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100 flex-wrap">
                               {/* O'chirish tugmasi - faqat admin uchun */}
                               {isAdmin && (
                                 <button
@@ -545,11 +661,11 @@ export default function Debts() {
                                       console.error('Error deleting debt:', err); 
                                     }
                                   }}
-                                  className="flex items-center justify-center gap-1 px-2 py-1.5 bg-red-100 text-red-700 rounded-lg text-[10px] font-semibold hover:bg-red-200 transition-all whitespace-nowrap"
-                                  title="Qarzni o'chirish"
+                                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all"
+                                  title="O'chirish"
                                 >
-                                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                  <span className="hidden sm:inline">O'chirish</span>
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>O'chirish</span>
                                 </button>
                               )}
 
@@ -572,9 +688,9 @@ export default function Debts() {
                                           showAlert(err.response?.data?.message || 'Muddat berishda xatolik', 'Xatolik', 'danger');
                                         }
                                       }}
-                                      className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-amber-100 text-amber-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-amber-200 transition-all whitespace-nowrap"
+                                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-semibold hover:bg-amber-200 transition-all"
                                     >
-                                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                      <Calendar className="w-4 h-4" />
                                       <span>Muddat</span>
                                     </button>
                                   ) : null}
@@ -585,9 +701,9 @@ export default function Debts() {
                               {!isPaid && (
                                 <button 
                                   onClick={() => { setSelectedDebt(debt); setShowPaymentModal(true); }} 
-                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-emerald-200 transition-all whitespace-nowrap"
+                                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold hover:bg-emerald-200 transition-all"
                                 >
-                                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <DollarSign className="w-4 h-4" />
                                   <span>To'lov</span>
                                 </button>
                               )}
@@ -611,11 +727,10 @@ export default function Debts() {
                                       showAlert(err.response?.data?.message || "Qora ro'yxatdan chiqarishda xatolik", 'Xatolik', 'danger');
                                     }
                                   }}
-                                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 text-amber-300 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold hover:bg-slate-900 transition-all whitespace-nowrap"
+                                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 text-amber-300 rounded-lg text-sm font-semibold hover:bg-slate-900 transition-all"
                                 >
-                                  <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                  <span className="hidden sm:inline">Qora ro'yxatdan chiqarish</span>
-                                  <span className="sm:hidden">Chiqarish</span>
+                                  <AlertTriangle className="w-4 h-4" />
+                                  <span>Chiqarish</span>
                                 </button>
                               )}
                         </div>
@@ -744,7 +859,7 @@ export default function Debts() {
                       <select className="select flex-1" value={formData.customer}
                         onChange={e => setFormData({...formData, customer: e.target.value})} required>
                         <option value="">Tanlang</option>
-                        {customers.map(c => <option key={c._id} value={c._id}>{c.name} - {c.phone}</option>)}
+                        {(Array.isArray(customers) ? customers : []).map(c => <option key={c._id} value={c._id}>{c.name} - {c.phone}</option>)}
                       </select>
                       <button 
                         type="button" 

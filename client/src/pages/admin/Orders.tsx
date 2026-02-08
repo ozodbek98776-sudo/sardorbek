@@ -3,8 +3,11 @@ import Header from '../../components/Header';
 import { ShoppingBag, Package, Clock, Truck, CheckCircle2, XCircle, User } from 'lucide-react';
 import { Order } from '../../types';
 import api from '../../utils/api';
+import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
+import { useAlert } from '../../hooks/useAlert';
 
 export default function Orders() {
+  const { showAlert, AlertComponent } = useAlert();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -13,17 +16,28 @@ export default function Orders() {
 
   const fetchOrders = async () => {
     try {
+      setLoading(true);
       const res = await api.get('/orders');
-      setOrders(res.data);
-    } catch (err) { console.error('Error fetching orders:', err); }
-    finally { setLoading(false); }
+      const ordersData = extractArrayFromResponse<Order>(res);
+      setOrders(ordersData);
+    } catch (err) { 
+      console.error('Error fetching orders:', err);
+      showAlert('Buyurtmalarni yuklashda xatolik', 'Xatolik', 'danger');
+      setOrders([]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const updateStatus = async (id: string, status: string) => {
     try {
       await api.put(`/orders/${id}/status`, { status });
+      showAlert('Buyurtma holati yangilandi', 'Muvaffaqiyat', 'success');
       fetchOrders();
-    } catch (err) { console.error('Error updating order:', err); }
+    } catch (err) { 
+      console.error('Error updating order:', err);
+      showAlert('Buyurtma holatini yangilashda xatolik', 'Xatolik', 'danger');
+    }
   };
 
   const statusConfig = {
@@ -39,10 +53,11 @@ export default function Orders() {
     ...Object.entries(statusConfig).map(([key, val]) => ({ value: key, label: val.label }))
   ];
 
-  const filteredOrders = orders.filter(o => filter === 'all' || o.status === filter);
+  const filteredOrders = safeFilter<Order>(orders, o => filter === 'all' || o.status === filter);
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
+      {AlertComponent}
       <Header 
         title="Buyurtmalar"
         filterOptions={filterOptions}
@@ -50,7 +65,7 @@ export default function Orders() {
         onFilterChange={setFilter}
       />
 
-      <div className="p-4 lg:p-6">
+      <div className="p-1 sm:p-2 w-full">
         {/* Orders List */}
         <div className="card p-0 overflow-hidden">
           {loading ? (

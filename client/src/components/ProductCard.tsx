@@ -2,6 +2,7 @@ import React from 'react';
 import { Package, Edit, Trash2, QrCode, Printer, Ruler, Box, Scale } from 'lucide-react';
 import { Product } from '../types';
 import { formatNumber } from '../utils/format';
+import { getCostPrice, getUnitPrice, getBoxPrice, getDiscountPrices } from '../utils/pricing';
 
 interface ProductCardProps {
   product: Product;
@@ -151,52 +152,43 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        {/* Prices Grid */}
+        {/* Prices Grid - YANGI NARX TIZIMI */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           {/* Cost Price */}
           <div className="bg-surface-50 rounded-xl p-2.5">
             <p className="text-[10px] text-surface-500 uppercase tracking-wide mb-0.5">Tan narxi</p>
             <p className="font-bold text-surface-900 text-sm">
-              {formatNumber((product as any).costPrice || 0)}
+              {formatNumber(getCostPrice(product))}
               <span className="text-[10px] text-surface-400 ml-0.5">so'm</span>
             </p>
           </div>
           
-          {/* Sell Price */}
+          {/* Unit Price */}
           <div className="bg-brand-50 rounded-xl p-2.5">
-            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">Sotish narxi</p>
+            <p className="text-[10px] text-brand-600 uppercase tracking-wide mb-0.5">{getUnitLabel(unit)} narxi</p>
             <p className="font-bold text-brand-700 text-sm">
-              {formatNumber(product.price)}
+              {formatNumber(getUnitPrice(product))}
               <span className="text-[10px] text-brand-400 ml-0.5">so'm</span>
             </p>
           </div>
         </div>
 
-        {/* Additional Prices */}
-        {product.prices && (
-          <div className="flex flex-wrap gap-1.5">
-            {product.prices.perMeter > 0 && (
-              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
-                {formatNumber(product.prices.perMeter)}/m
-              </span>
-            )}
-            {product.prices.perRoll > 0 && (
-              <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
-                {formatNumber(product.prices.perRoll)}/rulon
-              </span>
-            )}
-            {product.prices.perBox > 0 && (
-              <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
-                {formatNumber(product.prices.perBox)}/quti
-              </span>
-            )}
-            {product.prices.perKg > 0 && (
-              <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
-                {formatNumber(product.prices.perKg)}/kg
-              </span>
-            )}
-          </div>
-        )}
+        {/* Additional Prices - YANGI TIZIM */}
+        <div className="flex flex-wrap gap-1.5">
+          {/* Box Price */}
+          {getBoxPrice(product) > 0 && (
+            <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
+              {formatNumber(getBoxPrice(product))}/karobka
+            </span>
+          )}
+          
+          {/* Discount Prices */}
+          {getDiscountPrices(product).map((discount, index) => (
+            <span key={index} className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
+              {formatNumber(discount.amount)} ({discount.minQuantity}+ {getUnitLabel(unit)})
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

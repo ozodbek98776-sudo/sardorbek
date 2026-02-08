@@ -99,6 +99,37 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* ============================================
+     FULL SCREEN CONTENT UTILITIES
+     ============================================ */
+  
+  /* Main content containers - remove all padding/margin */
+  .full-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Minimal padding for mobile */
+  .minimal-padding {
+    padding: 0.25rem !important;
+  }
+
+  @media (min-width: 640px) {
+    .minimal-padding {
+      padding: 0.5rem !important;
+    }
+  }
+
+  /* Remove container constraints */
+  .no-container {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
   /* PWA va Standalone mode */
   body {
     min-height: 100vh;
@@ -270,7 +301,7 @@
 
   /* Primary Button - To'q Binafsha */
   .btn-primary {
-    @apply btn-md text-white;
+    @apply btn btn-md text-white;
     background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
     box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15);

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { ALL_ROLES, ROLES } = require('../constants/roles');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -7,7 +8,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, sparse: true },
   email: { type: String, sparse: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'cashier', 'helper'], default: 'admin' },
+  role: { type: String, enum: ALL_ROLES, default: ROLES.ADMIN },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Bonus tizimi
   bonusPercentage: { type: Number, default: 0, min: 0, max: 100 }, // Bonus foizi (0-100%)

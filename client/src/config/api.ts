@@ -6,18 +6,18 @@ const envApiUrl = (import.meta as any).env?.VITE_API_URL;
 const envFrontendUrl = (import.meta as any).env?.VITE_FRONTEND_URL;
 
 export const API_BASE_URL = envApiUrl || (isDevelopment 
-  ? 'http://localhost:8000/api'
+  ? 'http://localhost:8002/api'  // Use minimal server on 8002
   : '/api'); // Production da relative path ishlatish
 
 // Uploads URL for images - path allaqachon /uploads/ bilan boshlanadi
 export const UPLOADS_URL = envApiUrl 
   ? envApiUrl.replace('/api', '')
   : (isDevelopment 
-    ? 'http://localhost:8000'
+    ? 'http://localhost:8002'
     : `${window.location.protocol}//${window.location.host}`);
 
 export const WS_URL = isDevelopment
-  ? 'ws://localhost:8000'
+  ? 'ws://localhost:8002'
   : `wss://${window.location.host}`;
 
 // Frontend URL - QR code uchun (MUHIM!)

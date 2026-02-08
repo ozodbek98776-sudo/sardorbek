@@ -25,8 +25,8 @@ router.get('/helpers', auth, authorize('admin'), async (req, res) => {
   }
 });
 
-// Kassa uchun foydalanuvchilarni olish (auth talab qilmaydi)
-router.get('/kassa', async (req, res) => {
+// Kassa uchun foydalanuvchilarni olish (auth talab qiladi - XAVFSIZLIK)
+router.get('/kassa', auth, async (req, res) => {
   try {
     const helpers = await User.find({
       role: { $in: ['cashier', 'helper'] }
@@ -41,22 +41,45 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
     const { name, login, phone, password, role, bonusPercentage } = req.body;
 
+    console.log('📝 POST /users - Received data:', { name, login, phone, password: password ? '***' : undefined, role, bonusPercentage });
+
+    // Validation
+    if (!name || !password || !role) {
+      console.log('❌ Validation failed: missing required fields');
+      return res.status(400).json({ message: 'Ism, parol va rol majburiy' });
+    }
+
+    if (!login && !phone) {
+      console.log('❌ Validation failed: no login or phone');
+      return res.status(400).json({ message: 'Login yoki telefon raqam majburiy' });
+    }
+
     // Login yoki phone allaqachon mavjudligini tekshirish
-    const existingUser = await User.findOne({
-      $or: [{ login }, { phone }]
-    });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Bu login yoki telefon raqam allaqachon ro\'yxatdan o\'tgan' });
+    const query = { $or: [] };
+    if (login) query.$or.push({ login });
+    if (phone) query.$or.push({ phone });
+    
+    if (query.$or.length > 0) {
+      const existingUser = await User.findOne(query);
+      if (existingUser) {
+        return res.status(400).json({ message: 'Bu login yoki telefon raqam allaqachon ro\'yxatdan o\'tgan' });
+      }
     }
 
     const userData = {
       name,
-      login,
-      phone,
       password,
-      role,
-      createdBy: req.user._id
+      role
     };
+
+    // Optional fields
+    if (login) userData.login = login;
+    if (phone) userData.phone = phone;
+
+    // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      userData.createdBy = req.user._id;
+    }
 
     // Agar kassir bo'lsa va bonus foizi berilgan bo'lsa
     if (role === 'cashier' && bonusPercentage !== undefined) {
@@ -75,6 +98,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       bonusPercentage: user.bonusPercentage || 0
     });
   } catch (error) {
+    console.error('Error creating user:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -83,7 +107,15 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
     const { name, phone, role, password, bonusPercentage } = req.body;
 
-    const user = await User.findOne({ _id: req.params.id, createdBy: req.user._id });
+    // XAVFSIZLIK: Faqat o'zi yaratgan foydalanuvchilarni o'zgartirishi mumkin
+    // Hardcoded admin uchun istisno - barcha foydalanuvchilarni o'zgartirishi mumkin
+    let user;
+    if (req.user._id === 'hardcoded-admin-id') {
+      user = await User.findById(req.params.id);
+    } else {
+      user = await User.findOne({ _id: req.params.id, createdBy: req.user._id });
+    }
+    
     if (!user) return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
 
     user.name = name;
@@ -124,21 +156,19 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
 
     console.log('Found user:', user.name, 'createdBy:', user.createdBy);
 
-    // Agar admin bo'lsa, har qanday foydalanuvchini o'chirishi mumkin
-    // Aks holda faqat o'zi yaratgan foydalanuvchilarni o'chirishi mumkin
-    if (req.user.role === 'admin') {
-      await User.findByIdAndDelete(req.params.id);
-      console.log('User deleted successfully');
-      res.json({ message: 'Foydalanuvchi o\'chirildi' });
-    } else {
+    // XAVFSIZLIK: Faqat o'zi yaratgan foydalanuvchilarni o'chirishi mumkin
+    // Hardcoded admin uchun istisno
+    if (req.user._id !== 'hardcoded-admin-id') {
       const userToDelete = await User.findOne({ _id: req.params.id, createdBy: req.user._id });
       if (!userToDelete) {
         console.log('User not created by current user');
-        return res.status(404).json({ message: 'Foydalanuvchi topilmadi yoki sizda ruxsat yo\'q' });
+        return res.status(403).json({ message: 'Siz faqat o\'zingiz yaratgan foydalanuvchilarni o\'chirishingiz mumkin' });
       }
-      await User.findByIdAndDelete(req.params.id);
-      res.json({ message: 'Foydalanuvchi o\'chirildi' });
     }
+
+    await User.findByIdAndDelete(req.params.id);
+    console.log('User deleted successfully');
+    res.json({ message: 'Foydalanuvchi o\'chirildi' });
   } catch (error) {
     console.error('Delete error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });

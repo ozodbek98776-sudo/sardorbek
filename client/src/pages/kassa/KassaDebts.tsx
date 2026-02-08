@@ -48,9 +48,24 @@ export default function KassaDebts() {
     try {
       setLoading(true);
       const res = await api.get('/debts/kassa');
-      setDebts(res.data);
+      
+      // Handle response format from serviceWrapper
+      let debtsData = [];
+      if (res.data && res.data.success && Array.isArray(res.data.data)) {
+        // ServiceWrapper format: { success: true, data: [...] }
+        debtsData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        // Direct array format (fallback)
+        debtsData = res.data;
+      } else {
+        console.warn('Unexpected debts API response format:', res.data);
+        debtsData = [];
+      }
+      
+      setDebts(debtsData);
     } catch (err) {
       console.error('Error fetching debts:', err);
+      setDebts([]);
     } finally {
       setLoading(false);
     }
@@ -72,7 +87,7 @@ export default function KassaDebts() {
   };
 
   // Filtrlangan qarzlar
-  const filteredDebts = debts.filter(debt => {
+  const filteredDebts = (Array.isArray(debts) ? debts : []).filter(debt => {
     const matchesSearch = debt.customer?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          debt.customer?.phone.includes(searchQuery);
     const matchesStatus = statusFilter === 'all' || debt.status === statusFilter;
@@ -80,14 +95,15 @@ export default function KassaDebts() {
   });
 
   // Statistika
+  const debtsArray = Array.isArray(debts) ? debts : [];
   const stats = {
-    total: debts.length,
-    pending: debts.filter(d => d.status === 'pending_approval').length,
-    approved: debts.filter(d => d.status === 'approved').length,
-    paid: debts.filter(d => d.status === 'paid').length,
-    totalAmount: debts.reduce((sum, d) => sum + d.amount, 0),
-    totalPaid: debts.reduce((sum, d) => sum + d.paidAmount, 0),
-    totalRemaining: debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+    total: debtsArray.length,
+    pending: debtsArray.filter(d => d.status === 'pending_approval').length,
+    approved: debtsArray.filter(d => d.status === 'approved').length,
+    paid: debtsArray.filter(d => d.status === 'paid').length,
+    totalAmount: debtsArray.reduce((sum, d) => sum + d.amount, 0),
+    totalPaid: debtsArray.reduce((sum, d) => sum + d.paidAmount, 0),
+    totalRemaining: debtsArray.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
   };
 
   const getStatusColor = (status: string) => {
@@ -113,14 +129,14 @@ export default function KassaDebts() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50 w-full">
       {AlertComponent}
       
       {/* Sticky Header */}
       <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
-        <div className="p-3 lg:p-4 space-y-3">
+        <div className="p-1 sm:p-2 space-y-2">
           {/* Statistika Kartalari */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-2">
             <div 
               onClick={() => setStatusFilter('all')}
               className={`p-2 rounded-lg cursor-pointer transition-all ${

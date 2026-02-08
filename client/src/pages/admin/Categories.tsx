@@ -6,6 +6,7 @@ import { useAlert } from '../../hooks/useAlert';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
+import { extractArrayFromResponse } from '../../utils/arrayHelpers';
 
 interface Subcategory {
   _id: string;
@@ -84,7 +85,8 @@ export default function Categories() {
     setLoadingProducts(true);
     try {
       const response = await api.get(`/products?category=${encodeURIComponent(category.name)}`);
-      setCategoryProducts(response.data.data || response.data || []);
+      const productsData = extractArrayFromResponse<Product>(response);
+      setCategoryProducts(productsData);
     } catch (err) {
       console.error('Error loading products:', err);
       showAlert('Mahsulotlarni yuklashda xatolik', 'Xatolik', 'danger');
@@ -238,7 +240,7 @@ export default function Categories() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 w-full h-full">
       {AlertComponent}
       
       <Header
@@ -246,15 +248,15 @@ export default function Categories() {
         actions={
           <button
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/30 hover:shadow-xl hover:scale-105"
+            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/30 hover:shadow-xl hover:scale-105"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             <span>Kategoriya qo'shish</span>
           </button>
         }
       />
 
-      <div className="max-w-4xl mx-auto p-4 lg:p-6">
+      <div className="w-full p-1 sm:p-2">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin mb-4" />

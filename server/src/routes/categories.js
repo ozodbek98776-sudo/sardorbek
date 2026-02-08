@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
-const { authenticateToken, isAdmin } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permissions');
 
 // Get all categories (public - for kassa and helper)
 router.get('/', async (req, res) => {
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create category (admin only)
-router.post('/', authenticateToken, isAdmin, async (req, res) => {
+router.post('/', auth, checkPermission('categories', 'create'), async (req, res) => {
   try {
     const { name, order } = req.body;
 
@@ -49,7 +50,7 @@ router.post('/', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Update category (admin only)
-router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
+router.put('/:id', auth, checkPermission('categories', 'update'), async (req, res) => {
   try {
     const { name, order, isActive } = req.body;
 
@@ -88,7 +89,7 @@ router.put('/:id', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Delete category (admin only)
-router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
+router.delete('/:id', auth, checkPermission('categories', 'delete'), async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) {
@@ -112,7 +113,7 @@ router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Reorder categories (admin only)
-router.post('/reorder', authenticateToken, isAdmin, async (req, res) => {
+router.post('/reorder', auth, checkPermission('categories', 'update'), async (req, res) => {
   try {
     const { categories } = req.body; // Array of { id, order }
 
@@ -142,7 +143,7 @@ router.post('/reorder', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Add subcategory to category (admin only)
-router.post('/:id/subcategories', authenticateToken, isAdmin, async (req, res) => {
+router.post('/:id/subcategories', auth, checkPermission('categories', 'create'), async (req, res) => {
   try {
     const { name, order } = req.body;
 
@@ -183,7 +184,7 @@ router.post('/:id/subcategories', authenticateToken, isAdmin, async (req, res) =
 });
 
 // Update subcategory (admin only)
-router.put('/:id/subcategories/:subId', authenticateToken, isAdmin, async (req, res) => {
+router.put('/:id/subcategories/:subId', auth, checkPermission('categories', 'update'), async (req, res) => {
   try {
     const { name, order } = req.body;
 
@@ -226,7 +227,7 @@ router.put('/:id/subcategories/:subId', authenticateToken, isAdmin, async (req, 
 });
 
 // Delete subcategory (admin only)
-router.delete('/:id/subcategories/:subId', authenticateToken, isAdmin, async (req, res) => {
+router.delete('/:id/subcategories/:subId', auth, checkPermission('categories', 'delete'), async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) {

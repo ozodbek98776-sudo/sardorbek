@@ -1,111 +1,31 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const { auth, authorize } = require('../middleware/auth');
+const telegramService = require('../services/telegramService');
+const serviceFactory = require('../services/business/ServiceFactory');
+
+// Models
 const Receipt = require('../models/Receipt');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
-const { auth, authorize } = require('../middleware/auth');
-const telegramService = require('../services/telegramService');
-// const { getPOSBot } = require('../telegram.bot'); // POS Bot import qilish - vaqtincha o'chirildi
+const Debt = require('../models/Debt');
 
 const router = express.Router();
+
+// Service larni olish
+const receiptService = serviceFactory.receipt;
 
 // Kassir cheklari uchun yangi endpoint - to'lovsiz chek yaratish
 router.post('/helper-receipt', auth, async (req, res) => {
   try {
-    const { items, customer, customerName, isRegularCustomer } = req.body;
-
-    // Faqat kassir va admin ruxsat etiladi
-    if (!['cashier', 'admin'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Ruxsat etilmagan' });
-    }
-
-    // Mahsulot miqdorlarini tekshirish
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(400).json({ message: `Mahsulot topilmadi: ${item.name}` });
-      }
-      if (product.quantity < item.quantity) {
-        return res.status(400).json({
-          message: `Yetarli mahsulot yo'q: ${item.name}. Mavjud: ${product.quantity}, Kerak: ${item.quantity}`
-        });
-      }
-    }
-
-    // Jami summani hisoblash
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    // Chek yaratish
-    const receipt = new Receipt({
-      items: items.map(item => ({
-        product: item.productId,
-        name: item.name,
-        code: item.code || '',
-        price: item.price,
-        quantity: item.quantity
-      })),
-      total: totalAmount,
-      paymentMethod: 'cash', // Default
-      status: 'completed',
-      isReturn: false,
-      createdBy: req.user._id,
-      helperId: req.user._id, // Chekni chiqargan kassir
-      isPaid: false, // To'lov yo'q
-      receiptType: 'helper_receipt', // Kassir cheki
-      customer: customer || null, // Mijoz ID
-      customerName: customerName || (isRegularCustomer ? 'Oddiy mijoz' : null), // Mijoz ismi
-      isRegularCustomer: isRegularCustomer || false // Oddiy mijoz belgisi
-    });
-
-    await receipt.save();
-
-    // Mahsulot miqdorlarini kamaytirish
-    for (const item of items) {
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { quantity: -item.quantity } }
-      );
-    }
-
-    // Kassirga bonus hisoblash va qo'shish
-    const kassir = await require('../models/User').findById(req.user._id);
-    if (kassir && kassir.bonusPercentage > 0) {
-      const bonusAmount = (totalAmount * kassir.bonusPercentage) / 100;
-
-      // Kassir statistikasini yangilash
-      await require('../models/User').findByIdAndUpdate(req.user._id, {
-        $inc: {
-          totalEarnings: totalAmount,
-          totalBonus: bonusAmount
-        }
-      });
-
-      console.log(`Kassir ${kassir.name} ga ${bonusAmount} so'm bonus qo'shildi (${kassir.bonusPercentage}% dan ${totalAmount} so'm)`);
-    }
-
-    // ⚡ Socket.IO - Real-time update
-    if (global.io) {
-      global.io.emit('receipt:created', {
-        _id: receipt._id,
-        total: receipt.total,
-        helperId: receipt.helperId,
-        createdAt: receipt.createdAt
-      });
-      console.log('📡 Socket emit: receipt:created');
-    }
-
-    res.status(201).json({
-      success: true,
-      receipt: {
-        _id: receipt._id,
-        items: receipt.items,
-        total: receipt.total,
-        helperId: receipt.helperId,
-        createdAt: receipt.createdAt
-      }
-    });
+    const result = await receiptService.createHelperReceipt(req.body, req.user);
+    res.status(201).json(result);
   } catch (error) {
-    console.error('Helper receipt creation error:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ 
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -251,10 +171,39 @@ router.post('/kassa-atomic', async (req, res) => {
   }
 });
 
-// Kassa uchun chek yaratish (auth talab qilmaydi)
+// Kassa uchun chek yaratish (auth talab qilmaydi) - ATOMIC TRANSACTION
 router.post('/kassa', async (req, res) => {
+  const session = await mongoose.startSession();
+  
   try {
+    await session.startTransaction();
+    
     const { items, total, paymentMethod, customer, receiptNumber, paidAmount, remainingAmount } = req.body;
+
+    // Input validation
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('Chek bo\'sh bo\'lishi mumkin emas');
+    }
+    
+    if (!total || total <= 0) {
+      throw new Error('Jami summa noto\'g\'ri');
+    }
+
+    // Mahsulot miqdorlarini tekshirish - ATOMIC
+    const productUpdates = [];
+    for (const item of items) {
+      const product = await Product.findById(item.product).session(session);
+      if (!product) {
+        throw new Error(`Mahsulot topilmadi: ${item.name}`);
+      }
+      if (product.quantity < item.quantity) {
+        throw new Error(`Yetarli mahsulot yo'q: ${item.name}. Mavjud: ${product.quantity}, Kerak: ${item.quantity}`);
+      }
+      productUpdates.push({
+        productId: item.product,
+        quantityChange: -item.quantity
+      });
+    }
 
     const receiptData = {
       items: items.map(item => ({
@@ -273,210 +222,146 @@ router.post('/kassa', async (req, res) => {
       remainingAmount: remainingAmount || 0,
       status: 'completed',
       isPaid: (paidAmount || total) >= total,
-      createdBy: new (require('mongoose')).Types.ObjectId(), // Dummy user ID for kassa
+      createdBy: new mongoose.Types.ObjectId(), // Dummy user ID for kassa
       createdAt: new Date()
     };
 
     const receipt = new Receipt(receiptData);
-    await receipt.save();
+    await receipt.save({ session });
 
-    // Mahsulot miqdorlarini yangilash
-    for (const item of items) {
+    // Mahsulot miqdorlarini yangilash - ATOMIC
+    for (const update of productUpdates) {
       await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { quantity: -item.quantity } }
+        update.productId,
+        { $inc: { quantity: update.quantityChange } },
+        { session }
       );
     }
 
-    // Mijoz statistikasini yangilash va Telegram chek yuborish
+    // Mijoz statistikasini yangilash - ATOMIC
     if (customer) {
-      try {
-        // Mijoz ma'lumotlarini olish
-        const customerData = await Customer.findById(customer);
+      const customerData = await Customer.findById(customer).session(session);
+      if (customerData) {
+        // Ball hisoblash - har 1,000,000 = 1 ball
+        const earnedBalls = Math.floor(total / 1000000);
+        
+        // Statistikani va ballni yangilash
+        await Customer.findByIdAndUpdate(
+          customer,
+          { $inc: { totalPurchases: total, totalBalls: earnedBalls } },
+          { session }
+        );
 
-        if (customerData) {
-          // Ball hisoblash - har 1,000,000 = 1 ball
-          const earnedBalls = Math.floor(total / 1000000);
-          
-          // Statistikani va ballni yangilash
+        // Qoldiq summa qarz sifatida qo'shish (agar to'liq to'lanmagan bo'lsa)
+        if (remainingAmount && remainingAmount > 0) {
           await Customer.findByIdAndUpdate(
             customer,
-            { $inc: { totalPurchases: total, totalBalls: earnedBalls } }
+            { $inc: { debt: remainingAmount } },
+            { session }
+          );
+          console.log(`✅ Mijoz ${customerData.name} ga ${remainingAmount} so'm qarz qo'shildi`);
+        }
+
+        // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish - ATOMIC
+        if (customerData.debt > 0) {
+          const paymentAmount = Math.min(paidAmount || total, customerData.debt);
+
+          await Customer.findByIdAndUpdate(
+            customer,
+            { $inc: { debt: -paymentAmount } },
+            { session }
           );
 
-          // Qoldiq summa qarz sifatida qo'shish (agar to'liq to'lanmagan bo'lsa)
-          if (remainingAmount && remainingAmount > 0) {
-            await Customer.findByIdAndUpdate(
-              customer,
-              { $inc: { debt: remainingAmount } }
-            );
-            console.log(`✅ Mijoz ${customerData.name} ga ${remainingAmount} so'm qarz qo'shildi`);
-          }
+          // Qarz to'lovlarini topish va yangilash - ATOMIC
+          const debts = await Debt.find({
+            customer: customer,
+            type: 'receivable',
+            status: 'approved',
+            $expr: { $lt: ['$paidAmount', '$amount'] }
+          }).sort({ createdAt: 1 }).session(session);
 
-          // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish
-          if (customerData.debt > 0) {
-            const paymentAmount = Math.min(paidAmount || total, customerData.debt); // Qarzdan ko'p ayrib bo'lmaydi
+          let remainingPayment = paymentAmount;
 
-            // Mijozning umumiy qarzini kamaytirish
-            await Customer.findByIdAndUpdate(
-              customer,
-              { $inc: { debt: -paymentAmount } }
-            );
+          for (const debt of debts) {
+            if (remainingPayment <= 0) break;
 
-            // Qarz to'lovlarini topish va yangilash
-            const debts = await require('../models/Debt').find({
-              customer: customer,
-              type: 'receivable',
-              status: 'approved',
-              $expr: { $lt: ['$paidAmount', '$amount'] } // To'liq to'lanmagan qarzlar
-            }).sort({ createdAt: 1 }); // Eng eski qarzdan boshlab
+            const debtBalance = debt.amount - debt.paidAmount;
+            const paymentForThisDebt = Math.min(remainingPayment, debtBalance);
 
-            let remainingPayment = paymentAmount;
+            debt.payments.push({
+              amount: paymentForThisDebt,
+              method: paymentMethod,
+              date: new Date(),
+              note: 'Xarid orqali avtomatik to\'lov'
+            });
 
-            for (const debt of debts) {
-              if (remainingPayment <= 0) break;
+            debt.paidAmount += paymentForThisDebt;
 
-              const debtBalance = debt.amount - debt.paidAmount;
-              const paymentForThisDebt = Math.min(remainingPayment, debtBalance);
-
-              // Qarzga to'lov qo'shish
-              debt.payments.push({
-                amount: paymentForThisDebt,
-                method: paymentMethod,
-                date: new Date(),
-                note: 'Xarid orqali avtomatik to\'lov'
-              });
-
-              debt.paidAmount += paymentForThisDebt;
-
-              if (debt.paidAmount >= debt.amount) {
-                debt.status = 'paid';
-              }
-
-              await debt.save();
-              remainingPayment -= paymentForThisDebt;
+            if (debt.paidAmount >= debt.amount) {
+              debt.status = 'paid';
             }
 
-            console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
-
-            // Mijozga qarz to'lovi haqida Telegram xabari
-            if (customerData.telegramChatId) {
-              try {
-                // Yangilangan qarz miqdorini olish
-                const updatedCustomer = await Customer.findById(customer);
-
-                await telegramService.sendDebtPaymentToCustomer({
-                  customer: customerData,
-                  amount: paymentAmount,
-                  remainingDebt: updatedCustomer.debt
-                });
-
-                console.log(`Debt payment notification sent to ${customerData.name}`);
-              } catch (debtNotificationError) {
-                console.error('Debt payment notification error:', debtNotificationError);
-              }
-            }
+            await debt.save({ session });
+            remainingPayment -= paymentForThisDebt;
           }
 
-          // Mijozga telegram orqali chek yuborish
-          if (customerData.telegramChatId) {
-            console.log(`Sending receipt to customer ${customerData.name} via Telegram...`);
+          console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
+        }
+      }
+    }
 
-            // Yangilangan mijoz ma'lumotlarini olish (qarz kamaygandan keyin)
-            const updatedCustomer = await Customer.findById(customer);
+    // Transaction commit
+    await session.commitTransaction();
+    
+    // Telegram xabarlari transaction dan tashqarida (xato bo'lsa ham chek yaratilgan bo'ladi)
+    if (customer) {
+      try {
+        const customerData = await Customer.findById(customer);
+        if (customerData && customerData.telegramChatId) {
+          const updatedCustomer = await Customer.findById(customer);
 
-            try {
-              // TelegramService orqali POS Bot bilan chek yuborish
-              await telegramService.sendReceiptToCustomerViaPOSBot({
-                customer: updatedCustomer,
-                items: items,
-                total: total,
-                paidAmount: paidAmount || total,
-                remainingAmount: remainingAmount || 0,
-                paymentMethod: paymentMethod,
-                receiptNumber: receiptNumber || `CHK-${Date.now()}`
-              });
-              console.log(`✅ POS Bot: Chek ${customerData.name} ga yuborildi`);
-            } catch (telegramError) {
-              console.error('❌ POS Bot chek yuborishda xatolik:', telegramError);
-            }
-          } else {
-            console.log(`❌ Mijoz ${customerData.name} da telegram ID yo'q`);
-          }
+          await telegramService.sendReceiptToCustomerViaPOSBot({
+            customer: updatedCustomer,
+            items: items,
+            total: total,
+            paidAmount: paidAmount || total,
+            remainingAmount: remainingAmount || 0,
+            paymentMethod: paymentMethod,
+            receiptNumber: receiptNumber || `CHK-${Date.now()}`
+          });
+          console.log(`✅ POS Bot: Chek ${customerData.name} ga yuborildi`);
         }
       } catch (telegramError) {
-        console.error('Customer processing error:', telegramError);
-        // Xatolik chek yaratishni to'xtatmasin
+        console.error('❌ POS Bot chek yuborishda xatolik:', telegramError);
       }
     }
 
     res.status(201).json(receipt);
   } catch (error) {
+    await session.abortTransaction();
+    console.error('Kassa transaction error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
+  } finally {
+    session.endSession();
   }
 });
 
 // Kassirlar ro'yxati va ularning cheklari statistikasi - OPTIMIZED
+// Kassirlar ro'yxati va ularning cheklari statistikasi
 router.get('/helpers-stats', auth, authorize('admin'), async (req, res) => {
   try {
-    const User = require('../models/User');
-    
-    // Bitta aggregate query bilan barcha statistikani olish
-    const receiptsStats = await Receipt.aggregate([
-      {
-        $match: {
-          receiptType: 'helper_receipt'
-        }
-      },
-      {
-        $group: {
-          _id: '$helperId',
-          receiptCount: { $sum: 1 },
-          totalAmount: { $sum: '$total' }
-        }
-      }
-    ]);
-
-    // Stats map qilish
-    const statsMap = {};
-    receiptsStats.forEach(stat => {
-      // stat._id null bo'lishi mumkin, tekshirish kerak
-      if (stat._id) {
-        statsMap[stat._id.toString()] = {
-          receiptCount: stat.receiptCount,
-          totalAmount: stat.totalAmount
-        };
-      }
-    });
-
-    // Barcha kassirlarni olish
-    const helpers = await User.find({
-      role: { $in: ['cashier', 'helper'] }
-    }).select('_id name role bonusPercentage totalEarnings totalBonus');
-
-    // Statistika bilan birlashtirish
-    const helpersWithStats = helpers.map(helper => {
-      const stats = statsMap[helper._id.toString()] || { receiptCount: 0, totalAmount: 0 };
-      return {
-        _id: helper._id,
-        name: helper.name,
-        role: helper.role,
-        receiptCount: stats.receiptCount,
-        totalAmount: stats.totalAmount,
-        bonusPercentage: helper.bonusPercentage || 0,
-        totalEarnings: helper.totalEarnings || 0,
-        totalBonus: helper.totalBonus || 0
-      };
-    });
-
-    res.json(helpersWithStats);
+    const result = await receiptService.getHelpersStats();
+    res.json(result);
   } catch (error) {
-    console.error('Helpers stats error:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ 
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
-// Muayyan kassirning barcha cheklari - CARD VIEW UCHUN
+// Muayyan kassirning barcha cheklari - CARD VIEW UCHUN - OPTIMIZED
 router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, res) => {
   try {
     const { helperId } = req.params;
@@ -494,23 +379,26 @@ router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, r
       }
     }
 
-    const receipts = await Receipt.find({
-      helperId: helperId,
-      receiptType: 'helper_receipt',
-      ...dateFilter
-    })
-      .populate('helperId', 'name role')
-      .populate('items.product', 'name code')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean(); // Performance optimization
-
-    const total = await Receipt.countDocuments({
-      helperId: helperId,
-      receiptType: 'helper_receipt',
-      ...dateFilter
-    });
+    // Parallel queries for better performance
+    const [receipts, total] = await Promise.all([
+      Receipt.find({
+        helperId: helperId,
+        receiptType: 'helper_receipt',
+        ...dateFilter
+      })
+        .select('_id receiptNumber items total paymentMethod isPaid status createdAt updatedAt helperId')
+        .populate('helperId', 'name role')
+        .sort({ createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit)
+        .lean(), // Performance optimization
+      
+      Receipt.countDocuments({
+        helperId: helperId,
+        receiptType: 'helper_receipt',
+        ...dateFilter
+      })
+    ]);
 
     // Card format uchun ma'lumotlarni formatlash
     const formattedReceipts = receipts.map(receipt => ({
@@ -543,7 +431,8 @@ router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, r
         total,
         totalPages: Math.ceil(total / limit),
         currentPage: parseInt(page),
-        limit: parseInt(limit)
+        limit: parseInt(limit),
+        hasMore: page * limit < total
       }
     });
   } catch (error) {
@@ -736,72 +625,17 @@ router.get('/all-helper-receipts', auth, authorize('admin'), async (req, res) =>
 });
 
 // Xodim chekini o'chirish - FAQAT ADMIN
+// Xodim chekini o'chirish - FAQAT ADMIN
 router.delete('/helper-receipt/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Chekni topish
-    const receipt = await Receipt.findById(id);
-    
-    if (!receipt) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Chek topilmadi' 
-      });
-    }
-
-    // Faqat helper_receipt turini o'chirish mumkin
-    if (receipt.receiptType !== 'helper_receipt') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Faqat xodim chekini o\'chirish mumkin' 
-      });
-    }
-
-    // Mahsulot miqdorlarini qaytarish (rollback)
-    for (const item of receipt.items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { quantity: item.quantity } } // Qaytarib qo'shish
-      );
-    }
-
-    // Agar xodimga bonus berilgan bo'lsa, uni qaytarish
-    if (receipt.helperId) {
-      const helper = await require('../models/User').findById(receipt.helperId);
-      if (helper && helper.bonusPercentage > 0) {
-        const bonusAmount = (receipt.total * helper.bonusPercentage) / 100;
-        
-        await require('../models/User').findByIdAndUpdate(receipt.helperId, {
-          $inc: {
-            totalEarnings: -receipt.total,
-            totalBonus: -bonusAmount
-          }
-        });
-
-        console.log(`Xodim ${helper.name} dan ${bonusAmount} so'm bonus ayrildi`);
-      }
-    }
-
-    // Chekni o'chirish
-    await Receipt.findByIdAndDelete(id);
-
-    res.json({ 
-      success: true, 
-      message: 'Chek muvaffaqiyatli o\'chirildi',
-      deletedReceipt: {
-        _id: receipt._id,
-        receiptNumber: receipt.receiptNumber,
-        total: receipt.total
-      }
-    });
-
+    const result = await receiptService.deleteHelperReceipt(req.params.id, req.user);
+    res.json(result);
   } catch (error) {
-    console.error('Delete helper receipt error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server xatosi', 
-      error: error.message 
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ 
+      success: false,
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -838,11 +672,11 @@ router.delete('/:id', auth, async (req, res) => {
 
     // Agar xodimga bonus berilgan bo'lsa, uni qaytarish
     if (receipt.helperId) {
-      const helper = await require('../models/User').findById(receipt.helperId);
+      const helper = await User.findById(receipt.helperId);
       if (helper && helper.bonusPercentage > 0) {
         const bonusAmount = (receipt.total * helper.bonusPercentage) / 100;
         
-        await require('../models/User').findByIdAndUpdate(receipt.helperId, {
+        await User.findByIdAndUpdate(receipt.helperId, {
           $inc: {
             totalEarnings: -receipt.total,
             totalBonus: -bonusAmount
@@ -910,17 +744,27 @@ router.post('/bulk', auth, authorize('admin', 'cashier'), async (req, res) => {
         }
 
         // Create receipt from offline sale
-        const receipt = new Receipt({
+        const receiptData = {
           items: sale.items,
           total: sale.total,
           paymentMethod: sale.paymentMethod || 'cash',
           customer: sale.customer,
           status: 'completed',
           isReturn: sale.isReturn || false,
-          createdBy: req.user._id,
           createdAt: sale.createdAt ? new Date(sale.createdAt) : new Date(),
           metadata: { offlineId: sale.offlineId, syncedAt: new Date() }
-        });
+        };
+
+        // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+        if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+          receiptData.createdBy = req.user._id;
+        } else {
+          // Hardcoded admin uchun dummy ObjectId yaratamiz
+          const mongoose = require('mongoose');
+          receiptData.createdBy = new mongoose.Types.ObjectId();
+        }
+
+        const receipt = new Receipt(receiptData);
 
         // Update product quantities (skip stock check for offline sales)
         for (const item of sale.items) {
@@ -988,7 +832,8 @@ router.post('/', auth, async (req, res) => {
 
     console.log('✅ Mahsulot tekshiruvi muvaffaqiyatli');
 
-    const receipt = new Receipt({
+    // Receipt ma'lumotlarini tayyorlash
+    const receiptData = {
       items,
       total,
       paidAmount: actualPaidAmount,
@@ -998,10 +843,22 @@ router.post('/', auth, async (req, res) => {
       customer,
       status: isHelper ? 'pending' : 'completed',
       isReturn: isReturn || false,
-      createdBy: req.user._id,
-      helperId: req.user._id, // Xodim ID qo'shildi
       receiptType: isHelper ? 'helper_receipt' : 'direct_sale' // Xodim cheki yoki to'g'ridan-to'g'ri sotuv
-    });
+    };
+
+    // createdBy va helperId - faqat real ObjectId bo'lsa qo'shamiz
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      receiptData.createdBy = req.user._id;
+      receiptData.helperId = req.user._id; // Xodim ID qo'shildi
+    } else {
+      // Hardcoded admin uchun dummy ObjectId yaratamiz
+      const mongoose = require('mongoose');
+      const dummyId = new mongoose.Types.ObjectId();
+      receiptData.createdBy = dummyId;
+      receiptData.helperId = dummyId;
+    }
+
+    const receipt = new Receipt(receiptData);
 
     if (!isHelper) {
       for (const item of items) {
@@ -1017,7 +874,6 @@ router.post('/', auth, async (req, res) => {
     // Agar qarz bo'lsa va mijoz tanlangan bo'lsa, qarzni yaratish yoki yangilash
     if (debtAmount > 0 && customer && !isReturn) {
       try {
-        const Debt = require('../models/Debt');
         
         console.log(`📝 Qarz yaratish boshlandi:`);
         console.log(`   - Mijoz ID: ${customer}`);
@@ -1057,7 +913,7 @@ router.post('/', auth, async (req, res) => {
           
           console.log(`📅 Qarz muddati: ${dueDate.toLocaleDateString('uz-UZ')}`);
           
-          const newDebt = new Debt({
+          const debtData = {
             customer: customer,
             amount: debtAmount,
             paidAmount: 0,
@@ -1065,9 +921,15 @@ router.post('/', auth, async (req, res) => {
             originalDueDate: dueDate,
             description: `Chek #${receipt.receiptNumber || receipt._id} uchun qarz`,
             type: 'receivable',
-            status: 'approved', // Avtomatik tasdiqlangan
-            createdBy: req.user._id
-          });
+            status: 'approved' // Avtomatik tasdiqlangan
+          };
+
+          // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+          if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+            debtData.createdBy = req.user._id;
+          }
+
+          const newDebt = new Debt(debtData);
           await newDebt.save();
           
           console.log(`✅ Yangi qarz yaratildi:`);
@@ -1188,53 +1050,17 @@ router.put('/:id/reject', auth, authorize('admin', 'cashier'), async (req, res) 
 });
 
 // Bitta chekni olish - ID bo'yicha
+// Bitta chekni olish - ID bo'yicha
 router.get('/:id', async (req, res) => {
   try {
-    const receipt = await Receipt.findById(req.params.id)
-      .populate('customer', 'name phone')
-      .populate('createdBy', 'name role')
-      .populate('helperId', 'name role')
-      .populate('items.product', 'name code images')
-      .lean();
-
-    if (!receipt) {
-      return res.status(404).json({ message: 'Chek topilmadi' });
-    }
-
-    // Format receipt data
-    const formattedReceipt = {
-      _id: receipt._id,
-      receiptNumber: receipt.receiptNumber || `CHK-${receipt._id.toString().slice(-6).toUpperCase()}`,
-      items: receipt.items.map(item => ({
-        product: {
-          _id: item.product._id,
-          name: item.product.name || item.name,
-          code: item.product.code || item.code,
-          images: item.product.images || []
-        },
-        quantity: item.quantity,
-        price: item.price
-      })),
-      totalAmount: receipt.total,
-      paymentMethod: receipt.paymentMethod,
-      customer: receipt.customer ? {
-        name: receipt.customer.name,
-        phone: receipt.customer.phone
-      } : (receipt.customerName ? {
-        name: receipt.customerName
-      } : null),
-      createdBy: receipt.createdBy ? {
-        name: receipt.createdBy.name,
-        role: receipt.createdBy.role
-      } : null,
-      createdAt: receipt.createdAt,
-      status: receipt.status
-    };
-
-    res.json(formattedReceipt);
+    const result = await receiptService.getReceiptById(req.params.id);
+    res.json(result);
   } catch (error) {
-    console.error('Get receipt error:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ 
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

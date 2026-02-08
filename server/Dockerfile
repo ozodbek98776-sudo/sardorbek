@@ -15,11 +15,11 @@ COPY . .
 RUN mkdir -p uploads
 
 # Expose port
-EXPOSE 10000
+EXPOSE 8000
 
 # Set environment
 ENV NODE_ENV=production
-ENV PORT=10000
+ENV PORT=8000
 
 # Start the application
 CMD ["npm", "start"]

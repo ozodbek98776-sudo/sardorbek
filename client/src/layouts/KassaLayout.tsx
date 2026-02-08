@@ -3,10 +3,12 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Users, FileText, Package, LogOut, Menu, X } from 'lucide-react';
 import api from '../utils/api';
 import { useAlert } from '../hooks/useAlert';
+import { useAuth } from '../context/AuthContext';
 
 export default function KassaLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sending, setSending] = useState<'arrived' | 'left' | null>(null);
   const { showAlert, AlertComponent } = useAlert();
@@ -37,18 +39,17 @@ export default function KassaLayout() {
   // Foydalanuvchi ma'lumotlarini olish
   const getUserInfo = () => {
     try {
-      const loginData = localStorage.getItem('kassaLoggedIn');
-      if (loginData) {
-        const parsed = JSON.parse(loginData);
+      // AuthContext dan user ma'lumotlarini olish
+      if (user && user.role === 'cashier') {
         return {
-          username: parsed.username || 'Kassa',
+          username: user.name || 'Kassir',
           isActive: true
         };
       }
     } catch (error) {
       console.error('Error getting user info:', error);
     }
-    return { username: 'Kassa', isActive: false };
+    return { username: 'Kassir', isActive: false };
   };
   
   const userInfo = getUserInfo();
@@ -115,7 +116,7 @@ export default function KassaLayout() {
         localStorage.setItem(key, JSON.stringify(updated));
         setAttendanceToday(updated);
         handleLogout();
-        window.location.replace('/kassa-login');
+        // handleLogout ichida allaqachon /login ga yo'naltirish bor
       }
     } catch (err: any) {
       await showAlert(
@@ -130,18 +131,24 @@ export default function KassaLayout() {
 
   // CHIQISH FUNKSIYASI - AVTOMATIK
   const handleLogout = useCallback(() => {
-    // Kassa login ma'lumotlarini o'chirish
+    console.log('🔴 Kassa logout - avtomatik tozalash');
+    
+    // Barcha login ma'lumotlarini o'chirish
     localStorage.removeItem('kassaLoggedIn');
     localStorage.removeItem('kassaToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     
-    // Kassa login sahifasiga yo'naltirish
-    window.location.replace('/kassa-login');
+    console.log('🗑️ LocalStorage tozalandi');
+    
+    // Login sahifasiga yo'naltirish
+    window.location.href = '/login';
   }, []);
 
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/kassa' || path === '/kassa/') return 'Kassa POS';
-    if (path === '/kassa/pos') return 'Kassa POS';
+    if (path === '/kassa/pos' || path === '/kassa/kassa') return 'Kassa POS';
     if (path === '/kassa/receipts') return 'Cheklar';
     if (path === '/kassa/clients') return 'Mijozlar';
     return 'Kassa';
@@ -158,163 +165,94 @@ export default function KassaLayout() {
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-72 flex flex-col
-        transform transition-transform duration-300 ease-in-out lg:transform-none
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}
-      style={{
-        background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
-        borderRight: '1px solid rgba(6, 182, 212, 0.2)',
-        boxShadow: '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
-      }}
+      {/* Sidebar - Desktop only */}
+      <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:flex-shrink-0"
+        style={{
+          background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
+          borderRight: '1px solid rgba(6, 182, 212, 0.2)',
+          boxShadow: '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
+        }}
       >
-        {/* Logo/Header */}
-        <div 
-          className="p-5 flex items-center justify-between"
-          style={{
-            borderBottom: '1px solid rgba(6, 182, 212, 0.15)',
-            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, transparent 100%)'
-          }}
-        >
+        {/* Sidebar Header */}
+        <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div 
-              className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-                boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
-              }}
-            >
-              <img src="/o5sk1awh.png" alt="Logo" className="w-full h-full object-cover" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg">
+              <Package className="w-6 h-6 text-white" />
             </div>
             <div>
-              <span className="font-bold text-lg text-white tracking-wide" style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.5px' }}>Sardor</span>
-              <p className="text-sm font-semibold tracking-wider" style={{ color: '#c4b5fd', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1.5px' }}>FURNITURA</p>
+              <h1 className="text-lg font-bold text-white">Kassa Panel</h1>
+              <p className="text-xs text-cyan-300">{userInfo.username}</p>
             </div>
           </div>
-          {/* Mobile Close Button */}
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-xl transition-colors"
-            style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#c4b5fd' }}
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
-        
-        {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <div className="space-y-1.5">
-            {[
-              { path: '/kassa/pos', label: 'Kassa POS', icon: Package },
-              { path: '/kassa/receipts', label: 'Cheklar', icon: FileText },
-              { path: '/kassa/clients', label: 'Mijozlar', icon: Users },
-              { path: '/kassa/debts', label: 'Qarz daftarcha', icon: FileText }
-            ].map(({ path, label, icon: Icon }) => (
-              <Link
-                key={path}
-                to={path}
-                onClick={() => setIsSidebarOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
-                style={{
-                  background: location.pathname === path 
-                    ? 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' 
-                    : 'transparent',
-                  color: location.pathname === path ? '#ffffff' : '#c4b5fd',
-                  boxShadow: location.pathname === path ? '0 4px 12px -2px rgba(6, 182, 212, 0.4)' : 'none'
-                }}
-              >
-                <Icon className="w-5 h-5" />
-                {label}
-              </Link>
-            ))}
-          </div>
-        </nav>
-        
-        {/* User Profile Section */}
-        <div 
-          className="p-4"
-          style={{
-            borderTop: '1px solid rgba(6, 182, 212, 0.15)',
-            background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.2) 100%)'
-          }}
-        >
-          {/* Profile Card */}
-          <div 
-            className="rounded-2xl p-4 mb-3"
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(6, 182, 212, 0.15)'
-            }}
+
+        {/* Navigation Links */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <Link
+            to="/kassa/kassa"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              location.pathname === '/kassa/kassa' || location.pathname === '/kassa/pos'
+                ? 'bg-cyan-500/20 text-white shadow-lg'
+                : 'text-purple-200 hover:bg-white/10'
+            }`}
           >
-            <div className="flex items-center gap-3">
-              {/* Avatar */}
-              <div 
-                className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-                  boxShadow: '0 4px 12px -2px rgba(124, 58, 237, 0.4)'
-                }}
-              >
-                <span className="text-base font-bold text-white">
-                  {userInfo.username.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              
-              {/* User Info */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-white truncate">
-                  {userInfo.username === 'alisher' ? 'Namozov Alisher' : 
-                   userInfo.username === 'kassa1' ? 'Kassa Xodimi' : 
-                   userInfo.username === 'admin' ? 'Administrator' : 
-                   userInfo.username}
-                </h3>
-                <p className="text-xs font-medium flex items-center gap-1" style={{ color: '#a5b4fc' }}>
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
-                  Kassir • Faol
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Logout Button */}
+            <Package className="w-5 h-5" />
+            <span className="font-semibold">Kassa POS</span>
+          </Link>
+
+          <Link
+            to="/kassa/receipts"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              location.pathname === '/kassa/receipts'
+                ? 'bg-cyan-500/20 text-white shadow-lg'
+                : 'text-purple-200 hover:bg-white/10'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span className="font-semibold">Cheklar</span>
+          </Link>
+
+          <Link
+            to="/kassa/clients"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              location.pathname === '/kassa/clients'
+                ? 'bg-cyan-500/20 text-white shadow-lg'
+                : 'text-purple-200 hover:bg-white/10'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="font-semibold">Mijozlar</span>
+          </Link>
+
+          <Link
+            to="/kassa/debts"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              location.pathname === '/kassa/debts'
+                ? 'bg-cyan-500/20 text-white shadow-lg'
+                : 'text-purple-200 hover:bg-white/10'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span className="font-semibold">Qarzlar</span>
+          </Link>
+        </nav>
+
+        {/* Sidebar Footer - Logout */}
+        <div className="p-4 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-semibold"
-            style={{
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#fca5a5'
-            }}
-            title="Kassa tizimidan chiqish"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white rounded-xl transition-all font-semibold"
           >
-            <LogOut className="w-4 h-4" />
-            Chiqish
+            <LogOut className="w-5 h-5" />
+            <span>Chiqish</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-0 h-full">
-        {/* Top Header */}
-        <header 
-          className="px-4 lg:px-6 h-14 lg:h-16 flex items-center justify-between flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 245, 255, 0.95) 100%)',
-            borderBottom: '1px solid rgba(91, 33, 182, 0.1)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 4px 20px -4px rgba(46, 16, 101, 0.08)'
-          }}
-        >
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden p-2.5 rounded-xl transition-colors"
-            style={{ background: 'rgba(91, 33, 182, 0.08)', color: '#5b21b6' }}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header with Keldim/Ketdim buttons */}
+        <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-4 py-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <h2 className="text-lg lg:text-xl font-bold" style={{ color: '#2e1065' }}>
               {getPageTitle()}
@@ -325,12 +263,12 @@ export default function KassaLayout() {
             </div>
           </div>
 
-          {/* Keldim/Ketdim Tugmalari - Navbar da */}
+          {/* Keldim/Ketdim Tugmalari */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleAttendance('arrived')}
               disabled={sending !== null}
-              className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
+              className="px-3 py-2 rounded-xl text-white text-xs sm:text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
                 boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
@@ -341,7 +279,7 @@ export default function KassaLayout() {
             <button
               onClick={() => handleAttendance('left')}
               disabled={sending !== null}
-              className="px-3 py-2 rounded-xl text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
+              className="px-3 py-2 rounded-xl text-white text-xs sm:text-sm font-semibold shadow-md disabled:opacity-60 transition-all hover:scale-105"
               style={{
                 background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
                 boxShadow: '0 4px 12px -2px rgba(220, 38, 38, 0.4)'
@@ -356,7 +294,57 @@ export default function KassaLayout() {
         <div className="flex-1 overflow-hidden">
           <Outlet />
         </div>
-      </div>
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-100/80 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
+        <div className="grid grid-cols-4 h-[72px] max-w-lg mx-auto">
+          {[
+            { path: '/kassa/kassa', icon: Package, label: 'Kassa POS' },
+            { path: '/kassa/receipts', icon: FileText, label: 'Cheklar' },
+            { path: '/kassa/clients', icon: Users, label: 'Mijozlar' },
+            { path: '/kassa/debts', icon: FileText, label: 'Qarzlar' }
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`relative flex flex-col items-center justify-center gap-0.5 transition-all duration-300 ${
+                  active 
+                    ? 'text-cyan-600' 
+                    : 'text-slate-400 active:text-slate-600'
+                }`}
+              >
+                {/* Active indicator */}
+                {active && (
+                  <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-full" />
+                )}
+                
+                <div className={`p-2 rounded-2xl transition-all duration-300 ${
+                  active 
+                    ? 'bg-gradient-to-br from-cyan-50 to-cyan-100 shadow-sm' 
+                    : 'hover:bg-slate-50'
+                }`}>
+                  <Icon className={`w-5 h-5 transition-all duration-300 ${
+                    active ? 'scale-110 text-cyan-600' : ''
+                  }`} />
+                </div>
+                <span className={`text-[10px] font-semibold transition-all duration-300 ${
+                  active ? 'text-cyan-600' : 'text-slate-500'
+                }`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+        
+        {/* Safe area padding for iOS */}
+        <div className="h-safe-area-inset-bottom bg-slate-100/80" />
+      </nav>
 
       {AlertComponent}
     </div>

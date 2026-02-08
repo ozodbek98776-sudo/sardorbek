@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder
+  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -13,6 +13,7 @@ interface MenuItem {
   icon: React.ReactNode;
   label: string;
   path: string;
+  external?: boolean; // Agar true bo'lsa, basePath qo'shilmaydi
 }
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ interface SidebarProps {
 export default function Sidebar({ items, basePath, collapsed = false, setCollapsed }: SidebarProps) {
   const { user, logout, updateUser } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', password: '' });
 
@@ -53,7 +55,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
   return (
     <aside 
-      className={`fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-50 ${
+      className={`hidden lg:block fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-50 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
       style={{
@@ -106,7 +108,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
         {items.map((item, i) => (
           <NavLink
             key={i}
-            to={`${basePath}${item.path}`}
+            to={item.external ? item.path : `${basePath}${item.path}`}
             end={item.path === ''}
             className={({ isActive }) => `
               flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200 group
@@ -173,7 +175,22 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
           </div>
         )}
         <button
-          onClick={logout}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Avtomatik logout - tasdiqlash so'ramasdan
+            console.log('🔴 Sidebar logout - avtomatik tozalash');
+            
+            // Clear localStorage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            console.log('🗑️ LocalStorage tozalandi');
+            
+            // Force reload to login page
+            window.location.href = '/login';
+          }}
           className={`flex items-center gap-2 w-full px-3 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm ${
             collapsed ? 'justify-center px-2' : ''
           }`}
@@ -316,11 +333,12 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
 export const adminMenuItems: MenuItem[] = [
   { icon: <LayoutDashboard className="w-5 h-5" />, label: 'sidebar.statistics', path: '' },
-  { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' },
+  { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '/kassa' }, // Admin layout ichida
   { icon: <Package className="w-5 h-5" />, label: 'sidebar.products', path: '/products' },
   { icon: <Folder className="w-5 h-5" />, label: 'sidebar.categories', path: '/categories' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
+  { icon: <DollarSign className="w-5 h-5" />, label: 'sidebar.expenses', path: '/expenses' },
   { icon: <UserPlus className="w-5 h-5" />, label: 'sidebar.helpers', path: '/helpers' },
 ];
 

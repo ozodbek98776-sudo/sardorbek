@@ -21,7 +21,8 @@ export function useCategories() {
     try {
       setLoading(true);
       const res = await api.get('/categories');
-      setCategories(res.data);
+      // Ensure we always set an array
+      setCategories(Array.isArray(res.data) ? res.data : []);
       setError(null);
     } catch (err: any) {
       console.error('Fetch categories error:', err);
@@ -55,7 +56,7 @@ export function useCategories() {
     });
 
     socket.on('categories:reordered', (reorderedCategories: Category[]) => {
-      setCategories(reorderedCategories);
+      setCategories(Array.isArray(reorderedCategories) ? reorderedCategories : []);
     });
 
     return () => {

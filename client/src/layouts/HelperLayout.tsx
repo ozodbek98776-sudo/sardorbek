@@ -1,9 +1,10 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { LogOut, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function HelperLayout() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-surface-50">
@@ -25,7 +26,10 @@ export default function HelperLayout() {
               <User className="w-4 h-4 text-surface-500" />
             </div>
             <button 
-              onClick={logout} 
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }} 
               className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-surface-500 hover:text-danger-600 hover:bg-danger-50 transition-colors flex-shrink-0"
               title="Chiqish"
             >
@@ -34,7 +38,7 @@ export default function HelperLayout() {
           </div>
         </div>
       </header>
-      <main className="p-3 sm:p-4">
+      <main className="p-0 m-0 w-full h-full min-h-screen">
         <Outlet />
       </main>
     </div>

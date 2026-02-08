@@ -15,67 +15,122 @@ export interface ProductImage {
   uploadedAt: string;
 }
 
+// YANGI NARX TIZIMI TURLARI
+export type PriceType = 'cost' | 'unit' | 'box' | 'discount1' | 'discount2' | 'discount3';
+export type UnitType = 'dona' | 'kg' | 'metr' | 'litr' | 'karobka';
+
+export interface ProductPrice {
+  type: PriceType;
+  amount: number;
+  minQuantity?: number;
+  discountPercent?: number;
+  isActive: boolean;
+}
+
+export interface BoxInfo {
+  unitsPerBox: number;
+  boxWeight: number;
+}
+
 export interface Product {
   _id: string;
   code: string;
   name: string;
   description?: string;
-  costPrice?: number; // Tan narxi
-  unitPrice?: number; // Dona narxi
-  boxPrice?: number; // Karobka narxi
-  price: number;
-  previousPrice?: number; // Oldingi narxi
-  currentPrice?: number; // Hozirgi narxi
+  
+  // YANGI NARX TIZIMI
+  unit: UnitType;
+  prices: ProductPrice[];
+  boxInfo?: BoxInfo;
+  
+  // ESKI NARX FIELDLARI (backward compatibility uchun)
+  costPrice?: number;
+  unitPrice?: number;
+  boxPrice?: number;
+  price?: number;
+  previousPrice?: number;
+  currentPrice?: number;
+  
   quantity: number;
   warehouse: string | { _id: string; name: string };
   isMainWarehouse?: boolean;
   category?: string;
   image?: string;
-  images?: (string | ProductImage)[]; // Eski format (string) yoki yangi format (object)
+  images?: (string | ProductImage)[];
   minStock?: number;
   
-  // O'lchov birliklari
-  unit?: 'dona' | 'metr' | 'rulon' | 'karobka' | 'gram' | 'kg' | 'litr';
-  
-  // Foizli chegirmalar (miqdorga qarab)
+  // ESKI TIZIM FIELDLARI (backward compatibility)
   pricingTiers?: {
     tier1?: { minQuantity: number; maxQuantity: number; discountPercent: number };
     tier2?: { minQuantity: number; maxQuantity: number; discountPercent: number };
     tier3?: { minQuantity: number; maxQuantity: number; discountPercent: number };
   };
   
-  // Rulon/Karobka uchun qo'shimcha ma'lumotlar
   unitConversion?: {
     enabled: boolean;
     baseUnit: 'dona' | 'metr' | 'gram' | 'kg' | 'litr';
-    conversionRate: number; // 1 rulon = X metr
-    packageCount: number; // Nechta rulon/karobka bor
-    totalBaseUnits: number; // Jami metr/dona
+    conversionRate: number;
+    packageCount: number;
+    totalBaseUnits: number;
   };
   
-  // Turli narxlar
-  prices?: {
-    perUnit: number; // Dona narxi
-    perMeter: number; // Metr narxi
-    perGram: number; // Gram narxi
-    perKg: number; // Kg narxi
-    perRoll: number; // Rulon narxi
-    perBox: number; // Karobka narxi
+  prices_old?: {
+    perUnit: number;
+    perMeter: number;
+    perGram: number;
+    perKg: number;
+    perRoll: number;
+    perBox: number;
   };
+}
+
+// KASSA UCHUN MAHSULOT TIPI
+export interface KassaProduct extends Product {
+  // Kassa uchun tez hisoblash
+  unitPrice: number;
+  boxPrice: number;
+  costPrice: number;
+  discountPrices: Array<{
+    amount: number;
+    minQuantity: number;
+    discountPercent: number;
+  }>;
+}
+
+// NARX HISOBLASH NATIJASI
+export interface PriceCalculation {
+  price: number;
+  originalPrice: number;
+  appliedDiscount?: {
+    type: string;
+    percent: number;
+    minQuantity: number;
+  };
+  saleType: 'unit' | 'box';
+  unit: UnitType;
 }
 
 export interface CartItem extends Product {
   cartQuantity: number;
-  selectedTier?: 'tier1' | 'tier2' | 'tier3' | null; // Tanlangan narx darajasi
-  discountedPrice?: number; // Skidka qilingan narx
-  paymentBreakdown?: {
-    cash: number;     // Naqt pul miqdori
-    click: number;    // Click miqdori
-    card: number;     // Karta miqdori
-    partner?: number; // Hamkor to'lovi miqdori
+  saleType?: 'unit' | 'box'; // Qanday sotilayotgani
+  calculatedPrice?: number; // Hisoblangan narx (skidka bilan)
+  appliedDiscount?: {
+    type: string;
+    percent: number;
+    minQuantity: number;
   };
-  customMarkup?: number; // Qo'lda belgilangan foiz
-  originalPrice?: number; // Asl narx (kelishtirilganda)
+  
+  // ESKI FIELDLAR (backward compatibility)
+  selectedTier?: 'tier1' | 'tier2' | 'tier3' | null;
+  discountedPrice?: number;
+  paymentBreakdown?: {
+    cash: number;
+    click: number;
+    card: number;
+    partner?: number;
+  };
+  customMarkup?: number;
+  originalPrice?: number;
 }
 
 export interface Receipt {

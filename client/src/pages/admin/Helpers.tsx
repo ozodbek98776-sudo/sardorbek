@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-import { Plus, UserPlus, X, Shield, ShoppingCart, Trash2, Phone, Lock, User, Edit, Receipt, Eye, Calendar, DollarSign } from 'lucide-react';
+import { Plus, UserPlus, X, Shield, ShoppingCart, Trash2, Phone, Lock, User, Edit, Receipt, Calendar, DollarSign, Award } from 'lucide-react';
 import { User as UserType } from '../../types';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
 import { formatPhone, getRawPhone, displayPhone, formatNumber } from '../../utils/format';
+import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
+
 
 interface HelperStats {
   _id: string;
@@ -47,7 +49,7 @@ export default function Helpers() {
   const [editingLoading, setEditingLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', phone: '', password: '', role: 'helper' as 'cashier' | 'helper', bonusPercentage: 0
+    name: '', login: '', phone: '', password: '', role: 'helper' as 'cashier' | 'helper', bonusPercentage: 0
   });
   const [addHelperData, setAddHelperData] = useState({
     name: '', login: '', phone: '', password: '', confirmPassword: '', role: 'helper' as 'cashier' | 'helper', bonusPercentage: 0
@@ -76,17 +78,26 @@ export default function Helpers() {
   const fetchHelpers = async () => {
     try {
       const res = await api.get('/auth/admin/helpers');
-      setHelpers(res.data.users || res.data);
-    } catch (err) { console.error('Error fetching helpers:', err); }
-    finally { setLoading(false); }
+      const helpersData = extractArrayFromResponse<UserType>(res);
+      setHelpers(helpersData);
+    } catch (err) { 
+      console.error('Error fetching helpers:', err);
+      showAlert('Yordamchilarni yuklashda xatolik', 'Xatolik', 'danger');
+      setHelpers([]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const fetchHelpersStats = async () => {
     try {
       const res = await api.get('/receipts/helpers-stats');
-      setHelpersStats(res.data);
+      const statsData = extractArrayFromResponse<HelperStats>(res);
+      setHelpersStats(statsData);
     } catch (err) { 
-      console.error('Error fetching helpers stats:', err); 
+      console.error('Error fetching helpers stats:', err);
+      showAlert('Statistikani yuklashda xatolik', 'Xatolik', 'danger');
+      setHelpersStats([]);
     }
   };
 
@@ -94,9 +105,12 @@ export default function Helpers() {
     setReceiptsLoading(true);
     try {
       const res = await api.get(`/receipts/helper/${helperId}/receipts`);
-      setSelectedHelperReceipts(res.data.receipts);
+      const receiptsData = res.data.receipts || [];
+      setSelectedHelperReceipts(Array.isArray(receiptsData) ? receiptsData : []);
     } catch (err) { 
-      console.error('Error fetching helper receipts:', err); 
+      console.error('Error fetching helper receipts:', err);
+      showAlert('Cheklar tarixini yuklashda xatolik', 'Xatolik', 'danger');
+      setSelectedHelperReceipts([]);
     } finally {
       setReceiptsLoading(false);
     }
@@ -117,9 +131,14 @@ export default function Helpers() {
     e.preventDefault();
     setEditingLoading(true);
     try {
+      // Telefon raqamni to'g'ri formatda tayyorlash
+      const rawPhone = getRawPhone(formData.phone);
+      const formattedPhone = rawPhone.startsWith('998') ? `+${rawPhone}` : `+998${rawPhone.slice(-9)}`;
+      
       const data = {
         name: formData.name,
-        phone: getRawPhone(formData.phone),
+        login: formData.login,
+        phone: formattedPhone,
         role: formData.role,
         ...(formData.password && { password: formData.password }),
         ...(formData.role === 'cashier' && { bonusPercentage: formData.bonusPercentage })
@@ -135,9 +154,10 @@ export default function Helpers() {
         ));
         setHelpers(helpers.map(h =>
           h._id === editingUser._id
-            ? { ...h, name: formData.name, role: formData.role, phone: getRawPhone(formData.phone) }
+            ? { ...h, name: formData.name, login: formData.login, role: formData.role, phone: getRawPhone(formData.phone) }
             : h
         ));
+        showAlert('Xodim muvaffaqiyatli yangilandi', 'Muvaffaqiyat', 'success');
       } else {
         await api.post('/users', { ...data, password: formData.password });
         // Yangi yordamchini qo'shish
@@ -152,16 +172,17 @@ export default function Helpers() {
           totalBonus: 0
         };
         setHelpersStats([...helpersStats, newHelper]);
+        showAlert('Xodim muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       
-      // 2 sekunddan keyin modal yopiladi
+      // 1.5 sekunddan keyin modal yopiladi
       setTimeout(() => {
         closeModal();
         setEditingLoading(false);
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       setEditingLoading(false);
-      alert(err.response?.data?.message || 'Xatolik yuz berdi');
+      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
     }
   };
 
@@ -197,6 +218,7 @@ export default function Helpers() {
     setEditingUser(user);
     setFormData({
       name: user.name,
+      login: user.login || '',
       phone: displayPhone(user.phone),
       password: '',
       role: user.role as 'cashier' | 'helper',
@@ -208,7 +230,7 @@ export default function Helpers() {
   const closeModal = () => {
     setShowModal(false);
     setEditingUser(null);
-    setFormData({ name: '', phone: '', password: '', role: 'helper', bonusPercentage: 0 });
+    setFormData({ name: '', login: '', phone: '', password: '', role: 'helper', bonusPercentage: 0 });
   };
 
   const closeAddHelperModal = () => {
@@ -218,6 +240,24 @@ export default function Helpers() {
 
   const handleAddHelper = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('🔍 Form data before validation:', addHelperData);
+    
+    // Basic validation
+    if (!addHelperData.name.trim()) {
+      showAlert('Ism kiritilishi kerak', 'Xatolik', 'danger');
+      return;
+    }
+    
+    if (!addHelperData.login.trim()) {
+      showAlert('Login kiritilishi kerak', 'Xatolik', 'danger');
+      return;
+    }
+    
+    if (!addHelperData.phone.trim()) {
+      showAlert('Telefon raqam kiritilishi kerak', 'Xatolik', 'danger');
+      return;
+    }
     
     if (addHelperData.password !== addHelperData.confirmPassword) {
       showAlert('Parollar mos kelmadi', 'Xatolik', 'danger');
@@ -231,11 +271,26 @@ export default function Helpers() {
 
     setAddingHelper(true);
     try {
+      // Telefon raqamni to'g'ri formatda tayyorlash
+      const rawPhone = getRawPhone(addHelperData.phone);
+      console.log('🔍 Raw phone:', rawPhone);
+      
+      if (!rawPhone || rawPhone.length < 9) {
+        showAlert('Telefon raqam noto\'g\'ri formatda', 'Xatolik', 'danger');
+        setAddingHelper(false);
+        return;
+      }
+      
+      const formattedPhone = rawPhone.startsWith('998') ? `+${rawPhone}` : `+998${rawPhone.slice(-9)}`;
+      console.log('🔍 Formatted phone:', formattedPhone);
+      
       const data = {
-        name: addHelperData.name,
-        login: addHelperData.login,
-        phone: getRawPhone(addHelperData.phone),
-        password: addHelperData.password
+        name: addHelperData.name.trim(),
+        login: addHelperData.login.trim(),
+        phone: formattedPhone,
+        password: addHelperData.password,
+        role: addHelperData.role,
+        ...(addHelperData.role === 'cashier' && { bonusPercentage: addHelperData.bonusPercentage })
       };
       
       console.log('📤 Xodim yaratish so\'rovi:', data);
@@ -251,11 +306,13 @@ export default function Helpers() {
         role: response.data.user.role,
         receiptCount: 0,
         totalAmount: 0,
+        bonusPercentage: response.data.user.bonusPercentage || 0,
         totalEarnings: 0,
         totalBonus: 0
       };
       
       setHelpersStats([...helpersStats, newHelper]);
+      setHelpers([...helpers, response.data.user]); // helpers arrayiga ham qo'shamiz
       
       showAlert('Xodim muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       
@@ -266,24 +323,46 @@ export default function Helpers() {
       }, 2000);
     } catch (err: any) {
       setAddingHelper(false);
-      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
+      console.error('❌ Xodim yaratishda xatolik:', err);
+      console.error('❌ Error response:', err.response?.data);
+      
+      // Error message ni to'g'ri extract qilish
+      let errorMessage = 'Xatolik yuz berdi';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message;
+        } else if (typeof errorData.error === 'string') {
+          errorMessage = errorData.error;
+        } else if (errorData.error && typeof errorData.error.message === 'string') {
+          errorMessage = errorData.error.message;
+        } else if (errorData.error && typeof errorData.error.code === 'string') {
+          errorMessage = `Xatolik kodi: ${errorData.error.code}`;
+        }
+      } else if (typeof err.message === 'string') {
+        errorMessage = err.message;
+      }
+      
+      showAlert(errorMessage, 'Xatolik', 'danger');
     }
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
       <Header 
         title="Yordamchilar"
         actions={
-          <button onClick={() => setShowAddHelperModal(true)} className="btn-primary">
+          <button onClick={() => setShowAddHelperModal(true)} className="btn-primary whitespace-nowrap">
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Yordamchi qo'shish</span>
+            <span>Yordamchi qo'shish</span>
           </button>
         }
       />
 
-      <div className="p-4 lg:p-6">
+      <div className="p-1 sm:p-2 w-full">
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="spinner text-brand-600 w-8 h-8" />
@@ -299,51 +378,50 @@ export default function Helpers() {
         ) : (
           <div className="space-y-6">
             {/* MAXSUS KASSA KODI KARTASI - O'CHIRIB BO'LMAYDIGAN */}
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 shadow-lg border-2 border-purple-400">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <Shield className="w-6 h-6 text-white" />
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 shadow-md border border-purple-400">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg">Kassa Paneli Kodi</h3>
-                    <p className="text-purple-100 text-sm">Admin tomonidan belgilangan login va parol</p>
+                    <h3 className="font-bold text-white text-base">Kassa Paneli Kodi</h3>
+                    <p className="text-purple-100 text-xs">Admin tomonidan belgilangan login va parol</p>
                   </div>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg">
+                <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded-md">
                   <span className="text-white text-xs font-semibold">Maxsus</span>
                 </div>
               </div>
               
               {kassaUser ? (
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 space-y-3">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-purple-100 text-sm font-medium">Ism:</span>
-                    <span className="text-white font-bold">{kassaUser.name}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-purple-100 text-sm font-medium">Login:</span>
-                    <span className="text-white font-bold">{kassaUser.login}</span>
+                    <span className="text-purple-100 text-xs font-medium">Ism:</span>
+                    <span className="text-white font-bold text-sm">{kassaUser.name}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-purple-100 text-sm font-medium">Parol:</span>
-                    <span className="text-white font-bold">••••••</span>
+                    <span className="text-purple-100 text-xs font-medium">Login:</span>
+                    <span className="text-white font-bold text-sm">{kassaUser.login}</span>
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-white/20">
-                    <span className="text-purple-100 text-sm font-medium">Rol:</span>
-                    <span className="bg-white/20 text-white px-3 py-1 rounded-lg text-xs font-semibold">Kassir</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-100 text-xs font-medium">Parol:</span>
+                    <span className="text-white font-bold text-sm">••••••</span>
                   </div>
-                  
+                  <div className="flex items-center justify-between pt-2 border-t border-white/20">
+                    <span className="text-purple-100 text-xs font-medium">Rol:</span>
+                    <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-xs font-semibold">Kassir</span>
+                  </div>
                 </div>
               ) : (
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                  <p className="text-white text-sm">Kassa foydalanuvchisi topilmadi</p>
-                  <p className="text-purple-100 text-xs mt-2">Admin sozlamalarida kassa yarating</p>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                  <p className="text-white text-xs">Kassa foydalanuvchisi topilmadi</p>
+                  <p className="text-purple-100 text-xs mt-1">Admin sozlamalarida kassa yarating</p>
                 </div>
               )}
 
-              <div className="mt-4 flex items-center gap-2 text-purple-100 text-xs">
-                <Lock className="w-4 h-4" />
+              <div className="mt-3 flex items-start gap-2 text-purple-100 text-xs">
+                <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
                 <span>Bu karta o'chirib bo'lmaydi. Faqat Admin Sozlamalari → Kassa Foydalanuvchilari bo'limida o'zgartirish mumkin.</span>
               </div>
             </div>
@@ -353,81 +431,129 @@ export default function Helpers() {
             {helpersStats.length === 0 ? (
               <p className="text-surface-500 text-center py-8">Hali cheklar chiqarilmagan</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-4xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {helpersStats.map(helper => (
-                  <div key={helper._id} className="group bg-white rounded-xl p-3 shadow-sm border border-surface-200 hover:shadow-lg hover:border-brand-300 transition-all duration-300 hover:-translate-y-1 flex flex-col">
-                    {/* Header - Name and Role */}
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-                        {helper.name.charAt(0).toUpperCase()}
+                  <div key={helper._id} className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-200 hover:border-brand-400 hover:-translate-y-1">
+                    {/* Card Header with Gradient Background */}
+                    <div className="relative bg-gradient-to-br from-brand-50 via-purple-50 to-blue-50 p-6 pb-16">
+                      {/* Action Buttons - Top Right */}
+                      <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const helperUser = helpers.find(h => h._id === helper._id);
+                            if (helperUser) {
+                              openEditModal(helperUser);
+                            } else {
+                              // Agar helpers arrayida bo'lmasa, helpersStats dan yaratamiz
+                              const tempUser: UserType = {
+                                _id: helper._id,
+                                name: helper.name,
+                                login: '', // login ma'lumoti yo'q
+                                phone: '',
+                                role: helper.role as 'admin' | 'cashier' | 'helper',
+                                createdAt: new Date().toISOString()
+                              };
+                              openEditModal(tempUser);
+                            }
+                          }}
+                          className="p-2 bg-white/90 backdrop-blur-sm hover:bg-blue-500 text-slate-600 hover:text-white rounded-lg transition-all shadow-lg hover:scale-110"
+                          title="Tahrirlash"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(helper);
+                          }}
+                          disabled={deletingId === helper._id}
+                          className="p-2 bg-white/90 backdrop-blur-sm hover:bg-red-500 text-slate-600 hover:text-white rounded-lg transition-all shadow-lg hover:scale-110 disabled:opacity-50"
+                          title="O'chirish"
+                        >
+                          {deletingId === helper._id ? (
+                            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm text-surface-900 truncate" title={helper.name}>{helper.name}</h3>
-                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 ${
-                          helper.role === 'cashier' ? 'bg-success-100 text-success-700' : 'bg-brand-100 text-brand-700'
+
+                      {/* Avatar */}
+                      <div className="flex justify-center mb-4">
+                        <div className="relative">
+                          <div className="w-20 h-20 bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl flex items-center justify-center shadow-xl shadow-brand-500/40 group-hover:scale-110 transition-transform duration-300">
+                            <span className="font-bold text-white text-3xl">{helper.name.charAt(0).toUpperCase()}</span>
+                          </div>
+                          {/* Role Badge */}
+                          <div className={`absolute -bottom-2 -right-2 px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg ${
+                            helper.role === 'cashier' 
+                              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' 
+                              : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                          }`}>
+                            {helper.role === 'cashier' ? '💰' : '👤'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Name and Role */}
+                      <div className="text-center">
+                        <h3 className="font-bold text-slate-900 text-lg mb-1 truncate px-2">{helper.name}</h3>
+                        <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${
+                          helper.role === 'cashier' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-blue-100 text-blue-700'
                         }`}>
                           {helper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Stats Grid - Uniform */}
-                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-surface-100 flex-1">
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-brand-600">{helper.receiptCount}</p>
-                        <p className="text-xs text-surface-500 mt-1">Cheklar</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-success-600">{formatNumber(helper.totalAmount)}</p>
-                        <p className="text-xs text-surface-500 mt-1">Savdo</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-orange-600">{helper.bonusPercentage}%</p>
-                        <p className="text-xs text-surface-500 mt-1">Bonus</p>
-                      </div>
-                    </div>
+                    {/* Stats Section */}
+                    <div className="p-5 -mt-12 relative z-10">
+                      <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-4 mb-4">
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          {/* Cheklar */}
+                          <div>
+                            <div className="w-10 h-10 bg-gradient-to-br from-brand-100 to-brand-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                              <Receipt className="w-5 h-5 text-brand-600" />
+                            </div>
+                            <p className="text-2xl font-bold text-brand-600 mb-1">{helper.receiptCount}</p>
+                            <p className="text-xs text-slate-500 font-medium">Cheklar</p>
+                          </div>
 
-                    {/* Action buttons - Bottom with Shadow Animation */}
-                    <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-surface-100">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const helperUser = helpers.find(h => h.name === helper.name);
-                          if (helperUser) openEditModal(helperUser);
-                        }}
-                        className="p-2.5 hover:bg-brand-100 hover:text-brand-600 text-surface-400 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5"
-                        title="Tahrirlash"
+                          {/* Savdo */}
+                          <div>
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                              <DollarSign className="w-5 h-5 text-green-600" />
+                            </div>
+                            <p className="text-lg font-bold text-green-600 mb-1 truncate">{formatNumber(helper.totalAmount)}</p>
+                            <p className="text-xs text-slate-500 font-medium">Savdo</p>
+                          </div>
+
+                          {/* Bonus */}
+                          <div>
+                            <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center mx-auto mb-2">
+                              <Award className="w-5 h-5 text-orange-600" />
+                            </div>
+                            <p className="text-2xl font-bold text-orange-600 mb-1">{helper.bonusPercentage}%</p>
+                            <p className="text-xs text-slate-500 font-medium">Bonus</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* View Details Button */}
+                      <button
+                        onClick={() => openReceiptsModal(helper)}
+                        className="w-full py-3 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
                       >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openReceiptsModal(helper);
-                        }}
-                        className="p-2.5 hover:bg-blue-100 hover:text-blue-600 text-surface-400 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5"
-                        title="Cheklar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(helper);
-                        }}
-                        disabled={deletingId === helper._id}
-                        className="p-2.5 hover:bg-danger-100 hover:text-danger-600 text-surface-400 rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="O'chirish"
-                      >
-                        {deletingId === helper._id ? (
-                          <div className="w-4 h-4 border-2 border-danger-600 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
+                        <Receipt className="w-4 h-4" />
+                        <span>Cheklar tarixi</span>
                       </button>
                     </div>
                   </div>
-                ))}
+            ))}
               </div>
             )}
           </div>
@@ -436,9 +562,9 @@ export default function Helpers() {
 
       {/* Yordamchi qo'shish modali */}
       {showAddHelperModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">
-          <div className="overlay" onClick={closeAddHelperModal} />
-          <div className="modal w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 relative z-50 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeAddHelperModal} />
+          <div className="relative z-10 w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
             <div className="flex items-center justify-between mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-surface-200">
               <h3 className="text-sm sm:text-base font-semibold text-surface-900">Yordamchi qo'shish</h3>
               <button onClick={closeAddHelperModal} className="btn-icon-sm"><X className="w-3 h-3 sm:w-4 sm:h-4" /></button>
@@ -568,9 +694,9 @@ export default function Helpers() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">
-          <div className="overlay" onClick={closeModal} />
-          <div className="modal w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 relative z-50 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 md:p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
+          <div className="relative z-10 w-full max-w-[95%] xs:max-w-sm sm:max-w-md p-3 sm:p-4 md:p-5 max-h-[85vh] overflow-y-auto bg-white rounded-xl sm:rounded-2xl shadow-2xl my-auto">
             <div className="flex items-center justify-between mb-2 sm:mb-3 pb-2 sm:pb-3 border-b border-surface-200">
               <h3 className="text-sm sm:text-base font-semibold text-surface-900">
                 {editingUser ? 'Tahrirlash' : 'Yangi yordamchi'}
@@ -586,6 +712,16 @@ export default function Helpers() {
                     onChange={e => setFormData({...formData, name: e.target.value})} required />
                 </div>
               </div>
+              
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Login</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-surface-400" />
+                  <input type="text" className="input pl-9 text-sm" placeholder="Login (foydalanuvchi nomi)" value={formData.login}
+                    onChange={e => setFormData({...formData, login: e.target.value})} required />
+                </div>
+              </div>
+              
               <div>
                 <label className="text-xs sm:text-sm font-medium text-surface-700 mb-1 sm:mb-2 block">Telefon raqam</label>
                 <div className="relative">
@@ -680,8 +816,9 @@ export default function Helpers() {
 
       {/* Kassir cheklari modali */}
       {showReceiptsModal && selectedHelper && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50">`n          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowReceiptsModal(false)} />
-          <div className="modal w-full max-w-[98%] sm:max-w-[95%] md:max-w-4xl max-h-[90vh] overflow-hidden relative z-50 bg-white rounded-2xl shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-3 md:p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowReceiptsModal(false)} />
+          <div className="relative z-10 w-full max-w-[98%] sm:max-w-[95%] md:max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl">
             <div className="p-6 border-b border-surface-100 bg-gradient-to-r from-brand-50 to-blue-50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">

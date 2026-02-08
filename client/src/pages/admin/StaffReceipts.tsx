@@ -215,26 +215,26 @@ export default function StaffReceipts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-100/30 to-slate-100 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-100/30 to-slate-100 w-full h-full">
       {AlertComponent}
       <Header title="Xodimlar cheklari" />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-[1800px] mx-auto">
+      <div className="p-1 sm:p-2 space-y-2 sm:space-y-3 w-full">
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200/60">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-lg border border-slate-200/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-600 text-sm font-medium mb-1">Jami cheklar</p>
-                <h3 className="text-3xl font-bold text-slate-900">{summary.totalReceipts}</h3>
+                <h3 className="text-2xl font-bold text-slate-900">{summary.totalReceipts}</h3>
               </div>
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                <Receipt className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <Receipt className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200/60">
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-lg border border-slate-200/60">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-600 text-sm font-medium mb-1">Jami summa</p>

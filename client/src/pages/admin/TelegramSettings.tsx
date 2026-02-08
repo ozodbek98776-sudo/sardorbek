@@ -116,26 +116,26 @@ export default function TelegramSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-20 lg:pb-0">
+    <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
       <Header title="Telegram Sozlamalari" />
 
-      <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
+      <div className="p-1 sm:p-2 space-y-2 sm:space-y-3 w-full">
         {/* Bot Ma'lumotlari */}
         {botInfo && (
-          <div className="card p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-blue-600" />
+          <div className="card p-3 sm:p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-surface-900">Bot Ma'lumotlari</h3>
-                <p className="text-surface-500">Telegram bot holati</p>
+                <h3 className="text-base font-semibold text-surface-900">Bot Ma'lumotlari</h3>
+                <p className="text-sm text-surface-500">Telegram bot holati</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-surface-50 p-4 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-surface-50 p-3 rounded-lg">
                 <p className="text-sm text-surface-500 mb-1">Bot nomi</p>
                 <p className="font-medium text-surface-900">{botInfo.first_name}</p>
               </div>

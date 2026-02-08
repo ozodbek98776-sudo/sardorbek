@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Receipt = require('../models/Receipt');
 const Product = require('../models/Product');
+const { auth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/permissions');
 
-// GET /api/sales - Get all sales with filters
-router.get('/', async (req, res) => {
+// GET /api/sales - Get all sales with filters (Admin only)
+router.get('/', auth, checkPermission('sales', 'read'), async (req, res) => {
   try {
     const { startDate, endDate, customerId, productId, limit = 100 } = req.query;
     
@@ -56,8 +58,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/sales - Create new sale (same as receipt)
-router.post('/', async (req, res) => {
+// POST /api/sales - Create new sale (Admin and Cashier)
+router.post('/', auth, checkPermission('sales', 'create'), async (req, res) => {
   try {
     const { items, customer, paymentMethod, discount, notes } = req.body;
     
@@ -141,8 +143,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/sales/stats - Get sales statistics
-router.get('/stats', async (req, res) => {
+// GET /api/sales/stats - Get sales statistics (Admin only)
+router.get('/stats', auth, checkPermission('stats', 'read'), async (req, res) => {
   try {
     const { period = '7' } = req.query;
     
