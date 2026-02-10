@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign
+  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign, TrendingDown, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -29,6 +30,32 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   const navigate = useNavigate();
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', password: '' });
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Mobile overlay ni yopish uchun ESC tugmasi
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileOpen) {
+        setMobileOpen(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [mobileOpen]);
+  
+  // Body scroll ni boshqarish
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
 
   const openEditModal = () => {
     setFormData({
@@ -53,17 +80,40 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
     }
   };
 
+  // Expose toggle function to parent
+  useEffect(() => {
+    (window as any).toggleSidebar = () => {
+      setCollapsed?.(false); // Sidebar'ni ochish
+      setMobileOpen(true);   // Mobile overlay'ni ochish
+    };
+    return () => {
+      delete (window as any).toggleSidebar;
+    };
+  }, [setCollapsed]);
+
   return (
-    <aside 
-      className={`hidden lg:block fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-50 ${
-        collapsed ? 'w-16' : 'w-64'
-      }`}
-      style={{
-        background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
-        borderRight: '1px solid rgba(6, 182, 212, 0.2)',
-        boxShadow: '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
-      }}
-    >
+    <>
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside 
+        className={`fixed left-0 top-0 h-full transition-all duration-300 ease-in-out z-50 overflow-hidden
+          ${collapsed ? 'w-0 lg:w-0' : 'w-64'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${collapsed ? 'lg:-translate-x-full' : ''}
+        `}
+        style={{
+          background: 'linear-gradient(180deg, #2e1065 0%, #4c1d95 100%)',
+          borderRight: collapsed ? 'none' : '1px solid rgba(6, 182, 212, 0.2)',
+          boxShadow: collapsed ? 'none' : '4px 0 24px -4px rgba(46, 16, 101, 0.3)'
+        }}
+      >
       {/* Header */}
       <div 
         className="h-16 flex items-center justify-between px-4"
@@ -91,7 +141,16 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
         )}
         <div className="flex items-center gap-1">
           <button 
-            onClick={() => setCollapsed?.(!collapsed)} 
+            onClick={() => {
+              if (collapsed) {
+                // Agar collapsed bo'lsa, ochish
+                setCollapsed?.(false);
+              } else {
+                // Agar ochiq bo'lsa, yopish
+                setCollapsed?.(true);
+                setMobileOpen(false); // Mobile overlay ham yopilsin
+              }
+            }} 
             className="p-2 rounded-xl transition-all duration-200"
             style={{
               background: 'rgba(255, 255, 255, 0.1)',
@@ -110,6 +169,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
             key={i}
             to={item.external ? item.path : `${basePath}${item.path}`}
             end={item.path === ''}
+            onClick={() => setMobileOpen(false)}
             className={({ isActive }) => `
               flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200 group
               ${collapsed ? 'justify-center px-2' : ''}
@@ -204,17 +264,16 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <>
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
           {/* Backdrop blur - faqat orqa fon */}
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]" 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
             onClick={() => setShowEditModal(false)} 
           />
           
           {/* Modal content */}
-          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
-            <div 
-              className="w-full sm:w-auto max-w-md p-4 sm:p-8 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden pointer-events-auto"
+          <div 
+            className="relative w-full sm:w-auto max-w-md p-4 sm:p-8 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden z-10"
             style={{
               background: 'linear-gradient(145deg, #ffffff 0%, #faf5ff 100%)',
               border: '1px solid rgba(139, 92, 246, 0.15)',
@@ -324,10 +383,10 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
               </form>
             </div>
           </div>
-          </div>
-        </>
+        </div>
       )}
     </aside>
+    </>
   );
 }
 
@@ -338,7 +397,8 @@ export const adminMenuItems: MenuItem[] = [
   { icon: <Folder className="w-5 h-5" />, label: 'sidebar.categories', path: '/categories' },
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
-  { icon: <UserPlus className="w-5 h-5" />, label: 'sidebar.helpers', path: '/helpers' },
+  { icon: <TrendingDown className="w-5 h-5" />, label: 'sidebar.expenses', path: '/expenses' },
+  { icon: <Briefcase className="w-5 h-5" />, label: 'HR Moduli', path: '/hr' },
 ];
 
 export const cashierMenuItems: MenuItem[] = [

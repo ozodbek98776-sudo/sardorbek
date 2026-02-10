@@ -39,9 +39,16 @@ class DebtService extends BaseService {
       throw this.createValidationError('Payable qarz uchun kreditor ismi ko\'rsatilishi kerak', 'creditorName');
     }
 
-    // Due date tekshirish
-    if (dueDate && new Date(dueDate) <= new Date()) {
-      throw this.createValidationError('Qarz muddati kelajakda bo\'lishi kerak', 'dueDate');
+    // Due date tekshirish - o'tmishda ham bo'lishi mumkin (eski qarzlar uchun)
+    let parsedDueDate;
+    if (dueDate) {
+      parsedDueDate = new Date(dueDate);
+      if (isNaN(parsedDueDate.getTime())) {
+        throw this.createValidationError('Noto\'g\'ri muddat formati', 'dueDate');
+      }
+    } else {
+      // Default: 30 kun
+      parsedDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
     return {
@@ -49,7 +56,7 @@ class DebtService extends BaseService {
       customer,
       creditorName,
       amount: numAmount,
-      dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 kun default
+      dueDate: parsedDueDate
     };
   }
 
@@ -69,7 +76,7 @@ class DebtService extends BaseService {
       }
 
       // Qarz yaratish
-      const debtData = {
+      const newDebtData = {
         type: validatedData.type,
         customer: validatedData.customer,
         creditorName: validatedData.creditorName,
@@ -84,10 +91,10 @@ class DebtService extends BaseService {
 
       // createdBy - faqat real ObjectId bo'lsa qo'shamiz
       if (user._id && user._id !== 'hardcoded-admin-id') {
-        debtData.createdBy = user._id;
+        newDebtData.createdBy = user._id;
       }
 
-      const debt = new Debt(debtData);
+      const debt = new Debt(newDebtData);
 
       await debt.save();
 

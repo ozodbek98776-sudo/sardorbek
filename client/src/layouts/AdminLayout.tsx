@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useOutletContext } from 'react-router-dom';
 import Sidebar, { adminMenuItems } from '../components/Sidebar';
-import BottomNavigation from '../components/BottomNavigation';
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
+  const handleMenuToggle = () => {
+    // Call global function to open mobile sidebar
+    if ((window as any).toggleSidebar) {
+      (window as any).toggleSidebar();
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}>
-      {/* Desktop Sidebar - automatically hidden on mobile */}
+      {/* Sidebar */}
       <Sidebar 
         items={adminMenuItems} 
         basePath="/admin" 
@@ -21,31 +27,21 @@ export default function AdminLayout() {
         transition-all duration-300 ease-smooth
         
         /* Desktop: margin for sidebar */
-        lg:ml-64
-        ${collapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}
+        ${collapsed ? 'lg:ml-0' : 'lg:ml-64'}
         
-        /* Mobile: NO sidebar, only bottom nav space */
+        /* Mobile: NO margin (sidebar is overlay) */
         ml-0
         
-        /* Mobile bottom navigation space */
-        pb-[88px] lg:pb-0
-        
-        /* Responsive min-height - FULL SCREEN */
+        /* Full height */
         min-h-screen
         
-        /* Remove all padding - FULL CONTENT */
+        /* No padding */
         p-0 m-0
       `}>
-        {/* Remove max-width constraint and padding */}
         <div className="w-full h-full">
-          <Outlet />
+          <Outlet context={{ onMenuToggle: handleMenuToggle }} />
         </div>
       </main>
-      
-      {/* Mobile Bottom Navigation - ONLY on small screens */}
-      <div className="lg:hidden">
-        <BottomNavigation />
-      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Wallet, User, Phone, DollarSign, CheckCircle } from 'lucide-react';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface Debt {
   _id: string;
@@ -33,6 +34,9 @@ export function DebtPaymentModal({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
 
   // Fetch debts
   useEffect(() => {
@@ -156,11 +160,14 @@ export function DebtPaymentModal({
 
   return (
     <div 
+      data-modal="true"
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fadeIn"
+      style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       onClick={handleClose}
     >
       <div 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-slideUp"
+        style={{ marginBottom: '80px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -180,7 +187,7 @@ export function DebtPaymentModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-6">
           {!selectedDebt ? (
             // Debts List
             <div className="space-y-4">

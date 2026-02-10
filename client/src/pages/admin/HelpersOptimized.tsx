@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Users, Plus, Edit2, Trash2, User, Phone, Lock, ShoppingCart, Shield, DollarSign, X, Receipt, Calendar, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { useHelpersStore, Helper } from '../../store/helpersStore';
+import { UniversalPageHeader, ActionButton } from '../../components/common';
 
 // Format number helper
 const formatNumber = (num: number) => {
@@ -310,7 +312,10 @@ export default function HelpersOptimized() {
   }, [sortBy, sortOrder, setSortBy, setSortOrder]);
 
   return (
-    <div className="p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-surface-50">
+      <Header title="Hodimlar" />
+      
+      <div className="p-2 sm:p-4 lg:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -692,6 +697,7 @@ export default function HelpersOptimized() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Filter } from 'lucide-react';
 import api from '../utils/api';
 import { formatNumber } from '../utils/format';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface Transaction {
   _id: string;
@@ -30,6 +31,9 @@ export function FinanceHistoryModal({
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>(initialDateFilter);
+
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
 
   // Update dateFilter when initialDateFilter changes
   useEffect(() => {
@@ -139,11 +143,14 @@ export function FinanceHistoryModal({
 
   return (
     <div 
+      data-modal="true"
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4 animate-fadeIn"
+      style={{ paddingBottom: 'max(0rem, env(safe-area-inset-bottom))' }}
       onClick={onClose}
     >
       <div 
         className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slideUp"
+        style={{ marginBottom: '80px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -301,7 +308,7 @@ export function FinanceHistoryModal({
         </div>
 
         {/* Transactions List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>

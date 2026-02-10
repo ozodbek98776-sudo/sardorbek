@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Receipt, ShoppingBag, Eye } from 'lucide-react';
 import { formatNumber } from '../../utils/format';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface SavedReceipt {
   id: string;
@@ -26,6 +27,9 @@ export function SavedReceiptsModal({
 }: SavedReceiptsModalProps) {
   const [selectedReceipt, setSelectedReceipt] = useState<SavedReceipt | null>(null);
   
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
+  
   if (!isOpen) return null;
   
   return (
@@ -34,12 +38,12 @@ export function SavedReceiptsModal({
       <div 
         data-modal="true"
         className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto"
-        style={{ pointerEvents: 'auto' }}
+        style={{ pointerEvents: 'auto', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         onClick={onClose}
       >
         <div 
           className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-96 overflow-hidden flex flex-col"
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'auto', marginBottom: '80px' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white flex items-center justify-between">
@@ -49,7 +53,7 @@ export function SavedReceiptsModal({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200 thin-scrollbar">
+          <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll divide-y divide-slate-200 thin-scrollbar">
             {receipts.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
                 <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -101,12 +105,12 @@ export function SavedReceiptsModal({
         <div 
           data-modal="true"
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4 overflow-y-auto"
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'auto', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           onClick={() => setSelectedReceipt(null)}
         >
           <div 
             className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            style={{ pointerEvents: 'auto' }}
+            style={{ pointerEvents: 'auto', marginBottom: '80px' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -129,7 +133,7 @@ export function SavedReceiptsModal({
             </div>
 
             {/* Products List */}
-            <div className="flex-1 overflow-y-auto p-6 thin-scrollbar">
+            <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-6 thin-scrollbar">
               <div className="space-y-3">
                 {selectedReceipt.items.map((item, index) => (
                   <div 

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Save, X, FolderPlus, ArrowLeft, Package } from 'lucide-react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Save, X, FolderPlus, ArrowLeft, Package, Folder } from 'lucide-react';
 import { useCategories, Category } from '../../hooks/useCategories';
 import { useAlert } from '../../hooks/useAlert';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
 import { extractArrayFromResponse } from '../../utils/arrayHelpers';
+import { LoadingSpinner, EmptyState, Modal, ActionButton, Badge, UniversalPageHeader } from '../../components/common';
 
 interface Subcategory {
   _id: string;
@@ -26,6 +27,7 @@ interface Product {
 }
 
 export default function Categories() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { categories, loading, refetch } = useCategories();
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const [showModal, setShowModal] = useState(false);
@@ -243,8 +245,11 @@ export default function Categories() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 w-full h-full">
       {AlertComponent}
       
-      <Header
+      <UniversalPageHeader
         title="Kategoriyalar"
+        subtitle={`${categories.length} ta kategoriya`}
+        icon={Folder}
+        onMenuToggle={onMenuToggle}
         actions={
           <button
             onClick={openAddModal}
@@ -258,27 +263,18 @@ export default function Categories() {
 
       <div className="w-full p-1 sm:p-2">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">Yuklanmoqda...</p>
-          </div>
+          <LoadingSpinner size="lg" text="Yuklanmoqda..." />
         ) : categories.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center py-20 px-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4">
-              <FolderPlus className="w-10 h-10 text-slate-400" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Kategoriyalar yo'q</h3>
-            <p className="text-slate-500 mb-6 text-center max-w-md">
-              Birinchi kategoriyani qo'shing va mahsulotlarni guruhlang
-            </p>
-            <button
-              onClick={openAddModal}
-              className="px-6 py-3 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-500/30 hover:scale-105"
-            >
-              <Plus className="w-5 h-5 inline mr-2" />
-              Kategoriya qo'shish
-            </button>
-          </div>
+          <EmptyState
+            icon={FolderPlus}
+            title="Kategoriyalar yo'q"
+            description="Birinchi kategoriyani qo'shing va mahsulotlarni guruhlang"
+            action={
+              <ActionButton icon={Plus} onClick={openAddModal}>
+                Kategoriya qo'shish
+              </ActionButton>
+            }
+          />
         ) : (
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
             <div className="divide-y divide-slate-200">
@@ -298,9 +294,11 @@ export default function Categories() {
                       
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-slate-900 truncate group-hover:text-purple-600 transition-colors">{category.name}</h3>
-                        <p className="text-sm text-slate-500">
-                          {subcategories.length} ta bo'lim
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="info" size="sm">
+                            {subcategories.length} ta bo'lim
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -438,7 +436,7 @@ export default function Categories() {
         <div className="fixed inset-0 z-[9998] bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 animate-fade-in">
           {/* Header with Back Button */}
           <div className="bg-white border-b border-slate-200 shadow-sm">
-            <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+            <div className="w-full px-4 py-4 flex items-center gap-4">
               <button
                 onClick={closeSubcategoriesView}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all hover:scale-105"
@@ -465,7 +463,7 @@ export default function Categories() {
           </div>
 
           {/* Subcategories List */}
-          <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-4 lg:py-6 space-y-6">
             {/* Bo'limlar */}
             <div>
               <h3 className="text-lg font-bold text-slate-900 mb-4">Bo'limlar</h3>

@@ -11,7 +11,11 @@
     "seed:quantity": "node src/scripts/update-all-products-quantity.js",
     "optimize:kassa": "node src/scripts/add-kassa-performance-indexes.js",
     "optimize:helpers": "node src/scripts/add-helpers-indexes.js",
-    "fix:indexes": "node src/scripts/fix-indexes.js"
+    "fix:indexes": "node src/scripts/fix-indexes.js",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
   },
   "dependencies": {
     "axios": "^1.13.2",
@@ -31,6 +35,11 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "jest": "^30.2.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6"
   }
 }

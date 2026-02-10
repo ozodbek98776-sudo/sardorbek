@@ -13,6 +13,7 @@
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-inset-left: env(safe-area-inset-left, 0px);
     --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    --vh: 1vh; /* Default, JavaScript bilan yangilanadi */
     
     /* Binafsha Ranglar */
     --purple-dark: #2e1065;
@@ -35,6 +36,10 @@
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    /* iOS Safari uchun 100vh muammosini hal qilish */
+    height: 100%;
+    /* Instagram-style smooth scrolling */
+    scroll-padding-top: 0;
   }
 
   body {
@@ -48,6 +53,47 @@
     padding-bottom: var(--safe-area-inset-bottom);
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
+    /* iOS Safari uchun height */
+    min-height: 100%;
+    min-height: -webkit-fill-available;
+    /* Instagram-style smooth scrolling */
+    scroll-behavior: smooth;
+    /* Momentum scrolling for iOS */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scroll snap */
+    scroll-snap-type: y proximity;
+  }
+  
+  /* iOS Safari uchun maxsus sozlamalar */
+  @supports (-webkit-touch-callout: none) {
+    html {
+      height: -webkit-fill-available;
+    }
+    
+    body {
+      /* iOS'da bottom navbar uchun joy qoldirish */
+      padding-bottom: max(var(--safe-area-inset-bottom), 72px);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      /* iOS Safari'da scroll qilganda body'ning height'ini to'g'ri saqlash */
+      position: relative;
+    }
+    
+    /* Modal ochiq bo'lganda body padding ni olib tashlash */
+    body:has([data-modal="true"]) {
+      padding-bottom: var(--safe-area-inset-bottom);
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* iOS Safari'da scroll qilganda address bar yashiringanda ham bottom navbar joyida qolishi uchun */
+    #root {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      position: relative;
+    }
   }
 
   /* ============================================
@@ -93,10 +139,32 @@
     loading: lazy;
   }
 
-  /* Scroll optimizatsiyasi */
+  /* Scroll optimizatsiyasi - Instagram style */
   .smooth-scroll {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    will-change: scroll-position;
+  }
+  
+  /* Scroll container optimizatsiyasi */
+  .scroll-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+    /* GPU acceleration */
+    transform: translate3d(0, 0, 0);
+    will-change: scroll-position;
+  }
+  
+  /* Smooth momentum scrolling */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
   }
 
   /* ============================================
@@ -128,6 +196,12 @@
     max-width: none !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
+  }
+  
+  /* Full width content - no max-width restrictions */
+  .full-width-content {
+    width: 100% !important;
+    max-width: none !important;
   }
 
   /* PWA va Standalone mode */
@@ -602,6 +676,16 @@
     animation: scaleIn 0.25s ease-out;
     /* Mobile-first responsive sizing */
     @apply w-full max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto;
+    /* iOS Safari uchun scroll optimizatsiyasi */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Modal ochiq bo'lganda body scroll ni to'xtatish */
+  body:has([data-modal="true"]) {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
   }
 
   /* Mobile modal - bottom sheet on small screens */
@@ -609,6 +693,8 @@
     .modal {
       @apply rounded-t-2xl sm:rounded-2xl;
       border-radius: 1.5rem 1.5rem 0 0;
+      /* iOS uchun pastki padding */
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 
     .modal-fullscreen {
@@ -725,6 +811,36 @@
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(139, 92, 246, 0.12);
     box-shadow: 0 -4px 20px -4px rgba(109, 40, 217, 0.1);
+    /* iOS Safari uchun fixed position */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    /* iOS'da scroll qilganda navbar'ning ko'tarilishini to'xtatish */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  
+  /* iOS Safari uchun safe area */
+  @supports (-webkit-touch-callout: none) {
+    .bottom-nav {
+      padding-bottom: env(safe-area-inset-bottom);
+      /* iOS Safari'da scroll qilganda address bar yashiringanda pozitsiyani saqlash */
+      position: fixed;
+      bottom: 0;
+    }
+    
+    /* iOS Safari'da scroll qilganda navbar'ni joyida ushlab turish */
+    @supports (position: -webkit-sticky) or (position: sticky) {
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+      }
+    }
   }
 
   .bottom-nav-item {
@@ -1071,6 +1187,35 @@
 
   .pt-safe {
     padding-top: max(1rem, var(--safe-area-inset-top));
+  }
+  
+  /* Instagram-style smooth scrolling utilities */
+  .scroll-smooth-instagram {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    transform: translate3d(0, 0, 0);
+    will-change: scroll-position;
+  }
+  
+  .scroll-snap-y {
+    scroll-snap-type: y proximity;
+  }
+  
+  .scroll-snap-y-mandatory {
+    scroll-snap-type: y mandatory;
+  }
+  
+  .scroll-snap-start {
+    scroll-snap-align: start;
+  }
+  
+  .scroll-snap-center {
+    scroll-snap-align: center;
+  }
+  
+  .scroll-snap-end {
+    scroll-snap-align: end;
   }
 
   .text-gradient-purple {
@@ -2274,26 +2419,6 @@
 
 .transition-slow {
   transition: all 0.2s ease;
-}
-
-
-/* ============================================
-   🚫 MODAL BACKDROP - Click Disabled
-   ============================================ */
-/* Barcha modal backdrop'lar bosilganda yopilmasin */
-.overlay {
-  pointer-events: none !important;
-}
-
-/* Modal o'zi bosilishi mumkin */
-.modal {
-  pointer-events: auto !important;
-}
-
-/* Backdrop orqasidagi elementlar ham bosilmasin */
-.fixed.inset-0.bg-black\/40,
-.fixed.inset-0.bg-black\/50 {
-  pointer-events: none !important;
 }
 
 /* Custom Scrollbar for Receipts */

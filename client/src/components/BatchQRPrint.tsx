@@ -339,7 +339,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         </div>
 
         {/* Products List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-4">
           {printItems.length === 0 ? (
             <div className="text-center py-12 text-surface-500">
               Mahsulotlar yo'q

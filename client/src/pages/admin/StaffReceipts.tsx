@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
 import { 
   Receipt, User, Package, Calendar, Search, Filter, ChevronDown, ChevronUp,
   DollarSign, Clock, FileText, Printer, Trash2
@@ -9,6 +9,7 @@ import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData } from '../../utils/receipt';
 import { CartItem } from '../../types';
+import { UniversalPageHeader } from '../../components/common';
 
 interface HelperReceipt {
   _id: string;
@@ -60,6 +61,7 @@ interface Helper {
 }
 
 export default function StaffReceipts() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showAlert, AlertComponent } = useAlert();
   const [receipts, setReceipts] = useState<HelperReceipt[]>([]);
   const [helpers, setHelpers] = useState<Helper[]>([]);

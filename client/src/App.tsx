@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { API_BASE_URL } from './config/api';
 import ErrorBoundary from './components/ErrorBoundary';
+import { cleanupAllModals } from './utils/modalCleanup';
 
 // Eager loading - darhol kerak bo'lgan sahifalar
 import Login from './pages/Login';
@@ -16,15 +17,20 @@ const KassaPro = lazy(() => import('./pages/admin/KassaPro'));
 // Admin sahifalari
 const Products = lazy(() => import('./pages/admin/Products'));
 const Warehouses = lazy(() => import('./pages/admin/Warehouses'));
-const Customers = lazy(() => import('./pages/admin/Customers'));
 const Debts = lazy(() => import('./pages/admin/Debts'));
 const DebtApprovals = lazy(() => import('./pages/admin/DebtApprovals'));
 const Orders = lazy(() => import('./pages/admin/Orders'));
-const Helpers = lazy(() => import('./pages/admin/Helpers'));
 const HelpersOptimized = lazy(() => import('./pages/admin/HelpersOptimized'));
 const StaffReceipts = lazy(() => import('./pages/admin/StaffReceipts'));
 const TelegramSettings = lazy(() => import('./pages/admin/TelegramSettings'));
 const Categories = lazy(() => import('./pages/admin/Categories'));
+const Expenses = lazy(() => import('./pages/admin/Expenses'));
+const CustomersPro = lazy(() => import('./pages/admin/CustomersPro'));
+// HR sahifalari
+const HRDashboard = lazy(() => import('./pages/admin/hr/HRDashboard'));
+const Employees = lazy(() => import('./pages/admin/hr/Employees'));
+const SalarySettings = lazy(() => import('./pages/admin/hr/SalarySettings'));
+const KPIManagement = lazy(() => import('./pages/admin/hr/KPIManagement'));
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
 const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
@@ -126,6 +132,11 @@ const RoleRedirect = () => {
 };
 
 function App() {
+  // Cleanup modals on mount
+  useEffect(() => {
+    cleanupAllModals();
+  }, []);
+  
   return (
     <ErrorBoundary>
       <LanguageProvider>
@@ -157,12 +168,17 @@ function App() {
                 <Route path="products" element={<Suspense fallback={<PageLoader />}><Products /></Suspense>} />
                 <Route path="categories" element={<Suspense fallback={<PageLoader />}><Categories /></Suspense>} />
                 <Route path="warehouses" element={<Suspense fallback={<PageLoader />}><Warehouses /></Suspense>} />
-                <Route path="customers" element={<Suspense fallback={<PageLoader />}><Customers /></Suspense>} />
                 <Route path="debts" element={<Suspense fallback={<PageLoader />}><Debts /></Suspense>} />
                 <Route path="debt-approvals" element={<Suspense fallback={<PageLoader />}><DebtApprovals /></Suspense>} />
                 <Route path="orders" element={<Suspense fallback={<PageLoader />}><Orders /></Suspense>} />
+                <Route path="customers" element={<Suspense fallback={<PageLoader />}><CustomersPro /></Suspense>} />
+                <Route path="expenses" element={<Suspense fallback={<PageLoader />}><Expenses /></Suspense>} />
+                {/* HR Routes */}
+                <Route path="hr" element={<Suspense fallback={<PageLoader />}><HRDashboard /></Suspense>} />
+                <Route path="hr/employees" element={<Suspense fallback={<PageLoader />}><Employees /></Suspense>} />
+                <Route path="hr/salary" element={<Suspense fallback={<PageLoader />}><SalarySettings /></Suspense>} />
+                <Route path="hr/kpi" element={<Suspense fallback={<PageLoader />}><KPIManagement /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />
-                <Route path="helpers-old" element={<Suspense fallback={<PageLoader />}><Helpers /></Suspense>} />
                 <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
                 <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />
               </Route>

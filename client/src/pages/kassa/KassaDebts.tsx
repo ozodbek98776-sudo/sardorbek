@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, DollarSign, X, RefreshCw, Calendar, Eye, Trash2, CheckCircle, Clock, FileText } from 'lucide-react';
+import { Search, DollarSign, X, Calendar, Eye, Trash2, CheckCircle, Clock, FileText } from 'lucide-react';
 import { Debt } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
@@ -12,7 +12,6 @@ export default function KassaDebts() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_approval' | 'approved' | 'paid'>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
@@ -31,18 +30,6 @@ export default function KassaDebts() {
   useEffect(() => {
     fetchDebts();
   }, [location.pathname]);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchDebts();
-      showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
-    } catch (error) {
-      showAlert('Ma\'lumotlarni yangilashda xatolik', 'Xatolik', 'danger');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const fetchDebts = async () => {
     try {
@@ -223,23 +210,15 @@ export default function KassaDebts() {
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm"
               />
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="px-4 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline text-sm font-medium">Yangilash</span>
-            </button>
           </div>
         </div>
       </div>
 
       {/* Qarzlar ro'yxati */}
-      <div className="flex-1 overflow-y-auto p-3 lg:p-4 thin-scrollbar">
+      <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-3 lg:p-4 thin-scrollbar">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-slate-600 font-medium">Qarzlar yuklanmoqda...</p>
           </div>
         ) : filteredDebts.length === 0 ? (
@@ -328,7 +307,7 @@ export default function KassaDebts() {
       {/* View Modal */}
       {showViewModal && selectedDebt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-slate-900">Qarz tafsilotlari</h3>
               <button

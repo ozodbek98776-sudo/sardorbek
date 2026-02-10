@@ -3,6 +3,7 @@ import { X, Package2, ShoppingCart } from 'lucide-react';
 import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -18,6 +19,9 @@ export function ProductDetailModal({
   onAddToCart
 }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
+  
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
   
   if (!isOpen || !product) return null;
   
@@ -45,12 +49,12 @@ export function ProductDetailModal({
     <div 
       data-modal="true"
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fadeIn"
-      style={{ pointerEvents: 'auto' }}
+      style={{ pointerEvents: 'auto', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       onClick={handleClose}
     >
       <div 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-slideUp transform transition-all"
-        style={{ pointerEvents: 'auto' }}
+        style={{ pointerEvents: 'auto', marginBottom: '80px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Compact */}

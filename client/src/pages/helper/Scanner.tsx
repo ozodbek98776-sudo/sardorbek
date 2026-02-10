@@ -701,7 +701,7 @@ export default function HelperScanner() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
         {/* Chap tomon - Qidiruv va mahsulotlar */}
         <div className="space-y-5">
           {/* Qidiruv va skaner kartasi - Glassmorphism */}

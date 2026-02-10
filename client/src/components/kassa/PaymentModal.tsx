@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Banknote, CreditCard, AlertTriangle } from 'lucide-react';
 import { Customer, CartItem } from '../../types';
 import { formatNumber } from '../../utils/format';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export function PaymentModal({
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
   
   // Debug: Mijozlar sonini ko'rsatish
   console.log('🔵 PaymentModal render:', {
@@ -111,12 +115,12 @@ export function PaymentModal({
     <div 
       data-modal="true"
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto"
-      style={{ pointerEvents: 'auto' }}
+      style={{ pointerEvents: 'auto', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
       onClick={handleClose}
     >
       <div 
         className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 overflow-hidden"
-        style={{ pointerEvents: 'auto' }}
+        style={{ pointerEvents: 'auto', marginBottom: '80px' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -127,7 +131,7 @@ export function PaymentModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto thin-scrollbar">
+        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar">
           {/* Total */}
           <div className="bg-slate-50 rounded-xl p-4 text-center">
             <p className="text-sm text-slate-600 mb-1">Jami summa</p>

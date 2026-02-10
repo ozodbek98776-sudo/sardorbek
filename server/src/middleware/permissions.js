@@ -77,12 +77,16 @@ const hasRole = (...roles) => {
 /**
  * Admin only middleware (shorthand)
  */
-const adminOnly = hasRole(ROLES.ADMIN);
+function adminOnly(req, res, next) {
+  return hasRole(ROLES.ADMIN)(req, res, next);
+}
 
 /**
  * Admin and Cashier middleware (shorthand)
  */
-const adminOrCashier = hasRole(ROLES.ADMIN, ROLES.CASHIER);
+function adminOrCashier(req, res, next) {
+  return hasRole(ROLES.ADMIN, ROLES.CASHIER)(req, res, next);
+}
 
 module.exports = {
   checkPermission,

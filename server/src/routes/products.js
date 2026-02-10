@@ -15,10 +15,24 @@ router.use((req, res, next) => {
   next();
 });
 
-// ⚡ STATISTICS ENDPOINT - Faqat statistika ma'lumotlari
+// ⚡ STATISTICS ENDPOINT - Faqat statistika ma'lumotlari (CACHED)
+let statsCache = null;
+let statsCacheTime = null;
+const STATS_CACHE_DURATION = 30000; // 30 soniya
+
 router.get('/statistics', auth, async (req, res) => {
   try {
     const { search, category } = req.query;
+    const cacheKey = `${search || ''}-${category || ''}`;
+    
+    // ⚡ Cache check
+    if (statsCache && statsCacheTime && (Date.now() - statsCacheTime) < STATS_CACHE_DURATION) {
+      if (statsCache.key === cacheKey) {
+        console.log('📊 Statistics from cache');
+        return res.json(statsCache.data);
+      }
+    }
+    
     const query = {};
 
     // Search filter
@@ -85,9 +99,13 @@ router.get('/statistics', auth, async (req, res) => {
       totalValue: stats.totalValue[0]?.value || 0
     };
 
+    // ⚡ Cache update
+    statsCache = { key: cacheKey, data: result };
+    statsCacheTime = Date.now();
+
     console.log(`📊 Statistics calculated in ${Date.now() - req.startTime}ms:`, result);
 
-    res.set('Cache-Control', 'public, max-age=30'); // 30 soniya cache
+    res.set('Cache-Control', 'public, max-age=30');
     res.json(result);
   } catch (error) {
     console.error('❌ Error in GET /products/statistics:', error);
@@ -304,7 +322,7 @@ router.post('/kassa', async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10, lowStock } = req.query; // lowStock filter qo'shildi
+    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10, lowStock, stockFilter } = req.query;
     const query = {};
 
     if (search) {
@@ -327,8 +345,13 @@ router.get('/', auth, async (req, res) => {
     if (mainOnly === 'true') query.isMainWarehouse = true;
     if (category) query.category = category;
     
-    // ⚡ LOW STOCK FILTER - Kam qolgan tovarlar (0 < quantity <= 50)
-    if (lowStock === 'true') {
+    // ⚡ STOCK FILTER - Backend da filter qilish
+    if (stockFilter === 'low') {
+      query.quantity = { $gt: 0, $lte: 50 };
+    } else if (stockFilter === 'out') {
+      query.quantity = 0;
+    } else if (lowStock === 'true') {
+      // Eski format uchun
       query.quantity = { $gt: 0, $lte: 50 };
     }
 
@@ -1041,7 +1064,7 @@ router.get('/:id', auth, async (req, res) => {
 
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, images, ...rest } = req.body;
+    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, images, discounts, ...rest } = req.body;
 
     // Auto-generate code if not provided
     let productCode = code;
@@ -1109,6 +1132,27 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       images: formattedImages
     };
 
+    // Chegirmalarni prices array ga qo'shish
+    if (discounts && Array.isArray(discounts) && discounts.length > 0) {
+      const prices = productData.prices || [];
+      
+      discounts.forEach(discount => {
+        if (discount.minQuantity > 0 && discount.percent > 0) {
+          prices.push({
+            type: discount.type,
+            amount: 0, // Hisoblash kerak emas, discountPercent ishlatiladi
+            minQuantity: discount.minQuantity,
+            discountPercent: discount.percent,
+            isActive: true
+          });
+        }
+      });
+      
+      if (prices.length > 0) {
+        productData.prices = prices;
+      }
+    }
+
     // createdBy - faqat real ObjectId bo'lsa qo'shamiz
     if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
       productData.createdBy = req.user._id;
@@ -1126,7 +1170,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       isMainWarehouse,
       quantity: productData.quantity,
       price: productData.price,
-      imagesCount: formattedImages.length
+      imagesCount: formattedImages.length,
+      discountsCount: productData.prices?.length || 0
     });
 
     const product = new Product(productData);
@@ -1161,6 +1206,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     // ⚡ Socket.IO - Real-time update
     if (global.io) {
       global.io.emit('product:created', product);
+      // ⚡ Cache ni tozalash
+      statsCache = null;
       console.log('📡 Socket emit: product:created');
     }
     
@@ -1224,6 +1271,8 @@ router.put('/:id/category', async (req, res) => {
     // Socket.IO - Real-time update
     if (global.io) {
       global.io.emit('product:updated', product);
+      // ⚡ Cache ni tozalash
+      statsCache = null;
     }
 
     res.json(product);
@@ -1238,7 +1287,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     console.log('🔍 PUT /:id request received for ID:', req.params.id);
     console.log('Request body keys:', Object.keys(req.body));
     console.log('Images field:', req.body.images);
-    const { warehouse, code, packageInfo, images, ...rest } = req.body;
+    const { warehouse, code, packageInfo, images, discounts, ...rest } = req.body;
 
     // Check if code already exists (excluding current product)
     if (code) {
@@ -1290,6 +1339,32 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       updateData.images = formattedImages;
     }
 
+    // Chegirmalarni prices array ga qo'shish
+    if (discounts && Array.isArray(discounts)) {
+      const product = await Product.findById(req.params.id);
+      if (product) {
+        // Eski discount narxlarini o'chirish
+        const prices = (product.prices || []).filter(p => 
+          !['discount1', 'discount2', 'discount3'].includes(p.type)
+        );
+        
+        // Yangi discount narxlarini qo'shish
+        discounts.forEach(discount => {
+          if (discount.minQuantity > 0 && discount.percent > 0) {
+            prices.push({
+              type: discount.type,
+              amount: 0,
+              minQuantity: discount.minQuantity,
+              discountPercent: discount.percent,
+              isActive: true
+            });
+          }
+        });
+        
+        updateData.prices = prices;
+      }
+    }
+
     // Add package information if provided
     if (packageInfo) {
       const product = await Product.findById(req.params.id);
@@ -1323,6 +1398,8 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     // ⚡ Socket.IO - Real-time update
     if (global.io) {
       global.io.emit('product:updated', product);
+      // ⚡ Cache ni tozalash
+      statsCache = null;
       console.log('📡 Socket emit: product:updated');
     }
     
@@ -1340,6 +1417,8 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
     // ⚡ Socket.IO - Real-time update
     if (global.io) {
       global.io.emit('product:deleted', { _id: product._id });
+      // ⚡ Cache ni tozalash
+      statsCache = null;
       console.log('📡 Socket emit: product:deleted');
     }
     

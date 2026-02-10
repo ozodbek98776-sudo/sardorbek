@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
 import { 
   Plus, Users, X, Phone, Edit, Trash2, MapPin, Search, DollarSign, 
   ShoppingCart, AlertCircle, Calendar, CreditCard, ChevronDown, Filter
@@ -9,8 +9,10 @@ import api from '../../utils/api';
 import { formatNumber, formatPhone, displayPhone } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { regions, regionNames } from '../../data/regions';
+import { UniversalPageHeader, ActionButton } from '../../components/common';
 
 export default function CustomersPro() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showConfirm, showAlert, AlertComponent } = useAlert();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,18 +193,20 @@ export default function CustomersPro() {
     <div className="min-h-screen bg-slate-50 w-full h-full">
       {AlertComponent}
       
-      <Header
+      <UniversalPageHeader
         title="Mijozlar"
         showSearch
-        onSearch={setSearchQuery}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onMenuToggle={onMenuToggle}
         actions={
-          <button 
-            onClick={() => setShowModal(true)} 
-            className="flex items-center gap-2 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+          <ActionButton 
+            icon={Plus}
+            variant="primary"
+            onClick={() => setShowModal(true)}
           >
-            <Plus className="w-4 h-4" />
-            <span>Qo'shish</span>
-          </button>
+            Qo'shish
+          </ActionButton>
         }
       />
 

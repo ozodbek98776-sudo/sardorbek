@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
@@ -54,6 +54,7 @@ function fuzzySearch(query: string, text: string): number {
 }
 
 export default function KassaProNew() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const navigate = useNavigate();
   const { showAlert, AlertComponent } = useAlert();
   const { categories } = useCategories();
@@ -461,6 +462,7 @@ export default function KassaProNew() {
         savedReceiptsCount={savedReceipts.length}
         onOpenSavedReceipts={() => setShowSavedReceipts(true)}
         onOpenDebtPayment={() => setShowDebtPayment(true)}
+        onMenuOpen={onMenuToggle}
       />
       
       {/* Main Content - Fully Responsive */}

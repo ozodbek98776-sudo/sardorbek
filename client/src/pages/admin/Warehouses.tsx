@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
 import { Plus, Warehouse as WarehouseIcon, X, Package, Edit, Trash2, MapPin, Search, QrCode, Download } from 'lucide-react';
 import { Warehouse, Product } from '../../types';
 import api from '../../utils/api';
@@ -7,8 +7,10 @@ import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format
 import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
 import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
+import { UniversalPageHeader, ActionButton } from '../../components/common';
 
 export default function Warehouses() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [showModal, setShowModal] = useState(false);

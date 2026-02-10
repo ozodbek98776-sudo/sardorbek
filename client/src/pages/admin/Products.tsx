@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import Header from '../../components/Header';
-import { Plus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Download, RotateCcw, Save, Image, Upload } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
+import { Plus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, RotateCcw, Upload, Save, Download } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -11,8 +11,10 @@ import { useSocket } from '../../hooks/useSocket';
 import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
+import { StatCard, LoadingSpinner, EmptyState, Modal, ActionButton, Badge, UniversalPageHeader } from '../../components/common';
 
 export default function ProductsOptimized() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const socket = useSocket();
   const { categories } = useCategories(); // Kategoriyalarni yuklash
@@ -46,7 +48,11 @@ export default function ProductsOptimized() {
     quantity: '',
     category: '',
     subcategory: '', // Bo'lim uchun
-    unit: 'dona' as 'dona' | 'kg' | 'metr' | 'litr' | 'karobka'
+    unit: 'dona' as 'dona' | 'kg' | 'metr' | 'litr' | 'karobka',
+    // Chegirma sozlamalari
+    discount1: { minQuantity: '', percent: '' },
+    discount2: { minQuantity: '', percent: '' },
+    discount3: { minQuantity: '', percent: '' }
   });
   
   // Rasm yuklash uchun state
@@ -90,31 +96,11 @@ export default function ProductsOptimized() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
-  // Optimized filtered products
+  // Optimized filtered products - FAQAT CLIENT-SIDE SEARCH UCHUN
   const filteredProducts = useMemo(() => {
-    const productsArray = Array.isArray(products) ? products : [];
-    
-    if (!debouncedSearch && stockFilter === 'all' && !categoryFilter) {
-      return productsArray;
-    }
-    
-    return safeFilter<Product>(productsArray, product => {
-      // Search filter
-      const matchesSearch = !debouncedSearch || 
-        product.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        product.code.toLowerCase().includes(debouncedSearch.toLowerCase());
-      
-      // Stock filter
-      const matchesStock = stockFilter === 'all' || 
-        (stockFilter === 'low' && product.quantity <= 50 && product.quantity > 0) ||
-        (stockFilter === 'out' && product.quantity === 0);
-      
-      // Category filter
-      const matchesCategory = !categoryFilter || product.category === categoryFilter;
-      
-      return matchesSearch && matchesStock && matchesCategory;
-    });
-  }, [products, debouncedSearch, stockFilter, categoryFilter]);
+    // Backend allaqachon filter qilgan, faqat ko'rsatish uchun
+    return Array.isArray(products) ? products : [];
+  }, [products]);
   
   // Fetch products - optimized with pagination
   const fetchProducts = useCallback(async (pageNum = 1, append = false) => {
@@ -124,15 +110,15 @@ export default function ProductsOptimized() {
       const response = await api.get('/products', {
         params: {
           page: pageNum,
-          limit: 10, // 10 ta mahsulot
+          limit: 10,
           search: debouncedSearch || undefined,
-          category: categoryFilter || undefined
+          category: categoryFilter || undefined,
+          stockFilter: stockFilter !== 'all' ? stockFilter : undefined // ⚡ Backend filter
         }
       });
       
       const responseData = response.data;
       
-      // Response format: { data: [...], pagination: {...} }
       if (responseData.data && responseData.pagination) {
         const productsData = responseData.data;
         
@@ -146,7 +132,6 @@ export default function ProductsOptimized() {
         setHasMore(responseData.pagination.hasMore);
         setCurrentPage(pageNum);
       } else {
-        // Eski format
         const productsData = extractArrayFromResponse<Product>(response);
         setProducts(productsData);
         setTotalProducts(productsData.length);
@@ -159,10 +144,12 @@ export default function ProductsOptimized() {
     } finally {
       setLoading(false);
     }
-  }, [showAlert, debouncedSearch, categoryFilter]);
+  }, [showAlert, debouncedSearch, categoryFilter, stockFilter]); // ⚡ stockFilter qo'shildi
 
-  // ⚡ Fetch statistics - alohida va tez
-  const fetchStatistics = useCallback(async () => {
+  // ⚡ Fetch statistics - alohida va tez (useRef bilan stable)
+  const fetchStatisticsRef = useRef<() => Promise<void>>();
+  
+  fetchStatisticsRef.current = async () => {
     try {
       const response = await api.get('/products/statistics', {
         params: {
@@ -182,15 +169,20 @@ export default function ProductsOptimized() {
       console.log('📊 Statistics loaded:', statsData);
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      // Statistika yuklanmasa ham davom etamiz
     }
-  }, [debouncedSearch, categoryFilter]);
+  };
   
-  // Load products on mount
+  const fetchStatistics = useCallback(() => {
+    return fetchStatisticsRef.current?.();
+  }, []);
+  
+  // Load products on mount and when filters change
   useEffect(() => {
+    setCurrentPage(1); // Reset pagination
+    setProducts([]); // Clear products
     fetchProducts(1, false);
-    fetchStatistics(); // ⚡ Statistikani alohida yuklash
-  }, [debouncedSearch, categoryFilter]);
+    fetchStatistics();
+  }, [debouncedSearch, categoryFilter, stockFilter]); // ⚡ stockFilter qo'shildi
   
   // Infinite scroll - Intersection Observer
   useEffect(() => {
@@ -211,23 +203,43 @@ export default function ProductsOptimized() {
     return () => observer.disconnect();
   }, [hasMore, loading, currentPage, fetchProducts]);
   
-  // Socket listeners - optimized
+  // Socket listeners - optimized with local stats update
   useEffect(() => {
     if (!socket) return;
     
+    // ⚡ Debounced statistics refresh
+    let statsRefreshTimer: NodeJS.Timeout;
+    const debouncedStatsRefresh = () => {
+      clearTimeout(statsRefreshTimer);
+      statsRefreshTimer = setTimeout(() => {
+        fetchStatistics();
+      }, 1000); // 1 soniya kutish
+    };
+    
     const handleProductCreated = (newProduct: Product) => {
       setProducts(prev => [newProduct, ...prev]);
-      fetchStatistics(); // ⚡ Statistikani yangilash
+      // ⚡ Local stats update
+      setStats(prev => ({
+        ...prev,
+        total: prev.total + 1,
+        totalValue: prev.totalValue + ((newProduct as any).unitPrice || 0) * newProduct.quantity
+      }));
+      debouncedStatsRefresh();
     };
     
     const handleProductUpdated = (updatedProduct: Product) => {
       setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
-      fetchStatistics(); // ⚡ Statistikani yangilash
+      debouncedStatsRefresh();
     };
     
     const handleProductDeleted = (data: { _id: string }) => {
       setProducts(prev => prev.filter(p => p._id !== data._id));
-      fetchStatistics(); // ⚡ Statistikani yangilash
+      // ⚡ Local stats update
+      setStats(prev => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1)
+      }));
+      debouncedStatsRefresh();
     };
     
     socket.on('product:created', handleProductCreated);
@@ -235,11 +247,12 @@ export default function ProductsOptimized() {
     socket.on('product:deleted', handleProductDeleted);
     
     return () => {
+      clearTimeout(statsRefreshTimer);
       socket.off('product:created', handleProductCreated);
       socket.off('product:updated', handleProductUpdated);
       socket.off('product:deleted', handleProductDeleted);
     };
-  }, [socket, fetchStatistics]);
+  }, [socket]); // ⚡ Faqat socket dependency
   
   // Form handlers - simplified
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,16 +277,34 @@ export default function ProductsOptimized() {
         category: formData.category,
         subcategory: formData.subcategory,
         unit: formData.unit,
-        images: imagePaths
+        images: imagePaths,
+        // Chegirma sozlamalari
+        discounts: [
+          {
+            type: 'discount1',
+            minQuantity: Number(formData.discount1.minQuantity) || 0,
+            percent: Number(formData.discount1.percent) || 0
+          },
+          {
+            type: 'discount2',
+            minQuantity: Number(formData.discount2.minQuantity) || 0,
+            percent: Number(formData.discount2.percent) || 0
+          },
+          {
+            type: 'discount3',
+            minQuantity: Number(formData.discount3.minQuantity) || 0,
+            percent: Number(formData.discount3.percent) || 0
+          }
+        ].filter(d => d.minQuantity > 0 && d.percent > 0) // Faqat to'ldirilganlarini yuborish
       };
       
       if (editingProduct) {
-        const response = await api.put(`/products/${editingProduct._id}`, data);
-        setProducts(prev => prev.map(p => p._id === editingProduct._id ? response.data : p));
+        await api.put(`/products/${editingProduct._id}`, data);
+        // Socket will handle the update
         showAlert('Mahsulot yangilandi', 'Muvaffaqiyat', 'success');
       } else {
-        const response = await api.post('/products', data);
-        setProducts(prev => [response.data, ...prev]);
+        await api.post('/products', data);
+        // Socket will handle adding the new product
         showAlert('Mahsulot qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       
@@ -310,7 +341,10 @@ export default function ProductsOptimized() {
       quantity: '',
       category: '',
       subcategory: '',
-      unit: 'dona'
+      unit: 'dona',
+      discount1: { minQuantity: '', percent: '' },
+      discount2: { minQuantity: '', percent: '' },
+      discount3: { minQuantity: '', percent: '' }
     });
     setSelectedImages([]);
     setUploadedImages([]);
@@ -319,6 +353,13 @@ export default function ProductsOptimized() {
   
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    
+    // Chegirmalarni olish
+    const discounts = (product as any).discounts || [];
+    const discount1 = discounts.find((d: any) => d.type === 'discount1') || {};
+    const discount2 = discounts.find((d: any) => d.type === 'discount2') || {};
+    const discount3 = discounts.find((d: any) => d.type === 'discount3') || {};
+    
     setFormData({
       code: product.code,
       name: product.name,
@@ -327,8 +368,20 @@ export default function ProductsOptimized() {
       costPrice: String((product as any).costPrice || 0),
       quantity: String(product.quantity),
       category: (product as any).category || '',
-      subcategory: (product as any).subcategory || '', // Bo'limni qo'shish
-      unit: product.unit || 'dona'
+      subcategory: (product as any).subcategory || '',
+      unit: product.unit || 'dona',
+      discount1: {
+        minQuantity: String(discount1.minQuantity || ''),
+        percent: String(discount1.percent || '')
+      },
+      discount2: {
+        minQuantity: String(discount2.minQuantity || ''),
+        percent: String(discount2.percent || '')
+      },
+      discount3: {
+        minQuantity: String(discount3.minQuantity || ''),
+        percent: String(discount3.percent || '')
+      }
     });
     
     // Mavjud rasmlarni yuklash
@@ -423,63 +476,57 @@ export default function ProductsOptimized() {
     return null;
   };
   
-  const statItems = [
-    { label: 'Jami', value: stats.total, icon: Package, color: 'blue', filter: 'all' },
-    { label: 'Kam qolgan', value: stats.lowStock, icon: AlertTriangle, color: 'yellow', filter: 'low' },
-    { label: 'Tugagan', value: stats.outOfStock, icon: X, color: 'red', filter: 'out' },
-    { label: 'Jami qiymat', value: `${formatNumber(stats.totalValue)} so'm`, icon: DollarSign, color: 'green', filter: null },
-  ];
-  
   return (
     <div className="min-h-screen bg-gray-50 w-full h-full">
       {AlertComponent}
       
-      <Header 
+      <UniversalPageHeader 
         title="Mahsulotlar"
         showSearch 
-        onSearch={setSearchQuery}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onMenuToggle={onMenuToggle}
         actions={
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => fetchProducts(1, false)} 
-              className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
-              title="Yangilash"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={openAddModal} 
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Qo'shish
-            </button>
-          </div>
+          <ActionButton 
+            icon={Plus}
+            variant="primary"
+            onClick={openAddModal}
+          >
+            Qo'shish
+          </ActionButton>
         }
       />
 
       <div className="p-4 space-y-4 w-full h-full">
-        {/* Stats Cards */}
+        {/* Stats Cards - Universal StatCard */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {statItems.map((stat, i) => (
-            <div 
-              key={i} 
-              onClick={() => stat.filter && setStockFilter(stat.filter)}
-              className={`bg-white rounded-lg border p-4 transition-all ${
-                stat.filter ? 'cursor-pointer hover:shadow-md' : ''
-              } ${
-                stockFilter === stat.filter ? 'border-blue-500 shadow-md' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${stat.color}-50`}>
-                  <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
-                </div>
-                <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          ))}
+          <StatCard
+            title="Jami"
+            value={stats.total}
+            icon={Package}
+            color="blue"
+            onClick={() => setStockFilter('all')}
+          />
+          <StatCard
+            title="Kam qolgan"
+            value={stats.lowStock}
+            icon={AlertTriangle}
+            color="orange"
+            onClick={() => setStockFilter('low')}
+          />
+          <StatCard
+            title="Tugagan"
+            value={stats.outOfStock}
+            icon={X}
+            color="red"
+            onClick={() => setStockFilter('out')}
+          />
+          <StatCard
+            title="Jami qiymat"
+            value={`${formatNumber(stats.totalValue)} so'm`}
+            icon={DollarSign}
+            color="green"
+          />
         </div>
 
         {/* Category Filter */}
@@ -491,21 +538,18 @@ export default function ProductsOptimized() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-500">Yuklanmoqda...</p>
-          </div>
+          <LoadingSpinner size="lg" text="Yuklanmoqda..." />
         ) : filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Package className="w-16 h-16 text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Mahsulotlar topilmadi</h3>
-            <p className="text-gray-500 text-center mb-6">
-              {searchQuery ? 'Qidiruv bo\'yicha mahsulotlar topilmadi' : 'Birinchi mahsulotni qo\'shing'}
-            </p>
-            <button onClick={openAddModal} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Mahsulot qo'shish
-            </button>
-          </div>
+          <EmptyState
+            icon={Package}
+            title="Mahsulotlar topilmadi"
+            description={searchQuery ? 'Qidiruv bo\'yicha mahsulotlar topilmadi' : 'Birinchi mahsulotni qo\'shing'}
+            action={
+              <ActionButton icon={Plus} onClick={openAddModal}>
+                Mahsulot qo'shish
+              </ActionButton>
+            }
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -566,14 +610,14 @@ export default function ProductsOptimized() {
                         {/* Kategoriya va Bo'lim */}
                         <div className="flex flex-wrap gap-1">
                           {(product as any).category && (
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                            <Badge variant="primary" size="sm">
                               {(product as any).category}
-                            </span>
+                            </Badge>
                           )}
                           {(product as any).subcategory && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                            <Badge variant="info" size="sm">
                               {(product as any).subcategory}
-                            </span>
+                            </Badge>
                           )}
                         </div>
                         
@@ -626,17 +670,17 @@ export default function ProductsOptimized() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           <form 
             onSubmit={handleSubmit} 
-            className="relative bg-white rounded-lg w-full max-w-md p-6 space-y-4"
+            className="relative bg-white rounded-lg w-full max-w-md p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-10 pb-2 border-b">
               <h3 className="text-lg font-semibold">
                 {editingProduct ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}
               </h3>
-              <button type="button" onClick={closeModal}>
+              <button type="button" onClick={closeModal} className="hover:bg-gray-100 p-1 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -729,20 +773,147 @@ export default function ProductsOptimized() {
                 <input 
                   type="text" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={formatInputNumber(formData.costPrice)}
-                  onChange={e => setFormData({...formData, costPrice: parseNumber(e.target.value)})}
+                  value={formData.costPrice ? formatInputNumber(formData.costPrice) : ''}
+                  onChange={e => {
+                    const value = parseNumber(e.target.value);
+                    setFormData({...formData, costPrice: value});
+                  }}
+                  placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi *</label>
                 <input 
                   type="text" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={formatInputNumber(formData.unitPrice)}
-                  onChange={e => setFormData({...formData, unitPrice: parseNumber(e.target.value)})}
+                  value={formData.unitPrice ? formatInputNumber(formData.unitPrice) : ''}
+                  onChange={e => {
+                    const value = parseNumber(e.target.value);
+                    setFormData({...formData, unitPrice: value});
+                  }}
                   required
+                  placeholder="0"
                 />
               </div>
+            </div>
+
+            {/* Chegirma sozlamalari */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Chegirma sozlamalari (ixtiyoriy)
+              </label>
+              
+              {/* 1-chegirma */}
+              <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs font-medium text-green-900 mb-2">1-chegirma</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                      value={formData.discount1.minQuantity}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount1: {...formData.discount1, minQuantity: e.target.value}
+                      })}
+                      placeholder="10"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                      value={formData.discount1.percent}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount1: {...formData.discount1, percent: e.target.value}
+                      })}
+                      placeholder="5"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2-chegirma */}
+              <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs font-medium text-blue-900 mb-2">2-chegirma</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      value={formData.discount2.minQuantity}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount2: {...formData.discount2, minQuantity: e.target.value}
+                      })}
+                      placeholder="50"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      value={formData.discount2.percent}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount2: {...formData.discount2, percent: e.target.value}
+                      })}
+                      placeholder="10"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3-chegirma */}
+              <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-xs font-medium text-purple-900 mb-2">3-chegirma</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
+                      value={formData.discount3.minQuantity}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount3: {...formData.discount3, minQuantity: e.target.value}
+                      })}
+                      placeholder="100"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
+                      value={formData.discount3.percent}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        discount3: {...formData.discount3, percent: e.target.value}
+                      })}
+                      placeholder="15"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-2">
+                Masalan: 10 dona olsa 5% chegirma, 50 dona olsa 10% chegirma
+              </p>
             </div>
 
             <div>
@@ -750,8 +921,11 @@ export default function ProductsOptimized() {
               <input 
                 type="text" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={formatInputNumber(formData.quantity)}
-                onChange={e => setFormData({...formData, quantity: parseNumber(e.target.value)})}
+                value={formData.quantity ? formatInputNumber(formData.quantity) : ''}
+                onChange={e => {
+                  const value = parseNumber(e.target.value);
+                  setFormData({...formData, quantity: value});
+                }}
               />
             </div>
 

@@ -49,6 +49,14 @@ const telegramRoutes = require('./routes/telegram');
 const partnerRoutes = require('./routes/partners');
 const categoryRoutes = require('./routes/categories');
 const monitoringRoutes = require('./routes/monitoring');
+const expenseRoutes = require('./routes/expenses');
+
+// HR Routes
+const hrEmployeeRoutes = require('./routes/hr/employees');
+const hrSalaryRoutes = require('./routes/hr/salary');
+const hrKPIRoutes = require('./routes/hr/kpi');
+const hrPayrollRoutes = require('./routes/hr/payroll');
+const hrAttendanceRoutes = require('./routes/hr/attendance');
 
 const app = express();
 const server = http.createServer(app);
@@ -229,6 +237,14 @@ app.use('/api/telegram', telegramRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/monitoring', adminLimiter, monitoringRoutes); // Admin operations
+app.use('/api/expenses', adminLimiter, expenseRoutes); // Admin operations - Xarajatlar
+
+// HR Routes - Admin only
+app.use('/api/hr/employees', adminLimiter, hrEmployeeRoutes);
+app.use('/api/hr/salary', adminLimiter, hrSalaryRoutes);
+app.use('/api/hr/kpi', adminLimiter, hrKPIRoutes);
+app.use('/api/hr/payroll', adminLimiter, hrPayrollRoutes);
+app.use('/api/hr/attendance', adminLimiter, hrAttendanceRoutes);
 
 // Make io available to routes
 app.set('io', io);
@@ -266,7 +282,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
   maxPoolSize: 20, // ⚡ Ko'proq connection - parallel query'lar uchun
   minPoolSize: 5,  // ⚡ Minimal connection'lar doim tayyor
   socketTimeoutMS: 45000,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 30000, // ⚡ 30 soniya - Atlas uchun yetarli
+  connectTimeoutMS: 30000, // ⚡ Connection timeout ham oshirildi
   family: 4, // IPv4 ishlatish (tezroq)
   maxIdleTimeMS: 10000, // ⚡ Idle connection'larni tezroq yopish
   compressors: ['zlib'], // ⚡ Network traffic siqish

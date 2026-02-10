@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -11,10 +12,32 @@ export default function BottomNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [hasOpenModal, setHasOpenModal] = useState(false);
+
+  // Modal ochiq bo'lsa navbar ni yashirish
+  useEffect(() => {
+    const checkModals = () => {
+      const modalExists = document.querySelector('[data-modal="true"]') !== null;
+      setHasOpenModal(modalExists);
+    };
+
+    // Dastlab tekshirish
+    checkModals();
+
+    // MutationObserver bilan DOM o'zgarishlarini kuzatish
+    const observer = new MutationObserver(checkModals);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-modal']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Admin panelda yoki kassir panelda ekanligini aniqlash
   const isInAdminPanel = location.pathname.startsWith('/admin');
-  const isInKassaPanel = location.pathname.startsWith('/kassa');
 
   const navItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Bosh sahifa', exact: true },
@@ -44,8 +67,23 @@ export default function BottomNavigation() {
     return location.pathname.startsWith(path);
   };
 
+  // Modal ochiq bo'lsa navbar ni yashirish
+  if (hasOpenModal) {
+    return null;
+  }
+  
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-slate-100/80 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-slate-100/80 backdrop-blur-2xl border-t border-slate-200/60 z-50 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)]" style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      transform: 'translateZ(0)',
+      WebkitTransform: 'translateZ(0)',
+      willChange: 'transform',
+      WebkitBackfaceVisibility: 'hidden',
+      backfaceVisibility: 'hidden'
+    }}>
       <div className="grid grid-cols-4 h-[72px] max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;

@@ -370,13 +370,6 @@ export default function KassaReceipts() {
               <h1 className="text-sm sm:text-base font-bold text-surface-900 truncate">Cheklar</h1>
             </div>
           </div>
-          <button
-            onClick={fetchReceipts}
-            className="btn-secondary flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-sm flex-shrink-0"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Yangilash</span>
-          </button>
         </div>
       </div>
 
@@ -388,7 +381,7 @@ export default function KassaReceipts() {
           <p className="text-sm sm:text-base text-surface-500">Hali hech qanday chek yaratilmagan</p>
         </div>
       ) : (
-        <div className="max-h-[calc(100vh-180px)] overflow-y-auto">
+        <div className="max-h-[calc(100vh-180px)] overflow-y-auto scroll-smooth-instagram momentum-scroll">
           <div className="grid gap-3 sm:gap-4 pr-1">
             {receipts.map((receipt) => (
             <div key={receipt._id} className="bg-white rounded-xl shadow-sm p-3 sm:p-4 hover:shadow-md transition-shadow">
@@ -486,7 +479,7 @@ export default function KassaReceipts() {
       {/* Detail Modal */}
       {showDetailModal && selectedReceipt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
             <div className="sticky top-0 bg-white border-b border-surface-200 p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-base sm:text-xl font-bold text-surface-900">Chek #{selectedReceipt.receiptNumber}</h2>

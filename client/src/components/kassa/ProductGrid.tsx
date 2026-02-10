@@ -89,7 +89,7 @@ export function ProductGrid({
     return (
       <div 
         ref={containerRef}
-        className="max-h-[calc(100vh-250px)] overflow-y-auto thin-scrollbar pb-32"
+        className="max-h-[calc(100vh-250px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar pb-32"
       >
         {products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -124,7 +124,7 @@ export function ProductGrid({
   return (
     <div 
       ref={containerRef}
-      className="max-h-[calc(100vh-250px)] overflow-y-auto thin-scrollbar pb-32"
+      className="max-h-[calc(100vh-250px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar pb-32"
     >
       {displayedProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4">

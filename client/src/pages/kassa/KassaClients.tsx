@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, RefreshCw, Users, Phone, Mail, ShoppingBag, AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
+import { Search, Users, Phone, Mail, ShoppingBag, AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
 import { Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
@@ -12,7 +12,6 @@ export default function KassaClients() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [clientsSearchQuery, setClientsSearchQuery] = useState('');
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debtFilter, setDebtFilter] = useState<'all' | 'withDebt' | 'noDebt'>('all');
@@ -32,18 +31,7 @@ export default function KassaClients() {
     fetchCustomers(true);
   }, [location.pathname]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchCustomers(false);
-      showAlert('Ma\'lumotlar yangilandi', 'Muvaffaqiyat', 'success');
-    } catch (error) {
-      console.error('Refresh xatosi:', error);
-      showAlert('Ma\'lumotlarni yangilashda xatolik', 'Xatolik', 'danger');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+
 
   useEffect(() => {
     let filtered = customers;
@@ -202,35 +190,22 @@ export default function KassaClients() {
                 </button>
               )}
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="px-4 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline text-sm font-medium">Yangilash</span>
-            </button>
+
           </div>
         </div>
       </div>
 
       {/* Mijozlar ro'yxati - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-3 lg:p-4">
+      <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll p-3 lg:p-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full">
-            <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-slate-600 font-medium">Mijozlar yuklanmoqda...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full">
             <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
             <p className="text-red-600 font-medium mb-4">{error}</p>
-            <button
-              onClick={handleRefresh}
-              className="px-6 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all"
-            >
-              Qayta urinish
-            </button>
           </div>
         ) : filteredCustomers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">

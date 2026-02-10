@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
-import { CheckCircle2, X, AlertTriangle, User, Calendar, DollarSign, ArrowLeft } from 'lucide-react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import { CheckCircle2, X, AlertTriangle, User, Calendar, DollarSign, ArrowLeft, CreditCard } from 'lucide-react';
 import { Debt } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
-import { useNavigate } from 'react-router-dom';
+import { UniversalPageHeader } from '../../components/common';
 
 export default function DebtApprovals() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showAlert, showConfirm, AlertComponent } = useAlert();
   const navigate = useNavigate();
   const [pendingDebts, setPendingDebts] = useState<Debt[]>([]);

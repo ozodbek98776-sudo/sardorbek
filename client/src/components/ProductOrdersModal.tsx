@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Package, CheckCircle, XCircle, Calendar, User } from 'lucide-react';
 import api from '../utils/api';
 import { formatNumber } from '../utils/format';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface ProductOrder {
   _id: string;
@@ -52,6 +53,9 @@ export function ProductOrdersModal({ isOpen, onClose, onOrderReceived }: Product
   const [orders, setOrders] = useState<ProductOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
+
+  // Modal scroll lock
+  useModalScrollLock(isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,7 +120,7 @@ export function ProductOrdersModal({ isOpen, onClose, onOrderReceived }: Product
       />
       
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-4">
-        <div className="bg-white rounded-2xl lg:rounded-3xl p-6 lg:p-8 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-2xl lg:rounded-3xl p-6 lg:p-8 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Package className="w-6 h-6" />

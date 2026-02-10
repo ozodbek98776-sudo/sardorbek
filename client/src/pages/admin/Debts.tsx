@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
 import { 
   Plus, AlertTriangle, X, DollarSign, Calendar, User, 
-  CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, TrendingUp
+  CheckCircle2, AlertCircle, Trash2, Wallet, ArrowDownLeft, ArrowUpRight, Phone, UserPlus, TrendingUp, CreditCard
 } from 'lucide-react';
 import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber, formatPhone } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { regions, regionNames } from '../../data/regions';
 import { useAuth } from '../../context/AuthContext';
+import { StatCard, LoadingSpinner, EmptyState, Badge, ActionButton, UniversalPageHeader } from '../../components/common';
 
 export default function Debts() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { showConfirm, showAlert, AlertComponent } = useAlert();
@@ -25,6 +28,7 @@ export default function Debts() {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [loading, setLoading] = useState(true);
   const [debtType, setDebtType] = useState<'receivable' | 'payable'>('receivable');
+  const [modalDebtType, setModalDebtType] = useState<'receivable' | 'payable'>('receivable');
   const [formData, setFormData] = useState({ 
     customer: '', creditorName: '', amount: '', dueDate: '', description: '', collateral: '' 
   });
@@ -41,6 +45,9 @@ export default function Debts() {
     fetchCustomers();
     fetchStats();
   }, [debtType]);
+
+  // Modal scroll lock
+  useModalScrollLock(showModal || showPaymentModal);
 
   const fetchDebts = async () => {
     try {
@@ -118,30 +125,58 @@ export default function Debts() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validatsiya
+    if (modalDebtType === 'receivable' && !formData.customer) {
+      showAlert('Mijozni tanlang', 'Xatolik', 'danger');
+      return;
+    }
+    
+    if (modalDebtType === 'payable' && !formData.creditorName) {
+      showAlert('Kreditor ismini kiriting', 'Xatolik', 'danger');
+      return;
+    }
+    
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      showAlert('Qarz summasini kiriting', 'Xatolik', 'danger');
+      return;
+    }
+    
+    if (!formData.dueDate) {
+      showAlert('Muddatni kiriting', 'Xatolik', 'danger');
+      return;
+    }
+    
     try {
       const data = {
-        type: debtType,
-        customer: debtType === 'receivable' ? formData.customer : undefined,
-        creditorName: debtType === 'payable' ? formData.creditorName : undefined,
+        type: modalDebtType,
+        customer: modalDebtType === 'receivable' ? formData.customer : undefined,
+        creditorName: modalDebtType === 'payable' ? formData.creditorName : undefined,
         amount: Number(formData.amount),
         dueDate: formData.dueDate,
-        description: formData.description,
+        description: formData.description || `${modalDebtType === 'receivable' ? 'Mijoz' : 'Kreditor'} qarzi`,
         collateral: formData.collateral
       };
       
+      console.log('📤 Submitting debt data:', data);
+      
       if (editingDebt) {
-        await api.put(`/debts/${editingDebt._id}`, data);
+        const response = await api.put(`/debts/${editingDebt._id}`, data);
+        console.log('✅ Debt updated:', response.data);
+        showAlert('Qarz muvaffaqiyatli yangilandi', 'Muvaffaqiyat', 'success');
       } else {
-        await api.post('/debts', data);
-        // Yangi qarz qo'shilganda xabar berish
+        const response = await api.post('/debts', data);
+        console.log('✅ Debt created:', response.data);
         showAlert('Qarz muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       }
+      
       fetchDebts();
       fetchStats();
       closeModal();
-    } catch (err) { 
-      console.error('Error saving debt:', err);
-      showAlert('Qarz qo\'shishda xatolik yuz berdi', 'Xatolik', 'danger');
+    } catch (err: any) { 
+      console.error('❌ Error saving debt:', err);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Qarz qo\'shishda xatolik yuz berdi';
+      showAlert(errorMessage, 'Xatolik', 'danger');
     }
   };
 
@@ -161,72 +196,18 @@ export default function Debts() {
     } catch (err) { console.error('Error making payment:', err); }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = await showConfirm("Qarzni o'chirishni tasdiqlaysizmi?", "O'chirish");
-    if (!confirmed) return;
-    try {
-      await api.delete(`/debts/${id}`);
-      fetchDebts();
-      fetchStats();
-    } catch (err) { console.error('Error deleting debt:', err); }
-  };
-
-  const handleApprove = async (id: string) => {
-    const confirmed = await showConfirm("Bu qarzni tasdiqlaysizmi? Tasdiqlangandan keyin mijozning umumiy qarziga qo'shiladi.", "Tasdiqlash");
-    if (!confirmed) return;
-    try {
-      await api.post(`/debts/${id}/approve`);
-      fetchDebts();
-      fetchStats();
-    } catch (err) { console.error('Error approving debt:', err); }
-  };
-
-  const handleReject = async (id: string) => {
-    const reason = prompt("Rad etish sababini kiriting (ixtiyoriy):");
-    if (reason === null) return;
-    
-    const confirmed = await showConfirm("Bu qarzni rad etasizmi? Rad etilgan qarz o'chiriladi.", "Rad etish");
-    if (!confirmed) return;
-    try {
-      await api.post(`/debts/${id}/reject`, { reason });
-      fetchDebts();
-      fetchStats();
-    } catch (err) { console.error('Error rejecting debt:', err); }
-  };
-
   const closeModal = () => {
     setShowModal(false);
     setEditingDebt(null);
+    setModalDebtType(debtType); // Reset to main debtType
     setFormData({ customer: '', creditorName: '', amount: '', dueDate: '', description: '', collateral: '' });
     setShowNewCustomerForm(false);
     setNewCustomer({ name: '', phone: '', region: '', district: '' });
   };
 
-  const cleanupUnknownDebts = async () => {
-    const confirmed = await showConfirm(
-      "Noma'lum mijozli barcha qarzlar o'chiriladi. Davom etasizmi?", 
-      "Tozalash"
-    );
-    if (!confirmed) return;
-    
-    try {
-      const res = await api.delete('/debts/cleanup/unknown');
-      showAlert(res.data.message, 'Muvaffaqiyat', 'success');
-      fetchDebts();
-      fetchStats();
-    } catch (err: any) {
-      console.error('Error cleaning up unknown debts:', err);
-      showAlert(
-        err.response?.data?.message || 'Tozalashda xatolik yuz berdi', 
-        'Xatolik', 
-        'danger'
-      );
-    }
-  };
-
   const openEditModal = (debt: Debt) => {
     setEditingDebt(debt);
-    setDebtType(debt.type);
+    setModalDebtType(debt.type);
     setFormData({
       customer: debt.customer?._id || '',
       creditorName: debt.creditorName || '',
@@ -299,10 +280,13 @@ export default function Debts() {
   return (
     <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
-      <Header 
+      
+      <UniversalPageHeader 
         title={showArchive ? "Qarz daftarcha - Arxiv" : "Qarz daftarcha"}
         showSearch
-        onSearch={setSearchQuery}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onMenuToggle={onMenuToggle}
         actions={
           <div className="flex items-center gap-1">
             {showArchive && (
@@ -319,7 +303,10 @@ export default function Debts() {
               </button>
             )}
             <button 
-              onClick={() => setShowModal(true)} 
+              onClick={() => {
+                setModalDebtType(debtType);
+                setShowModal(true);
+              }} 
               className="flex items-center gap-1 px-2 py-1 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
               title="Yangi qarz qo'shish"
             >
@@ -649,6 +636,20 @@ export default function Debts() {
 
                         {/* Actions - Minimal */}
                         <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100 flex-wrap">
+                              {/* Tahrirlash tugmasi - faqat admin uchun */}
+                              {isAdmin && !isPaid && (
+                                <button
+                                  onClick={() => openEditModal(debt)}
+                                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200 transition-all"
+                                  title="Tahrirlash"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  <span>Tahrirlash</span>
+                                </button>
+                              )}
+
                               {/* O'chirish tugmasi - faqat admin uchun */}
                               {isAdmin && (
                                 <button
@@ -747,24 +748,26 @@ export default function Debts() {
       {/* Add Debt Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="overlay -z-10" onClick={closeModal} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
               <h3 className="text-lg sm:text-xl font-semibold text-surface-900 truncate">{editingDebt ? 'Qarzni tahrirlash' : 'Yangi qarz'}</h3>
               <button onClick={closeModal} className="flex-shrink-0 btn-icon-sm"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll">
               <div className="p-4 sm:p-6">
             
             {/* Debt Type Toggle in Modal - only for admin */}
-            {isAdmin && (
+            {isAdmin && !editingDebt && (
               <div className="flex p-1 bg-surface-100 rounded-xl mb-6">
                 <button
                   type="button"
-                  onClick={() => setDebtType('receivable')}
+                  onClick={() => {
+                    setModalDebtType('receivable');
+                    setFormData({ ...formData, creditorName: '' });
+                  }}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                    debtType === 'receivable' ? 'bg-white text-success-600 shadow-sm' : 'text-surface-500'
+                    modalDebtType === 'receivable' ? 'bg-white text-success-600 shadow-sm' : 'text-surface-500'
                   }`}
                 >
                   <ArrowDownLeft className="w-4 h-4" />
@@ -772,9 +775,12 @@ export default function Debts() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDebtType('payable')}
+                  onClick={() => {
+                    setModalDebtType('payable');
+                    setFormData({ ...formData, customer: '' });
+                  }}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                    debtType === 'payable' ? 'bg-white text-danger-600 shadow-sm' : 'text-surface-500'
+                    modalDebtType === 'payable' ? 'bg-white text-danger-600 shadow-sm' : 'text-surface-500'
                   }`}
                 >
                   <ArrowUpRight className="w-4 h-4" />
@@ -794,7 +800,7 @@ export default function Debts() {
                   </div>
                 </div>
               </div>
-              {debtType === 'receivable' ? (
+              {modalDebtType === 'receivable' ? (
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Mijoz</label>
                   {showNewCustomerForm ? (
@@ -896,7 +902,7 @@ export default function Debts() {
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})} />
               </div>
-              {debtType === 'receivable' && (
+              {modalDebtType === 'receivable' && (
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Zalog (ixtiyoriy)</label>
                   <input type="text" className="input" placeholder="Zalogga nima qoldirdi" 
@@ -918,13 +924,12 @@ export default function Debts() {
       {/* Payment Modal */}
       {showPaymentModal && selectedDebt && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="overlay -z-10" onClick={() => setShowPaymentModal(false)} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
               <h3 className="text-lg sm:text-xl font-semibold text-surface-900">To'lov qilish</h3>
               <button onClick={() => setShowPaymentModal(false)} className="flex-shrink-0 btn-icon-sm"><X className="w-5 h-5" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scroll-smooth-instagram momentum-scroll">
               <div className="p-4 sm:p-6">
                 <div className={`rounded-xl p-4 mb-6 ${debtType === 'receivable' ? 'bg-success-50' : 'bg-danger-50'}`}>
                   <p className="text-sm text-surface-600 mb-1">Qoldiq summa</p>

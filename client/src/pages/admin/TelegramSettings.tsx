@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
+import { useOutletContext } from 'react-router-dom';
 import { MessageCircle, Send, CheckCircle2, Copy, RefreshCw, Link, Users } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
+import { UniversalPageHeader } from '../../components/common';
 
 export default function TelegramSettings() {
+  const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showAlert, AlertComponent } = useAlert();
   const [settings, setSettings] = useState({
     botToken: '',

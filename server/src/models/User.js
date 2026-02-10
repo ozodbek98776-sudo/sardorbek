@@ -5,11 +5,19 @@ const { ALL_ROLES, ROLES } = require('../constants/roles');
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   login: { type: String, sparse: true, unique: true }, // Admin login
-  phone: { type: String, sparse: true },
+  phone: { type: String, sparse: true }, // Unique olib tashlandi
   email: { type: String, sparse: true },
   password: { type: String, required: true },
   role: { type: String, enum: ALL_ROLES, default: ROLES.ADMIN },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  
+  // HR fields
+  status: { type: String, enum: ['active', 'inactive', 'terminated'], default: 'active' },
+  position: { type: String },
+  department: { type: String },
+  hireDate: { type: Date },
+  terminationDate: { type: Date },
+  
   // Bonus tizimi
   bonusPercentage: { type: Number, default: 0, min: 0, max: 100 }, // Bonus foizi (0-100%)
   totalEarnings: { type: Number, default: 0 }, // Jami ishlab topgan summa

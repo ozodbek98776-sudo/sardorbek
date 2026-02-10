@@ -76,7 +76,7 @@ export function CartPanel({
       </div>
       
       {/* Items - Responsive */}
-      <div className={`overflow-y-auto thin-scrollbar p-3 ${
+      <div className={`overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar p-3 ${
         isModal ? 'flex-1' : (isExpanded ? 'block max-h-[30vh]' : 'hidden lg:block lg:flex-1')
       } transition-all duration-300`}>
         {cart.length === 0 ? (

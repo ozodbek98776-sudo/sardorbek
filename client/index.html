@@ -98,6 +98,32 @@
         document.documentElement.style.setProperty('--safe-area-inset-bottom', 'env(safe-area-inset-bottom)');
         document.documentElement.style.setProperty('--safe-area-inset-left', 'env(safe-area-inset-left)');
         document.documentElement.style.setProperty('--safe-area-inset-right', 'env(safe-area-inset-right)');
+        
+        // iOS Safari uchun viewport height'ni to'g'ri hisoblash
+        // Bu scroll qilganda address bar yashiringanda bottom navbar'ning pozitsiyasini saqlaydi
+        function setViewportHeight() {
+          const vh = window.innerHeight * 0.01;
+          document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        
+        // Dastlab o'rnatish
+        setViewportHeight();
+        
+        // Resize va orientationchange eventlarida yangilash
+        window.addEventListener('resize', setViewportHeight);
+        window.addEventListener('orientationchange', setViewportHeight);
+        
+        // iOS Safari'da scroll qilganda address bar yashiringanda ham yangilash
+        let ticking = false;
+        window.addEventListener('scroll', function() {
+          if (!ticking) {
+            window.requestAnimationFrame(function() {
+              setViewportHeight();
+              ticking = false;
+            });
+            ticking = true;
+          }
+        }, { passive: true });
       }
     </script>
   </body>

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import Header from '../../components/Header';
 import { ShoppingBag, Package, Clock, Truck, CheckCircle2, XCircle, User } from 'lucide-react';
 import { Order } from '../../types';
 import api from '../../utils/api';
 import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 import { useAlert } from '../../hooks/useAlert';
+import { LoadingSpinner, EmptyState, Badge, UniversalPageHeader, Card } from '../../components/common';
 
 export default function Orders() {
   const { showAlert, AlertComponent } = useAlert();
@@ -58,32 +58,30 @@ export default function Orders() {
   return (
     <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
-      <Header 
+      <UniversalPageHeader 
         title="Buyurtmalar"
+        subtitle={`${filteredOrders.length} ta buyurtma`}
+        icon={ShoppingBag}
         filterOptions={filterOptions}
         filterValue={filter}
         onFilterChange={setFilter}
       />
 
-      <div className="p-1 sm:p-2 w-full">
-        {/* Orders List */}
-        <div className="card p-0 overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="spinner text-brand-600 w-8 h-8" />
-            </div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 bg-surface-100 rounded-2xl flex items-center justify-center mb-4">
-                <ShoppingBag className="w-8 h-8 text-surface-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">Buyurtmalar topilmadi</h3>
-              <p className="text-surface-500">Hozircha buyurtmalar yo'q</p>
-            </div>
-          ) : (
+      <div className="p-3 sm:p-4 lg:p-6 w-full">
+        {loading ? (
+          <LoadingSpinner size="lg" text="Buyurtmalar yuklanmoqda..." />
+        ) : filteredOrders.length === 0 ? (
+          <EmptyState
+            icon={ShoppingBag}
+            title="Buyurtmalar topilmadi"
+            description="Hozircha buyurtmalar yo'q"
+          />
+        ) : (
+          <Card padding="none">
             <div className="divide-y divide-surface-100">
               {filteredOrders.map(order => {
                 const config = statusConfig[order.status as keyof typeof statusConfig];
+                const StatusIcon = config.icon;
                 return (
                   <div key={order._id} className="p-4 lg:p-6 hover:bg-surface-50 transition-colors">
                     <div className="flex items-start gap-4">
@@ -91,25 +89,31 @@ export default function Orders() {
                         <Package className="w-6 h-6 text-brand-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold text-surface-900">Buyurtma #{order._id.slice(-6)}</h4>
+                        <div className="flex items-start justify-between mb-3 gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-surface-900 truncate">Buyurtma #{order._id.slice(-6)}</h4>
                             <div className="flex items-center gap-2 text-sm text-surface-500 mt-1">
-                              <User className="w-4 h-4" />
-                              <span>{order.customer?.name || 'Noma\'lum mijoz'}</span>
+                              <User className="w-4 h-4 flex-shrink-0" />
+                              <span className="truncate">{order.customer?.name || 'Noma\'lum mijoz'}</span>
                             </div>
                           </div>
-                          <select
-                            value={order.status}
-                            onChange={e => updateStatus(order._id, e.target.value)}
-                            className={`select text-sm py-2 px-3 bg-${config.color}-50 text-${config.color}-700 border-${config.color}-200`}
-                          >
-                            {Object.entries(statusConfig).map(([value, cfg]) => (
-                              <option key={value} value={value}>{cfg.label}</option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Badge variant={config.color as any}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {config.label}
+                            </Badge>
+                            <select
+                              value={order.status}
+                              onChange={e => updateStatus(order._id, e.target.value)}
+                              className="text-xs py-1.5 px-2 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            >
+                              {Object.entries(statusConfig).map(([value, cfg]) => (
+                                <option key={value} value={value}>{cfg.label}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
                           <div className="flex items-center gap-4 text-sm text-surface-500">
                             <span>{order.items.length} ta mahsulot</span>
                             <span>{new Date(order.createdAt).toLocaleDateString('uz-UZ')}</span>
@@ -122,8 +126,8 @@ export default function Orders() {
                 );
               })}
             </div>
-          )}
-        </div>
+          </Card>
+        )}
       </div>
     </div>
   );
