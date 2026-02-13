@@ -31,28 +31,6 @@ interface SavedReceipt {
   savedAt: string;
 }
 
-// Fuzzy search algoritmi
-function fuzzySearch(query: string, text: string): number {
-  const queryLower = query.toLowerCase();
-  const textLower = text.toLowerCase();
-  
-  if (textLower === queryLower) return 100;
-  if (textLower.startsWith(queryLower)) return 90;
-  if (textLower.includes(queryLower)) return 70;
-  
-  let score = 0;
-  let queryIndex = 0;
-  
-  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
-    if (textLower[i] === queryLower[queryIndex]) {
-      score += 10;
-      queryIndex++;
-    }
-  }
-  
-  return queryIndex === queryLower.length ? score : 0;
-}
-
 export default function KassaProNew() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const navigate = useNavigate();
@@ -95,15 +73,17 @@ export default function KassaProNew() {
   
   const itemCount = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
   
-  // Infinite scroll observer
+  // Infinite scroll observer (OPTIMIZED)
   useEffect(() => {
+    if (!hasMore || loadingMore) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        if (entries[0].isIntersecting) {
           loadMoreProducts();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: '100px' } // 100px oldindan yuklash
     );
 
     if (loadMoreRef.current) {
@@ -111,31 +91,29 @@ export default function KassaProNew() {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, page]);
+  }, [hasMore, loadingMore, page, allProducts.length]);
 
-  const loadMoreProducts = () => {
+  const loadMoreProducts = useCallback(() => {
     if (loadingMore || !hasMore) return;
     
     setLoadingMore(true);
     
-    // Keyingi 10 ta tovarni qo'shish
-    setTimeout(() => {
-      const nextPage = page + 1;
-      const startIndex = page * 10;
-      const endIndex = startIndex + 10;
-      const nextProducts = allProducts.slice(startIndex, endIndex);
-      
-      if (nextProducts.length > 0) {
-        setDisplayedProducts(prev => [...prev, ...nextProducts]);
-        setPage(nextPage);
-        setHasMore(endIndex < allProducts.length);
-      } else {
-        setHasMore(false);
-      }
-      
-      setLoadingMore(false);
-    }, 300); // 300ms delay for smooth loading
-  };
+    // Keyingi 20 ta tovarni qo'shish (10 dan ko'proq)
+    const nextPage = page + 1;
+    const startIndex = page * 20;
+    const endIndex = startIndex + 20;
+    const nextProducts = allProducts.slice(startIndex, endIndex);
+    
+    if (nextProducts.length > 0) {
+      setDisplayedProducts(prev => [...prev, ...nextProducts]);
+      setPage(nextPage);
+      setHasMore(endIndex < allProducts.length);
+    } else {
+      setHasMore(false);
+    }
+    
+    setLoadingMore(false);
+  }, [loadingMore, hasMore, page, allProducts]);
   
   // Fetch data
   useEffect(() => {
@@ -176,83 +154,58 @@ export default function KassaProNew() {
         const res = await api.get('/products?kassaView=true');
         const productsData = Array.isArray(res.data) ? res.data : [];
         
-        // Narxlarni to'g'ri formatga keltirish
+        // Narxlarni to'g'ri formatga keltirish (OPTIMIZED - faqat 1 marta)
         const normalizedProducts = productsData.map((product: any) => {
           // Agar prices array mavjud bo'lsa, undan narxni olish
-          if (Array.isArray(product.prices) && product.prices.length > 0) {
-            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
-            return {
-              ...product,
-              price: unitPrice?.amount || product.unitPrice || product.price || 0
-            };
-          }
-          // Eski format uchun
+          const price = Array.isArray(product.prices) && product.prices.length > 0
+            ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
+            : (product.unitPrice || product.price || 0);
+          
           return {
             ...product,
-            price: product.unitPrice || product.price || 0
+            price
           };
         });
         
-        setAllProducts(normalizedProducts); // Barcha tovarlarni saqlash
-        setProducts(normalizedProducts); // Eski state ham to'ldirish (filter uchun)
+        setAllProducts(normalizedProducts);
+        setProducts(normalizedProducts);
         
-        // Birinchi 10 ta tovarni ko'rsatish
-        setDisplayedProducts(normalizedProducts.slice(0, 10));
+        // Birinchi 20 ta tovarni ko'rsatish (10 dan ko'proq)
+        setDisplayedProducts(normalizedProducts.slice(0, 20));
         setPage(1);
-        setHasMore(normalizedProducts.length > 10);
+        setHasMore(normalizedProducts.length > 20);
         
-        await cacheProducts(normalizedProducts);
+        // Cache'ga saqlash (async, blocking emas)
+        cacheProducts(normalizedProducts).catch(err => 
+          console.warn('Cache saqlashda xato:', err)
+        );
       } else {
+        // Offline - cache'dan olish
         const cached = await getCachedProducts();
         const cachedData = cached as Product[];
         
-        // Cache dan olingan mahsulotlar uchun ham narxni normalizatsiya qilish
-        const normalizedCached = cachedData.map((product: any) => {
-          if (Array.isArray(product.prices) && product.prices.length > 0) {
-            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
-            return {
-              ...product,
-              price: unitPrice?.amount || product.unitPrice || product.price || 0
-            };
-          }
-          return {
-            ...product,
-            price: product.unitPrice || product.price || 0
-          };
-        });
-        
-        setAllProducts(normalizedCached);
-        setProducts(normalizedCached);
-        setDisplayedProducts(normalizedCached.slice(0, 10));
+        setAllProducts(cachedData);
+        setProducts(cachedData);
+        setDisplayedProducts(cachedData.slice(0, 20));
         setPage(1);
-        setHasMore(normalizedCached.length > 10);
+        setHasMore(cachedData.length > 20);
       }
     } catch (err) {
       console.error('Error fetching products:', err);
-      const cached = await getCachedProducts();
-      if (cached.length > 0) {
-        const cachedData = cached as Product[];
-        
-        // Error holatida ham narxni normalizatsiya qilish
-        const normalizedError = cachedData.map((product: any) => {
-          if (Array.isArray(product.prices) && product.prices.length > 0) {
-            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
-            return {
-              ...product,
-              price: unitPrice?.amount || product.unitPrice || product.price || 0
-            };
-          }
-          return {
-            ...product,
-            price: product.unitPrice || product.price || 0
-          };
-        });
-        
-        setAllProducts(normalizedError);
-        setProducts(normalizedError);
-        setDisplayedProducts(normalizedError.slice(0, 10));
-        setPage(1);
-        setHasMore(normalizedError.length > 10);
+      
+      // Xato bo'lsa cache'dan olish
+      try {
+        const cached = await getCachedProducts();
+        if (cached.length > 0) {
+          const cachedData = cached as Product[];
+          setAllProducts(cachedData);
+          setProducts(cachedData);
+          setDisplayedProducts(cachedData.slice(0, 20));
+          setPage(1);
+          setHasMore(cachedData.length > 20);
+        }
+      } catch (cacheErr) {
+        console.error('Cache xatosi:', cacheErr);
       }
     }
   };
@@ -309,7 +262,7 @@ export default function KassaProNew() {
     if (saved) setSavedReceipts(JSON.parse(saved));
   };
   
-  // Search
+  // Search (OPTIMIZED with useMemo)
   const performSearch = useCallback((query: string) => {
     if (!query || query.length < 1) {
       setSearchResults([]);
@@ -319,17 +272,15 @@ export default function KassaProNew() {
     
     setIsSearching(true);
     
+    // Optimized search - faqat name va code bo'yicha
+    const queryLower = query.toLowerCase();
     const results = products
-      .map(product => {
-        const nameScore = fuzzySearch(query, product.name);
-        const codeScore = fuzzySearch(query, product.code);
-        const maxScore = Math.max(nameScore, codeScore);
-        return { product, score: maxScore };
+      .filter(product => {
+        const nameMatch = product.name.toLowerCase().includes(queryLower);
+        const codeMatch = product.code.toLowerCase().includes(queryLower);
+        return nameMatch || codeMatch;
       })
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20)
-      .map(item => item.product);
+      .slice(0, 20); // Faqat 20 ta natija
     
     setSearchResults(results);
     setIsSearching(false);
@@ -338,7 +289,7 @@ export default function KassaProNew() {
   useEffect(() => {
     const timer = setTimeout(() => {
       performSearch(searchQuery);
-    }, 300);
+    }, 300); // Debounce
     
     return () => clearTimeout(timer);
   }, [searchQuery, performSearch]);
@@ -580,11 +531,93 @@ export default function KassaProNew() {
                   />
                 </>
               ) : (
-                <div className="bg-white rounded-xl p-6 text-center">
-                  <p className="text-slate-500">Cheklar ro'yxati</p>
-                  <p className="text-sm text-slate-400 mt-2">
-                    {helperReceipts.length} ta chek
-                  </p>
+                <div className="space-y-4">
+                  {helperReceipts.length === 0 ? (
+                    <div className="bg-white rounded-xl p-8 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                        <ShoppingCart className="w-8 h-8 text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium mb-1">Cheklar topilmadi</p>
+                      <p className="text-sm text-slate-400">Hozircha hech qanday chek yo'q</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {helperReceipts.map((receipt: any) => (
+                        <div 
+                          key={receipt._id} 
+                          className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border border-slate-100"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="font-semibold text-slate-800">
+                                Chek #{receipt.receiptNumber || receipt._id.slice(-6)}
+                              </p>
+                              <p className="text-sm text-slate-500">
+                                {new Date(receipt.createdAt).toLocaleString('uz-UZ', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-slate-800">
+                                {formatNumber(receipt.total)} so'm
+                              </p>
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                                receipt.paymentMethod === 'cash' 
+                                  ? 'bg-green-100 text-green-700'
+                                  : receipt.paymentMethod === 'card'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : receipt.paymentMethod === 'transfer'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {receipt.paymentMethod === 'cash' ? 'Naqd' :
+                                 receipt.paymentMethod === 'card' ? 'Karta' :
+                                 receipt.paymentMethod === 'transfer' ? 'O\'tkazma' : 'Qarz'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {receipt.customer && (
+                            <div className="mb-3 pb-3 border-b border-slate-100">
+                              <p className="text-sm text-slate-600">
+                                <span className="font-medium">Mijoz:</span> {receipt.customer.name}
+                              </p>
+                              {receipt.customer.phone && (
+                                <p className="text-sm text-slate-500">{receipt.customer.phone}</p>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-500 uppercase">Mahsulotlar:</p>
+                            {receipt.items?.map((item: any, idx: number) => (
+                              <div key={idx} className="flex justify-between text-sm">
+                                <span className="text-slate-600">
+                                  {item.product?.name || item.name} × {item.quantity}
+                                </span>
+                                <span className="font-medium text-slate-800">
+                                  {formatNumber(item.price * item.quantity)} so'm
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {receipt.helper && (
+                            <div className="mt-3 pt-3 border-t border-slate-100">
+                              <p className="text-xs text-slate-500">
+                                <span className="font-medium">Yordamchi:</span> {receipt.helper.name}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

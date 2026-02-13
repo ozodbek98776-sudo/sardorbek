@@ -122,40 +122,44 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
           background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, transparent 100%)'
         }}
       >
-        {!collapsed && (
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-                boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
-              }}
-            >
-              <img src="/o5sk1awh.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <span className="font-bold text-lg text-white tracking-wide" style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.5px' }}>Sardor</span>
-              <p className="text-sm font-semibold tracking-wider" style={{ color: '#c4b5fd', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1.5px' }}>FURNITURA</p>
-            </div>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div 
+            className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+              boxShadow: '0 4px 12px -2px rgba(6, 182, 212, 0.4)'
+            }}
+          >
+            <img src="/o5sk1awh.png" alt="Logo" className="w-full h-full object-cover" />
           </div>
-        )}
-        <div className="flex items-center gap-1">
+          {!collapsed && (
+            <div className="min-w-0">
+              <span className="font-bold text-lg text-white tracking-wide block truncate" style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '0.5px' }}>Sardor</span>
+              <p className="text-sm font-semibold tracking-wider truncate" style={{ color: '#c4b5fd', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1.5px' }}>FURNITURA</p>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button 
             onClick={() => {
+              console.log('🔘 Toggle button clicked, current collapsed:', collapsed);
               if (collapsed) {
                 // Agar collapsed bo'lsa, ochish
+                console.log('📂 Opening sidebar');
                 setCollapsed?.(false);
               } else {
                 // Agar ochiq bo'lsa, yopish
+                console.log('📁 Closing sidebar');
                 setCollapsed?.(true);
                 setMobileOpen(false); // Mobile overlay ham yopilsin
               }
             }} 
-            className="p-2 rounded-xl transition-all duration-200"
+            className="p-2 rounded-xl transition-all duration-200 hover:bg-white/20"
             style={{
               background: 'rgba(255, 255, 255, 0.1)',
               color: '#c4b5fd'
             }}
+            title={collapsed ? 'Ochish' : 'Yopish'}
           >
             {collapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
           </button>
