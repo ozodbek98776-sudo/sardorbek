@@ -175,34 +175,84 @@ export default function KassaProNew() {
       if (navigator.onLine) {
         const res = await api.get('/products?kassaView=true');
         const productsData = Array.isArray(res.data) ? res.data : [];
-        setAllProducts(productsData); // Barcha tovarlarni saqlash
-        setProducts(productsData); // Eski state ham to'ldirish (filter uchun)
+        
+        // Narxlarni to'g'ri formatga keltirish
+        const normalizedProducts = productsData.map((product: any) => {
+          // Agar prices array mavjud bo'lsa, undan narxni olish
+          if (Array.isArray(product.prices) && product.prices.length > 0) {
+            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
+            return {
+              ...product,
+              price: unitPrice?.amount || product.unitPrice || product.price || 0
+            };
+          }
+          // Eski format uchun
+          return {
+            ...product,
+            price: product.unitPrice || product.price || 0
+          };
+        });
+        
+        setAllProducts(normalizedProducts); // Barcha tovarlarni saqlash
+        setProducts(normalizedProducts); // Eski state ham to'ldirish (filter uchun)
         
         // Birinchi 10 ta tovarni ko'rsatish
-        setDisplayedProducts(productsData.slice(0, 10));
+        setDisplayedProducts(normalizedProducts.slice(0, 10));
         setPage(1);
-        setHasMore(productsData.length > 10);
+        setHasMore(normalizedProducts.length > 10);
         
-        await cacheProducts(productsData);
+        await cacheProducts(normalizedProducts);
       } else {
         const cached = await getCachedProducts();
         const cachedData = cached as Product[];
-        setAllProducts(cachedData);
-        setProducts(cachedData);
-        setDisplayedProducts(cachedData.slice(0, 10));
+        
+        // Cache dan olingan mahsulotlar uchun ham narxni normalizatsiya qilish
+        const normalizedCached = cachedData.map((product: any) => {
+          if (Array.isArray(product.prices) && product.prices.length > 0) {
+            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
+            return {
+              ...product,
+              price: unitPrice?.amount || product.unitPrice || product.price || 0
+            };
+          }
+          return {
+            ...product,
+            price: product.unitPrice || product.price || 0
+          };
+        });
+        
+        setAllProducts(normalizedCached);
+        setProducts(normalizedCached);
+        setDisplayedProducts(normalizedCached.slice(0, 10));
         setPage(1);
-        setHasMore(cachedData.length > 10);
+        setHasMore(normalizedCached.length > 10);
       }
     } catch (err) {
       console.error('Error fetching products:', err);
       const cached = await getCachedProducts();
       if (cached.length > 0) {
         const cachedData = cached as Product[];
-        setAllProducts(cachedData);
-        setProducts(cachedData);
-        setDisplayedProducts(cachedData.slice(0, 10));
+        
+        // Error holatida ham narxni normalizatsiya qilish
+        const normalizedError = cachedData.map((product: any) => {
+          if (Array.isArray(product.prices) && product.prices.length > 0) {
+            const unitPrice = product.prices.find((p: any) => p.type === 'unit');
+            return {
+              ...product,
+              price: unitPrice?.amount || product.unitPrice || product.price || 0
+            };
+          }
+          return {
+            ...product,
+            price: product.unitPrice || product.price || 0
+          };
+        });
+        
+        setAllProducts(normalizedError);
+        setProducts(normalizedError);
+        setDisplayedProducts(normalizedError.slice(0, 10));
         setPage(1);
-        setHasMore(cachedData.length > 10);
+        setHasMore(normalizedError.length > 10);
       }
     }
   };

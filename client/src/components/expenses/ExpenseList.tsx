@@ -2,6 +2,7 @@ import React from 'react';
 import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { formatNumber } from '../../utils/format';
 import { EmptyState } from '../common';
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_COLORS, EXPENSE_TYPES } from '../../constants/expenses';
 
 interface Expense {
   _id: string;
@@ -11,9 +12,10 @@ interface Expense {
   date: string;
   type?: string;
   source: string;
-  created_by: {
+  created_by?: {
     name: string;
   };
+  employee_name?: string;
   createdAt: string;
 }
 
@@ -23,47 +25,16 @@ interface ExpenseListProps {
   onDelete: (id: string) => void;
 }
 
-const categoryNames: Record<string, string> = {
-  komunal: 'Komunal',
-  soliqlar: 'Soliqlar',
-  ovqatlanish: 'Ovqatlanish',
-  dostavka: 'Dostavka',
-  tovar_xarid: 'Tovar xaridi'
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('uz-UZ', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
 };
 
-const categoryColors: Record<string, string> = {
-  komunal: 'bg-blue-100 text-blue-700',
-  soliqlar: 'bg-red-100 text-red-700',
-  ovqatlanish: 'bg-green-100 text-green-700',
-  dostavka: 'bg-yellow-100 text-yellow-700',
-  tovar_xarid: 'bg-purple-100 text-purple-700'
-};
-
-const typeNames: Record<string, string> = {
-  // Soliq turlari
-  ndpi: 'NDPI',
-  qqs: 'QQS',
-  mulk_solig: 'Mulk solig\'i',
-  transport_solig: 'Transport solig\'i',
-  // Komunal turlari
-  elektr: 'Elektr',
-  gaz: 'Gaz',
-  suv: 'Suv',
-  internet: 'Internet',
-  telefon: 'Telefon',
-  chiqindi: 'Chiqindi',
-  boshqa: 'Boshqa'
-};
-
-export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
+export const ExpenseList = React.memo(function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
 
   if (expenses.length === 0) {
     return (
@@ -82,12 +53,12 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
           <div key={expense._id} className="p-4 hover:bg-gray-50 transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex flex-col gap-1.5">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${categoryColors[expense.category]} w-fit`}>
-                  {categoryNames[expense.category]}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${EXPENSE_CATEGORY_COLORS[expense.category as keyof typeof EXPENSE_CATEGORY_COLORS]} w-fit`}>
+                  {EXPENSE_CATEGORIES[expense.category as keyof typeof EXPENSE_CATEGORIES]}
                 </span>
                 {expense.type && (
                   <span className="text-xs text-gray-500">
-                    {typeNames[expense.type] || expense.type}
+                    {EXPENSE_TYPES[expense.type as keyof typeof EXPENSE_TYPES] || expense.type}
                   </span>
                 )}
                 {expense.source === 'inventory' && (
@@ -106,6 +77,11 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                 <Calendar className="w-3.5 h-3.5" />
                 {formatDate(expense.date)}
               </div>
+              {expense.employee_name && (
+                <p className="text-xs font-medium text-indigo-600">
+                  Xodim: {expense.employee_name}
+                </p>
+              )}
               {expense.note && (
                 <p className="text-xs text-gray-600 line-clamp-2">
                   {expense.note}
@@ -113,7 +89,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
               )}
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <User className="w-3.5 h-3.5" />
-                {expense.created_by.name}
+                {expense.created_by?.name || 'System'}
               </div>
             </div>
             
@@ -169,12 +145,12 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
               <tr key={expense._id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex flex-col gap-1">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium ${categoryColors[expense.category]} w-fit`}>
-                      {categoryNames[expense.category]}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium ${EXPENSE_CATEGORY_COLORS[expense.category as keyof typeof EXPENSE_CATEGORY_COLORS]} w-fit`}>
+                      {EXPENSE_CATEGORIES[expense.category as keyof typeof EXPENSE_CATEGORIES]}
                     </span>
                     {expense.type && (
                       <span className="text-xs text-gray-500">
-                        {typeNames[expense.type] || expense.type}
+                        {EXPENSE_TYPES[expense.type as keyof typeof EXPENSE_TYPES] || expense.type}
                       </span>
                     )}
                     {expense.source === 'inventory' && (
@@ -196,14 +172,21 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="text-sm text-gray-600 max-w-xs truncate">
-                    {expense.note || '-'}
-                  </p>
+                  <div className="space-y-1">
+                    {expense.employee_name && (
+                      <p className="text-sm font-medium text-indigo-600">
+                        {expense.employee_name}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-600 max-w-xs truncate">
+                      {expense.note || '-'}
+                    </p>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <User className="w-4 h-4" />
-                    {expense.created_by.name}
+                    {expense.created_by?.name || 'System'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -239,4 +222,4 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
       </div>
     </div>
   );
-}
+});

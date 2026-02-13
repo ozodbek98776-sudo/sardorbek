@@ -58,7 +58,7 @@ export default defineConfig({
               return 'qrcode-vendor';
             }
             // Chart kutubxonalari
-            if (id.includes('recharts') || id.includes('d3')) {
+            if (id.includes('d3')) {
               return 'chart-vendor';
             }
             // Socket.io

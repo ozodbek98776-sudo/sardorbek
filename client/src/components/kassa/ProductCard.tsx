@@ -90,7 +90,16 @@ export function ProductCard({
           <div>
             <p className="text-xs text-slate-500 mb-0.5">Narxi</p>
             <p className="font-bold text-brand-600 text-base">
-              {formatNumber(product.price)}
+              {formatNumber((() => {
+                // Yangi format: prices array
+                const prices = (product as any).prices;
+                if (Array.isArray(prices) && prices.length > 0) {
+                  const unitPrice = prices.find((p: any) => p.type === 'unit');
+                  if (unitPrice?.amount) return unitPrice.amount;
+                }
+                // Eski format: to'g'ridan-to'g'ri price yoki unitPrice
+                return (product as any).unitPrice || product.price || 0;
+              })())}
               <span className="text-xs ml-1">so'm</span>
             </p>
           </div>

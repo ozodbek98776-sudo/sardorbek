@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { ExpenseStats } from '../../components/expenses/ExpenseStats';
@@ -6,6 +6,7 @@ import { ExpenseFilters } from '../../components/expenses/ExpenseFilters';
 import { ExpenseList } from '../../components/expenses/ExpenseList';
 import { ExpenseModal } from '../../components/expenses/ExpenseModal';
 import { useAlert } from '../../hooks/useAlert';
+import { useDebounce } from '../../hooks/useDebounce';
 import api from '../../utils/api';
 import { ActionButton, UniversalPageHeader, Pagination, LoadingSpinner } from '../../components/common';
 
@@ -17,9 +18,11 @@ interface Expense {
   date: string;
   type?: string;
   source: string;
-  created_by: {
+  created_by?: {
     name: string;
   };
+  employee_id?: string;
+  employee_name?: string;
   createdAt: string;
 }
 
@@ -65,12 +68,22 @@ export default function Expenses() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Debounced filters
+  const debouncedStartDate = useDebounce(startDate, 300);
+  const debouncedEndDate = useDebounce(endDate, 300);
+  const debouncedCategory = useDebounce(category, 300);
+
+  // Filter o'zgarganda page 1 ga qaytarish
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedStartDate, debouncedEndDate, debouncedCategory]);
+
   // Ma'lumotlarni yuklash
   useEffect(() => {
     fetchExpenses();
-  }, [startDate, endDate, category, page]);
+  }, [debouncedStartDate, debouncedEndDate, debouncedCategory, page]);
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -78,9 +91,9 @@ export default function Expenses() {
         limit: '20'
       });
       
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      if (category) params.append('category', category);
+      if (debouncedStartDate) params.append('startDate', debouncedStartDate);
+      if (debouncedEndDate) params.append('endDate', debouncedEndDate);
+      if (debouncedCategory) params.append('category', debouncedCategory);
       
       const response = await api.get(`/expenses?${params.toString()}`);
       
@@ -95,7 +108,7 @@ export default function Expenses() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, debouncedStartDate, debouncedEndDate, debouncedCategory, showAlert]);
 
   const handleSaveExpense = async (expenseData: Omit<Expense, '_id' | 'created_by' | 'createdAt' | 'source'>) => {
     try {
@@ -143,24 +156,29 @@ export default function Expenses() {
     }
   };
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     const now = new Date();
     setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
     setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
     setCategory('');
     setPage(1);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setEditingExpense(null);
-  };
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <UniversalPageHeader 
         title="Xarajatlar"
-        onMenuToggle={onMenuToggle}
+          onMenuToggle={onMenuToggle}
         actions={
           <ActionButton icon={Plus} onClick={() => setShowModal(true)}>
             Xarajat qo'shish
@@ -203,7 +221,7 @@ export default function Expenses() {
                 <Pagination
                   currentPage={page}
                   totalPages={totalPages}
-                  onPageChange={setPage}
+                  onPageChange={handlePageChange}
                 />
               </div>
             )}

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TrendingUp, DollarSign, PieChart, Calendar } from 'lucide-react';
 import { formatNumber } from '../../utils/format';
 import { StatCard } from '../common';
+import { EXPENSE_CATEGORIES } from '../../constants/expenses';
 
 interface CategoryStat {
   _id: string;
@@ -18,17 +19,23 @@ interface ExpenseStatsProps {
   };
 }
 
-const categoryNames: Record<string, string> = {
-  komunal: 'Komunal',
-  soliqlar: 'Soliqlar',
-  ovqatlanish: 'Ovqatlanish',
-  dostavka: 'Dostavka',
-  tovar_xarid: 'Tovar xaridi'
+const getCategoryColor = (category: string): 'blue' | 'red' | 'green' | 'yellow' | 'purple' | 'gray' => {
+  const colors: Record<string, 'blue' | 'red' | 'green' | 'yellow' | 'purple'> = {
+    komunal: 'blue',
+    soliqlar: 'red',
+    ovqatlanish: 'green',
+    dostavka: 'yellow',
+    tovar_xarid: 'purple'
+  };
+  return colors[category] || 'gray';
 };
 
-export function ExpenseStats({ statistics }: ExpenseStatsProps) {
-  const topCategory = statistics.byCategory[0];
-  const dailyAverage = statistics.count > 0 ? statistics.total / 30 : 0;
+export const ExpenseStats = React.memo(function ExpenseStats({ statistics }: ExpenseStatsProps) {
+  const topCategory = useMemo(() => statistics.byCategory[0], [statistics.byCategory]);
+  const dailyAverage = useMemo(() => 
+    statistics.count > 0 ? statistics.total / 30 : 0,
+    [statistics.count, statistics.total]
+  );
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -42,7 +49,7 @@ export function ExpenseStats({ statistics }: ExpenseStatsProps) {
 
       <StatCard
         title="Eng ko'p"
-        value={topCategory ? categoryNames[topCategory._id] : 'Ma\'lumot yo\'q'}
+        value={topCategory ? EXPENSE_CATEGORIES[topCategory._id as keyof typeof EXPENSE_CATEGORIES] : 'Ma\'lumot yo\'q'}
         subtitle={topCategory ? `${formatNumber(topCategory.total)} so'm` : '0 so\'m'}
         icon={PieChart}
         color={topCategory ? getCategoryColor(topCategory._id) : 'gray'}
@@ -65,15 +72,4 @@ export function ExpenseStats({ statistics }: ExpenseStatsProps) {
       />
     </div>
   );
-}
-
-function getCategoryColor(category: string): 'blue' | 'red' | 'green' | 'yellow' | 'purple' | 'gray' {
-  const colors: Record<string, 'blue' | 'red' | 'green' | 'yellow' | 'purple'> = {
-    komunal: 'blue',
-    soliqlar: 'red',
-    ovqatlanish: 'green',
-    dostavka: 'yellow',
-    tovar_xarid: 'purple'
-  };
-  return colors[category] || 'gray';
-}
+});

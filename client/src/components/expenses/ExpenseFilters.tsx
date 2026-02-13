@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Filter } from 'lucide-react';
+import { EXPENSE_CATEGORY_LIST } from '../../constants/expenses';
 
 interface ExpenseFiltersProps {
   startDate: string;
@@ -11,16 +12,7 @@ interface ExpenseFiltersProps {
   onReset: () => void;
 }
 
-const categories = [
-  { value: '', label: 'Barcha kategoriyalar' },
-  { value: 'komunal', label: 'Komunal' },
-  { value: 'soliqlar', label: 'Soliqlar' },
-  { value: 'ovqatlanish', label: 'Ovqatlanish' },
-  { value: 'dostavka', label: 'Dostavka' },
-  { value: 'tovar_xarid', label: 'Tovar xaridi' }
-];
-
-export function ExpenseFilters({
+export const ExpenseFilters = React.memo(function ExpenseFilters({
   startDate,
   endDate,
   category,
@@ -75,7 +67,7 @@ export function ExpenseFilters({
             onChange={(e) => onCategoryChange(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {categories.map((cat) => (
+            {EXPENSE_CATEGORY_LIST.map((cat) => (
               <option key={cat.value} value={cat.value}>
                 {cat.label}
               </option>
@@ -95,4 +87,4 @@ export function ExpenseFilters({
       </div>
     </div>
   );
-}
+});

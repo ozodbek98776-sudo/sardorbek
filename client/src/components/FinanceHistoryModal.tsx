@@ -19,26 +19,59 @@ interface FinanceHistoryModalProps {
   onClose: () => void;
   initialDateFilter?: 'today' | 'week' | 'month' | 'all';
   title?: string;
+  showOnlyIncome?: boolean;
 }
 
 export function FinanceHistoryModal({ 
   isOpen, 
   onClose,
   initialDateFilter = 'all',
-  title = 'Moliyaviy Tarix'
+  title = 'Moliyaviy Tarix',
+  showOnlyIncome = false
 }: FinanceHistoryModalProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>(initialDateFilter);
+  const [filter, setFilter] = useState<'all' | 'income' | 'expense'>(showOnlyIncome ? 'income' : 'all');
+  
+  // Date range state
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
 
-  // Update dateFilter when initialDateFilter changes
+  // Initialize date range based on initialDateFilter
   useEffect(() => {
     if (isOpen) {
-      setDateFilter(initialDateFilter);
+      const now = new Date();
+      
+      if (initialDateFilter === 'today') {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().split('T')[0];
+        setStartDate(today);
+        setEndDate(today);
+      } else if (initialDateFilter === 'week') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const today = now.toISOString().split('T')[0];
+        setStartDate(weekAgo);
+        setEndDate(today);
+      } else if (initialDateFilter === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        setStartDate(monthStart);
+        setEndDate(monthEnd);
+      } else {
+        // all - last 3 months
+        const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().split('T')[0];
+        const today = now.toISOString().split('T')[0];
+        setStartDate(threeMonthsAgo);
+        setEndDate(today);
+      }
     }
   }, [isOpen, initialDateFilter]);
 
@@ -46,45 +79,61 @@ export function FinanceHistoryModal({
     if (isOpen) {
       fetchTransactions();
     }
-  }, [isOpen, dateFilter]);
+  }, [isOpen, startDate, endDate]);
 
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      // Receipts dan ma'lumot olish
-      const receiptsRes = await api.get('/receipts', {
-        params: {
-          limit: 100,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        }
-      });
+      // Parallel ravishda receipts va expenses ni olish
+      const [receiptsRes, expensesRes] = await Promise.all([
+        api.get('/receipts', {
+          params: {
+            limit: 1000,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+            startDate: startDate ? new Date(startDate).toISOString() : undefined,
+            endDate: endDate ? new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000).toISOString() : undefined
+          }
+        }),
+        api.get('/expenses', {
+          params: {
+            limit: 1000,
+            startDate: startDate ? new Date(startDate).toISOString() : undefined,
+            endDate: endDate ? new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000).toISOString() : undefined
+          }
+        })
+      ]);
 
       console.log('📊 Receipts API response:', receiptsRes.data);
+      console.log('📊 Expenses API response:', expensesRes.data);
 
-      // Handle response format from serviceWrapper
+      // Handle receipts response format
       let receiptsData = [];
       
       if (receiptsRes.data && receiptsRes.data.success && receiptsRes.data.data) {
-        // ServiceWrapper format with pagination: { success: true, data: { data: [...], pagination: {...} } }
         if (Array.isArray(receiptsRes.data.data.data)) {
           receiptsData = receiptsRes.data.data.data;
         } else if (Array.isArray(receiptsRes.data.data)) {
-          // ServiceWrapper format without pagination: { success: true, data: [...] }
           receiptsData = receiptsRes.data.data;
         }
       } else if (Array.isArray(receiptsRes.data)) {
-        // Direct array format (fallback)
         receiptsData = receiptsRes.data;
-      } else {
-        console.warn('Unexpected receipts API response format:', receiptsRes.data);
-        receiptsData = [];
+      }
+
+      // Handle expenses response format
+      let expensesData = [];
+      
+      if (expensesRes.data && expensesRes.data.success && expensesRes.data.expenses) {
+        expensesData = expensesRes.data.expenses;
+      } else if (Array.isArray(expensesRes.data)) {
+        expensesData = expensesRes.data;
       }
 
       console.log('📊 Parsed receipts data:', receiptsData.length, 'items');
+      console.log('📊 Parsed expenses data:', expensesData.length, 'items');
 
-      // Receipts ni transactions formatiga o'tkazish
-      const formattedTransactions: Transaction[] = receiptsData.map((receipt: any) => ({
+      // Receipts ni transactions formatiga o'tkazish (Kirim)
+      const incomeTransactions: Transaction[] = receiptsData.map((receipt: any) => ({
         _id: receipt._id,
         type: 'income' as const,
         amount: receipt.total || 0,
@@ -94,9 +143,24 @@ export function FinanceHistoryModal({
         createdAt: receipt.createdAt
       }));
 
-      console.log('📊 Formatted transactions:', formattedTransactions.length, 'items');
+      // Expenses ni transactions formatiga o'tkazish (Chiqim)
+      const expenseTransactions: Transaction[] = expensesData.map((expense: any) => ({
+        _id: expense._id,
+        type: 'expense' as const,
+        amount: expense.amount || 0,
+        description: expense.note || 'Xarajat',
+        category: getCategoryName(expense.category),
+        date: expense.date || expense.createdAt,
+        createdAt: expense.createdAt
+      }));
 
-      setTransactions(formattedTransactions);
+      // Barcha tranzaksiyalarni birlashtirish va sanaga ko'ra saralash
+      const allTransactions = [...incomeTransactions, ...expenseTransactions]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      console.log('📊 Total transactions:', allTransactions.length, 'items');
+
+      setTransactions(allTransactions);
     } catch (error) {
       console.error('❌ Error fetching transactions:', error);
       setTransactions([]);
@@ -105,26 +169,23 @@ export function FinanceHistoryModal({
     }
   };
 
+  // Kategoriya nomlarini o'zbek tiliga o'girish
+  const getCategoryName = (category: string): string => {
+    const categoryNames: Record<string, string> = {
+      'komunal': 'Komunal',
+      'soliqlar': 'Soliqlar',
+      'ovqatlanish': 'Ovqatlanish',
+      'dostavka': 'Dostavka',
+      'tovar_xarid': 'Tovar xaridi',
+      'shaxsiy': 'Shaxsiy',
+      'maosh': 'Maosh'
+    };
+    return categoryNames[category] || category;
+  };
+
   // Filter transactions
   const filteredTransactions = transactions.filter(t => {
     if (filter !== 'all' && t.type !== filter) return false;
-
-    if (dateFilter !== 'all') {
-      const transactionDate = new Date(t.date);
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      if (dateFilter === 'today') {
-        return transactionDate >= today;
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return transactionDate >= weekAgo;
-      } else if (dateFilter === 'month') {
-        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return transactionDate >= monthAgo;
-      }
-    }
-
     return true;
   });
 
@@ -218,11 +279,11 @@ export function FinanceHistoryModal({
 
         {/* Filters */}
         <div className="p-3 sm:p-4 bg-white border-b border-slate-200">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
-            {/* Type Filter - Left */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col gap-3">
+            {/* Type Filter */}
+            <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 flex-shrink-0" />
-              <div className="flex gap-1 flex-1 sm:flex-initial">
+              <div className="flex gap-1 flex-1">
                 <button
                   onClick={() => setFilter('all')}
                   className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
@@ -256,54 +317,30 @@ export function FinanceHistoryModal({
               </div>
             </div>
 
-            {/* Date Filter - Right (faqat bugungi savdo uchun yashirilgan) */}
-            {initialDateFilter !== 'today' && (
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 flex-shrink-0" />
-                <div className="flex gap-1 flex-1 sm:flex-initial overflow-x-auto">
-                  <button
-                    onClick={() => setDateFilter('today')}
-                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                      dateFilter === 'today' 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Bugun
-                  </button>
-                  <button
-                    onClick={() => setDateFilter('week')}
-                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                      dateFilter === 'week' 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Hafta
-                  </button>
-                  <button
-                    onClick={() => setDateFilter('month')}
-                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                      dateFilter === 'month' 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Oy
-                  </button>
-                  <button
-                    onClick={() => setDateFilter('all')}
-                    className={`flex-shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                      dateFilter === 'all' 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    Hammasi
-                  </button>
+            {/* Date Range Filter */}
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 flex-shrink-0" />
+              <div className="flex gap-2 flex-1 items-center">
+                <div className="flex-1">
+                  <label className="text-xs text-slate-500 mb-1 block">Dan</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs sm:text-sm border-2 border-slate-200 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-slate-500 mb-1 block">Gacha</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg text-xs sm:text-sm border-2 border-slate-200 focus:border-purple-500 focus:outline-none"
+                  />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 

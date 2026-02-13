@@ -80,7 +80,7 @@ const kassaLimiter = rateLimit({
 // YANGI: Admin operations limiter - muhim operatsiyalar uchun
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 daqiqa
-  max: 20, // 20 ta admin operatsiya
+  max: process.env.NODE_ENV === 'production' ? 20 : 500, // Production: 20, Development: 500
   message: {
     success: false,
     message: 'Juda ko\'p admin operatsiyasi. Biroz kuting.'

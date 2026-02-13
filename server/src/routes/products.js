@@ -358,7 +358,7 @@ router.get('/', auth, async (req, res) => {
     // ⚡ KASSA VIEW - ULTRA MINIMAL - faqat kerakli fieldlar
     if (kassaView === 'true') {
       const products = await Product.find(query)
-        .select('name code price quantity images category section')
+        .select('name code price unitPrice quantity images category section prices')
         .lean();
 
       products.sort((a, b) => {
@@ -385,7 +385,7 @@ router.get('/', auth, async (req, res) => {
     const [total, rawProducts] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
-        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category')
+        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category subcategory prices boxInfo')
         .populate('warehouse', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -1064,7 +1064,10 @@ router.get('/:id', auth, async (req, res) => {
 
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, images, discounts, ...rest } = req.body;
+    console.log('🔍 POST / request received');
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Prices field:', req.body.prices);
+    const { warehouse, code, packageInfo, costPriceInDollar, dollarRate, images, discounts, prices, ...rest } = req.body;
 
     // Auto-generate code if not provided
     let productCode = code;
@@ -1132,13 +1135,18 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       images: formattedImages
     };
 
-    // Chegirmalarni prices array ga qo'shish
-    if (discounts && Array.isArray(discounts) && discounts.length > 0) {
-      const prices = productData.prices || [];
+    // YANGI NARX TIZIMI - prices array ni to'g'ridan-to'g'ri qabul qilish
+    if (prices && Array.isArray(prices)) {
+      console.log('✅ Prices array qabul qilindi:', prices);
+      productData.prices = prices;
+    }
+    // Eski tizim uchun - discounts array (backward compatibility)
+    else if (discounts && Array.isArray(discounts) && discounts.length > 0) {
+      const pricesArray = productData.prices || [];
       
       discounts.forEach(discount => {
         if (discount.minQuantity > 0 && discount.percent > 0) {
-          prices.push({
+          pricesArray.push({
             type: discount.type,
             amount: 0, // Hisoblash kerak emas, discountPercent ishlatiladi
             minQuantity: discount.minQuantity,
@@ -1148,8 +1156,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
         }
       });
       
-      if (prices.length > 0) {
-        productData.prices = prices;
+      if (pricesArray.length > 0) {
+        productData.prices = pricesArray;
       }
     }
 
@@ -1169,21 +1177,20 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
       warehouse: finalWarehouse,
       isMainWarehouse,
       quantity: productData.quantity,
-      price: productData.price,
-      imagesCount: formattedImages.length,
-      discountsCount: productData.prices?.length || 0
+      pricesCount: productData.prices?.length || 0
     });
 
     const product = new Product(productData);
     await product.save();
     
-    console.log('✅ Tovar MongoDB ga saqland:', {
+    console.log('✅ Tovar MongoDB ga saqlandi:', {
       _id: product._id,
       code: product.code,
       name: product.name,
       isMainWarehouse: product.isMainWarehouse,
       warehouse: product.warehouse,
-      imagesCount: product.images?.length || 0
+      imagesCount: product.images?.length || 0,
+      prices: product.prices
     });
     
     // Populate warehouse before returning
@@ -1286,8 +1293,8 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
     console.log('🔍 PUT /:id request received for ID:', req.params.id);
     console.log('Request body keys:', Object.keys(req.body));
-    console.log('Images field:', req.body.images);
-    const { warehouse, code, packageInfo, images, discounts, ...rest } = req.body;
+    console.log('Prices field:', req.body.prices);
+    const { warehouse, code, packageInfo, images, discounts, prices, ...rest } = req.body;
 
     // Check if code already exists (excluding current product)
     if (code) {
@@ -1339,19 +1346,24 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       updateData.images = formattedImages;
     }
 
-    // Chegirmalarni prices array ga qo'shish
-    if (discounts && Array.isArray(discounts)) {
+    // YANGI NARX TIZIMI - prices array ni to'g'ridan-to'g'ri qabul qilish
+    if (prices && Array.isArray(prices)) {
+      console.log('✅ Prices array qabul qilindi:', prices);
+      updateData.prices = prices;
+    }
+    // Eski tizim uchun - discounts array (backward compatibility)
+    else if (discounts && Array.isArray(discounts)) {
       const product = await Product.findById(req.params.id);
       if (product) {
         // Eski discount narxlarini o'chirish
-        const prices = (product.prices || []).filter(p => 
+        const existingPrices = (product.prices || []).filter(p => 
           !['discount1', 'discount2', 'discount3'].includes(p.type)
         );
         
         // Yangi discount narxlarini qo'shish
         discounts.forEach(discount => {
           if (discount.minQuantity > 0 && discount.percent > 0) {
-            prices.push({
+            existingPrices.push({
               type: discount.type,
               amount: 0,
               minQuantity: discount.minQuantity,
@@ -1361,7 +1373,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
           }
         });
         
-        updateData.prices = prices;
+        updateData.prices = existingPrices;
       }
     }
 
@@ -1373,6 +1385,8 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       }
     }
 
+    console.log('💾 Update data:', JSON.stringify(updateData, null, 2));
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -1380,6 +1394,9 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     ).populate('warehouse', 'name');
     
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });
+    
+    console.log('✅ Product updated successfully:', product._id);
+    console.log('Updated prices:', product.prices);
     
     // QR code yaratish - background da (agar yo'q bo'lsa yoki code o'zgargan bo'lsa)
     if (!product.qrCode || code) {

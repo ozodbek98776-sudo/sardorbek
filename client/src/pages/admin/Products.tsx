@@ -5,6 +5,7 @@ import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import QRCodeGenerator, { exportQRCodeToPNG } from '../../components/QRCodeGenerator';
 import { FRONTEND_URL, UPLOADS_URL } from '../../config/api';
 import { useSocket } from '../../hooks/useSocket';
@@ -38,6 +39,9 @@ export default function ProductsOptimized() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
+  // Modal scroll lock
+  useModalScrollLock(showModal || showQRModal);
+  
   // Form state - simplified
   const [formData, setFormData] = useState({
     code: '',
@@ -45,10 +49,16 @@ export default function ProductsOptimized() {
     description: '',
     unitPrice: '',
     costPrice: '',
+    boxPrice: '',
     quantity: '',
     category: '',
     subcategory: '', // Bo'lim uchun
     unit: 'dona' as 'dona' | 'kg' | 'metr' | 'litr' | 'karobka',
+    // Karobka ma'lumotlari
+    boxInfo: {
+      unitsPerBox: '',
+      boxWeight: ''
+    },
     // Chegirma sozlamalari
     discount1: { minQuantity: '', percent: '' },
     discount2: { minQuantity: '', percent: '' },
@@ -267,43 +277,115 @@ export default function ProductsOptimized() {
       // Avval rasmlarni yuklash
       const imagePaths = await uploadImages();
       
+      // Prices array yaratish - Backend model ga mos
+      const prices = [];
+      
+      // 1. Tan narxi (cost)
+      const costPriceNum = parseNumber(formData.costPrice);
+      if (costPriceNum && Number(costPriceNum) > 0) {
+        prices.push({
+          type: 'cost',
+          amount: Number(costPriceNum),
+          minQuantity: 1,
+          discountPercent: 0,
+          isActive: true
+        });
+      }
+      
+      // 2. Asosiy sotish narxi (unit)
+      const unitPriceNum = parseNumber(formData.unitPrice);
+      if (unitPriceNum && Number(unitPriceNum) > 0) {
+        prices.push({
+          type: 'unit',
+          amount: Number(unitPriceNum),
+          minQuantity: 1,
+          discountPercent: 0,
+          isActive: true
+        });
+      }
+      
+      // 3. Karobka narxi (box) - faqat karobka birligi tanlangan bo'lsa
+      const boxPriceNum = parseNumber(formData.boxPrice);
+      if (formData.unit === 'karobka' && boxPriceNum && Number(boxPriceNum) > 0) {
+        prices.push({
+          type: 'box',
+          amount: Number(boxPriceNum),
+          minQuantity: 1,
+          discountPercent: 0,
+          isActive: true
+        });
+      }
+      
+      // 4. Skidka narxlari (discount1, discount2, discount3)
+      if (formData.discount1.minQuantity && formData.discount1.percent &&
+          Number(formData.discount1.minQuantity) > 0 && Number(formData.discount1.percent) > 0) {
+        prices.push({
+          type: 'discount1',
+          amount: 0,
+          minQuantity: Number(formData.discount1.minQuantity),
+          discountPercent: Number(formData.discount1.percent),
+          isActive: true
+        });
+      }
+      
+      if (formData.discount2.minQuantity && formData.discount2.percent &&
+          Number(formData.discount2.minQuantity) > 0 && Number(formData.discount2.percent) > 0) {
+        prices.push({
+          type: 'discount2',
+          amount: 0,
+          minQuantity: Number(formData.discount2.minQuantity),
+          discountPercent: Number(formData.discount2.percent),
+          isActive: true
+        });
+      }
+      
+      if (formData.discount3.minQuantity && formData.discount3.percent &&
+          Number(formData.discount3.minQuantity) > 0 && Number(formData.discount3.percent) > 0) {
+        prices.push({
+          type: 'discount3',
+          amount: 0,
+          minQuantity: Number(formData.discount3.minQuantity),
+          discountPercent: Number(formData.discount3.percent),
+          isActive: true
+        });
+      }
+      
       const data = {
         code: formData.code,
         name: formData.name,
         description: formData.description,
-        unitPrice: Number(formData.unitPrice),
-        costPrice: Number(formData.costPrice) || 0,
-        quantity: Number(formData.quantity) || 0,
+        quantity: Number(parseNumber(formData.quantity)) || 0,
         category: formData.category,
         subcategory: formData.subcategory,
         unit: formData.unit,
         images: imagePaths,
-        // Chegirma sozlamalari
-        discounts: [
-          {
-            type: 'discount1',
-            minQuantity: Number(formData.discount1.minQuantity) || 0,
-            percent: Number(formData.discount1.percent) || 0
-          },
-          {
-            type: 'discount2',
-            minQuantity: Number(formData.discount2.minQuantity) || 0,
-            percent: Number(formData.discount2.percent) || 0
-          },
-          {
-            type: 'discount3',
-            minQuantity: Number(formData.discount3.minQuantity) || 0,
-            percent: Number(formData.discount3.percent) || 0
-          }
-        ].filter(d => d.minQuantity > 0 && d.percent > 0) // Faqat to'ldirilganlarini yuborish
+        prices: prices, // Backend model ga mos prices array
+        // Karobka ma'lumotlari
+        boxInfo: {
+          unitsPerBox: Number(formData.boxInfo.unitsPerBox) || 1,
+          boxWeight: Number(formData.boxInfo.boxWeight) || 0
+        }
       };
       
+      console.log('💾 Frontend - Saving product with data:', {
+        code: data.code,
+        name: data.name,
+        pricesCount: data.prices.length,
+        prices: data.prices,
+        unit: data.unit,
+        boxInfo: data.boxInfo
+      });
+      
       if (editingProduct) {
-        await api.put(`/products/${editingProduct._id}`, data);
+        console.log('📝 Updating product ID:', editingProduct._id);
+        const response = await api.put(`/products/${editingProduct._id}`, data);
+        console.log('✅ Update response:', response.data);
         // Socket will handle the update
         showAlert('Mahsulot yangilandi', 'Muvaffaqiyat', 'success');
       } else {
-        await api.post('/products', data);
+        console.log('➕ Creating new product');
+        const response = await api.post('/products', data);
+        console.log('✅ Create response:', response.data);
         // Socket will handle adding the new product
         showAlert('Mahsulot qo\'shildi', 'Muvaffaqiyat', 'success');
       }
@@ -311,6 +393,7 @@ export default function ProductsOptimized() {
       fetchStatistics(); // ⚡ Statistikani yangilash
       closeModal();
     } catch (error: any) {
+      console.error('❌ Error saving product:', error);
       const errorMsg = error.response?.data?.message || 'Xatolik yuz berdi';
       showAlert(errorMsg, 'Xatolik', 'danger');
     }
@@ -338,10 +421,15 @@ export default function ProductsOptimized() {
       description: '',
       unitPrice: '',
       costPrice: '',
+      boxPrice: '',
       quantity: '',
       category: '',
       subcategory: '',
       unit: 'dona',
+      boxInfo: {
+        unitsPerBox: '',
+        boxWeight: ''
+      },
       discount1: { minQuantity: '', percent: '' },
       discount2: { minQuantity: '', percent: '' },
       discount3: { minQuantity: '', percent: '' }
@@ -354,33 +442,70 @@ export default function ProductsOptimized() {
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
     
-    // Chegirmalarni olish
-    const discounts = (product as any).discounts || [];
-    const discount1 = discounts.find((d: any) => d.type === 'discount1') || {};
-    const discount2 = discounts.find((d: any) => d.type === 'discount2') || {};
-    const discount3 = discounts.find((d: any) => d.type === 'discount3') || {};
+    console.log('📝 Editing product - RAW:', product);
+    console.log('📝 Product prices field:', (product as any).prices);
+    
+    // Prices array dan narxlarni olish - xavfsizlik tekshiruvi
+    const pricesData = (product as any).prices;
+    const prices = Array.isArray(pricesData) ? pricesData : [];
+    
+    console.log('📝 Extracted prices array:', prices);
+    
+    // Har bir narx turini topish
+    const costPrice = prices.find((p: any) => p.type === 'cost');
+    const unitPrice = prices.find((p: any) => p.type === 'unit');
+    const boxPrice = prices.find((p: any) => p.type === 'box');
+    const discount1 = prices.find((p: any) => p.type === 'discount1');
+    const discount2 = prices.find((p: any) => p.type === 'discount2');
+    const discount3 = prices.find((p: any) => p.type === 'discount3');
+    
+    // Eski format uchun backward compatibility
+    // Agar prices array bo'sh bo'lsa, eski formatdagi narxlarni o'qiymiz
+    const oldFormatUnitPrice = (product as any).unitPrice || product.price || 0;
+    const oldFormatCostPrice = (product as any).costPrice || 0;
+    const oldFormatBoxPrice = (product as any).boxPrice || 0;
+    
+    // Karobka ma'lumotlari
+    const boxInfo = (product as any).boxInfo || { unitsPerBox: 1, boxWeight: 0 };
+    
+    console.log('📝 Editing product - PARSED:', {
+      product,
+      prices,
+      costPrice: costPrice?.amount || oldFormatCostPrice,
+      unitPrice: unitPrice?.amount || oldFormatUnitPrice,
+      boxPrice: boxPrice?.amount || oldFormatBoxPrice,
+      discount1: discount1 ? { minQuantity: discount1.minQuantity, percent: discount1.discountPercent } : null,
+      discount2: discount2 ? { minQuantity: discount2.minQuantity, percent: discount2.discountPercent } : null,
+      discount3: discount3 ? { minQuantity: discount3.minQuantity, percent: discount3.discountPercent } : null
+    });
     
     setFormData({
       code: product.code,
       name: product.name,
       description: (product as any).description || '',
-      unitPrice: String((product as any).unitPrice || product.price || 0),
-      costPrice: String((product as any).costPrice || 0),
+      // Yangi format bo'lsa prices array dan, eski format bo'lsa to'g'ridan-to'g'ri fieldlardan
+      unitPrice: unitPrice?.amount ? String(unitPrice.amount) : (oldFormatUnitPrice ? String(oldFormatUnitPrice) : ''),
+      costPrice: costPrice?.amount ? String(costPrice.amount) : (oldFormatCostPrice ? String(oldFormatCostPrice) : ''),
+      boxPrice: boxPrice?.amount ? String(boxPrice.amount) : (oldFormatBoxPrice ? String(oldFormatBoxPrice) : ''),
       quantity: String(product.quantity),
       category: (product as any).category || '',
       subcategory: (product as any).subcategory || '',
       unit: product.unit || 'dona',
+      boxInfo: {
+        unitsPerBox: boxInfo.unitsPerBox ? String(boxInfo.unitsPerBox) : '',
+        boxWeight: boxInfo.boxWeight ? String(boxInfo.boxWeight) : ''
+      },
       discount1: {
-        minQuantity: String(discount1.minQuantity || ''),
-        percent: String(discount1.percent || '')
+        minQuantity: discount1?.minQuantity ? String(discount1.minQuantity) : '',
+        percent: discount1?.discountPercent ? String(discount1.discountPercent) : ''
       },
       discount2: {
-        minQuantity: String(discount2.minQuantity || ''),
-        percent: String(discount2.percent || '')
+        minQuantity: discount2?.minQuantity ? String(discount2.minQuantity) : '',
+        percent: discount2?.discountPercent ? String(discount2.discountPercent) : ''
       },
       discount3: {
-        minQuantity: String(discount3.minQuantity || ''),
-        percent: String(discount3.percent || '')
+        minQuantity: discount3?.minQuantity ? String(discount3.minQuantity) : '',
+        percent: discount3?.discountPercent ? String(discount3.discountPercent) : ''
       }
     });
     
@@ -556,6 +681,13 @@ export default function ProductsOptimized() {
               {filteredProducts.map(product => {
                 const productImage = getProductImage(product);
                 
+                // Narxlarni prices array dan olish - xavfsizlik tekshiruvi
+                const pricesData = (product as any).prices;
+                const prices = Array.isArray(pricesData) ? pricesData : [];
+                const unitPrice = prices.find((p: any) => p.type === 'unit');
+                const costPrice = prices.find((p: any) => p.type === 'cost');
+                const displayPrice = unitPrice?.amount || (product as any).unitPrice || product.price || 0;
+                
                 return (
                   <div 
                     key={product._id}
@@ -621,12 +753,21 @@ export default function ProductsOptimized() {
                           )}
                         </div>
                         
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-xl font-bold text-blue-600">
-                            {formatNumber((product as any).unitPrice || product.price || 0)}
-                          </span>
-                          <span className="text-sm text-gray-500">so'm</span>
+                        {/* Narxlar */}
+                        <div className="space-y-1">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-blue-600">
+                              {formatNumber(displayPrice)}
+                            </span>
+                            <span className="text-sm text-gray-500">so'm</span>
+                          </div>
+                          {costPrice && (
+                            <div className="text-xs text-gray-500">
+                              Tan narxi: {formatNumber(costPrice.amount)} so'm
+                            </div>
+                          )}
                         </div>
+                        
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-500">Miqdor:</span>
                           <span className={`font-medium ${
@@ -707,6 +848,7 @@ export default function ProductsOptimized() {
                   <option value="kg">Kilogram</option>
                   <option value="metr">Metr</option>
                   <option value="litr">Litr</option>
+                  <option value="karobka">Karobka</option>
                 </select>
               </div>
             </div>
@@ -796,6 +938,63 @@ export default function ProductsOptimized() {
                 />
               </div>
             </div>
+
+            {/* Karobka narxi va ma'lumotlari - faqat karobka tanlangan bo'lsa */}
+            {formData.unit === 'karobka' && (
+              <div className="border-t pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Karobka ma'lumotlari
+                </label>
+                
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Karobka narxi</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.boxPrice ? formatInputNumber(formData.boxPrice) : ''}
+                      onChange={e => {
+                        const value = parseNumber(e.target.value);
+                        setFormData({...formData, boxPrice: value});
+                      }}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Karobkada nechta</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.boxInfo.unitsPerBox}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        boxInfo: {...formData.boxInfo, unitsPerBox: e.target.value}
+                      })}
+                      placeholder="24"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Og'irligi (kg)</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.boxInfo.boxWeight}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        boxInfo: {...formData.boxInfo, boxWeight: e.target.value}
+                      })}
+                      placeholder="10"
+                      min="0"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Masalan: 1 karobkada 24 dona, og'irligi 10 kg
+                </p>
+              </div>
+            )}
 
             {/* Chegirma sozlamalari */}
             <div className="border-t pt-4">

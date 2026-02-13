@@ -96,7 +96,7 @@ router.get('/', async (req, res) => {
 // Yangi xarajat qo'shish
 router.post('/', async (req, res) => {
   try {
-    const { category, amount, note, date, type } = req.body;
+    const { category, amount, note, date, type, employee_id, employee_name } = req.body;
     
     // Validatsiya
     if (!category) {
@@ -117,25 +117,49 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Komunal turi tanlanishi shart' });
     }
     
+    // Shaxsiy xarajatlar uchun type majburiy
+    if (category === 'shaxsiy' && !type) {
+      return res.status(400).json({ success: false, message: 'Shaxsiy xarajat turi tanlanishi shart' });
+    }
+    
+    // Maosh uchun xodim majburiy
+    if (category === 'maosh' && !employee_id) {
+      return res.status(400).json({ success: false, message: 'Xodim tanlanishi shart' });
+    }
+    
     // Juda katta summa tekshirish (masalan 1 milliard)
     if (amount > 1000000000) {
       return res.status(400).json({ success: false, message: 'Summa juda katta' });
     }
     
-    const expense = new Expense({
+    const expenseData = {
       category,
       amount,
       note: note || '',
       date: date || new Date(),
       type: type || undefined,
-      source: 'manual',
-      created_by: req.user._id
-    });
+      source: 'manual'
+    };
+
+    // Maosh uchun xodim ma'lumotlarini qo'shish
+    if (category === 'maosh' && employee_id) {
+      expenseData.employee_id = employee_id;
+      expenseData.employee_name = employee_name;
+    }
+
+    // createdBy - faqat real ObjectId bo'lsa qo'shamiz
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      expenseData.created_by = req.user._id;
+    }
+    
+    const expense = new Expense(expenseData);
     
     await expense.save();
     
-    // Populate qilib qaytarish
-    await expense.populate('created_by', 'name');
+    // Populate qilib qaytarish (agar created_by mavjud bo'lsa)
+    if (expense.created_by) {
+      await expense.populate('created_by', 'name');
+    }
     
     res.status(201).json({
       success: true,
@@ -188,7 +212,11 @@ router.put('/:id', async (req, res) => {
     if (type !== undefined) expense.type = type;
     
     await expense.save();
-    await expense.populate('created_by', 'name');
+    
+    // Populate qilib qaytarish (agar created_by mavjud bo'lsa)
+    if (expense.created_by) {
+      await expense.populate('created_by', 'name');
+    }
     
     res.json({
       success: true,

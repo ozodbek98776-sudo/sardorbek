@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, DollarSign, FileText, Calendar, Zap, Droplet, Utensils, Truck, Package } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, DollarSign, FileText, Calendar, Zap, Utensils, Truck, Package, User, Wallet } from 'lucide-react';
 import { formatInputNumber, parseNumber } from '../../utils/format';
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_GRADIENTS, CATEGORY_TYPES } from '../../constants/expenses';
+import api from '../../utils/api';
 
 interface Expense {
   _id?: string;
@@ -9,6 +11,8 @@ interface Expense {
   note?: string;
   date: string;
   type?: string;
+  employee_id?: string;
+  employee_name?: string;
 }
 
 interface ExpenseModalProps {
@@ -24,28 +28,14 @@ const categories = [
     label: 'Komunal', 
     icon: Zap,
     color: 'from-blue-500 to-blue-600',
-    types: [
-      { value: 'elektr', label: 'Elektr' },
-      { value: 'gaz', label: 'Gaz' },
-      { value: 'suv', label: 'Suv' },
-      { value: 'internet', label: 'Internet' },
-      { value: 'telefon', label: 'Telefon' },
-      { value: 'chiqindi', label: 'Chiqindi' },
-      { value: 'boshqa', label: 'Boshqa' }
-    ]
+    types: CATEGORY_TYPES.komunal
   },
   { 
     value: 'soliqlar', 
     label: 'Soliqlar', 
     icon: FileText,
     color: 'from-red-500 to-red-600',
-    types: [
-      { value: 'ndpi', label: 'NDPI' },
-      { value: 'qqs', label: 'QQS' },
-      { value: 'mulk_solig', label: 'Mulk solig\'i' },
-      { value: 'transport_solig', label: 'Transport solig\'i' },
-      { value: 'boshqa', label: 'Boshqa' }
-    ]
+    types: CATEGORY_TYPES.soliqlar
   },
   { 
     value: 'ovqatlanish', 
@@ -64,6 +54,19 @@ const categories = [
     label: 'Tovar xaridi', 
     icon: Package,
     color: 'from-purple-500 to-purple-600'
+  },
+  { 
+    value: 'shaxsiy', 
+    label: 'Shaxsiy xarajatlar', 
+    icon: User,
+    color: 'from-pink-500 to-pink-600',
+    types: CATEGORY_TYPES.shaxsiy
+  },
+  { 
+    value: 'maosh', 
+    label: 'Maosh to\'lovlari', 
+    icon: Wallet,
+    color: 'from-indigo-500 to-indigo-600'
   }
 ];
 
@@ -74,26 +77,77 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
   const [note, setNote] = useState('');
   const [date, setDate] = useState('');
   const [type, setType] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [employees, setEmployees] = useState<Array<{ 
+    _id: string; 
+    name: string;
+    salary?: {
+      baseSalary: number;
+      maxBonus: number;
+      bonusEnabled: boolean;
+    };
+  }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Body scroll lock
+  // Tanlangan xodimning maosh ma'lumotlari
+  const selectedEmployee = useMemo(
+    () => employees.find(e => e._id === employeeId),
+    [employees, employeeId]
+  );
+
+  // Tanlangan xodimning jami maoshi (oylik + bonus)
+  const calculatedSalary = useMemo(() => {
+    if (!selectedEmployee?.salary) return 0;
+    const base = selectedEmployee.salary.baseSalary || 0;
+    const bonus = selectedEmployee.salary.bonusEnabled ? (selectedEmployee.salary.maxBonus || 0) : 0;
+    return base + bonus;
+  }, [selectedEmployee]);
+
+  // Memoize selected category data
+  const selectedCategoryData = useMemo(
+    () => categories.find(c => c.value === selectedCategory),
+    [selectedCategory]
+  );
+
+  // Body scroll lock with proper cleanup
   useEffect(() => {
-    if (isOpen) {
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
-      };
-    }
+    if (!isOpen) return;
+    
+    const scrollY = window.scrollY;
+    const body = document.body;
+    
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    
+    return () => {
+      body.style.position = '';
+      body.style.top = '';
+      body.style.width = '';
+      body.style.overflow = '';
+      window.scrollTo(0, scrollY);
+    };
   }, [isOpen]);
+
+  // Xodimlarni yuklash (maosh kategoriyasi uchun)
+  useEffect(() => {
+    if (selectedCategory === 'maosh' && isOpen) {
+      const fetchEmployees = async () => {
+        try {
+          const response = await api.get('/hr/employees?status=active');
+          if (response.data.success) {
+            setEmployees(response.data.employees || []);
+          }
+        } catch (error) {
+          console.error('Xodimlarni yuklashda xatolik:', error);
+          setEmployees([]);
+        }
+      };
+      fetchEmployees();
+    }
+  }, [selectedCategory, isOpen]);
 
   // Tahrirlash uchun ma'lumotlarni yuklash
   useEffect(() => {
@@ -103,31 +157,48 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
       setNote(editingExpense.note || '');
       setDate(editingExpense.date.split('T')[0]);
       setType(editingExpense.type || '');
+      setEmployeeId(editingExpense.employee_id || '');
       setStep('form');
     } else {
       resetForm();
     }
   }, [editingExpense, isOpen]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setStep('category');
     setSelectedCategory('');
     setAmount('');
     setNote('');
     setDate(new Date().toISOString().split('T')[0]);
     setType('');
+    setEmployeeId('');
     setError('');
-  };
+  }, []);
 
-  const handleCategorySelect = (category: string) => {
+  const handleCategorySelect = useCallback((category: string) => {
     setSelectedCategory(category);
     setStep('form');
-  };
+  }, []);
 
-  const handleAmountChange = (value: string) => {
+  const handleEmployeeChange = useCallback((empId: string) => {
+    setEmployeeId(empId);
+    
+    // Xodim tanlaganda maoshni avtomatik to'ldirish
+    if (empId) {
+      const employee = employees.find(e => e._id === empId);
+      if (employee?.salary) {
+        const base = employee.salary.baseSalary || 0;
+        const bonus = employee.salary.bonusEnabled ? (employee.salary.maxBonus || 0) : 0;
+        const total = base + bonus;
+        setAmount(total.toString());
+      }
+    }
+  }, [employees]);
+
+  const handleAmountChange = useCallback((value: string) => {
     const formatted = formatInputNumber(value);
     setAmount(formatted);
-  };
+  }, []);
 
   const validateForm = (): boolean => {
     setError('');
@@ -160,6 +231,18 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
       return false;
     }
 
+    // Shaxsiy xarajatlar uchun type majburiy
+    if (selectedCategory === 'shaxsiy' && !type) {
+      setError('Shaxsiy xarajat turi tanlanishi shart');
+      return false;
+    }
+
+    // Maosh uchun xodim majburiy
+    if (selectedCategory === 'maosh' && !employeeId) {
+      setError('Xodim tanlanishi shart');
+      return false;
+    }
+
     // Kelajak sanaga ruxsat bermaslik
     const selectedDate = new Date(date);
     const today = new Date();
@@ -189,13 +272,24 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
     setError('');
 
     try {
-      await onSave({
+      const expenseData: any = {
         category: selectedCategory,
         amount: parseFloat(parseNumber(amount)),
         note: note.trim() || undefined,
         date,
         type: type || undefined
-      });
+      };
+
+      // Maosh uchun xodim ma'lumotlarini qo'shish
+      if (selectedCategory === 'maosh' && employeeId) {
+        expenseData.employee_id = employeeId;
+        const employee = employees.find(e => e._id === employeeId);
+        if (employee) {
+          expenseData.employee_name = employee.name;
+        }
+      }
+
+      await onSave(expenseData);
 
       resetForm();
       onClose();
@@ -206,16 +300,14 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!loading) {
       resetForm();
       onClose();
     }
-  };
+  }, [loading, resetForm, onClose]);
 
   if (!isOpen) return null;
-
-  const selectedCategoryData = categories.find(c => c.value === selectedCategory);
 
   return (
     <div 
@@ -300,6 +392,63 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
           ) : (
             /* Forma */
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              {/* Xodim tanlash (maosh uchun) */}
+              {selectedCategory === 'maosh' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Xodim *
+                    </label>
+                    <select
+                      value={employeeId}
+                      onChange={(e) => handleEmployeeChange(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Xodimni tanlang...</option>
+                      {employees.map((emp) => (
+                        <option key={emp._id} value={emp._id}>
+                          {emp.name}
+                          {emp.salary && ` - ${new Intl.NumberFormat('uz-UZ').format(emp.salary.baseSalary + (emp.salary.bonusEnabled ? emp.salary.maxBonus : 0))} so'm`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Xodim maosh ma'lumotlari */}
+                  {selectedEmployee?.salary && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                      <h4 className="text-sm font-semibold text-indigo-900 mb-3">Maosh tarkibi:</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-indigo-700">Asosiy maosh:</span>
+                          <span className="text-sm font-semibold text-indigo-900">
+                            {new Intl.NumberFormat('uz-UZ').format(selectedEmployee.salary.baseSalary)} so'm
+                          </span>
+                        </div>
+                        {selectedEmployee.salary.bonusEnabled && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-indigo-700">Maksimal bonus:</span>
+                            <span className="text-sm font-semibold text-indigo-900">
+                              {new Intl.NumberFormat('uz-UZ').format(selectedEmployee.salary.maxBonus)} so'm
+                            </span>
+                          </div>
+                        )}
+                        <div className="pt-2 border-t border-indigo-300 flex justify-between items-center">
+                          <span className="text-sm font-bold text-indigo-900">Jami:</span>
+                          <span className="text-base font-bold text-indigo-900">
+                            {new Intl.NumberFormat('uz-UZ').format(calculatedSalary)} so'm
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-indigo-600 mt-3">
+                        * Summa avtomatik to'ldirildi. Kerak bo'lsa o'zgartirishingiz mumkin.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Type (agar kerak bo'lsa) */}
               {selectedCategoryData?.types && (
                 <div>
@@ -327,6 +476,11 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <DollarSign className="w-4 h-4 inline mr-1" />
                   Summa *
+                  {selectedCategory === 'maosh' && selectedEmployee && (
+                    <span className="ml-2 text-xs text-indigo-600 font-normal">
+                      (Avtomatik to'ldirildi)
+                    </span>
+                  )}
                 </label>
                 <div className="relative">
                   <input
@@ -334,13 +488,22 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
                     value={amount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder="0"
-                    className="w-full px-4 py-3 pr-16 text-lg font-semibold border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-4 py-3 pr-16 text-lg font-semibold border rounded-xl focus:outline-none focus:ring-2 ${
+                      selectedCategory === 'maosh' && selectedEmployee
+                        ? 'border-indigo-300 bg-indigo-50 focus:ring-indigo-500'
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     required
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
                     so'm
                   </span>
                 </div>
+                {selectedCategory === 'maosh' && selectedEmployee && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Kerak bo'lsa summani o'zgartirishingiz mumkin
+                  </p>
+                )}
               </div>
 
               {/* Sana */}

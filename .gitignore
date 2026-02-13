@@ -45,12 +45,30 @@ server/uploads/
 backups/
 server/backups/
 
-# Test files
+# Test files and folders
 test-*.js
 test-*.html
 test-*.md
+client/e2e/
+client/playwright-report/
+client/test-results/
+client/src/**/__tests__/
+server/coverage/
+*.spec.ts
+*.test.ts
+*.test.tsx
 
-# Documentation (development notes)
+# Test documentation
+*_TEST*.md
+*TESTING*.md
+*PLAYWRIGHT*.md
+*E2E*.md
+ADMIN_TESTS*.md
+QUICK_START*.md
+RUN_*.md
+START_HERE.md
+
+# Development documentation
 *_TAHLIL.md
 *_TUZATISH.md
 *_FIX.md
@@ -69,3 +87,7 @@ LOGOUT_*.md
 XATOLAR_*.md
 CACHE_*.md
 DASHBOARD_*.md
+EXPENSES_*.md
+MODAL_*.md
+SMOOTH_*.md
+IPHONE_*.md

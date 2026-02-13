@@ -4,7 +4,7 @@ const expenseSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['komunal', 'soliqlar', 'ovqatlanish', 'dostavka', 'tovar_xarid'],
+    enum: ['komunal', 'soliqlar', 'ovqatlanish', 'dostavka', 'tovar_xarid', 'shaxsiy', 'maosh'],
     index: true
   },
   amount: {
@@ -27,6 +27,16 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     // Soliq uchun: ndpi, qqs, mulk_solig, transport_solig, boshqa
     // Komunal uchun: elektr, gaz, suv, internet, telefon, chiqindi, boshqa
+    // Shaxsiy uchun: transport, uyali_aloqa, kiyim, tibbiyot, ta_lim, boshqa
+    trim: true
+  },
+  employee_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    index: true
+  },
+  employee_name: {
+    type: String,
     trim: true
   },
   source: {
@@ -38,7 +48,7 @@ const expenseSchema = new mongoose.Schema({
   created_by: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,
     index: true
   }
 }, {

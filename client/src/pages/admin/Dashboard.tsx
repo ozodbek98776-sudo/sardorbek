@@ -1,25 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { useOutletContext } from 'react-router-dom';
-import { Package, BarChart3, DollarSign, TrendingUp, Clock } from 'lucide-react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import { Package, BarChart3, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { extractArrayFromResponse } from '../../utils/arrayHelpers';
 import { useAlert } from '../../hooks/useAlert';
 import { FinanceHistoryModal } from '../../components/FinanceHistoryModal';
+import { ExpensesHistoryModal } from '../../components/ExpensesHistoryModal';
 import { StatCard, LoadingSpinner, EmptyState, UniversalPageHeader } from '../../components/common';
 
 export default function Dashboard() {
   const { showAlert, AlertComponent } = useAlert();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const [showFinanceModal, setShowFinanceModal] = useState(false);
+  const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     dateFilter: 'today' | 'week' | 'month' | 'all';
     title: string;
+    showOnlyIncome?: boolean;
   }>({
     dateFilter: 'all',
-    title: 'Moliyaviy Tarix'
+    title: 'Moliyaviy Tarix',
+    showOnlyIncome: false
   });
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -30,37 +35,76 @@ export default function Dashboard() {
     totalProducts: 0,
     lowStock: 0,
     outOfStock: 0,
-    peakHour: ''
+    peakHour: '',
+    todayExpenses: 0
   });
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // PERFORMANCE YAXSHILANDI - Parallel API chaqiruvlar va error handling
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchAllData = async () => {
       try {
         setLoading(true);
+        
+        // Bugungi sana uchun filter
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+        
         // Parallel API chaqiruvlar - tezroq yuklash
-        const [statsRes, topProductsRes] = await Promise.all([
+        const [statsRes, topProductsRes, expensesRes] = await Promise.all([
           api.get('/stats'),
-          api.get('/stats/top-products')
+          api.get('/stats/top-products'),
+          api.get('/expenses', {
+            params: {
+              startDate: startOfDay,
+              endDate: endOfDay,
+              limit: 1000
+            }
+          })
         ]);
         
-        setStats(statsRes.data);
+        if (!isMounted) return;
+        
+        // Bugungi xarajatlarni hisoblash
+        let todayExpenses = 0;
+        if (expensesRes.data.success && expensesRes.data.expenses) {
+          todayExpenses = expensesRes.data.expenses.reduce((sum: number, expense: any) => sum + (expense.amount || 0), 0);
+        }
+        
+        setStats({
+          ...statsRes.data,
+          todayExpenses
+        });
+        
         // Safe array operations
         const topProductsData = extractArrayFromResponse(topProductsRes);
         const top3 = topProductsData.slice(0, 3);
         setTopProducts(top3);
-      } catch (err) {
+      } catch (err: any) {
+        if (!isMounted) return;
         console.error('Error fetching dashboard data:', err);
-        showAlert('Ma\'lumotlarni yuklashda xatolik', 'Xatolik', 'danger');
+        
+        // Rate limiting xatosini ignore qilish
+        if (err.message && !err.message.includes('so\'rov')) {
+          showAlert('Ma\'lumotlarni yuklashda xatolik', 'Xatolik', 'danger');
+        }
         setTopProducts([]);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchAllData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -86,7 +130,7 @@ export default function Dashboard() {
                   icon={DollarSign}
                   color="green"
                   onClick={() => {
-                    setModalConfig({ dateFilter: 'all', title: 'Umumiy Daromad' });
+                    setModalConfig({ dateFilter: 'all', title: 'Umumiy Daromad', showOnlyIncome: false });
                     setShowFinanceModal(true);
                   }}
                 />
@@ -96,7 +140,7 @@ export default function Dashboard() {
                   icon={TrendingUp}
                   color="blue"
                   onClick={() => {
-                    setModalConfig({ dateFilter: 'today', title: 'Bugungi Savdo' });
+                    setModalConfig({ dateFilter: 'today', title: 'Bugungi Savdo', showOnlyIncome: true });
                     setShowFinanceModal(true);
                   }}
                 />
@@ -106,18 +150,16 @@ export default function Dashboard() {
                   icon={Package}
                   color="purple"
                   onClick={() => {
-                    setModalConfig({ dateFilter: 'all', title: 'Barcha Mahsulotlar' });
-                    setShowFinanceModal(true);
+                    navigate('/admin/products');
                   }}
                 />
                 <StatCard
-                  title="Eng yuqori soat"
-                  value={stats.peakHour || '-'}
-                  icon={Clock}
-                  color="orange"
+                  title="Bugungi xarajatlar"
+                  value={`${formatNumber(stats.todayExpenses || 0)} UZS`}
+                  icon={TrendingDown}
+                  color="red"
                   onClick={() => {
-                    setModalConfig({ dateFilter: 'today', title: 'Bugungi Savdo' });
-                    setShowFinanceModal(true);
+                    setShowExpensesModal(true);
                   }}
                 />
             </div>
@@ -202,6 +244,15 @@ export default function Dashboard() {
         onClose={() => setShowFinanceModal(false)}
         initialDateFilter={modalConfig.dateFilter}
         title={modalConfig.title}
+        showOnlyIncome={modalConfig.showOnlyIncome}
+      />
+
+      {/* Expenses History Modal */}
+      <ExpensesHistoryModal
+        isOpen={showExpensesModal}
+        onClose={() => setShowExpensesModal(false)}
+        initialDateFilter="today"
+        title="Bugungi Xarajatlar"
       />
     </div>
   );

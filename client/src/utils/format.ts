@@ -1,5 +1,6 @@
 // Format number with dots as thousand separators (e.g., 1.000.000)
 export const formatNumber = (num: number | string): string => {
+  if (num === null || num === undefined) return '0';
   const n = typeof num === 'string' ? parseFloat(num) : num;
   if (isNaN(n)) return '0';
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
