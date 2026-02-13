@@ -38,6 +38,8 @@ const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
 const KassaReceipts = lazy(() => import('./pages/kassa/KassaReceipts'));
 const KassaClients = lazy(() => import('./pages/kassa/KassaClients'));
 const KassaDebts = lazy(() => import('./pages/kassa/KassaDebts'));
+// Employee sahifalari (helper va cashier uchun)
+const MyProfile = lazy(() => import('./pages/employee/MyProfile'));
 const ProductView = lazy(() => import('./pages/ProductView'));
 const SwipeNavigator = lazy(() => import('./components/SwipeNavigator'));
 
@@ -158,6 +160,7 @@ function App() {
                 <Route path="receipts" element={<Suspense fallback={<PageLoader />}><KassaReceipts /></Suspense>} />
                 <Route path="clients" element={<Suspense fallback={<PageLoader />}><KassaClients /></Suspense>} />
                 <Route path="debts" element={<Suspense fallback={<PageLoader />}><KassaDebts /></Suspense>} />
+                <Route path="profile" element={<Suspense fallback={<PageLoader />}><MyProfile /></Suspense>} />
               </Route>
               
               {/* Admin Routes - FAQAT ADMIN UCHUN */}
@@ -189,6 +192,7 @@ function App() {
               {/* Helper Routes */}
               <Route path="/helper" element={<ProtectedRoute roles={['helper']}><Suspense fallback={<PageLoader />}><HelperLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<Suspense fallback={<PageLoader />}><HelperScanner /></Suspense>} />
+                <Route path="profile" element={<Suspense fallback={<PageLoader />}><MyProfile /></Suspense>} />
               </Route>
             </Routes>
           </BrowserRouter>

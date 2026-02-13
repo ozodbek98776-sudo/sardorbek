@@ -408,4 +408,10 @@ export const adminMenuItems: MenuItem[] = [
 export const cashierMenuItems: MenuItem[] = [
   { icon: <ShoppingCart className="w-5 h-5" />, label: 'sidebar.pos', path: '' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
+  { icon: <User className="w-5 h-5" />, label: 'Mening Profilim', path: '/profile' },
+];
+
+export const helperMenuItems: MenuItem[] = [
+  { icon: <Sparkles className="w-5 h-5" />, label: 'Scanner', path: '' },
+  { icon: <User className="w-5 h-5" />, label: 'Mening Profilim', path: '/profile' },
 ];

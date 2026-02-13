@@ -48,6 +48,19 @@ export default function Employees() {
     message: ''
   });
   
+  // Modal scroll lock
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showModal]);
+  
   // Delete confirmation modal
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
@@ -404,8 +417,17 @@ export default function Employees() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowModal(false);
+              setEditingEmployee(null);
+              resetForm();
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               {editingEmployee ? 'Xodimni Tahrirlash' : 'Yangi Xodim'}
             </h2>
@@ -449,6 +471,21 @@ export default function Employees() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {editingEmployee && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Yangi Parol (ixtiyoriy)
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Bo'sh qoldiring agar o'zgartirmoqchi bo'lmasangiz"
                   />
                 </div>
               )}
