@@ -2,11 +2,18 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useSocket } from './useSocket';
 
+export interface Subcategory {
+  _id: string;
+  name: string;
+  order: number;
+}
+
 export interface Category {
   _id: string;
   name: string;
   order: number;
   isActive: boolean;
+  subcategories: Subcategory[];
   createdAt: string;
   updatedAt: string;
 }

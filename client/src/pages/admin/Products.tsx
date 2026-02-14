@@ -26,6 +26,7 @@ export default function ProductsOptimized() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('');
   const [stockFilter, setStockFilter] = useState('all');
   
   // Pagination state
@@ -87,14 +88,15 @@ export default function ProductsOptimized() {
   const selectedCategorySubcategories = useMemo(() => {
     if (!formData.category) return [];
     const category = categories.find(c => c.name === formData.category);
-    return (category as any)?.subcategories || [];
+    return category?.subcategories || [];
   }, [formData.category, categories]);
   
   // Convert categories to CategoryFilter format
   const categoriesForFilter = useMemo(() => {
     return categories.map(cat => ({
       _id: cat._id,
-      name: cat.name
+      name: cat.name,
+      subcategories: cat.subcategories
     }));
   }, [categories]);
   
@@ -123,6 +125,7 @@ export default function ProductsOptimized() {
           limit: 10,
           search: debouncedSearch || undefined,
           category: categoryFilter || undefined,
+          subcategory: subcategoryFilter || undefined,
           stockFilter: stockFilter !== 'all' ? stockFilter : undefined // ⚡ Backend filter
         }
       });
@@ -154,7 +157,7 @@ export default function ProductsOptimized() {
     } finally {
       setLoading(false);
     }
-  }, [showAlert, debouncedSearch, categoryFilter, stockFilter]); // ⚡ stockFilter qo'shildi
+  }, [showAlert, debouncedSearch, categoryFilter, subcategoryFilter, stockFilter]);
 
   // ⚡ Fetch statistics - alohida va tez (useRef bilan stable)
   const fetchStatisticsRef = useRef<() => Promise<void>>();
@@ -164,7 +167,8 @@ export default function ProductsOptimized() {
       const response = await api.get('/products/statistics', {
         params: {
           search: debouncedSearch || undefined,
-          category: categoryFilter || undefined
+          category: categoryFilter || undefined,
+          subcategory: subcategoryFilter || undefined
         }
       });
       
@@ -192,7 +196,7 @@ export default function ProductsOptimized() {
     setProducts([]); // Clear products
     fetchProducts(1, false);
     fetchStatistics();
-  }, [debouncedSearch, categoryFilter, stockFilter]); // ⚡ stockFilter qo'shildi
+  }, [debouncedSearch, categoryFilter, subcategoryFilter, stockFilter]);
   
   // Infinite scroll - Intersection Observer
   useEffect(() => {
@@ -658,7 +662,9 @@ export default function ProductsOptimized() {
         <CategoryFilter
           categories={categoriesForFilter}
           selectedCategory={categoryFilter}
+          selectedSubcategory={subcategoryFilter}
           onCategoryChange={setCategoryFilter}
+          onSubcategoryChange={setSubcategoryFilter}
         />
 
         {/* Products Grid */}
@@ -899,7 +905,7 @@ export default function ProductsOptimized() {
                   disabled={!formData.category || selectedCategorySubcategories.length === 0}
                 >
                   <option value="">Bo'lim tanlanmagan</option>
-                  {selectedCategorySubcategories.map((sub: any) => (
+                  {selectedCategorySubcategories.map((sub) => (
                     <option key={sub._id} value={sub.name}>{sub.name}</option>
                   ))}
                 </select>

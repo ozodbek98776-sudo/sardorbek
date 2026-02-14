@@ -22,8 +22,8 @@ const STATS_CACHE_DURATION = 30000; // 30 soniya
 
 router.get('/statistics', auth, async (req, res) => {
   try {
-    const { search, category } = req.query;
-    const cacheKey = `${search || ''}-${category || ''}`;
+    const { search, category, subcategory } = req.query;
+    const cacheKey = `${search || ''}-${category || ''}-${subcategory || ''}`;
     
     // ⚡ Cache check
     if (statsCache && statsCacheTime && (Date.now() - statsCacheTime) < STATS_CACHE_DURATION) {
@@ -57,6 +57,11 @@ router.get('/statistics', auth, async (req, res) => {
     // Category filter
     if (category) {
       query.category = category;
+    }
+    
+    // Subcategory filter
+    if (subcategory) {
+      query.subcategory = subcategory;
     }
 
     // ⚡ Parallel aggregation - tez va samarali
@@ -322,7 +327,7 @@ router.post('/kassa', async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, warehouse, mainOnly, kassaView, category, page = 1, limit = 10, lowStock, stockFilter } = req.query;
+    const { search, warehouse, mainOnly, kassaView, category, subcategory, page = 1, limit = 10, lowStock, stockFilter } = req.query;
     const query = {};
 
     if (search) {
@@ -344,6 +349,7 @@ router.get('/', auth, async (req, res) => {
     if (warehouse) query.warehouse = warehouse;
     if (mainOnly === 'true') query.isMainWarehouse = true;
     if (category) query.category = category;
+    if (subcategory) query.subcategory = subcategory;
     
     // ⚡ STOCK FILTER - Backend da filter qilish
     if (stockFilter === 'low') {
