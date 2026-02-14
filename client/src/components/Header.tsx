@@ -55,13 +55,13 @@ export default function Header({ title, showSearch, onSearch, actions, filterOpt
     <>
       <header className="sticky top-0 z-50 bg-slate-100 border-b border-slate-200/60 shadow-sm">
         <div className="px-1 sm:px-2 h-12 sm:h-14 flex items-center justify-between gap-1 sm:gap-2">
-          {/* Hamburger Button - faqat mobile'da ko'rinadi */}
+          {/* Hamburger Button - mobile va desktop'da ko'rinadi */}
           {onMenuToggle && (
             <button 
               onClick={onMenuToggle}
-              className="lg:hidden p-1.5 sm:p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 flex items-center justify-center shadow-md"
+              className="p-1.5 sm:p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 flex items-center justify-center shadow-md"
               style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px' }}
-              title="Menyuni ochish"
+              title="Menyuni ochish/yopish"
             >
               <Menu className="w-5 h-5" />
             </button>

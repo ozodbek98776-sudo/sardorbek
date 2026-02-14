@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Package2 } from 'lucide-react';
 import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
@@ -10,7 +11,7 @@ interface ProductCardProps {
   onQRPrint: () => void;
 }
 
-export function ProductCard({ 
+export const ProductCard = memo(function ProductCard({ 
   product, 
   onClick,
   onCategoryClick,
@@ -24,7 +25,10 @@ export function ProductCard({
     : null;
   
   return (
-    <div className="group bg-white rounded-xl border border-slate-200 hover:border-brand-400 hover:shadow-xl transition-all duration-300 overflow-hidden relative flex-shrink-0 snap-start">
+    <div 
+      data-testid="product-card"
+      className="group bg-white rounded-xl border border-slate-200 hover:border-brand-400 hover:shadow-xl transition-all duration-300 overflow-hidden relative flex-shrink-0 snap-start"
+    >
       {/* Main card button */}
       <button
         onClick={onClick}
@@ -45,6 +49,8 @@ export function ProductCard({
             <img 
               src={imageUrl}
               alt={product.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -107,4 +113,10 @@ export function ProductCard({
       </button>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Faqat muhim props o'zgarganda re-render
+  return prevProps.product._id === nextProps.product._id &&
+         prevProps.product.quantity === nextProps.product.quantity &&
+         prevProps.product.price === nextProps.product.price &&
+         prevProps.product.name === nextProps.product.name;
+});

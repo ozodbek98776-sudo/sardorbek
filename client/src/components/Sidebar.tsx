@@ -83,13 +83,18 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   // Expose toggle function to parent
   useEffect(() => {
     (window as any).toggleSidebar = () => {
-      setCollapsed?.(false); // Sidebar'ni ochish
-      setMobileOpen(true);   // Mobile overlay'ni ochish
+      if (collapsed) {
+        // Agar collapsed bo'lsa, ochish
+        setCollapsed?.(false);
+      } else {
+        // Agar ochiq bo'lsa va mobile'da bo'lsak, mobile overlay'ni ochish
+        setMobileOpen(true);
+      }
     };
     return () => {
       delete (window as any).toggleSidebar;
     };
-  }, [setCollapsed]);
+  }, [setCollapsed, collapsed]);
 
   return (
     <>

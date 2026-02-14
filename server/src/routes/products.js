@@ -355,12 +355,24 @@ router.get('/', auth, async (req, res) => {
       query.quantity = { $gt: 0, $lte: 50 };
     }
 
-    // ⚡ KASSA VIEW - ULTRA MINIMAL - faqat kerakli fieldlar
+    // ⚡ KASSA VIEW - ULTRA MINIMAL + PAGINATION
     if (kassaView === 'true') {
-      const products = await Product.find(query)
-        .select('name code price unitPrice quantity images category section prices')
-        .lean();
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 50; // 50 ta mahsulot
+      const skip = (pageNum - 1) * limitNum;
+      
+      // Parallel query - tezroq
+      const [products, total] = await Promise.all([
+        Product.find(query)
+          .select('name code price unitPrice quantity images category section prices')
+          .skip(skip)
+          .limit(limitNum)
+          .lean()
+          .hint({ code: 1 }), // Index ishlatish
+        Product.countDocuments(query)
+      ]);
 
+      // Raqamli sort - JavaScript'da
       products.sort((a, b) => {
         const codeA = parseInt(a.code) || 999999;
         const codeB = parseInt(b.code) || 999999;
@@ -370,10 +382,19 @@ router.get('/', auth, async (req, res) => {
         return codeA - codeB;
       });
 
-      res.set('Cache-Control', 'public, max-age=60');
+      res.set('Cache-Control', 'public, max-age=60'); // 1 daqiqa cache
       res.set('X-Content-Type-Options', 'nosniff');
       
-      return res.json(products);
+      return res.json({
+        products,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+          hasMore: pageNum < Math.ceil(total / limitNum)
+        }
+      });
     }
 
     // ⚡ PAGINATION - Admin uchun

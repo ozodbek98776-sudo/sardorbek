@@ -59,8 +59,8 @@ export default function UniversalPageHeader({
             ) : onMenuToggle ? (
               <button
                 onClick={onMenuToggle}
-                className="lg:hidden p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 shadow-md"
-                title="Menyuni ochish"
+                className="p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 shadow-md"
+                title="Menyuni ochish/yopish"
               >
                 <Menu className="w-5 h-5" />
               </button>

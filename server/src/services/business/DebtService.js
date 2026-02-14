@@ -391,6 +391,9 @@ class DebtService extends BaseService {
             paid: {
               $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] }
             },
+            blacklist: {
+              $sum: { $cond: [{ $eq: ['$status', 'blacklist'] }, 1, 0] }
+            },
             overdue: {
               $sum: { 
                 $cond: [
@@ -434,6 +437,7 @@ class DebtService extends BaseService {
         approved: 0,
         pendingApproval: 0,
         paid: 0,
+        blacklist: 0,
         overdue: 0,
         todayDue: 0,
         totalAmount: 0,

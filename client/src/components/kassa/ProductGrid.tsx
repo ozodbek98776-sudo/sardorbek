@@ -27,22 +27,6 @@ export function ProductGrid({
   hasMore = false
 }: ProductGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [displayCount, setDisplayCount] = useState(20); // Birinchi 20 ta
-  
-  // Mahsulotlarni kategoriya bo'yicha guruhlash
-  const productsByCategory = useMemo(() => {
-    const grouped: Record<string, Product[]> = {};
-    
-    products.forEach(product => {
-      const category = product.category || 'Boshqa';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(product);
-    });
-    
-    return grouped;
-  }, [products]);
   
   // Kategoriya va bo'lim bo'yicha filtrlangan mahsulotlar
   const filteredProducts = useMemo(() => {
@@ -53,7 +37,7 @@ export function ProductGrid({
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
     
-    // Bo'lim filtri (section field mahsulotda bo'lishi kerak)
+    // Bo'lim filtri
     if (selectedSection) {
       filtered = filtered.filter(p => (p as any).section === selectedSection);
     }
@@ -61,34 +45,12 @@ export function ProductGrid({
     return filtered;
   }, [products, selectedCategory, selectedSection]);
   
-  const displayedProducts = filteredProducts.slice(0, displayCount);
-  
-  // Infinite scroll - 10 tadan yuklash
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      if (scrollHeight - scrollTop <= clientHeight * 1.5 && displayCount < filteredProducts.length) {
-        setDisplayCount(prev => Math.min(prev + 10, filteredProducts.length)); // +10 ta
-      }
-    };
-    
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [displayCount, filteredProducts.length]);
-  
-  // Kategoriya o'zgarganda display count ni reset qilish
-  useEffect(() => {
-    setDisplayCount(20);
-  }, [selectedCategory]);
-  
   if (!selectedCategory) {
     // Barchasi - oddiy vertical grid (kategoriyasiz)
     return (
       <div 
         ref={containerRef}
+        data-testid="products-grid"
         className="max-h-[calc(100vh-250px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar pb-32"
       >
         {products.length === 0 ? (
@@ -104,17 +66,33 @@ export function ProductGrid({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 pb-16">
-            {displayedProducts.map(product => (
-              <ProductCard
-                key={product._id}
-                product={product}
-                onClick={() => onProductClick(product)}
-                onCategoryClick={() => onCategoryClick(product)}
-                onQRPrint={() => onQRPrint(product)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 pb-4">
+              {filteredProducts.map(product => (
+                <ProductCard
+                  key={product._id}
+                  product={product}
+                  onClick={() => onProductClick(product)}
+                  onCategoryClick={() => onCategoryClick(product)}
+                  onQRPrint={() => onQRPrint(product)}
+                />
+              ))}
+            </div>
+            
+            {/* Infinite scroll trigger */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-8 flex items-center justify-center">
+                {loadingMore ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-500"></div>
+                    <p className="text-slate-600 text-sm font-medium">Yuklanmoqda...</p>
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-sm">Scroll qiling...</p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     );
@@ -124,9 +102,10 @@ export function ProductGrid({
   return (
     <div 
       ref={containerRef}
+      data-testid="products-grid"
       className="max-h-[calc(100vh-250px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar pb-32"
     >
-      {displayedProducts.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4">
           <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4">
             <Package2 className="w-10 h-10 text-slate-400" />
@@ -145,31 +124,33 @@ export function ProductGrid({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 pb-16">
-          {displayedProducts.map(product => (
-            <ProductCard
-              key={product._id}
-              product={product}
-              onClick={() => onProductClick(product)}
-              onCategoryClick={() => onCategoryClick(product)}
-              onQRPrint={() => onQRPrint(product)}
-            />
-          ))}
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4 pb-4">
+            {filteredProducts.map(product => (
+              <ProductCard
+                key={product._id}
+                product={product}
+                onClick={() => onProductClick(product)}
+                onCategoryClick={() => onCategoryClick(product)}
+                onQRPrint={() => onQRPrint(product)}
+              />
+            ))}
+          </div>
           
-          {/* Loading more indicator */}
-          {loadingMore && (
-            <div className="col-span-full flex justify-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+          {/* Infinite scroll trigger */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="py-8 flex items-center justify-center">
+              {loadingMore ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-500"></div>
+                  <p className="text-slate-600 text-sm font-medium">Yuklanmoqda...</p>
+                </div>
+              ) : (
+                <p className="text-slate-400 text-sm">Scroll qiling...</p>
+              )}
             </div>
           )}
-        </div>
-      )}
-      
-      {/* Infinite scroll trigger */}
-      {hasMore && !loadingMore && loadMoreRef && (
-        <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
-          <p className="text-slate-400 text-sm">Scroll qiling...</p>
-        </div>
+        </>
       )}
     </div>
   );

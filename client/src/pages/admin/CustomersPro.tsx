@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { 
   Plus, Users, X, Phone, Edit, Trash2, MapPin, Search, DollarSign, 
@@ -16,6 +16,9 @@ export default function CustomersPro() {
   const { showConfirm, showAlert, AlertComponent } = useAlert();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [selectedCustomerStats, setSelectedCustomerStats] = useState<any>(null);
@@ -28,8 +31,106 @@ export default function CustomersPro() {
   const [filterDistrict, setFilterDistrict] = useState('');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'debt' | 'purchases'>('name');
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { fetchCustomers(); }, []);
+  // Fetch customers with pagination support
+  const fetchCustomers = useCallback(async (pageNum: number = 1, append: boolean = false) => {
+    try {
+      if (!append) {
+        setLoading(true);
+        console.log('📦 Loading customers page:', pageNum);
+      } else {
+        setLoadingMore(true);
+        console.log('📦 Loading more customers, page:', pageNum);
+      }
+
+      const res = await api.get(`/customers?page=${pageNum}&limit=50`);
+      
+      let customersData = [];
+      let paginationData = null;
+      
+      if (res.data && res.data.success && res.data.data) {
+        // New format: { success: true, data: { data: [...], pagination: {...} } }
+        customersData = Array.isArray(res.data.data.data) ? res.data.data.data : [];
+        paginationData = res.data.data.pagination;
+      } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
+        // Format: { data: [...], pagination: {...} }
+        customersData = res.data.data;
+        paginationData = res.data.pagination;
+      } else if (Array.isArray(res.data)) {
+        // Old format: direct array
+        customersData = res.data;
+      } else {
+        console.warn('Unexpected customers API response format:', res.data);
+        customersData = [];
+      }
+      
+      console.log('✅ Loaded customers:', customersData.length, 'Pagination:', paginationData);
+      
+      if (append) {
+        setCustomers(prev => [...prev, ...customersData]);
+      } else {
+        setCustomers(customersData);
+      }
+      
+      // Update pagination state
+      if (paginationData) {
+        setHasMore(paginationData.hasMore || false);
+        setCurrentPage(paginationData.page || pageNum);
+      } else {
+        // If no pagination data, assume no more pages
+        setHasMore(false);
+      }
+    } catch (err) { 
+      console.error('Error fetching customers:', err);
+      showAlert('Mijozlarni yuklashda xatolik', 'Xatolik', 'danger');
+      setCustomers(append ? customers : []);
+      setHasMore(false);
+    } finally { 
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [showAlert]);
+
+  // Load more customers
+  const loadMoreCustomers = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      const nextPage = currentPage + 1;
+      console.log('🔄 Loading more customers, next page:', nextPage);
+      fetchCustomers(nextPage, true);
+    }
+  }, [loadingMore, hasMore, loading, currentPage, fetchCustomers]);
+
+  // Initial load
+  useEffect(() => { 
+    fetchCustomers(1, false); 
+  }, [fetchCustomers]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (loading || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          console.log('🔍 Reached bottom, loading more customers...');
+          loadMoreCustomers();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, hasMore, loadingMore, loadMoreCustomers]);
 
   useEffect(() => {
     if (showModal || showStatsModal) {
@@ -48,37 +149,6 @@ export default function CustomersPro() {
     }
   }, [showModal, showStatsModal]);
 
-  const fetchCustomers = async () => {
-    try {
-      const res = await api.get('/customers');
-      // Handle both old format (direct array) and new format (wrapped in success object)
-      let customersData = [];
-      
-      if (res.data && res.data.success && res.data.data) {
-        // New format: { success: true, data: { data: [...], pagination: {...} } }
-        customersData = Array.isArray(res.data.data.data) ? res.data.data.data : [];
-      } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
-        // Format: { data: [...], pagination: {...} }
-        customersData = res.data.data;
-      } else if (Array.isArray(res.data)) {
-        // Old format: direct array
-        customersData = res.data;
-      } else {
-        console.warn('Unexpected customers API response format:', res.data);
-        customersData = [];
-      }
-      
-      setCustomers(customersData);
-    } catch (err) { 
-      console.error('Error fetching customers:', err);
-      showAlert('Mijozlarni yuklashda xatolik', 'Xatolik', 'danger');
-      // Set empty array on error
-      setCustomers([]);
-    } finally { 
-      setLoading(false); 
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -94,7 +164,11 @@ export default function CustomersPro() {
         await api.post('/customers', data);
         showAlert('Mijoz qo\'shildi', 'Muvaffaqiyat', 'success');
       }
-      fetchCustomers();
+      // Reset and reload from page 1
+      setCustomers([]);
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchCustomers(1, false);
       closeModal();
     } catch (err) { 
       console.error(err);
@@ -439,6 +513,25 @@ export default function CustomersPro() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Infinite Scroll Loading Indicator */}
+        {!loading && hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center py-8">
+            {loadingMore && (
+              <div className="flex items-center gap-3 text-brand-600">
+                <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin" />
+                <span className="text-sm font-medium">Yuklanmoqda...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* End of List Indicator */}
+        {!loading && !hasMore && customers.length > 0 && (
+          <div className="flex justify-center py-6">
+            <p className="text-sm text-slate-500">Barcha mijozlar yuklandi</p>
           </div>
         )}
       </div>

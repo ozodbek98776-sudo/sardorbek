@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { 
   Plus, AlertTriangle, X, DollarSign, Calendar, User, 
@@ -27,6 +27,9 @@ export default function Debts() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [debtType, setDebtType] = useState<'receivable' | 'payable'>('receivable');
   const [modalDebtType, setModalDebtType] = useState<'receivable' | 'payable'>('receivable');
   const [formData, setFormData] = useState({ 
@@ -39,26 +42,34 @@ export default function Debts() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', region: '', district: '' });
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchDebts();
-    fetchCustomers();
-    fetchStats();
-  }, [debtType]);
-
-  // Modal scroll lock
-  useModalScrollLock(showModal || showPaymentModal);
-
-  const fetchDebts = async () => {
+  // Fetch debts with pagination support
+  const fetchDebts = useCallback(async (pageNum: number = 1, append: boolean = false) => {
     try {
-      const res = await api.get(`/debts?type=${debtType}`);
+      if (!append) {
+        setLoading(true);
+        console.log('📦 Loading debts page:', pageNum);
+      } else {
+        setLoadingMore(true);
+        console.log('📦 Loading more debts, page:', pageNum);
+      }
+
+      const res = await api.get(`/debts?type=${debtType}&page=${pageNum}&limit=50`);
       
-      // Handle response format from serviceWrapper
       let debtsData = [];
+      let paginationData = null;
       
-      if (res.data && res.data.success && Array.isArray(res.data.data)) {
-        // ServiceWrapper format: { success: true, data: [...] }
-        debtsData = res.data.data;
+      if (res.data && res.data.success && res.data.data) {
+        // ServiceWrapper format with pagination: { success: true, data: { data: [...], pagination: {...} } }
+        if (Array.isArray(res.data.data.data)) {
+          debtsData = res.data.data.data;
+          paginationData = res.data.data.pagination;
+        } else if (Array.isArray(res.data.data)) {
+          // ServiceWrapper format without pagination: { success: true, data: [...] }
+          debtsData = res.data.data;
+        }
       } else if (Array.isArray(res.data)) {
         // Direct array format (fallback)
         debtsData = res.data;
@@ -67,7 +78,22 @@ export default function Debts() {
         debtsData = [];
       }
       
-      setDebts(debtsData);
+      console.log('✅ Loaded debts:', debtsData.length, 'Pagination:', paginationData);
+      
+      if (append) {
+        setDebts(prev => [...prev, ...debtsData]);
+      } else {
+        setDebts(debtsData);
+      }
+      
+      // Update pagination state
+      if (paginationData) {
+        setHasMore(paginationData.hasMore || false);
+        setCurrentPage(paginationData.page || pageNum);
+      } else {
+        // If no pagination data, assume no more pages
+        setHasMore(false);
+      }
     } catch (err) { 
       console.error('Error fetching debts:', err);
       showAlert(
@@ -75,11 +101,60 @@ export default function Debts() {
         'Xatolik', 
         'danger'
       );
-      setDebts([]);
+      setDebts(append ? debts : []);
+      setHasMore(false);
     } finally { 
-      setLoading(false); 
+      setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [debtType, showAlert]);
+
+  // Load more debts
+  const loadMoreDebts = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      const nextPage = currentPage + 1;
+      console.log('🔄 Loading more debts, next page:', nextPage);
+      fetchDebts(nextPage, true);
+    }
+  }, [loadingMore, hasMore, loading, currentPage, fetchDebts]);
+
+  // Initial load and when debtType changes
+  useEffect(() => {
+    setDebts([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchDebts(1, false);
+    fetchCustomers();
+    fetchStats();
+  }, [debtType, fetchDebts]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (loading || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          console.log('🔍 Reached bottom, loading more debts...');
+          loadMoreDebts();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, hasMore, loadingMore, loadMoreDebts]);
+
+  // Modal scroll lock
+  useModalScrollLock(showModal || showPaymentModal);
 
   const fetchCustomers = async () => {
     try {
@@ -119,8 +194,20 @@ export default function Debts() {
   const fetchStats = async () => {
     try {
       const res = await api.get(`/debts/stats?type=${debtType}`);
-      setStats(res.data);
-    } catch (err) { console.error('Error fetching stats:', err); }
+      
+      // Handle response format from serviceWrapper
+      let statsData = res.data;
+      
+      if (res.data && res.data.success && res.data.data) {
+        // ServiceWrapper format: { success: true, data: {...} }
+        statsData = res.data.data;
+      }
+      
+      console.log('📊 Stats loaded:', statsData);
+      setStats(statsData);
+    } catch (err) { 
+      console.error('Error fetching stats:', err); 
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,7 +257,11 @@ export default function Debts() {
         showAlert('Qarz muvaffaqiyatli qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       
-      fetchDebts();
+      // Reset and reload from page 1
+      setDebts([]);
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchDebts(1, false);
       fetchStats();
       closeModal();
     } catch (err: any) { 
@@ -188,7 +279,11 @@ export default function Debts() {
         amount: Number(paymentAmount),
         method: 'cash'
       });
-      fetchDebts();
+      // Reset and reload from page 1
+      setDebts([]);
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchDebts(1, false);
       fetchStats();
       setShowPaymentModal(false);
       setSelectedDebt(null);
@@ -261,11 +356,46 @@ export default function Debts() {
   });
 
   const statItems = [
-    { label: 'AKTIV', value: stats.approved, icon: CheckCircle2, color: 'success', filter: 'approved' },
-    { label: "QORA RO'YXAT", value: stats.blacklist, icon: AlertTriangle, color: 'danger', filter: 'blacklist' },
-    { label: "MUDDATI O'TGAN", value: stats.overdue, icon: AlertCircle, color: 'danger', filter: 'overdue' },
-    { label: "TO'LANGAN (ARXIV)", value: stats.paid, icon: CheckCircle2, color: 'info', filter: 'archive' },
-    { label: 'JAMI QARZ', value: `${formatNumber(stats.totalAmount)} so'm`, icon: Wallet, color: 'accent', filter: null },
+    { 
+      label: 'AKTIV', 
+      count: stats.approved || 0, 
+      amount: null,
+      icon: CheckCircle2, 
+      color: 'success', 
+      filter: 'approved' 
+    },
+    { 
+      label: "QORA RO'YXAT", 
+      count: stats.blacklist || 0, 
+      amount: null,
+      icon: AlertTriangle, 
+      color: 'danger', 
+      filter: 'blacklist' 
+    },
+    { 
+      label: "MUDDATI O'TGAN", 
+      count: stats.overdue || 0, 
+      amount: null,
+      icon: AlertCircle, 
+      color: 'danger', 
+      filter: 'overdue' 
+    },
+    { 
+      label: "TO'LANGAN (ARXIV)", 
+      count: stats.paid || 0, 
+      amount: null,
+      icon: CheckCircle2, 
+      color: 'info', 
+      filter: 'archive' 
+    },
+    { 
+      label: 'JAMI QARZ', 
+      count: stats.total || 0,
+      amount: stats.totalAmount || 0,
+      icon: Wallet, 
+      color: 'accent', 
+      filter: null 
+    },
   ];
 
   const getDebtorName = (debt: Debt) => {
@@ -434,8 +564,21 @@ export default function Debts() {
                     stat.color === 'accent' ? 'from-purple-600 to-violet-600' :
                     'from-blue-600 to-sky-600'
                   } bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500 origin-left`}>
-                    {stat.value}
+                    {stat.count ?? 0}
                   </h3>
+                  
+                  {/* Amount (if exists) */}
+                  {stat.amount !== null && stat.amount !== undefined && (
+                    <p className={`text-sm font-bold ${
+                      stat.color === 'success' ? 'text-emerald-600' :
+                      stat.color === 'danger' ? 'text-red-600' :
+                      stat.color === 'info' ? 'text-blue-600' :
+                      stat.color === 'accent' ? 'text-purple-600' :
+                      'text-blue-600'
+                    }`}>
+                      {formatNumber(stat.amount)} so'm
+                    </p>
+                  )}
                   
                   {/* Label with Better Typography */}
                   <p className="text-xs text-slate-600 font-bold uppercase tracking-wider">
@@ -740,6 +883,25 @@ export default function Debts() {
                   );
                 })}
               </div>
+
+              {/* Infinite Scroll Loading Indicator */}
+              {!loading && hasMore && (
+                <div ref={loadMoreRef} className="flex justify-center py-8">
+                  {loadingMore && (
+                    <div className="flex items-center gap-3 text-brand-600">
+                      <div className="w-8 h-8 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin" />
+                      <span className="text-sm font-medium">Yuklanmoqda...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* End of List Indicator */}
+              {!loading && !hasMore && debts.length > 0 && (
+                <div className="flex justify-center py-6">
+                  <p className="text-sm text-slate-500">Barcha qarzlar yuklandi</p>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -19,12 +19,12 @@ export function KassaHeader({
         <div className="flex items-center justify-between gap-3">
           {/* Left: Hamburger + Title */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Hamburger Button - faqat mobile'da */}
+            {/* Hamburger Button - mobile va desktop'da */}
             {onMenuOpen && (
               <button 
                 onClick={onMenuOpen}
-                className="lg:hidden p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 shadow-md"
-                title="Menyuni ochish"
+                className="p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 shadow-md"
+                title="Menyuni ochish/yopish"
               >
                 <Menu className="w-5 h-5" />
               </button>

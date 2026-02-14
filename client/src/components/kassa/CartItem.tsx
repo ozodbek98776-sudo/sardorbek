@@ -26,7 +26,10 @@ export function CartItem({
   };
   
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 hover:border-brand-300 transition-all">
+    <div 
+      data-testid="cart-item"
+      className="bg-slate-50 border border-slate-200 rounded-lg p-2 hover:border-brand-300 transition-all"
+    >
       {/* Single Row Layout */}
       <div className="flex items-center gap-2">
         {/* Name - Flexible */}

@@ -45,17 +45,23 @@ router.get('/', auth, serviceWrapper(async (req, res) => {
     status: req.query.status,
     type: req.query.type
   };
-  console.log('📊 Debts GET request - filters:', filters);
+  const pagination = {
+    page: parseInt(req.query.page) || 1,
+    limit: parseInt(req.query.limit) || 50
+  };
+  
+  console.log('📊 Debts GET request - filters:', filters, 'pagination:', pagination);
   console.log('📊 User:', req.user);
   
-  const result = await debtService.getDebts(filters);
+  const result = await debtService.getDebts(filters, pagination);
   console.log('📊 Debts result:', {
     dataLength: result.data?.length,
     totalCount: result.pagination?.total,
+    hasMore: result.pagination?.hasMore,
     firstItem: result.data?.[0]
   });
   
-  return result.data; // Return only the data array for backward compatibility
+  return result; // Return full result with pagination
 }));
 
 router.get('/stats', auth, serviceWrapper(async (req, res) => {

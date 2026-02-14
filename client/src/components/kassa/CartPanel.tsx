@@ -30,7 +30,9 @@ export function CartPanel({
   const [isExpanded, setIsExpanded] = useState(false);
   
   return (
-    <div className={`bg-white ${isModal ? 'rounded-2xl' : 'rounded-t-2xl lg:rounded-xl'} border border-slate-200 shadow-lg overflow-hidden flex flex-col ${isModal ? 'h-full' : 'max-h-[60vh] lg:h-full lg:max-h-full'}`}>
+    <div className={`bg-white ${isModal ? 'rounded-2xl' : 'rounded-t-2xl lg:rounded-xl'} border border-slate-200 shadow-lg overflow-hidden flex flex-col ${isModal ? 'h-full' : 'max-h-[60vh] lg:h-full lg:max-h-full'}`}
+      data-testid="cart-panel"
+    >
       {/* Mobile: Collapsible Header - faqat modal bo'lmasa */}
       {!isModal && (
         <button
@@ -39,7 +41,7 @@ export function CartPanel({
         >
           <div className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-white" />
-            <span className="text-sm font-bold text-white">
+            <span className="text-sm font-bold text-white" data-testid="cart-count">
               Savat ({itemCount})
             </span>
           </div>
@@ -61,7 +63,7 @@ export function CartPanel({
       <div className={`${isModal ? 'flex' : 'hidden lg:flex'} bg-gradient-to-r from-brand-500 to-brand-600 px-4 py-3 items-center justify-between`}>
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <ShoppingCart className="w-5 h-5" />
-          Savat ({itemCount})
+          <span data-testid="cart-count">Savat ({itemCount})</span>
         </h2>
         
         {cart.length > 0 && (
@@ -104,7 +106,7 @@ export function CartPanel({
           {/* Total - Desktop only (mobile shows in header) */}
           <div className="hidden lg:flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-700">Jami:</span>
-            <span className="text-xl font-bold text-brand-600">
+            <span className="text-xl font-bold text-brand-600" data-testid="cart-total">
               {formatNumber(total)} <span className="text-sm">so'm</span>
             </span>
           </div>

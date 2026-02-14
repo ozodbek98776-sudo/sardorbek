@@ -18,8 +18,15 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "test:health-check": "playwright test e2e/00-full-stack-health-check.spec.ts",
-    "test:health-check:headed": "playwright test e2e/00-full-stack-health-check.spec.ts --headed"
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:kassa": "playwright test e2e/01-kassa-happy-path.spec.ts e2e/02-kassa-edge-cases.spec.ts e2e/03-kassa-customer-debt.spec.ts",
+    "test:e2e:kassa:happy": "playwright test e2e/01-kassa-happy-path.spec.ts",
+    "test:e2e:kassa:edge": "playwright test e2e/02-kassa-edge-cases.spec.ts",
+    "test:e2e:kassa:customer": "playwright test e2e/03-kassa-customer-debt.spec.ts",
+    "test:e2e:kassa:ui": "playwright test e2e/04-kassa-ui-ux.spec.ts",
+    "test:e2e:kassa:perf": "playwright test e2e/05-kassa-performance.spec.ts",
+    "test:e2e:kassa:api": "playwright test e2e/06-kassa-api.spec.ts",
+    "test:e2e:analyze": "node e2e/analyze-results.js"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

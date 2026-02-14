@@ -73,6 +73,116 @@ export default function KassaProNew() {
   
   const itemCount = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
   
+  // Fetch functions - oldinroq e'lon qilish
+  const fetchProducts = useCallback(async (pageNum = 1, append = false) => {
+    try {
+      console.log(`📦 Mahsulotlar yuklanmoqda... Sahifa: ${pageNum}`);
+      
+      if (navigator.onLine) {
+        // Backend'dan pagination bilan olish
+        const res = await api.get(`/products?kassaView=true&page=${pageNum}&limit=50`);
+        
+        // Yangi format: { products: [...], pagination: {...} }
+        let productsData = [];
+        let paginationData = null;
+        
+        if (res.data.products && Array.isArray(res.data.products)) {
+          // Yangi format
+          productsData = res.data.products;
+          paginationData = res.data.pagination;
+        } else if (Array.isArray(res.data)) {
+          // Eski format (barcha mahsulotlar)
+          productsData = res.data;
+        }
+        
+        // Narxlarni to'g'ri formatga keltirish
+        const normalizedProducts = productsData.map((product: any) => {
+          const price = Array.isArray(product.prices) && product.prices.length > 0
+            ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
+            : (product.unitPrice || product.price || 0);
+          
+          return {
+            ...product,
+            price
+          };
+        });
+        
+        if (append) {
+          // Qo'shimcha mahsulotlarni qo'shish (infinite scroll)
+          setAllProducts(prev => [...prev, ...normalizedProducts]);
+          setProducts(prev => [...prev, ...normalizedProducts]);
+          setDisplayedProducts(prev => [...prev, ...normalizedProducts]);
+        } else {
+          // Birinchi yuklash
+          setAllProducts(normalizedProducts);
+          setProducts(normalizedProducts);
+          setDisplayedProducts(normalizedProducts);
+          
+          // Cache'ga saqlash (faqat birinchi sahifa)
+          cacheProducts(normalizedProducts).catch(err => 
+            console.warn('Cache saqlashda xato:', err)
+          );
+        }
+        
+        // Pagination ma'lumotlarini saqlash
+        if (paginationData) {
+          setPage(paginationData.page);
+          setHasMore(paginationData.hasMore);
+          console.log(`✅ Yuklandi: ${normalizedProducts.length} ta mahsulot. Yana bor: ${paginationData.hasMore}`);
+        } else {
+          // Eski format - barcha mahsulotlar yuklangan
+          setPage(1);
+          setHasMore(false);
+          console.log(`✅ Yuklandi: ${normalizedProducts.length} ta mahsulot (barcha)`);
+        }
+      } else {
+        // Offline - cache'dan olish
+        const cached = await getCachedProducts();
+        const cachedData = cached as Product[];
+        
+        setAllProducts(cachedData);
+        setProducts(cachedData);
+        setDisplayedProducts(cachedData);
+        setPage(1);
+        setHasMore(false);
+        
+        console.log(`📦 Cache'dan yuklandi: ${cachedData.length} ta mahsulot`);
+      }
+    } catch (err) {
+      console.error('❌ Mahsulotlarni yuklashda xato:', err);
+      
+      // Xato bo'lsa cache'dan olish
+      try {
+        const cached = await getCachedProducts();
+        if (cached.length > 0) {
+          const cachedData = cached as Product[];
+          setAllProducts(cachedData);
+          setProducts(cachedData);
+          setDisplayedProducts(cachedData);
+          setPage(1);
+          setHasMore(false);
+          
+          console.log(`📦 Xato, cache'dan yuklandi: ${cachedData.length} ta mahsulot`);
+        }
+      } catch (cacheErr) {
+        console.error('❌ Cache xatosi:', cacheErr);
+      }
+    }
+  }, []);
+  
+  // loadMoreProducts funksiyasini oldinroq e'lon qilish
+  const loadMoreProducts = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    
+    console.log(`⬇️ Qo'shimcha mahsulotlar yuklanmoqda... Sahifa: ${page + 1}`);
+    setLoadingMore(true);
+    
+    // Backend'dan keyingi sahifani olish
+    fetchProducts(page + 1, true).finally(() => {
+      setLoadingMore(false);
+    });
+  }, [loadingMore, hasMore, page, fetchProducts]);
+  
   // Infinite scroll observer (OPTIMIZED)
   useEffect(() => {
     if (!hasMore || loadingMore) return;
@@ -80,10 +190,11 @@ export default function KassaProNew() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
+          console.log('👀 Scroll pastga yetdi, yangi mahsulotlar yuklanmoqda...');
           loadMoreProducts();
         }
       },
-      { threshold: 0.1, rootMargin: '100px' } // 100px oldindan yuklash
+      { threshold: 0.1, rootMargin: '200px' } // 200px oldindan yuklash
     );
 
     if (loadMoreRef.current) {
@@ -91,29 +202,7 @@ export default function KassaProNew() {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, page, allProducts.length]);
-
-  const loadMoreProducts = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    
-    setLoadingMore(true);
-    
-    // Keyingi 20 ta tovarni qo'shish (10 dan ko'proq)
-    const nextPage = page + 1;
-    const startIndex = page * 20;
-    const endIndex = startIndex + 20;
-    const nextProducts = allProducts.slice(startIndex, endIndex);
-    
-    if (nextProducts.length > 0) {
-      setDisplayedProducts(prev => [...prev, ...nextProducts]);
-      setPage(nextPage);
-      setHasMore(endIndex < allProducts.length);
-    } else {
-      setHasMore(false);
-    }
-    
-    setLoadingMore(false);
-  }, [loadingMore, hasMore, page, allProducts]);
+  }, [hasMore, loadingMore, loadMoreProducts]);
   
   // Fetch data
   useEffect(() => {
@@ -147,68 +236,6 @@ export default function KassaProNew() {
     };
   }, [socket]);
   
-  // Fetch functions
-  const fetchProducts = async () => {
-    try {
-      if (navigator.onLine) {
-        const res = await api.get('/products?kassaView=true');
-        const productsData = Array.isArray(res.data) ? res.data : [];
-        
-        // Narxlarni to'g'ri formatga keltirish (OPTIMIZED - faqat 1 marta)
-        const normalizedProducts = productsData.map((product: any) => {
-          // Agar prices array mavjud bo'lsa, undan narxni olish
-          const price = Array.isArray(product.prices) && product.prices.length > 0
-            ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
-            : (product.unitPrice || product.price || 0);
-          
-          return {
-            ...product,
-            price
-          };
-        });
-        
-        setAllProducts(normalizedProducts);
-        setProducts(normalizedProducts);
-        
-        // Birinchi 20 ta tovarni ko'rsatish (10 dan ko'proq)
-        setDisplayedProducts(normalizedProducts.slice(0, 20));
-        setPage(1);
-        setHasMore(normalizedProducts.length > 20);
-        
-        // Cache'ga saqlash (async, blocking emas)
-        cacheProducts(normalizedProducts).catch(err => 
-          console.warn('Cache saqlashda xato:', err)
-        );
-      } else {
-        // Offline - cache'dan olish
-        const cached = await getCachedProducts();
-        const cachedData = cached as Product[];
-        
-        setAllProducts(cachedData);
-        setProducts(cachedData);
-        setDisplayedProducts(cachedData.slice(0, 20));
-        setPage(1);
-        setHasMore(cachedData.length > 20);
-      }
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      
-      // Xato bo'lsa cache'dan olish
-      try {
-        const cached = await getCachedProducts();
-        if (cached.length > 0) {
-          const cachedData = cached as Product[];
-          setAllProducts(cachedData);
-          setProducts(cachedData);
-          setDisplayedProducts(cachedData.slice(0, 20));
-          setPage(1);
-          setHasMore(cachedData.length > 20);
-        }
-      } catch (cacheErr) {
-        console.error('Cache xatosi:', cacheErr);
-      }
-    }
-  };
   
   const fetchCustomers = async () => {
     try {
