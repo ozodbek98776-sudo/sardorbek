@@ -523,3 +523,19 @@ export const hasProductsCache = async (): Promise<boolean> => {
   const products = await getCachedProducts();
   return products.length > 0;
 };
+
+/**
+ * Clear all cached products
+ */
+export const clearProductsCache = async (): Promise<void> => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction(['products'], 'readwrite');
+    const store = transaction.objectStore('products');
+    await store.clear();
+    console.log('✅ Mahsulotlar cache tozalandi');
+  } catch (error) {
+    console.error('❌ Cache tozalashda xato:', error);
+    throw error;
+  }
+};

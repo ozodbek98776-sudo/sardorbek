@@ -9,7 +9,8 @@ import { useSocket } from '../../hooks/useSocket';
 import { formatNumber } from '../../utils/format';
 import { 
   cacheProducts, 
-  getCachedProducts
+  getCachedProducts,
+  clearProductsCache
 } from '../../utils/indexedDbService';
 
 // Yangi komponentlar
@@ -21,6 +22,7 @@ import { ProductGrid } from '../../components/kassa/ProductGrid';
 import { CartPanel } from '../../components/kassa/CartPanel';
 import { PaymentModal, PaymentData } from '../../components/kassa/PaymentModal';
 import { SavedReceiptsModal } from '../../components/kassa/SavedReceiptsModal';
+import { ReceiptPrintModal } from '../../components/kassa/ReceiptPrintModal';
 import { ProductDetailModal } from '../../components/kassa/ProductDetailModal';
 import { DebtPaymentModal } from '../../components/kassa/DebtPaymentModal';
 
@@ -60,6 +62,8 @@ export default function KassaProNew() {
   // Modals
   const [showPayment, setShowPayment] = useState(false);
   const [showSavedReceipts, setShowSavedReceipts] = useState(false);
+  const [showReceiptPrint, setShowReceiptPrint] = useState(false);
+  const [currentReceipt, setCurrentReceipt] = useState<any>(null);
   const [showDebtPayment, setShowDebtPayment] = useState(false);
   const [showProductDetail, setShowProductDetail] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false); // Mobile cart modal
@@ -207,6 +211,10 @@ export default function KassaProNew() {
   // Fetch data
   useEffect(() => {
     console.log('🚀 KassaPro useEffect - ma\'lumotlar yuklanmoqda...');
+    
+    // Cache'ni tozalash - tovarlar sahifasida tahrirlangan ma'lumotlarni ko'rish uchun
+    clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
+    
     fetchProducts();
     fetchCustomers();
     fetchHelperReceipts();
@@ -435,17 +443,21 @@ export default function KassaProNew() {
       const response = await api.post('/receipts', saleData);
       console.log('✅ Server javobi:', response.data);
       
+      // Save receipt data
+      const receiptData = response.data.data || response.data;
+      setCurrentReceipt(receiptData);
+      
       // Clear cart
       setCart([]);
       setShowPayment(false);
+      
+      // Show receipt print modal
+      setShowReceiptPrint(true);
+      
       fetchProducts();
       
       if (debtAmount > 0 && customer) {
         showAlert(`To'lov qabul qilindi! Qarz: ${debtAmount} so'm`, 'Muvaffaqiyat', 'success');
-        // Qarzdaftarcha sahifasiga o'tish
-        setTimeout(() => {
-          navigate('/admin/debts');
-        }, 1500);
       } else {
         showAlert('Chek saqlandi!', 'Muvaffaqiyat', 'success');
       }
@@ -743,6 +755,13 @@ export default function KassaProNew() {
           localStorage.setItem('savedReceipts', JSON.stringify(updated));
           showAlert('Chek o\'chirildi', 'Ma\'lumot', 'info');
         }}
+      />
+      
+      {/* Receipt Print Modal */}
+      <ReceiptPrintModal
+        isOpen={showReceiptPrint}
+        onClose={() => setShowReceiptPrint(false)}
+        receipt={currentReceipt}
       />
       
       {/* Debt Payment Modal */}
