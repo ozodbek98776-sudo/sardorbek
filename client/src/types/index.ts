@@ -55,6 +55,7 @@ export interface Product {
   warehouse: string | { _id: string; name: string };
   isMainWarehouse?: boolean;
   category?: string;
+  subcategory?: string;
   image?: string;
   images?: (string | ProductImage)[];
   minStock?: number;

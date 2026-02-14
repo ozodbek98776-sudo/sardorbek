@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Package2, ShoppingCart } from 'lucide-react';
 import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
@@ -12,6 +12,40 @@ interface ProductDetailModalProps {
   onAddToCart: (product: Product, quantity: number) => void;
 }
 
+// Discount hisoblash funksiyasi
+const calculateDiscountedPrice = (product: Product, quantity: number): { price: number; discount?: { percent: number; minQuantity: number } } => {
+  const basePrice = product.price || 0;
+  
+  // Prices array-dan discount-larni olish
+  const prices = (product as any).prices;
+  
+  // Agar prices array bo'lmasa, base price qaytarish
+  if (!Array.isArray(prices) || prices.length === 0) {
+    return { price: basePrice };
+  }
+  
+  const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+  
+  if (discounts.length === 0) {
+    return { price: basePrice };
+  }
+  
+  // Eng katta discount-ni olish (eng ko'p miqdor uchun)
+  const bestDiscount = discounts.reduce((best: any, current: any) => 
+    current.minQuantity > best.minQuantity ? current : best
+  );
+  
+  const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
+  
+  return {
+    price: discountedPrice,
+    discount: {
+      percent: bestDiscount.discountPercent || 0,
+      minQuantity: bestDiscount.minQuantity
+    }
+  };
+};
+
 export function ProductDetailModal({ 
   isOpen, 
   onClose, 
@@ -19,9 +53,20 @@ export function ProductDetailModal({
   onAddToCart
 }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
+  const [discountedPrice, setDiscountedPrice] = useState(0);
+  const [discount, setDiscount] = useState<{ percent: number; minQuantity: number } | undefined>();
   
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  
+  // Miqdor o'zgarganda skidka narxini yangilash
+  useEffect(() => {
+    if (product) {
+      const { price, discount: disc } = calculateDiscountedPrice(product, quantity);
+      setDiscountedPrice(price);
+      setDiscount(disc);
+    }
+  }, [quantity, product]);
   
   if (!isOpen || !product) return null;
   
@@ -31,6 +76,11 @@ export function ProductDetailModal({
   
   const isOutOfStock = product.quantity <= 0;
   const isLowStock = product.quantity <= 10 && product.quantity > 0;
+  
+  // Narxlarni hisoblash
+  const totalPrice = discountedPrice * quantity;
+  const originalTotal = (product.price || 0) * quantity;
+  const savedAmount = originalTotal - totalPrice;
   
   const handleAddToCart = () => {
     if (quantity > 0 && quantity <= product.quantity) {
@@ -117,11 +167,24 @@ export function ProductDetailModal({
 
           {/* Price - Compact */}
           <div className="bg-gradient-to-r from-brand-50 to-purple-50 rounded-xl p-3 border border-brand-100">
-            <p className="text-xs text-brand-600 font-semibold mb-1">Narx</p>
+            <p className="text-xs text-brand-600 font-semibold mb-1">Asosiy Narx</p>
             <p className="text-xl font-bold text-brand-600">
               {formatNumber(product.price)} <span className="text-sm">so'm</span>
             </p>
           </div>
+
+          {/* Discounted Price - Show when discount applies */}
+          {discount && discountedPrice < (product.price || 0) && (
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3 border border-emerald-200">
+              <p className="text-xs text-emerald-600 font-semibold mb-1">Skidka Narxi ({discount.percent}%)</p>
+              <p className="text-xl font-bold text-emerald-600">
+                {formatNumber(discountedPrice)} <span className="text-sm">so'm</span>
+              </p>
+              <p className="text-xs text-emerald-500 mt-1">
+                {discount.minQuantity}+ ta uchun
+              </p>
+            </div>
+          )}
 
           {/* Quantity - Compact */}
           <div className="bg-white rounded-xl p-3 shadow-sm">
@@ -192,8 +255,18 @@ export function ProductDetailModal({
               <div>
                 <p className="text-xs font-semibold text-white/80 mb-0.5">Jami</p>
                 <p className="text-xl font-bold">
-                  {formatNumber(product.price * quantity)} so'm
+                  {formatNumber(totalPrice)} so'm
                 </p>
+                {discount && (
+                  <p className="text-xs text-white/90 mt-1">
+                    -{discount.percent}% ({formatNumber(savedAmount)} so'm tejash)
+                  </p>
+                )}
+                {originalTotal !== totalPrice && (
+                  <p className="text-xs text-white/70 line-through">
+                    {formatNumber(originalTotal)} so'm
+                  </p>
+                )}
               </div>
               <ShoppingCart className="w-6 h-6 text-white/50" />
             </div>

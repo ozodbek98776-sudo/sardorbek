@@ -469,7 +469,7 @@ router.get('/kassa', auth, async (req, res) => {
       ...dateFilter
     })
       .populate('createdBy', 'name role')
-      .populate('items.product', 'name code')
+      .populate('items.product', 'name code images')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -487,8 +487,9 @@ router.get('/kassa', auth, async (req, res) => {
       items: receipt.items.map(item => ({
         product: {
           _id: item.product?._id || item.product,
-          name: item.name,
-          code: item.code || ''
+          name: item.product?.name || item.name,
+          code: item.product?.code || item.code || '',
+          images: item.product?.images || []
         },
         quantity: item.quantity,
         price: item.price

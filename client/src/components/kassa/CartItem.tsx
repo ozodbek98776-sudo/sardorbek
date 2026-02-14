@@ -15,6 +15,7 @@ export function CartItem({
 }: CartItemProps) {
   const price = item.discountedPrice || item.price;
   const total = price * item.cartQuantity;
+  const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
   
   // Agar miqdor 0 ga tushsa, avtomatik o'chirish
   const handleQuantityChange = (newQuantity: number) => {
@@ -90,6 +91,11 @@ export function CartItem({
         {/* Price */}
         <div className="text-right min-w-[80px]">
           <p className="text-sm font-bold text-slate-900">{formatNumber(total)}</p>
+          {hasDiscount && (
+            <p className="text-xs text-emerald-600 font-medium">
+              {formatNumber(item.price)} → {formatNumber(price)}
+            </p>
+          )}
         </div>
         
         {/* Remove button */}

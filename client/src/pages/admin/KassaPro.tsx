@@ -7,6 +7,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
 import { formatNumber } from '../../utils/format';
+import { getDiscountPrices } from '../../utils/pricing';
 import { 
   cacheProducts, 
   getCachedProducts,
@@ -58,6 +59,14 @@ export default function KassaProNew() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [savedReceipts, setSavedReceipts] = useState<SavedReceipt[]>([]);
   const [helperReceipts, setHelperReceipts] = useState<any[]>([]);
+  
+  // Statistics state - DB dagi jami mahsulotlar soni
+  const [stats, setStats] = useState({
+    total: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0
+  });
   
   // Modals
   const [showPayment, setShowPayment] = useState(false);
@@ -174,6 +183,37 @@ export default function KassaProNew() {
     }
   }, []);
   
+  // ⚡ Fetch statistics - DB dagi jami mahsulotlar soni (search bo'yicha)
+  const fetchStats = useCallback(async (searchTerm: string = '') => {
+    try {
+      console.log(`📊 Fetching stats for search: "${searchTerm}"`);
+      
+      const response = await api.get('/products/search-stats', {
+        params: {
+          search: searchTerm || undefined
+        }
+      });
+      
+      console.log(`📊 Stats response:`, response.data);
+      
+      setStats({
+        total: response.data.total || 0,
+        lowStock: response.data.lowStock || 0,
+        outOfStock: response.data.outOfStock || 0,
+        totalValue: response.data.totalValue || 0
+      });
+      
+      console.log(`📊 Statistics updated (search: "${searchTerm}"):`, response.data);
+    } catch (error: any) {
+      console.error('❌ Error fetching statistics:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    }
+  }, []);
+  
   // loadMoreProducts funksiyasini oldinroq e'lon qilish
   const loadMoreProducts = useCallback(() => {
     if (loadingMore || !hasMore) return;
@@ -216,28 +256,65 @@ export default function KassaProNew() {
     clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
     
     fetchProducts();
+    fetchStats(''); // JAMI mahsulotlar soni
     fetchCustomers();
     fetchHelperReceipts();
     loadSavedReceipts();
   }, []);
   
-  // Socket.IO - Real-time updates
+  // Socket.IO - Real-time updates + Cache update
   useEffect(() => {
     if (!socket) return;
     
+    console.log('🔌 Socket.IO listeners registering...');
+    
     socket.on('product:updated', (updatedProduct: Product) => {
-      setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
+      console.log('🔄 Socket event received - product:updated:', updatedProduct._id);
+      setProducts(prev => {
+        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+        console.log('✅ Products state updated');
+        return updated;
+      });
+      setAllProducts(prev => {
+        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+        console.log('✅ AllProducts state updated');
+        return updated;
+      });
+      setDisplayedProducts(prev => {
+        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+        console.log('✅ DisplayedProducts state updated');
+        // Cache'ni update qilish
+        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+        return updated;
+      });
     });
     
     socket.on('product:created', (newProduct: Product) => {
+      console.log('✨ Socket event received - product:created:', newProduct._id);
       setProducts(prev => [newProduct, ...prev]);
+      setAllProducts(prev => [newProduct, ...prev]);
+      setDisplayedProducts(prev => {
+        const updated = [newProduct, ...prev];
+        // Cache'ni update qilish
+        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+        return updated;
+      });
     });
     
     socket.on('product:deleted', (data: { _id: string }) => {
+      console.log('🗑️ Socket event received - product:deleted:', data._id);
       setProducts(prev => prev.filter(p => p._id !== data._id));
+      setAllProducts(prev => prev.filter(p => p._id !== data._id));
+      setDisplayedProducts(prev => {
+        const updated = prev.filter(p => p._id !== data._id);
+        // Cache'ni update qilish
+        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+        return updated;
+      });
     });
     
     return () => {
+      console.log('🔌 Socket.IO listeners removing...');
       socket.off('product:updated');
       socket.off('product:created');
       socket.off('product:deleted');
@@ -297,29 +374,45 @@ export default function KassaProNew() {
     if (saved) setSavedReceipts(JSON.parse(saved));
   };
   
-  // Search (OPTIMIZED with useMemo)
-  const performSearch = useCallback((query: string) => {
+  // Search - Backend-dan qidiruv
+  const performSearch = useCallback(async (query: string) => {
     if (!query || query.length < 1) {
       setSearchResults([]);
       setIsSearching(false);
+      fetchStats(''); // JAMI mahsulotlar soni
       return;
     }
     
     setIsSearching(true);
     
-    // Optimized search - faqat name va code bo'yicha
-    const queryLower = query.toLowerCase();
-    const results = products
-      .filter(product => {
-        const nameMatch = product.name.toLowerCase().includes(queryLower);
-        const codeMatch = product.code.toLowerCase().includes(queryLower);
-        return nameMatch || codeMatch;
-      })
-      .slice(0, 20); // Faqat 20 ta natija
+    try {
+      // Backend-dan qidiruv
+      const response = await api.get('/products/kassa', {
+        params: {
+          search: query,
+          limit: 20 // Faqat 20 ta natija
+        }
+      });
+      
+      let resultsData = [];
+      if (response.data.products && Array.isArray(response.data.products)) {
+        resultsData = response.data.products;
+      } else if (Array.isArray(response.data)) {
+        resultsData = response.data;
+      }
+      
+      setSearchResults(resultsData);
+      console.log(`🔍 Backend qidiruv: "${query}" - ${resultsData.length} ta natija`);
+    } catch (error) {
+      console.error('❌ Qidiruv xatosi:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
     
-    setSearchResults(results);
-    setIsSearching(false);
-  }, [products]);
+    // Statistics-ni yangilash (search bo'yicha)
+    fetchStats(query);
+  }, [fetchStats]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -327,7 +420,22 @@ export default function KassaProNew() {
     }, 300); // Debounce
     
     return () => clearTimeout(timer);
-  }, [searchQuery, performSearch]);
+  }, [searchQuery]);
+  
+  // Skidka narxini hisoblash funksiyasi
+  const calculateDiscountedPrice = (product: Product, quantity: number): number => {
+    const basePrice = product.price || 0;
+    const discountPrices = getDiscountPrices(product);
+    
+    // Miqdorga qarab skidka topish
+    for (const discount of discountPrices) {
+      if (quantity >= discount.minQuantity) {
+        return Math.round(basePrice * (1 - discount.discountPercent / 100));
+      }
+    }
+    
+    return basePrice;
+  };
   
   // Cart functions
   const addToCart = (product: Product, quantity: number = 1) => {
@@ -344,16 +452,22 @@ export default function KassaProNew() {
       return;
     }
     
+    // Asosiy narxni olish (skidka qo'llanmagan)
+    const basePrice = product.price || 0;
+    
     setCart(prev => {
       const existing = prev.find(p => p._id === product._id);
+      const newQuantity = existing ? existing.cartQuantity + quantity : quantity;
+      const discountedPrice = calculateDiscountedPrice(product, newQuantity);
+      
       if (existing) {
         return prev.map(p => 
           p._id === product._id 
-            ? {...p, cartQuantity: p.cartQuantity + quantity} 
+            ? {...p, cartQuantity: newQuantity, discountedPrice, price: basePrice} 
             : p
         );
       }
-      return [...prev, {...product, cartQuantity: quantity}];
+      return [...prev, {...product, cartQuantity: newQuantity, discountedPrice, price: basePrice}];
     });
   };
   
@@ -362,9 +476,15 @@ export default function KassaProNew() {
   };
   
   const updateQuantity = (id: string, quantity: number) => {
-    setCart(prev => prev.map(p => 
-      p._id === id ? {...p, cartQuantity: Math.max(1, quantity)} : p
-    ));
+    setCart(prev => prev.map(p => {
+      if (p._id === id) {
+        const newQuantity = Math.max(1, quantity);
+        const discountedPrice = calculateDiscountedPrice(p, newQuantity);
+        // price o'zgarmasin, faqat discountedPrice yangilash
+        return {...p, cartQuantity: newQuantity, discountedPrice};
+      }
+      return p;
+    }));
   };
   
   const clearCart = () => {
@@ -535,6 +655,7 @@ export default function KassaProNew() {
                       setSearchQuery('');
                     }}
                     onClose={() => setSearchQuery('')}
+                    stats={stats}
                   />
                   
                   {/* Category Filter with Section Select - Responsive */}

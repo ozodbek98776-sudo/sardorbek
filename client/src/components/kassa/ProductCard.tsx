@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Package2 } from 'lucide-react';
 import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
+import { getDiscountPrices } from '../../utils/pricing';
 import { UPLOADS_URL } from '../../config/api';
 
 interface ProductCardProps {
@@ -23,6 +24,11 @@ export const ProductCard = memo(function ProductCard({
   const imageUrl = product.images && product.images.length > 0 
     ? `${UPLOADS_URL}${product.images[0]}` 
     : null;
+  
+  // Skidka narxlarini olish
+  const discountPrices = getDiscountPrices(product);
+  const hasDiscount = discountPrices && discountPrices.length > 0;
+  const minDiscount = hasDiscount ? discountPrices[0] : null;
   
   return (
     <div 
@@ -108,6 +114,11 @@ export const ProductCard = memo(function ProductCard({
               })())}
               <span className="text-xs ml-1">so'm</span>
             </p>
+            {hasDiscount && minDiscount && (
+              <p className="text-xs text-emerald-600 font-medium mt-1">
+                {minDiscount.discountPercent}% chegirma {minDiscount.minQuantity}+ ta
+              </p>
+            )}
           </div>
         </div>
       </button>

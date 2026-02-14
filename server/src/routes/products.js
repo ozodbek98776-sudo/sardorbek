@@ -15,109 +15,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// ⚡ STATISTICS ENDPOINT - Faqat statistika ma'lumotlari (CACHED)
-let statsCache = null;
-let statsCacheTime = null;
-const STATS_CACHE_DURATION = 30000; // 30 soniya
-
-router.get('/statistics', auth, async (req, res) => {
-  try {
-    const { search, category, subcategory } = req.query;
-    const cacheKey = `${search || ''}-${category || ''}-${subcategory || ''}`;
-    
-    // ⚡ Cache check
-    if (statsCache && statsCacheTime && (Date.now() - statsCacheTime) < STATS_CACHE_DURATION) {
-      if (statsCache.key === cacheKey) {
-        console.log('📊 Statistics from cache');
-        return res.json(statsCache.data);
-      }
-    }
-    
-    const query = {};
-
-    // Search filter
-    if (search && typeof search === 'string' && search.trim() !== '') {
-      const searchTerm = search.trim();
-      const isNumericSearch = /^\d+$/.test(searchTerm);
-      
-      if (isNumericSearch) {
-        query.$or = [
-          { code: { $regex: `^${searchTerm}`, $options: 'i' } },
-          { code: { $regex: searchTerm, $options: 'i' } },
-          { name: { $regex: searchTerm, $options: 'i' } }
-        ];
-      } else {
-        query.$or = [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { code: { $regex: searchTerm, $options: 'i' } }
-        ];
-      }
-    }
-
-    // Category filter
-    if (category) {
-      query.category = category;
-    }
-    
-    // Subcategory filter
-    if (subcategory) {
-      query.subcategory = subcategory;
-    }
-
-    // ⚡ Parallel aggregation - tez va samarali
-    const [stats] = await Product.aggregate([
-      { $match: query },
-      {
-        $facet: {
-          total: [{ $count: 'count' }],
-          lowStock: [
-            { $match: { quantity: { $gt: 0, $lte: 50 } } },
-            { $count: 'count' }
-          ],
-          outOfStock: [
-            { $match: { quantity: 0 } },
-            { $count: 'count' }
-          ],
-          totalValue: [
-            {
-              $group: {
-                _id: null,
-                value: {
-                  $sum: {
-                    $multiply: [
-                      { $ifNull: ['$unitPrice', { $ifNull: ['$price', 0] }] },
-                      '$quantity'
-                    ]
-                  }
-                }
-              }
-            }
-          ]
-        }
-      }
-    ]);
-
-    const result = {
-      total: stats.total[0]?.count || 0,
-      lowStock: stats.lowStock[0]?.count || 0,
-      outOfStock: stats.outOfStock[0]?.count || 0,
-      totalValue: stats.totalValue[0]?.value || 0
-    };
-
-    // ⚡ Cache update
-    statsCache = { key: cacheKey, data: result };
-    statsCacheTime = Date.now();
-
-    console.log(`📊 Statistics calculated in ${Date.now() - req.startTime}ms:`, result);
-
-    res.set('Cache-Control', 'public, max-age=30');
-    res.json(result);
-  } catch (error) {
-    console.error('❌ Error in GET /products/statistics:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
 // Lazy load sharp - only when needed
 let sharp = null;
 let sharpLoaded = false;
@@ -205,7 +102,7 @@ router.get('/kassa', async (req, res) => {
 
     // Minimal ma'lumotlar - faqat card uchun kerakli
     const products = await Product.find(query)
-      .select('name code price quantity images') // Minimal fields
+      .select('name code price quantity images prices unit') // prices array qo'shildi
       .limit(limitNum)
       .skip(skip)
       .lean()
@@ -321,6 +218,85 @@ router.post('/kassa', async (req, res) => {
     res.status(201).json(product);
   } catch (error) {
     console.error('Kassa add product error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// ⚡ Search statistics endpoint - DB dagi jami mahsulotlar soni (search bo'yicha)
+router.get('/search-stats', auth, async (req, res) => {
+  try {
+    const { search } = req.query;
+    const query = {};
+
+    console.log(`📊 Search stats request: search="${search}"`);
+
+    // Search filter
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const searchTerm = search.trim();
+      const isNumericSearch = /^\d+$/.test(searchTerm);
+      
+      if (isNumericSearch) {
+        query.$or = [
+          { code: { $regex: `^${searchTerm}`, $options: 'i' } },
+          { code: { $regex: searchTerm, $options: 'i' } },
+          { name: { $regex: searchTerm, $options: 'i' } }
+        ];
+      } else {
+        query.$or = [
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { code: { $regex: searchTerm, $options: 'i' } }
+        ];
+      }
+    }
+
+    console.log(`📊 Query: ${JSON.stringify(query)}`);
+
+    // ⚡ DB dagi jami mahsulotlar soni (search bo'yicha)
+    const stats = await Product.aggregate([
+      { $match: query },
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          lowStock: [
+            { $match: { quantity: { $gt: 0, $lte: 50 } } },
+            { $count: 'count' }
+          ],
+          outOfStock: [
+            { $match: { quantity: 0 } },
+            { $count: 'count' }
+          ],
+          totalValue: [
+            {
+              $group: {
+                _id: null,
+                value: {
+                  $sum: {
+                    $multiply: [
+                      { $ifNull: ['$unitPrice', { $ifNull: ['$price', 0] }] },
+                      '$quantity'
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    console.log(`📊 Aggregation result:`, stats);
+
+    const result = {
+      total: stats[0]?.total[0]?.count || 0,
+      lowStock: stats[0]?.lowStock[0]?.count || 0,
+      outOfStock: stats[0]?.outOfStock[0]?.count || 0,
+      totalValue: stats[0]?.totalValue[0]?.value || 0
+    };
+
+    console.log(`📊 Search statistics (${search || 'all'}):`, result);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error in GET /products/search-stats:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

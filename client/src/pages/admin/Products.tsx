@@ -1,18 +1,20 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, RotateCcw, Upload, Save, Download } from 'lucide-react';
+import { Plus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Upload, Save, Printer } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
-import QRCodeGenerator, { exportQRCodeToPNG } from '../../components/QRCodeGenerator';
-import { FRONTEND_URL, UPLOADS_URL } from '../../config/api';
+import { UPLOADS_URL } from '../../config/api';
 import { useSocket } from '../../hooks/useSocket';
-import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
+import { extractArrayFromResponse } from '../../utils/arrayHelpers';
 import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
-import { StatCard, LoadingSpinner, EmptyState, Modal, ActionButton, Badge, UniversalPageHeader } from '../../components/common';
+import { StatCard, LoadingSpinner, EmptyState, ActionButton, Badge, UniversalPageHeader } from '../../components/common';
+import BatchQRPrint from '../../components/BatchQRPrint';
+import { convertUsdToUzs } from '../../utils/exchangeRate';
+import { clearProductsCache } from '../../utils/indexedDbService';
 
 export default function ProductsOptimized() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -24,24 +26,33 @@ export default function ProductsOptimized() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [subcategoryFilter, setSubcategoryFilter] = useState<string>('');
-  const [stockFilter, setStockFilter] = useState('all');
+  const [stockFilter] = useState('all');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   
+  // Statistics state - DB dagi jami mahsulotlar soni
+  const [stats, setStats] = useState({
+    total: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0
+  });
+  
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
+  const [showBatchPrint, setShowBatchPrint] = useState(false);
+  const [showSingleLabelPrint, setShowSingleLabelPrint] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductsForBatch, setSelectedProductsForBatch] = useState<Set<string>>(new Set());
   
   // Modal scroll lock
-  useModalScrollLock(showModal || showQRModal);
+  useModalScrollLock(showModal || showSingleLabelPrint);
   
   // Form state - simplified
   const [formData, setFormData] = useState({
@@ -50,6 +61,7 @@ export default function ProductsOptimized() {
     description: '',
     unitPrice: '',
     costPrice: '',
+    costPriceUsd: '', // USD da tan narxi
     boxPrice: '',
     quantity: '',
     category: '',
@@ -69,19 +81,9 @@ export default function ProductsOptimized() {
   // Rasm yuklash uchun state
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [uploadingImages, setUploadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Statistics
-  const [stats, setStats] = useState({
-    total: 0,
-    lowStock: 0,
-    outOfStock: 0,
-    totalValue: 0
-  });
-  
   // Refs
-  const qrContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null); // Infinite scroll uchun
   
   // Tanlangan kategoriyaga tegishli bo'limlar
@@ -100,33 +102,73 @@ export default function ProductsOptimized() {
     }));
   }, [categories]);
   
-  // Optimized debounce - 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-  
-  // Optimized filtered products - FAQAT CLIENT-SIDE SEARCH UCHUN
+  // Optimized filtered products - CLIENT-SIDE SEARCH UCHUN
   const filteredProducts = useMemo(() => {
-    // Backend allaqachon filter qilgan, faqat ko'rsatish uchun
-    return Array.isArray(products) ? products : [];
-  }, [products]);
+    if (!Array.isArray(products)) return [];
+    
+    // Backend'dan search qilgan mahsulotlar allaqachon filtered
+    // Faqat kategoriya va stock filtri qo'llash
+    let filtered = products;
+    
+    if (categoryFilter) {
+      filtered = filtered.filter(p => p.category === categoryFilter);
+    }
+    
+    if (stockFilter === 'lowStock') {
+      filtered = filtered.filter(p => p.quantity > 0 && p.quantity <= 10);
+    } else if (stockFilter === 'outOfStock') {
+      filtered = filtered.filter(p => p.quantity === 0);
+    }
+    
+    return filtered;
+  }, [products, categoryFilter, stockFilter]);
+  
+  // ⚡ Fetch statistics - DB dagi jami mahsulotlar soni (search bo'yicha)
+  const fetchStats = useCallback(async (searchTerm: string = '') => {
+    try {
+      console.log(`📊 Fetching stats for search: "${searchTerm}"`);
+      
+      const response = await api.get('/products/search-stats', {
+        params: {
+          search: searchTerm || undefined
+        }
+      });
+      
+      console.log(`📊 Stats response:`, response.data);
+      
+      setStats({
+        total: response.data.total || 0,
+        lowStock: response.data.lowStock || 0,
+        outOfStock: response.data.outOfStock || 0,
+        totalValue: response.data.totalValue || 0
+      });
+      
+      console.log(`📊 Statistics updated (search: "${searchTerm}"):`, response.data);
+    } catch (error: any) {
+      console.error('❌ Error fetching statistics:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      // Xato bo'lsa ham, stats default qiymatlar bilan qoladi
+    }
+  }, []);
   
   // Fetch products - optimized with pagination
-  const fetchProducts = useCallback(async (pageNum = 1, append = false) => {
+  const fetchProducts = useCallback(async (pageNum = 1, append = false, searchTerm = '') => {
     try {
       if (!append) setLoading(true);
       
+      // Backend'ga so'rov yuborish
       const response = await api.get('/products', {
         params: {
           page: pageNum,
-          limit: 10,
-          search: debouncedSearch || undefined,
+          limit: 10, // Boshida 10ta yuklash
+          search: searchTerm || undefined, // ✅ Search parametri qo'shildi
           category: categoryFilter || undefined,
           subcategory: subcategoryFilter || undefined,
-          stockFilter: stockFilter !== 'all' ? stockFilter : undefined // ⚡ Backend filter
+          stockFilter: stockFilter !== 'all' ? stockFilter : undefined
         }
       });
       
@@ -157,46 +199,25 @@ export default function ProductsOptimized() {
     } finally {
       setLoading(false);
     }
-  }, [showAlert, debouncedSearch, categoryFilter, subcategoryFilter, stockFilter]);
+  }, [showAlert, categoryFilter, subcategoryFilter, stockFilter]);
 
-  // ⚡ Fetch statistics - alohida va tez (useRef bilan stable)
-  const fetchStatisticsRef = useRef<() => Promise<void>>();
-  
-  fetchStatisticsRef.current = async () => {
-    try {
-      const response = await api.get('/products/statistics', {
-        params: {
-          search: debouncedSearch || undefined,
-          category: categoryFilter || undefined,
-          subcategory: subcategoryFilter || undefined
-        }
-      });
-      
-      const statsData = response.data;
-      setStats({
-        total: statsData.total || 0,
-        lowStock: statsData.lowStock || 0,
-        outOfStock: statsData.outOfStock || 0,
-        totalValue: statsData.totalValue || 0
-      });
-      
-      console.log('📊 Statistics loaded:', statsData);
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
-    }
-  };
-  
-  const fetchStatistics = useCallback(() => {
-    return fetchStatisticsRef.current?.();
-  }, []);
-  
   // Load products on mount and when filters change
   useEffect(() => {
     setCurrentPage(1); // Reset pagination
     setProducts([]); // Clear products
-    fetchProducts(1, false);
-    fetchStatistics();
-  }, [debouncedSearch, categoryFilter, subcategoryFilter, stockFilter]);
+    fetchProducts(1, false, searchQuery); // ✅ searchQuery qo'shildi
+    // Statistics-ni birinchi marta yuklash (search bo'lmasa)
+    fetchStats(searchQuery);
+  }, [categoryFilter, subcategoryFilter, stockFilter, searchQuery, fetchProducts, fetchStats]);
+  
+  // ⚡ Search bo'lganda statistics yangilash
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      fetchStats(searchQuery);
+    } else {
+      fetchStats('');
+    }
+  }, [searchQuery, fetchStats]);
   
   // Infinite scroll - Intersection Observer
   useEffect(() => {
@@ -217,43 +238,20 @@ export default function ProductsOptimized() {
     return () => observer.disconnect();
   }, [hasMore, loading, currentPage, fetchProducts]);
   
-  // Socket listeners - optimized with local stats update
+  // Socket listeners - products list-ni yangilash
   useEffect(() => {
     if (!socket) return;
     
-    // ⚡ Debounced statistics refresh
-    let statsRefreshTimer: NodeJS.Timeout;
-    const debouncedStatsRefresh = () => {
-      clearTimeout(statsRefreshTimer);
-      statsRefreshTimer = setTimeout(() => {
-        fetchStatistics();
-      }, 1000); // 1 soniya kutish
-    };
-    
     const handleProductCreated = (newProduct: Product) => {
       setProducts(prev => [newProduct, ...prev]);
-      // ⚡ Local stats update
-      setStats(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        totalValue: prev.totalValue + ((newProduct as any).unitPrice || 0) * newProduct.quantity
-      }));
-      debouncedStatsRefresh();
     };
     
     const handleProductUpdated = (updatedProduct: Product) => {
       setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
-      debouncedStatsRefresh();
     };
     
     const handleProductDeleted = (data: { _id: string }) => {
       setProducts(prev => prev.filter(p => p._id !== data._id));
-      // ⚡ Local stats update
-      setStats(prev => ({
-        ...prev,
-        total: Math.max(0, prev.total - 1)
-      }));
-      debouncedStatsRefresh();
     };
     
     socket.on('product:created', handleProductCreated);
@@ -261,12 +259,11 @@ export default function ProductsOptimized() {
     socket.on('product:deleted', handleProductDeleted);
     
     return () => {
-      clearTimeout(statsRefreshTimer);
       socket.off('product:created', handleProductCreated);
       socket.off('product:updated', handleProductUpdated);
       socket.off('product:deleted', handleProductDeleted);
     };
-  }, [socket]); // ⚡ Faqat socket dependency
+  }, [socket]);
   
   // Form handlers - simplified
   const handleSubmit = async (e: React.FormEvent) => {
@@ -384,17 +381,20 @@ export default function ProductsOptimized() {
         console.log('📝 Updating product ID:', editingProduct._id);
         const response = await api.put(`/products/${editingProduct._id}`, data);
         console.log('✅ Update response:', response.data);
+        // Cache'ni tozalash
+        await clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
         // Socket will handle the update
         showAlert('Mahsulot yangilandi', 'Muvaffaqiyat', 'success');
       } else {
         console.log('➕ Creating new product');
         const response = await api.post('/products', data);
         console.log('✅ Create response:', response.data);
+        // Cache'ni tozalash
+        await clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
         // Socket will handle adding the new product
         showAlert('Mahsulot qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       
-      fetchStatistics(); // ⚡ Statistikani yangilash
       closeModal();
     } catch (error: any) {
       console.error('❌ Error saving product:', error);
@@ -410,7 +410,8 @@ export default function ProductsOptimized() {
     try {
       await api.delete(`/products/${id}`);
       setProducts(prev => prev.filter(p => p._id !== id));
-      fetchStatistics(); // ⚡ Statistikani yangilash
+      // Cache'ni tozalash
+      await clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
       showAlert('Mahsulot o\'chirildi', 'Muvaffaqiyat', 'success');
     } catch (error) {
       showAlert('Mahsulotni o\'chirishda xatolik', 'Xatolik', 'danger');
@@ -425,6 +426,7 @@ export default function ProductsOptimized() {
       description: '',
       unitPrice: '',
       costPrice: '',
+      costPriceUsd: '',
       boxPrice: '',
       quantity: '',
       category: '',
@@ -490,6 +492,7 @@ export default function ProductsOptimized() {
       // Yangi format bo'lsa prices array dan, eski format bo'lsa to'g'ridan-to'g'ri fieldlardan
       unitPrice: unitPrice?.amount ? String(unitPrice.amount) : (oldFormatUnitPrice ? String(oldFormatUnitPrice) : ''),
       costPrice: costPrice?.amount ? String(costPrice.amount) : (oldFormatCostPrice ? String(oldFormatCostPrice) : ''),
+      costPriceUsd: '', // Will be calculated from costPrice
       boxPrice: boxPrice?.amount ? String(boxPrice.amount) : (oldFormatBoxPrice ? String(oldFormatBoxPrice) : ''),
       quantity: String(product.quantity),
       category: (product as any).category || '',
@@ -555,7 +558,6 @@ export default function ProductsOptimized() {
   const uploadImages = async (): Promise<string[]> => {
     if (selectedImages.length === 0) return uploadedImages;
     
-    setUploadingImages(true);
     try {
       const formData = new FormData();
       selectedImages.forEach(file => {
@@ -572,29 +574,12 @@ export default function ProductsOptimized() {
       console.error('Error uploading images:', error);
       showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
       return uploadedImages;
-    } finally {
-      setUploadingImages(false);
     }
   };
   
   const openQRModal = (product: Product) => {
     setSelectedProduct(product);
-    setShowQRModal(true);
-  };
-  
-  const downloadQR = async () => {
-    if (!selectedProduct) return;
-    
-    const success = await exportQRCodeToPNG(
-      qrContainerRef.current,
-      `QR-${selectedProduct.code}-${selectedProduct.name}.png`
-    );
-    
-    if (success) {
-      showAlert('QR kod yuklandi', 'Muvaffaqiyat', 'success');
-    } else {
-      showAlert('QR kodni yuklashda xatolik', 'Xatolik', 'danger');
-    }
+    setShowSingleLabelPrint(true);
   };
   
   const getProductImage = (product: Product) => {
@@ -603,6 +588,44 @@ export default function ProductsOptimized() {
       return `${UPLOADS_URL}${imagePath}`;
     }
     return null;
+  };
+
+  // Batch print handlers
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductsForBatch(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllProducts = () => {
+    if (selectedProductsForBatch.size === filteredProducts.length) {
+      setSelectedProductsForBatch(new Set());
+    } else {
+      setSelectedProductsForBatch(new Set(filteredProducts.map(p => p._id)));
+    }
+  };
+
+  const getSelectedProductsForBatch = () => {
+    return filteredProducts.filter(p => selectedProductsForBatch.has(p._id));
+  };
+
+  const openBatchPrint = () => {
+    if (selectedProductsForBatch.size === 0) {
+      showAlert('Hech qanday mahsulot tanlanmagan', 'Ogohlantirish', 'warning');
+      return;
+    }
+    setShowBatchPrint(true);
+  };
+
+  const closeBatchPrint = () => {
+    setShowBatchPrint(false);
+    setSelectedProductsForBatch(new Set());
   };
   
   return (
@@ -616,39 +639,47 @@ export default function ProductsOptimized() {
         onSearchChange={setSearchQuery}
         onMenuToggle={onMenuToggle}
         actions={
-          <ActionButton 
-            icon={Plus}
-            variant="primary"
-            onClick={openAddModal}
-          >
-            Qo'shish
-          </ActionButton>
+          <div className="flex items-center gap-2">
+            {selectedProductsForBatch.size > 0 && (
+              <ActionButton 
+                icon={Printer}
+                variant="secondary"
+                onClick={openBatchPrint}
+              >
+                Senik ({selectedProductsForBatch.size})
+              </ActionButton>
+            )}
+            <ActionButton 
+              icon={Plus}
+              variant="primary"
+              onClick={openAddModal}
+            >
+              Qo'shish
+            </ActionButton>
+          </div>
         }
       />
 
       <div className="p-4 space-y-4 w-full h-full">
-        {/* Stats Cards - Universal StatCard */}
+        {/* Stats Cards - O'zgaradigan statistika (DB dagi jami mahsulotlar soni) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             title="Jami"
             value={stats.total}
             icon={Package}
             color="blue"
-            onClick={() => setStockFilter('all')}
           />
           <StatCard
             title="Kam qolgan"
             value={stats.lowStock}
             icon={AlertTriangle}
             color="orange"
-            onClick={() => setStockFilter('low')}
           />
           <StatCard
             title="Tugagan"
             value={stats.outOfStock}
             icon={X}
             color="red"
-            onClick={() => setStockFilter('out')}
           />
           <StatCard
             title="Jami qiymat"
@@ -657,6 +688,24 @@ export default function ProductsOptimized() {
             color="green"
           />
         </div>
+
+        {/* Batch selection toolbar */}
+        {filteredProducts.length > 0 && (
+          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <input
+              type="checkbox"
+              checked={selectedProductsForBatch.size === filteredProducts.length && filteredProducts.length > 0}
+              onChange={selectAllProducts}
+              className="w-5 h-5 rounded cursor-pointer"
+            />
+            <span className="text-sm text-blue-700 font-medium">
+              {selectedProductsForBatch.size > 0 
+                ? `${selectedProductsForBatch.size} ta mahsulot tanlandi`
+                : 'Barchasini tanlash'
+              }
+            </span>
+          </div>
+        )}
 
         {/* Category Filter */}
         <CategoryFilter
@@ -699,6 +748,16 @@ export default function ProductsOptimized() {
                     key={product._id}
                     className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 relative"
                   >
+                    {/* Checkbox for batch selection */}
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductsForBatch.has(product._id)}
+                        onChange={() => toggleProductSelection(product._id)}
+                        className="w-5 h-5 rounded cursor-pointer"
+                      />
+                    </div>
+
                     {/* Action Buttons */}
                     <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
                       <button 
@@ -917,18 +976,50 @@ export default function ProductsOptimized() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (USD)</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={formData.costPriceUsd || ''}
+                    onChange={e => {
+                      const value = e.target.value ? Number(e.target.value) : '';
+                      setFormData({...formData, costPriceUsd: String(value)});
+                      // Auto-convert to UZS
+                      if (value) {
+                        const uzsValue = convertUsdToUzs(Number(value));
+                        setFormData(prev => ({...prev, costPrice: String(uzsValue)}));
+                      }
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (UZS)</label>
                 <input 
                   type="text" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
                   value={formData.costPrice ? formatInputNumber(formData.costPrice) : ''}
                   onChange={e => {
                     const value = parseNumber(e.target.value);
                     setFormData({...formData, costPrice: value});
                   }}
                   placeholder="0"
+                  title="USD dan avtomatik hisoblanadi yoki to'g'ridan-to'g'ri kiritish mumkin"
                 />
+                {formData.costPriceUsd && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    {Number(formData.costPriceUsd).toFixed(2)} USD = {formatNumber(Number(formData.costPrice))} UZS
+                  </p>
+                )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi *</label>
                 <input 
@@ -1223,43 +1314,34 @@ export default function ProductsOptimized() {
         </div>
       )}
 
-      {/* QR Modal */}
-      {showQRModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowQRModal(false)} />
-          <div className="relative bg-white rounded-lg w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">QR Kod</h3>
-              <button onClick={() => setShowQRModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-4 rounded-lg border">
-                <QRCodeGenerator
-                  ref={qrContainerRef}
-                  value={`${FRONTEND_URL}/product/${selectedProduct._id}`}
-                  size={200}
-                  level="H"
-                />
-              </div>
-              
-              <div className="text-center">
-                <h4 className="font-medium">{selectedProduct.name}</h4>
-                <p className="text-sm text-gray-500">#{selectedProduct.code}</p>
-              </div>
-              
-              <button 
-                onClick={downloadQR} 
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                PNG yuklab olish
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Single Label Print Modal */}
+      {showSingleLabelPrint && selectedProduct && (
+        <BatchQRPrint 
+          products={[{
+            _id: selectedProduct._id,
+            code: selectedProduct.code,
+            name: selectedProduct.name,
+            price: (selectedProduct as any).unitPrice || (selectedProduct as any).price || 0,
+            unit: selectedProduct.unit,
+            prices: (selectedProduct as any).prices
+          }]}
+          onClose={() => setShowSingleLabelPrint(false)}
+        />
+      )}
+
+      {/* Batch QR Print Modal */}
+      {showBatchPrint && (
+        <BatchQRPrint 
+          products={getSelectedProductsForBatch().map(p => ({
+            _id: p._id,
+            code: p.code,
+            name: p.name,
+            price: (p as any).unitPrice || (p as any).price || 0,
+            unit: p.unit,
+            prices: (p as any).prices
+          }))}
+          onClose={closeBatchPrint}
+        />
       )}
     </div>
   );

@@ -29,6 +29,8 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showExchangeRateModal, setShowExchangeRateModal] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<number>(12000);
   const [formData, setFormData] = useState({ name: '', phone: '', password: '' });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -43,6 +45,14 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [mobileOpen]);
+
+  // Load exchange rate from localStorage
+  useEffect(() => {
+    const savedRate = localStorage.getItem('usdToUzsRate');
+    if (savedRate) {
+      setExchangeRate(Number(savedRate));
+    }
+  }, []);
   
   // Body scroll ni boshqarish
   useEffect(() => {
@@ -64,6 +74,14 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
       password: ''
     });
     setShowEditModal(true);
+  };
+
+  const handleExchangeRateSave = () => {
+    if (exchangeRate > 0) {
+      localStorage.setItem('usdToUzsRate', String(exchangeRate));
+      setShowExchangeRateModal(false);
+      alert('USD/UZS kursi saqlandi: 1 USD = ' + exchangeRate + ' UZS');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -206,6 +224,21 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
           background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.2) 100%)'
         }}
       >
+        {!collapsed && user?.role === 'admin' && (
+          <button
+            onClick={() => setShowExchangeRateModal(true)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 mb-2 rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(34, 197, 94, 0.15)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              color: '#86efac'
+            }}
+            title="USD/UZS kursi"
+          >
+            <DollarSign className="w-4 h-4" />
+            <span className="text-sm font-medium">1 USD = {exchangeRate} UZS</span>
+          </button>
+        )}
         {!collapsed && (
           <div 
             className="flex items-center gap-2 px-3 py-2.5 mb-2 rounded-xl"
@@ -390,6 +423,92 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                 </button>
               </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exchange Rate Modal */}
+      {showExchangeRateModal && (
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setShowExchangeRateModal(false)} 
+          />
+          
+          <div 
+            className="relative w-full sm:w-auto max-w-md p-4 sm:p-8 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden z-10"
+            style={{
+              background: 'linear-gradient(145deg, #ffffff 0%, #faf5ff 100%)',
+              border: '1px solid rgba(34, 197, 94, 0.15)',
+              boxShadow: '0 25px 50px -12px rgba(34, 197, 94, 0.35)'
+            }}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between mb-4 sm:mb-8 pb-4 sm:pb-0 border-b border-surface-100 sm:border-0">
+              <h3 className="text-lg sm:text-xl font-bold truncate flex items-center gap-2" style={{ color: '#15803d' }}>
+                <DollarSign className="w-5 h-5" />
+                USD/UZS Kursi
+              </h3>
+              <button 
+                onClick={() => setShowExchangeRateModal(false)} 
+                className="flex-shrink-0 p-2 rounded-xl transition-all"
+                style={{ background: '#f0fdf4', color: '#22c55e' }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-6">
+                <div>
+                  <label className="text-sm font-semibold mb-3 block flex items-center gap-2" style={{ color: '#15803d' }}>
+                    <DollarSign className="w-4 h-4" />
+                    1 USD = ? UZS
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#a1a1aa' }} />
+                    <input 
+                      type="number" 
+                      className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none" 
+                      style={{
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
+                        border: '1.5px solid #bbf7d0',
+                        color: '#15803d'
+                      }}
+                      placeholder="12000" 
+                      value={exchangeRate}
+                      onChange={e => setExchangeRate(Number(e.target.value))} 
+                      min="1"
+                    />
+                  </div>
+                  <p className="text-xs mt-2" style={{ color: '#4b5563' }}>
+                    Masalan: 1 USD = 12000 UZS
+                  </p>
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowExchangeRateModal(false)} 
+                    className="flex-1 px-6 py-3.5 font-semibold rounded-2xl transition-all duration-200"
+                    style={{
+                      background: '#f0fdf4',
+                      color: '#22c55e'
+                    }}
+                  >
+                    Bekor qilish
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleExchangeRateSave} 
+                    className="flex-1 px-6 py-3.5 text-white font-semibold rounded-2xl transition-all duration-200"
+                    style={{
+                      background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
+                      boxShadow: '0 4px 14px -2px rgba(34, 197, 94, 0.4)'
+                    }}
+                  >
+                    Saqlash
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

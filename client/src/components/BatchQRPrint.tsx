@@ -10,6 +10,7 @@ interface Product {
   name: string;
   price: number;
   unit?: string;
+  prices?: any[];
 }
 
 interface BatchQRPrintProps {
@@ -100,6 +101,12 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     return printItems.reduce((sum, item) => sum + item.copies, 0);
   };
 
+  const getDiscountInfo = (product: Product) => {
+    const prices = (product as any).prices || [];
+    const discounts = prices.filter((p: any) => p.type.startsWith('discount'));
+    return discounts.sort((a: any, b: any) => a.minQuantity - b.minQuantity);
+  };
+
   const handlePrint = () => {
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (!printWindow) {
@@ -114,16 +121,34 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         // YANGI NARX TIZIMI - eng yaxshi narxni hisoblash
         const unitPrice = getUnitPrice(item.product);
         const displayPrice = unitPrice || item.product.price || 0;
+        const discounts = getDiscountInfo(item.product);
+        
+        // Skitka ma'lumotlarini formatlash
+        let discountHtml = '';
+        if (discounts.length > 0) {
+          discountHtml = discounts.slice(0, 2).map((d: any) => 
+            `<div class="discount-row">${d.minQuantity}+ = ${d.discountPercent}%</div>`
+          ).join('');
+        }
         
         labelsHtml += `
           <div class="label">
-            <div class="qr-section">
-              <img src="${item.qrDataUrl}" alt="QR" class="qr-code" />
+            <div class="row-1">
+              <div class="qr-section">
+                <img src="${item.qrDataUrl}" alt="QR" class="qr-code" />
+              </div>
+              <div class="info-section">
+                <div class="product-name">${item.product.name}</div>
+                <div class="product-code">Kod: ${item.product.code}</div>
+              </div>
             </div>
-            <div class="info-section">
-              <div class="product-name">${item.product.name.length > 18 ? item.product.name.substring(0, 18) + '...' : item.product.name}</div>
-              ${labelSettings.showCode ? `<div class="product-code">Kod: ${item.product.code}</div>` : ''}
-              ${labelSettings.showPrice ? `<div class="product-price">${formatPrice(displayPrice)} so'm</div>` : ''}
+            <div class="row-2">
+              <div class="price-section">
+                <div class="product-price">${formatPrice(displayPrice)} so'm</div>
+              </div>
+              <div class="discount-section">
+                ${discountHtml}
+              </div>
             </div>
           </div>
         `;
@@ -158,14 +183,25 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
           .label {
             width: ${labelSettings.width}mm;
             height: ${labelSettings.height}mm;
-            padding: 1.5mm;
+            padding: 1mm;
             display: flex;
-            align-items: center;
-            gap: 1.5mm;
+            flex-direction: column;
             background: white;
-            border: 0.2mm solid #ddd;
+            border: 0.2mm solid #000;
             page-break-inside: avoid;
           }
+          
+          /* ROW 1: QR + Info */
+          .row-1 {
+            flex: 1;
+            display: flex;
+            gap: 1mm;
+            align-items: center;
+            border-bottom: 0.2mm solid #000;
+            padding-bottom: 0.5mm;
+            margin-bottom: 0.5mm;
+          }
+          
           .qr-section {
             flex-shrink: 0;
           }
@@ -175,6 +211,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             display: block;
             image-rendering: pixelated;
           }
+          
           .info-section {
             flex: 1;
             display: flex;
@@ -183,27 +220,58 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             overflow: hidden;
           }
           .product-name {
-            font-size: 6pt;
+            font-size: 7pt;
             font-weight: 700;
             color: #000;
-            line-height: 1.1;
+            line-height: 1.15;
             margin-bottom: 0.3mm;
-            text-transform: uppercase;
             word-break: break-word;
           }
           .product-code {
-            font-size: 5pt;
+            font-size: 5.5pt;
             color: #333;
-            margin-bottom: 0.3mm;
+            font-weight: 600;
+          }
+          
+          /* ROW 2: Price + Discounts */
+          .row-2 {
+            flex: 1;
+            display: flex;
+            gap: 1mm;
+          }
+          
+          .price-section {
+            flex: 0 0 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 0.2mm solid #000;
+            padding-right: 0.5mm;
           }
           .product-price {
-            font-size: 7pt;
+            font-size: 10pt;
             font-weight: 900;
             color: #000;
+            text-align: center;
           }
+          
+          .discount-section {
+            flex: 0 0 20%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-left: 0.5mm;
+          }
+          .discount-row {
+            font-size: 4.5pt;
+            font-weight: 700;
+            color: #000;
+            line-height: 1.3;
+          }
+          
           @media print {
             body { background: white; }
-            .label { border: none; }
+            .label { border: 0.2mm solid #000; }
           }
         </style>
       </head>

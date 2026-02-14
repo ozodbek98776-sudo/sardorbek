@@ -13,6 +13,12 @@ interface SearchBarProps {
   showResults: boolean;
   onProductSelect: (product: Product) => void;
   onClose: () => void;
+  stats?: {
+    total: number;
+    lowStock: number;
+    outOfStock: number;
+    totalValue: number;
+  };
 }
 
 export function SearchBar({ 
@@ -22,7 +28,8 @@ export function SearchBar({
   isSearching,
   showResults,
   onProductSelect,
-  onClose
+  onClose,
+  stats
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -44,7 +51,29 @@ export function SearchBar({
   }, [showResults, onClose]);
   
   return (
-    <div className="relative">
+    <div className="relative space-y-3">
+      {/* Statistics Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-3 border border-blue-200">
+            <p className="text-[10px] sm:text-xs text-blue-600 font-semibold">Jami</p>
+            <p className="text-lg sm:text-xl font-bold text-blue-700">{stats.total}</p>
+          </div>
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-3 border border-orange-200">
+            <p className="text-[10px] sm:text-xs text-orange-600 font-semibold">Kam qolgan</p>
+            <p className="text-lg sm:text-xl font-bold text-orange-700">{stats.lowStock}</p>
+          </div>
+          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-2 sm:p-3 border border-red-200">
+            <p className="text-[10px] sm:text-xs text-red-600 font-semibold">Tugagan</p>
+            <p className="text-lg sm:text-xl font-bold text-red-700">{stats.outOfStock}</p>
+          </div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-3 border border-green-200">
+            <p className="text-[10px] sm:text-xs text-green-600 font-semibold">Jami qiymat</p>
+            <p className="text-sm sm:text-base font-bold text-green-700 truncate">{formatNumber(stats.totalValue)}</p>
+          </div>
+        </div>
+      )}
+      
       {/* Search Input */}
       <div className="relative group">
         <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-focus-within:text-brand-500 transition-colors" />
