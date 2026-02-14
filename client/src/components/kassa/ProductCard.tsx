@@ -126,8 +126,24 @@ export const ProductCard = memo(function ProductCard({
   );
 }, (prevProps, nextProps) => {
   // Faqat muhim props o'zgarganda re-render
+  // prices array'ni safe tekshirish
+  const prevPrices = Array.isArray(prevProps.product.prices) ? prevProps.product.prices : [];
+  const nextPrices = Array.isArray(nextProps.product.prices) ? nextProps.product.prices : [];
+  
+  const prevUnitPrice = prevPrices.find((p: any) => p.type === 'unit')?.amount || prevProps.product.price;
+  const nextUnitPrice = nextPrices.find((p: any) => p.type === 'unit')?.amount || nextProps.product.price;
+  
+  // Prices array'ni deep compare qilish
+  const pricesEqual = prevPrices.length === nextPrices.length &&
+    prevPrices.every((p: any, idx: number) => {
+      const nextP = nextPrices[idx];
+      return p.type === nextP.type && p.amount === nextP.amount && p.minQuantity === nextP.minQuantity;
+    });
+  
   return prevProps.product._id === nextProps.product._id &&
          prevProps.product.quantity === nextProps.product.quantity &&
          prevProps.product.price === nextProps.product.price &&
-         prevProps.product.name === nextProps.product.name;
+         prevProps.product.name === nextProps.product.name &&
+         prevUnitPrice === nextUnitPrice &&
+         pricesEqual;
 });

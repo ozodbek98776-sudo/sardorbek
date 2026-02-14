@@ -33,6 +33,45 @@ export function SearchBar({
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
+  // Sort results by relevance
+  const sortedResults = results.slice().sort((a, b) => {
+    const searchTerm = query.toLowerCase();
+    
+    // Exact name match - highest priority
+    if (a.name.toLowerCase() === searchTerm && b.name.toLowerCase() !== searchTerm) return -1;
+    if (b.name.toLowerCase() === searchTerm && a.name.toLowerCase() !== searchTerm) return 1;
+    
+    // Name starts with search term
+    const aStartsWith = a.name.toLowerCase().startsWith(searchTerm);
+    const bStartsWith = b.name.toLowerCase().startsWith(searchTerm);
+    if (aStartsWith && !bStartsWith) return -1;
+    if (!aStartsWith && bStartsWith) return 1;
+    
+    // Exact code match
+    if (a.code === query && b.code !== query) return -1;
+    if (b.code === query && a.code !== query) return 1;
+    
+    // Code starts with search term
+    const aCodeStarts = String(a.code).startsWith(searchTerm);
+    const bCodeStarts = String(b.code).startsWith(searchTerm);
+    if (aCodeStarts && !bCodeStarts) return -1;
+    if (!aCodeStarts && bCodeStarts) return 1;
+    
+    // Name contains search term
+    const aNameIncludes = a.name.toLowerCase().includes(searchTerm);
+    const bNameIncludes = b.name.toLowerCase().includes(searchTerm);
+    if (aNameIncludes && !bNameIncludes) return -1;
+    if (!aNameIncludes && bNameIncludes) return 1;
+    
+    // Code contains search term
+    const aCodeIncludes = String(a.code).toLowerCase().includes(searchTerm);
+    const bCodeIncludes = String(b.code).toLowerCase().includes(searchTerm);
+    if (aCodeIncludes && !bCodeIncludes) return -1;
+    if (!aCodeIncludes && bCodeIncludes) return 1;
+    
+    return 0;
+  });
+  
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,7 +144,7 @@ export function SearchBar({
         <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 overflow-hidden shadow-lg z-50">
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-600">
-              {results.length} ta natija
+              {sortedResults.length} ta natija
             </span>
             <button
               onClick={onClose}
@@ -116,9 +155,9 @@ export function SearchBar({
           </div>
           
           <div className="max-h-64 sm:max-h-96 overflow-y-auto thin-scrollbar">
-            {results.length > 0 ? (
+            {sortedResults.length > 0 ? (
               <div className="divide-y divide-slate-100">
-                {results.slice(0, 10).map(product => (
+                {sortedResults.slice(0, 10).map(product => (
                   <button
                     key={product._id}
                     onClick={() => onProductSelect(product)}

@@ -14,10 +14,16 @@ interface ProductDetailModalProps {
 
 // Discount hisoblash funksiyasi
 const calculateDiscountedPrice = (product: Product, quantity: number): { price: number; discount?: { percent: number; minQuantity: number } } => {
-  const basePrice = product.price || 0;
-  
-  // Prices array-dan discount-larni olish
+  // Yangi format: prices array'dan unit price'ni olish
   const prices = (product as any).prices;
+  let basePrice = product.price || 0;
+  
+  if (Array.isArray(prices) && prices.length > 0) {
+    const unitPrice = prices.find((p: any) => p.type === 'unit');
+    if (unitPrice?.amount) {
+      basePrice = unitPrice.amount;
+    }
+  }
   
   // Agar prices array bo'lmasa, base price qaytarish
   if (!Array.isArray(prices) || prices.length === 0) {
@@ -78,8 +84,17 @@ export function ProductDetailModal({
   const isLowStock = product.quantity <= 10 && product.quantity > 0;
   
   // Narxlarni hisoblash
+  const basePrice = (() => {
+    const prices = (product as any).prices;
+    if (Array.isArray(prices) && prices.length > 0) {
+      const unitPrice = prices.find((p: any) => p.type === 'unit');
+      if (unitPrice?.amount) return unitPrice.amount;
+    }
+    return (product as any).unitPrice || product.price || 0;
+  })();
+  
   const totalPrice = discountedPrice * quantity;
-  const originalTotal = (product.price || 0) * quantity;
+  const originalTotal = basePrice * quantity;
   const savedAmount = originalTotal - totalPrice;
   
   const handleAddToCart = () => {
@@ -169,12 +184,28 @@ export function ProductDetailModal({
           <div className="bg-gradient-to-r from-brand-50 to-purple-50 rounded-xl p-3 border border-brand-100">
             <p className="text-xs text-brand-600 font-semibold mb-1">Asosiy Narx</p>
             <p className="text-xl font-bold text-brand-600">
-              {formatNumber(product.price)} <span className="text-sm">so'm</span>
+              {formatNumber((() => {
+                // Yangi format: prices array
+                const prices = (product as any).prices;
+                if (Array.isArray(prices) && prices.length > 0) {
+                  const unitPrice = prices.find((p: any) => p.type === 'unit');
+                  if (unitPrice?.amount) return unitPrice.amount;
+                }
+                // Eski format: to'g'ridan-to'g'ri price yoki unitPrice
+                return (product as any).unitPrice || product.price || 0;
+              })())} <span className="text-sm">so'm</span>
             </p>
           </div>
 
           {/* Discounted Price - Show when discount applies */}
-          {discount && discountedPrice < (product.price || 0) && (
+          {discount && discountedPrice < ((() => {
+            const prices = (product as any).prices;
+            if (Array.isArray(prices) && prices.length > 0) {
+              const unitPrice = prices.find((p: any) => p.type === 'unit');
+              if (unitPrice?.amount) return unitPrice.amount;
+            }
+            return (product as any).unitPrice || product.price || 0;
+          })()) && (
             <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-3 border border-emerald-200">
               <p className="text-xs text-emerald-600 font-semibold mb-1">Skidka Narxi ({discount.percent}%)</p>
               <p className="text-xl font-bold text-emerald-600">

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { CartItem as CartItemType } from '../../types';
+import { CartItem as CartItemType, Product } from '../../types';
 import { formatNumber } from '../../utils/format';
 
 interface CartItemProps {
@@ -8,14 +8,50 @@ interface CartItemProps {
   onRemove: () => void;
 }
 
+// Discount hisoblash funksiyasi
+const calculateDiscountedPrice = (product: Product, quantity: number): number => {
+  // Yangi format: prices array'dan unit price'ni olish
+  const prices = (product as any).prices;
+  let basePrice = product.price || 0;
+  
+  if (Array.isArray(prices) && prices.length > 0) {
+    const unitPrice = prices.find((p: any) => p.type === 'unit');
+    if (unitPrice?.amount) {
+      basePrice = unitPrice.amount;
+    }
+  }
+  
+  // Agar prices array bo'lmasa, base price qaytarish
+  if (!Array.isArray(prices) || prices.length === 0) {
+    return basePrice;
+  }
+  
+  const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+  
+  if (discounts.length === 0) {
+    return basePrice;
+  }
+  
+  // Eng katta discount-ni olish (eng ko'p miqdor uchun)
+  const bestDiscount = discounts.reduce((best: any, current: any) => 
+    current.minQuantity > best.minQuantity ? current : best
+  );
+  
+  const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
+  
+  return discountedPrice;
+};
+
 export function CartItem({ 
   item, 
   onQuantityChange, 
   onRemove 
 }: CartItemProps) {
-  const price = item.discountedPrice || item.price;
+  // Discount'ni hisobga olgan narxni hisoblash
+  const discountedPrice = calculateDiscountedPrice(item as Product, item.cartQuantity);
+  const price = discountedPrice;
   const total = price * item.cartQuantity;
-  const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
+  const hasDiscount = discountedPrice < (item.price || 0);
   
   // Agar miqdor 0 ga tushsa, avtomatik o'chirish
   const handleQuantityChange = (newQuantity: number) => {
@@ -91,11 +127,6 @@ export function CartItem({
         {/* Price */}
         <div className="text-right min-w-[80px]">
           <p className="text-sm font-bold text-slate-900">{formatNumber(total)}</p>
-          {hasDiscount && (
-            <p className="text-xs text-emerald-600 font-medium">
-              {formatNumber(item.price)} → {formatNumber(price)}
-            </p>
-          )}
         </div>
         
         {/* Remove button */}

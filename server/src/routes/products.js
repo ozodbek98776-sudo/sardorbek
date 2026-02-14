@@ -68,8 +68,13 @@ const upload = multer({
 // Kassa uchun alohida endpoint - token talab qilmaydi
 router.get('/kassa', async (req, res) => {
   try {
-    const { search, page = 1, limit = 10 } = req.query; // 10 ta mahsulot
+    const { search, page = 1, limit = 10, category } = req.query; // 10 ta mahsulot
     const query = {};
+
+    // ✅ SABAB 9 FIX: Kategoriya filtri qo'shish
+    if (category && typeof category === 'string' && category.trim() !== '') {
+      query.category = category.trim();
+    }
 
     // Search query faqat string va bo'sh bo'lmasa
     if (search && typeof search === 'string' && search.trim() !== '' && search !== 'undefined') {
@@ -123,19 +128,21 @@ router.get('/kassa', async (req, res) => {
 
     // Filter out products with invalid or missing data
     const validProducts = products.filter(product => {
-      // Juda qisqa nomli tovarlarni o'chirish (1-2 harf)
+      // Juda qisqa nomli tovarlarni o'chirish (1 harf)
       const hasValidName = product.name &&
-        product.name.trim().length > 2 &&
+        product.name.trim().length >= 1 &&
         product.name.trim() !== '';
 
       // Juda uzun kodli tovarlarni o'chirish (30+ belgi)
       const hasValidCode = product.code &&
         product.code.trim() !== '' &&
-        product.code.trim().length < 30;
+        product.code.trim().length <= 30;
 
       // Narx va miqdor mavjudligi
       const hasValidData = product.price !== undefined &&
-        product.quantity !== undefined;
+        product.price !== null &&
+        product.quantity !== undefined &&
+        product.quantity !== null;
 
       return hasValidName && hasValidCode && hasValidData;
     });
@@ -144,6 +151,11 @@ router.get('/kassa', async (req, res) => {
     if (search && search !== 'undefined') {
       console.log(`Search query: "${search}", Results: ${validProducts.length}`);
     }
+
+    // ✅ Cache header'ni o'chirish (har doim yangi ma'lumot)
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     res.json({
       products: validProducts,
@@ -164,7 +176,7 @@ router.get('/kassa', async (req, res) => {
 // Kassa uchun tovar qo'shish (auth talab qilmaydi)
 router.post('/kassa', async (req, res) => {
   try {
-    const { code, name, costPrice, price, quantity } = req.body;
+    const { code, name, costPrice, price, quantity, category, section } = req.body;
 
     // Validatsiya
     if (!code || !name || !price) {
@@ -195,7 +207,9 @@ router.post('/kassa', async (req, res) => {
       price: parseFloat(price),
       quantity: parseInt(quantity) || 0,
       warehouse: mainWarehouse._id,
-      isMainWarehouse: true
+      isMainWarehouse: true,
+      category: category || 'Boshqa',
+      section: section || 'Boshqa'
     };
 
     const product = new Product(productData);
@@ -213,6 +227,15 @@ router.post('/kassa', async (req, res) => {
 
     // Populate qilib qaytarish
     await product.populate('warehouse', 'name');
+
+    // ✅ Socket.IO event emit qilish
+    if (global.io) {
+      global.io.emit('product:created', product);
+      console.log('📡 Socket emit: product:created (POST /kassa)');
+    }
+
+    // ✅ Cache tozalash
+    statsCache = null;
 
     console.log(`Kassa: Yangi tovar qo'shildi - ${product.name} (${product.code})`);
     res.status(201).json(product);
@@ -341,21 +364,34 @@ router.get('/', auth, async (req, res) => {
     if (kassaView === 'true') {
       const pageNum = parseInt(page) || 1;
       const limitNum = parseInt(limit) || 50; // 50 ta mahsulot
-      const skip = (pageNum - 1) * limitNum;
       
-      // Parallel query - tezroq
-      const [products, total] = await Promise.all([
-        Product.find(query)
-          .select('name code price unitPrice quantity images category section prices')
-          .skip(skip)
-          .limit(limitNum)
-          .lean()
-          .hint({ code: 1 }), // Index ishlatish
-        Product.countDocuments(query)
-      ]);
+      // Birinchi barcha mahsulotlarni olish va filter qilish
+      const allProducts = await Product.find(query)
+        .select('name code price unitPrice quantity images category section prices')
+        .lean()
+        .hint({ code: 1 });
+
+      // Filter out products with invalid or missing data
+      const validProducts = allProducts.filter(product => {
+        // Juda qisqa nomli tovarlarni o'chirish (1 harf)
+        const hasValidName = product.name &&
+          product.name.trim().length > 0 &&
+          product.name.trim() !== '';
+
+        // Juda uzun kodli tovarlarni o'chirish (30+ belgi)
+        const hasValidCode = product.code &&
+          product.code.trim() !== '' &&
+          product.code.trim().length < 30;
+
+        // Narx va miqdor mavjudligi
+        const hasValidData = product.price !== undefined &&
+          product.quantity !== undefined;
+
+        return hasValidName && hasValidCode && hasValidData;
+      });
 
       // Raqamli sort - JavaScript'da
-      products.sort((a, b) => {
+      validProducts.sort((a, b) => {
         const codeA = parseInt(a.code) || 999999;
         const codeB = parseInt(b.code) || 999999;
         if (codeA === 999999 && codeB === 999999) {
@@ -364,11 +400,16 @@ router.get('/', auth, async (req, res) => {
         return codeA - codeB;
       });
 
+      // Pagination
+      const skip = (pageNum - 1) * limitNum;
+      const paginatedProducts = validProducts.slice(skip, skip + limitNum);
+      const total = validProducts.length;
+
       res.set('Cache-Control', 'public, max-age=60'); // 1 daqiqa cache
       res.set('X-Content-Type-Options', 'nosniff');
       
       return res.json({
-        products,
+        products: paginatedProducts,
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -1417,6 +1458,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
     
     // ⚡ Socket.IO - Real-time update
     if (global.io) {
+      console.log('📡 Socket emit: product:updated with prices:', product.prices);
       global.io.emit('product:updated', product);
       // ⚡ Cache ni tozalash
       statsCache = null;

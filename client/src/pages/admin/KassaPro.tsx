@@ -78,10 +78,40 @@ export default function KassaProNew() {
   const [showCartModal, setShowCartModal] = useState(false); // Mobile cart modal
   const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
   
-  // Computed values
+  // Computed values - Discount'ni hisobga olgan jami narx
+  const calculateDiscountedPrice = (product: any, quantity: number): number => {
+    const prices = product.prices;
+    let basePrice = product.price || 0;
+    
+    if (Array.isArray(prices) && prices.length > 0) {
+      const unitPrice = prices.find((p: any) => p.type === 'unit');
+      if (unitPrice?.amount) {
+        basePrice = unitPrice.amount;
+      }
+    }
+    
+    if (!Array.isArray(prices) || prices.length === 0) {
+      return basePrice;
+    }
+    
+    const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+    
+    if (discounts.length === 0) {
+      return basePrice;
+    }
+    
+    const bestDiscount = discounts.reduce((best: any, current: any) => 
+      current.minQuantity > best.minQuantity ? current : best
+    );
+    
+    const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
+    
+    return discountedPrice;
+  };
+  
   const total = cart.reduce((sum, item) => {
-    const price = item.discountedPrice || item.price;
-    return sum + price * item.cartQuantity;
+    const discountedPrice = calculateDiscountedPrice(item, item.cartQuantity);
+    return sum + discountedPrice * item.cartQuantity;
   }, 0);
   
   const itemCount = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
@@ -89,11 +119,22 @@ export default function KassaProNew() {
   // Fetch functions - oldinroq e'lon qilish
   const fetchProducts = useCallback(async (pageNum = 1, append = false) => {
     try {
-      console.log(`📦 Mahsulotlar yuklanmoqda... Sahifa: ${pageNum}`);
+      console.log(`📦 Mahsulotlar yuklanmoqda... Sahifa: ${pageNum}, Kategoriya: ${selectedCategory || 'Barchasi'}`);
       
       if (navigator.onLine) {
         // Backend'dan pagination bilan olish
-        const res = await api.get(`/products?kassaView=true&page=${pageNum}&limit=50`);
+        const params = new URLSearchParams({
+          kassaView: 'true',
+          page: pageNum.toString(),
+          limit: '50'
+        });
+        
+        // ✅ SABAB 8 FIX: Kategoriya parametrini qo'shish
+        if (selectedCategory) {
+          params.append('category', selectedCategory);
+        }
+        
+        const res = await api.get(`/products?${params.toString()}`);
         
         // Yangi format: { products: [...], pagination: {...} }
         let productsData = [];
@@ -150,16 +191,36 @@ export default function KassaProNew() {
         }
       } else {
         // Offline - cache'dan olish
+        console.log('📡 Offline rejim - cache\'dan yuklash...');
         const cached = await getCachedProducts();
         const cachedData = cached as Product[];
         
-        setAllProducts(cachedData);
-        setProducts(cachedData);
-        setDisplayedProducts(cachedData);
-        setPage(1);
-        setHasMore(false);
-        
-        console.log(`📦 Cache'dan yuklandi: ${cachedData.length} ta mahsulot`);
+        if (cachedData.length > 0) {
+          // Cache'dan yuklangan ma'lumotlarni normalize qilish
+          const normalizedCached = cachedData.map((product: any) => {
+            const price = Array.isArray(product.prices) && product.prices.length > 0
+              ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
+              : (product.unitPrice || product.price || 0);
+            
+            return {
+              ...product,
+              price
+            };
+          });
+          
+          setAllProducts(normalizedCached);
+          setProducts(normalizedCached);
+          setDisplayedProducts(normalizedCached);
+          setPage(1);
+          setHasMore(false);
+          
+          console.log(`📦 Cache'dan yuklandi: ${normalizedCached.length} ta mahsulot`);
+        } else {
+          console.warn('⚠️ Cache bo\'sh');
+          setAllProducts([]);
+          setProducts([]);
+          setDisplayedProducts([]);
+        }
       }
     } catch (err) {
       console.error('❌ Mahsulotlarni yuklashda xato:', err);
@@ -168,7 +229,19 @@ export default function KassaProNew() {
       try {
         const cached = await getCachedProducts();
         if (cached.length > 0) {
-          const cachedData = cached as Product[];
+          // Cache'dan yuklangan ma'lumotlarni normalize qilish
+          const normalizedCached = cached.map((product: any) => {
+            const price = Array.isArray(product.prices) && product.prices.length > 0
+              ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
+              : (product.unitPrice || product.price || 0);
+            
+            return {
+              ...product,
+              price
+            };
+          });
+          
+          const cachedData = normalizedCached as Product[];
           setAllProducts(cachedData);
           setProducts(cachedData);
           setDisplayedProducts(cachedData);
@@ -181,7 +254,7 @@ export default function KassaProNew() {
         console.error('❌ Cache xatosi:', cacheErr);
       }
     }
-  }, []);
+  }, [selectedCategory]);
   
   // ⚡ Fetch statistics - DB dagi jami mahsulotlar soni (search bo'yicha)
   const fetchStats = useCallback(async (searchTerm: string = '') => {
@@ -227,6 +300,15 @@ export default function KassaProNew() {
     });
   }, [loadingMore, hasMore, page, fetchProducts]);
   
+  // Category o'zgartirilganda mahsulotlarni qayta yuklash
+  useEffect(() => {
+    console.log('🔄 Category o\'zgartirildi:', selectedCategory);
+    setPage(1);
+    setHasMore(true);
+    setDisplayedProducts([]);
+    fetchProducts(1, false);
+  }, [selectedCategory, fetchProducts]);
+  
   // Infinite scroll observer (OPTIMIZED)
   useEffect(() => {
     if (!hasMore || loadingMore) return;
@@ -248,19 +330,37 @@ export default function KassaProNew() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loadMoreProducts]);
   
-  // Fetch data
+  // Fetch data - BIRINCHI YUKLASH
   useEffect(() => {
     console.log('🚀 KassaPro useEffect - ma\'lumotlar yuklanmoqda...');
     
-    // Cache'ni tozalash - tovarlar sahifasida tahrirlangan ma'lumotlarni ko'rish uchun
-    clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
+    const initializeData = async () => {
+      try {
+        // 1. Cache'ni tozalash (xato bo'lsa ham davom etish)
+        try {
+          await clearProductsCache();
+          console.log('✅ Cache tozalandi');
+        } catch (cacheErr) {
+          console.warn('⚠️ Cache tozalashda xato, davom etish:', cacheErr);
+        }
+        
+        // 2. Backend'dan yangi ma'lumotlarni olish
+        await fetchProducts();
+        
+        // 3. Boshqa ma'lumotlarni yuklash
+        fetchStats('');
+        fetchCustomers();
+        fetchHelperReceipts();
+        loadSavedReceipts();
+      } catch (err) {
+        console.error('❌ Initialization xatosi:', err);
+      }
+    };
     
-    fetchProducts();
-    fetchStats(''); // JAMI mahsulotlar soni
-    fetchCustomers();
-    fetchHelperReceipts();
-    loadSavedReceipts();
-  }, []);
+    initializeData();
+    
+    // Auto-refresh o'chirildi - Socket.IO event'lar yetarli
+  }, [fetchProducts, fetchStats]);
   
   // Socket.IO - Real-time updates + Cache update
   useEffect(() => {
@@ -268,49 +368,146 @@ export default function KassaProNew() {
     
     console.log('🔌 Socket.IO listeners registering...');
     
+    // Narxlarni normalize qilish funksiyasi
+    const normalizeProduct = (product: any) => {
+      const price = Array.isArray(product.prices) && product.prices.length > 0
+        ? (product.prices.find((p: any) => p.type === 'unit')?.amount || product.unitPrice || product.price || 0)
+        : (product.unitPrice || product.price || 0);
+      
+      return {
+        ...product,
+        price
+      };
+    };
+    
+    // Statistics'ni yangilash funksiyasi
+    const updateStats = () => {
+      fetchStats(searchQuery);
+    };
+    
     socket.on('product:updated', (updatedProduct: Product) => {
       console.log('🔄 Socket event received - product:updated:', updatedProduct._id);
+      console.log('📦 Updated product prices:', updatedProduct.prices);
+      const normalizedProduct = normalizeProduct(updatedProduct);
+      console.log('✅ Normalized price:', normalizedProduct.price);
+      
       setProducts(prev => {
-        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
-        console.log('✅ Products state updated');
+        const updated = prev.map(p => p._id === normalizedProduct._id ? normalizedProduct : p);
+        console.log('✅ Products state updated with normalized price:', normalizedProduct.price);
         return updated;
       });
       setAllProducts(prev => {
-        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+        const updated = prev.map(p => p._id === normalizedProduct._id ? normalizedProduct : p);
         console.log('✅ AllProducts state updated');
         return updated;
       });
-      setDisplayedProducts(prev => {
-        const updated = prev.map(p => p._id === updatedProduct._id ? updatedProduct : p);
-        console.log('✅ DisplayedProducts state updated');
-        // Cache'ni update qilish
-        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+      
+      // Search results'ni yangilash
+      setSearchResults(prev => {
+        const updated = prev.map(p => p._id === normalizedProduct._id ? normalizedProduct : p);
+        if (updated.length > 0) {
+          console.log('✅ SearchResults state updated');
+        }
         return updated;
       });
+      
+      // Search bo'lmasa, displayedProducts'ni yangilash
+      if (!searchQuery || searchQuery.length === 0) {
+        setDisplayedProducts(prev => {
+          const updated = prev.map(p => p._id === normalizedProduct._id ? normalizedProduct : p);
+          console.log('✅ DisplayedProducts state updated');
+          // Cache'ni update qilish
+          cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+          return updated;
+        });
+      }
+      
+      // Cart'dagi mahsulotni ham yangilash
+      setCart(prev => prev.map(item => {
+        if (item._id === normalizedProduct._id) {
+          console.log('🛒 Cart item updated:', item._id, 'old price:', item.price, 'new price:', normalizedProduct.price);
+          return {
+            ...item,
+            ...normalizedProduct,
+            // prices array'ni ham yangilash
+            prices: normalizedProduct.prices
+          };
+        }
+        return item;
+      }));
+      
+      // Statistics cardlarini yangilash
+      updateStats();
     });
     
     socket.on('product:created', (newProduct: Product) => {
       console.log('✨ Socket event received - product:created:', newProduct._id);
-      setProducts(prev => [newProduct, ...prev]);
-      setAllProducts(prev => [newProduct, ...prev]);
-      setDisplayedProducts(prev => {
-        const updated = [newProduct, ...prev];
-        // Cache'ni update qilish
-        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
-        return updated;
+      console.log('📦 New product data:', newProduct);
+      const normalizedProduct = normalizeProduct(newProduct);
+      
+      setProducts(prev => [normalizedProduct, ...prev]);
+      setAllProducts(prev => [normalizedProduct, ...prev]);
+      
+      // Agar search bo'lsa, search results'ni yangilash
+      setSearchResults(prev => {
+        // Agar yangi mahsulot search queryga mos kelsa, qo'shish
+        if (searchQuery && searchQuery.length > 0) {
+          const searchTerm = searchQuery.trim().toLowerCase();
+          const matches = 
+            normalizedProduct.name.toLowerCase().includes(searchTerm) ||
+            normalizedProduct.code.toLowerCase().includes(searchTerm);
+          
+          if (matches) {
+            console.log('✅ New product matches search query, adding to results');
+            return [normalizedProduct, ...prev];
+          }
+        }
+        return prev;
       });
+      
+      // Search bo'lmasa, displayedProducts'ni yangilash
+      if (!searchQuery || searchQuery.length === 0) {
+        setDisplayedProducts(prev => {
+          // ✅ SABAB 7 FIX: Kategoriya filtri bo'lsa, yangi mahsulot kategoriyaga mos kelishini tekshirish
+          if (selectedCategory && normalizedProduct.category !== selectedCategory) {
+            console.log(`⚠️ New product category (${normalizedProduct.category}) doesn't match selected category (${selectedCategory}), not adding to displayedProducts`);
+            return prev;
+          }
+          
+          const updated = [normalizedProduct, ...prev];
+          // Cache'ni update qilish
+          cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+          return updated;
+        });
+      }
+      
+      // Cache tozalash va mahsulotlarni qayta yuklash
+      clearProductsCache().catch(err => console.warn('Cache tozalashda xato:', err));
+      
+      // Statistics cardlarini yangilash
+      updateStats();
     });
     
     socket.on('product:deleted', (data: { _id: string }) => {
       console.log('🗑️ Socket event received - product:deleted:', data._id);
       setProducts(prev => prev.filter(p => p._id !== data._id));
       setAllProducts(prev => prev.filter(p => p._id !== data._id));
-      setDisplayedProducts(prev => {
-        const updated = prev.filter(p => p._id !== data._id);
-        // Cache'ni update qilish
-        cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
-        return updated;
-      });
+      
+      // Search results'ni yangilash
+      setSearchResults(prev => prev.filter(p => p._id !== data._id));
+      
+      // Search bo'lmasa, displayedProducts'ni yangilash
+      if (!searchQuery || searchQuery.length === 0) {
+        setDisplayedProducts(prev => {
+          const updated = prev.filter(p => p._id !== data._id);
+          // Cache'ni update qilish
+          cacheProducts(updated as any).catch(err => console.warn('Cache update xatosi:', err));
+          return updated;
+        });
+      }
+      
+      // Statistics cardlarini yangilash
+      updateStats();
     });
     
     return () => {
@@ -319,7 +516,7 @@ export default function KassaProNew() {
       socket.off('product:created');
       socket.off('product:deleted');
     };
-  }, [socket]);
+  }, [socket, searchQuery, fetchStats, selectedCategory]);
   
   
   const fetchCustomers = async () => {
@@ -387,11 +584,18 @@ export default function KassaProNew() {
     
     try {
       // Backend-dan qidiruv
+      const params: any = {
+        search: query,
+        limit: 20 // Faqat 20 ta natija
+      };
+      
+      // ✅ SABAB 9 FIX: Kategoriya parametrini qo'shish
+      if (selectedCategory) {
+        params.category = selectedCategory;
+      }
+      
       const response = await api.get('/products/kassa', {
-        params: {
-          search: query,
-          limit: 20 // Faqat 20 ta natija
-        }
+        params
       });
       
       let resultsData = [];
@@ -412,7 +616,7 @@ export default function KassaProNew() {
     
     // Statistics-ni yangilash (search bo'yicha)
     fetchStats(query);
-  }, [fetchStats]);
+  }, [fetchStats, selectedCategory]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -421,21 +625,6 @@ export default function KassaProNew() {
     
     return () => clearTimeout(timer);
   }, [searchQuery]);
-  
-  // Skidka narxini hisoblash funksiyasi
-  const calculateDiscountedPrice = (product: Product, quantity: number): number => {
-    const basePrice = product.price || 0;
-    const discountPrices = getDiscountPrices(product);
-    
-    // Miqdorga qarab skidka topish
-    for (const discount of discountPrices) {
-      if (quantity >= discount.minQuantity) {
-        return Math.round(basePrice * (1 - discount.discountPercent / 100));
-      }
-    }
-    
-    return basePrice;
-  };
   
   // Cart functions
   const addToCart = (product: Product, quantity: number = 1) => {
@@ -518,7 +707,7 @@ export default function KassaProNew() {
   const handlePayment = async (data: PaymentData) => {
     console.log('💰 handlePayment boshlandi:', data);
     
-    const { customer, cashAmount, cardAmount, debtAmount } = data;
+    const { customer, cashAmount, cardAmount, clickAmount, debtAmount, discount = 0 } = data;
     
     // Validatsiya
     if (cart.length === 0) {
@@ -526,32 +715,40 @@ export default function KassaProNew() {
       return;
     }
     
-    if (cashAmount + cardAmount <= 0) {
+    if (cashAmount + cardAmount + clickAmount <= 0) {
       showAlert('To\'lov summasi 0 dan katta bo\'lishi kerak!', 'Xatolik', 'danger');
       return;
     }
     
-    let finalPaymentMethod: 'cash' | 'card' | 'mixed';
-    if (cashAmount > 0 && cardAmount > 0) {
+    let finalPaymentMethod: 'cash' | 'card' | 'click' | 'mixed';
+    const paymentCount = [cashAmount > 0, cardAmount > 0, clickAmount > 0].filter(Boolean).length;
+    
+    if (paymentCount > 1) {
       finalPaymentMethod = 'mixed';
     } else if (cashAmount > 0) {
       finalPaymentMethod = 'cash';
-    } else {
+    } else if (cardAmount > 0) {
       finalPaymentMethod = 'card';
+    } else {
+      finalPaymentMethod = 'click';
     }
+    
+    const finalTotal = total - discount;
     
     const saleData = {
       items: cart.map(item => ({
         product: item._id,
         name: item.name,
         code: item.code,
-        price: item.price,
+        price: calculateDiscountedPrice(item, item.cartQuantity),
         quantity: item.cartQuantity
       })),
-      total,
-      paidAmount: cashAmount + cardAmount,
+      total: finalTotal,
+      discount,
+      paidAmount: cashAmount + cardAmount + clickAmount,
       cashAmount,
       cardAmount,
+      clickAmount,
       paymentMethod: finalPaymentMethod,
       customer: customer?._id
     };

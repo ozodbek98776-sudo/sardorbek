@@ -26,6 +26,7 @@ const TelegramSettings = lazy(() => import('./pages/admin/TelegramSettings'));
 const Categories = lazy(() => import('./pages/admin/Categories'));
 const Expenses = lazy(() => import('./pages/admin/Expenses'));
 const CustomersPro = lazy(() => import('./pages/admin/CustomersPro'));
+const Calculator = lazy(() => import('./pages/admin/Calculator'));
 // HR sahifalari
 const HRDashboard = lazy(() => import('./pages/admin/hr/HRDashboard'));
 const Employees = lazy(() => import('./pages/admin/hr/Employees'));
@@ -176,6 +177,7 @@ function App() {
                 <Route path="orders" element={<Suspense fallback={<PageLoader />}><Orders /></Suspense>} />
                 <Route path="customers" element={<Suspense fallback={<PageLoader />}><CustomersPro /></Suspense>} />
                 <Route path="expenses" element={<Suspense fallback={<PageLoader />}><Expenses /></Suspense>} />
+                <Route path="calculator" element={<Suspense fallback={<PageLoader />}><Calculator /></Suspense>} />
                 {/* HR Routes */}
                 <Route path="hr" element={<Suspense fallback={<PageLoader />}><HRDashboard /></Suspense>} />
                 <Route path="hr/employees" element={<Suspense fallback={<PageLoader />}><Employees /></Suspense>} />

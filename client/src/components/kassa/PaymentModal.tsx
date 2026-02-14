@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Banknote, CreditCard, AlertTriangle } from 'lucide-react';
+import { X, Banknote, CreditCard, AlertTriangle, Smartphone } from 'lucide-react';
 import { Customer, CartItem } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
@@ -18,8 +18,10 @@ export interface PaymentData {
   customer: Customer | null;
   cashAmount: number;
   cardAmount: number;
+  clickAmount: number;
   total: number;
   debtAmount: number;
+  discount?: number;
 }
 
 export function PaymentModal({ 
@@ -34,9 +36,13 @@ export function PaymentModal({
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [cashAmount, setCashAmount] = useState(0);
   const [cardAmount, setCardAmount] = useState(0);
+  const [clickAmount, setClickAmount] = useState(0);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [totalClickCount, setTotalClickCount] = useState(0);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   
   // Modal scroll lock
   useModalScrollLock(isOpen);
@@ -48,15 +54,25 @@ export function PaymentModal({
     customers: customers
   });
   
-  const totalPaid = cashAmount + cardAmount;
-  const debtAmount = Math.max(0, total - totalPaid);
-  const changeAmount = Math.max(0, totalPaid - total);
+  const totalPaid = cashAmount + cardAmount + clickAmount;
+  const debtAmount = Math.max(0, total - discount - totalPaid);
+  const changeAmount = Math.max(0, totalPaid - (total - discount));
+  
+  const handleTotalClick = () => {
+    setTotalClickCount(prev => prev + 1);
+    if (totalClickCount === 1) {
+      // 2nd click - collapse
+      setIsCollapsed(true);
+      setTotalClickCount(0);
+    }
+  };
   
   const handleSubmit = () => {
     console.log('🔵 PaymentModal handleSubmit boshlandi');
     console.log('   - Total:', total);
     console.log('   - Cash:', cashAmount);
     console.log('   - Card:', cardAmount);
+    console.log('   - Click:', clickAmount);
     console.log('   - Total Paid:', totalPaid);
     console.log('   - Debt:', debtAmount);
     console.log('   - Customer:', selectedCustomer);
@@ -79,8 +95,10 @@ export function PaymentModal({
       customer: selectedCustomer,
       cashAmount,
       cardAmount,
-      total,
-      debtAmount
+      clickAmount,
+      total: total - discount,
+      debtAmount,
+      discount
     });
     
     // Reset
@@ -91,6 +109,7 @@ export function PaymentModal({
     setSelectedCustomer(null);
     setCashAmount(0);
     setCardAmount(0);
+    setClickAmount(0);
     setShowNewCustomerForm(false);
     setNewCustomerName('');
     setNewCustomerPhone('');
@@ -132,11 +151,170 @@ export function PaymentModal({
         </div>
 
         <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar">
-          {/* Total */}
-          <div className="bg-slate-50 rounded-xl p-4 text-center">
+          {/* Total - Clickable to collapse */}
+          <div 
+            onClick={handleTotalClick}
+            className="bg-slate-50 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 transition-colors"
+          >
             <p className="text-sm text-slate-600 mb-1">Jami summa</p>
-            <p className="text-3xl font-bold text-brand-600">{formatNumber(total)} so'm</p>
+            <p className="text-3xl font-bold text-brand-600">{formatNumber(total - discount)} so'm</p>
+            <p className="text-xs text-slate-500 mt-2">2 marta bosing yashirish uchun</p>
           </div>
+
+          {/* Collapsed view */}
+          {isCollapsed ? (
+            <div className="space-y-3">
+              {/* Discount input */}
+              <div>
+                <label className="text-sm font-semibold text-slate-700 mb-2 block">Chegirma</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={discount || ''}
+                    onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                    className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-lg font-semibold"
+                  />
+                  <span className="px-4 py-3 bg-orange-100 text-orange-700 font-bold rounded-xl">so'm</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Mijozga nechi pul kamaytirib bermoqchisiz</p>
+              </div>
+
+              {/* Remaining amount to pay */}
+              <div className="bg-gradient-to-r from-brand-50 to-brand-100 rounded-xl p-4 border-2 border-brand-200">
+                <p className="text-xs text-brand-600 mb-1">Qolgan to'lov</p>
+                <p className="text-3xl font-bold text-brand-700">{formatNumber(total - discount)} so'm</p>
+              </div>
+
+              {/* Payment inputs */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                    <Banknote className="w-4 h-4 text-emerald-600" />
+                    Naqd pul
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={cashAmount || ''}
+                      onChange={(e) => setCashAmount(Math.max(0, Number(e.target.value)))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-lg font-semibold"
+                    />
+                    <button
+                      onClick={() => setCashAmount(total - discount)}
+                      className="px-4 py-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold rounded-xl transition-all whitespace-nowrap"
+                    >
+                      To'liq
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    Karta
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={cardAmount || ''}
+                      onChange={(e) => setCardAmount(Math.max(0, Number(e.target.value)))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-lg font-semibold"
+                    />
+                    <button
+                      onClick={() => setCardAmount(total - discount)}
+                      className="px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl transition-all whitespace-nowrap"
+                    >
+                      To'liq
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-purple-600" />
+                    CLICK
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={clickAmount || ''}
+                      onChange={(e) => setClickAmount(Math.max(0, Number(e.target.value)))}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-lg font-semibold"
+                    />
+                    <button
+                      onClick={() => setClickAmount(total - discount)}
+                      className="px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded-xl transition-all whitespace-nowrap"
+                    >
+                      To'liq
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment summary */}
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Jami to'lanadi:</span>
+                  <span className="font-bold text-slate-900">{formatNumber(total - discount)} so'm</span>
+                </div>
+                
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-orange-600">Chegirma:</span>
+                    <span className="font-bold text-orange-600">-{formatNumber(discount)} so'm</span>
+                  </div>
+                )}
+                
+                {totalPaid > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">To'langan:</span>
+                    <span className="font-bold text-slate-900">{formatNumber(totalPaid)} so'm</span>
+                  </div>
+                )}
+                
+                {debtAmount > 0 && (
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-amber-600">Qarz:</span>
+                    <span className="font-bold text-amber-600">{formatNumber(debtAmount)} so'm</span>
+                  </div>
+                )}
+                
+                {changeAmount > 0 && (
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-green-600">Qaytim:</span>
+                    <span className="font-bold text-green-600">{formatNumber(changeAmount)} so'm</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSubmit}
+                  disabled={totalPaid <= 0 || (debtAmount > 0 && !selectedCustomer)}
+                  className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  Tasdiqlash
+                </button>
+                <button
+                  onClick={() => setIsCollapsed(false)}
+                  className="px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
+                >
+                  Orqaga
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Full form */}
 
           {/* Customer select */}
           <div className="space-y-2">
@@ -267,6 +445,29 @@ export function PaymentModal({
                 </button>
               </div>
             </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-purple-600" />
+                CLICK
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={clickAmount || ''}
+                  onChange={(e) => setClickAmount(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="0"
+                  className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-lg font-semibold"
+                />
+                <button
+                  onClick={() => setClickAmount(total)}
+                  className="px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded-xl transition-all whitespace-nowrap"
+                >
+                  To'liq
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Payment summary */}
@@ -334,6 +535,8 @@ export function PaymentModal({
               Bekor
             </button>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

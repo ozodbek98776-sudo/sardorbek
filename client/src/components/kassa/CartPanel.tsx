@@ -1,8 +1,54 @@
 import { useState } from 'react';
 import { ShoppingCart, Trash2, Save, CreditCard, ChevronUp, ChevronDown } from 'lucide-react';
-import { CartItem as CartItemType } from '../../types';
+import { CartItem as CartItemType, Product } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { CartItem } from './CartItem';
+
+interface CartPanelProps {
+  cart: CartItemType[];
+  total: number;
+  itemCount: number;
+  onQuantityChange: (id: string, quantity: number) => void;
+  onRemove: (id: string) => void;
+  onClear: () => void;
+  onSave: () => void;
+  onCheckout: () => void;
+  isModal?: boolean; // Modal rejimida ishlayadimi
+}
+
+// Discount hisoblash funksiyasi
+const calculateDiscountedPrice = (product: Product, quantity: number): number => {
+  // Yangi format: prices array'dan unit price'ni olish
+  const prices = (product as any).prices;
+  let basePrice = product.price || 0;
+  
+  if (Array.isArray(prices) && prices.length > 0) {
+    const unitPrice = prices.find((p: any) => p.type === 'unit');
+    if (unitPrice?.amount) {
+      basePrice = unitPrice.amount;
+    }
+  }
+  
+  // Agar prices array bo'lmasa, base price qaytarish
+  if (!Array.isArray(prices) || prices.length === 0) {
+    return basePrice;
+  }
+  
+  const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+  
+  if (discounts.length === 0) {
+    return basePrice;
+  }
+  
+  // Eng katta discount-ni olish (eng ko'p miqdor uchun)
+  const bestDiscount = discounts.reduce((best: any, current: any) => 
+    current.minQuantity > best.minQuantity ? current : best
+  );
+  
+  const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
+  
+  return discountedPrice;
+};
 
 interface CartPanelProps {
   cart: CartItemType[];
@@ -29,6 +75,16 @@ export function CartPanel({
 }: CartPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   
+  // Discount'ni hisobga olgan jami narxni hisoblash
+  const calculateTotalWithDiscount = () => {
+    return cart.reduce((sum, item) => {
+      const discountedPrice = calculateDiscountedPrice(item as Product, item.cartQuantity);
+      return sum + discountedPrice * item.cartQuantity;
+    }, 0);
+  };
+  
+  const totalWithDiscount = calculateTotalWithDiscount();
+  
   return (
     <div className={`bg-white ${isModal ? 'rounded-2xl' : 'rounded-t-2xl lg:rounded-xl'} border border-slate-200 shadow-lg overflow-hidden flex flex-col ${isModal ? 'h-full' : 'max-h-[60vh] lg:h-full lg:max-h-full'}`}
       data-testid="cart-panel"
@@ -48,7 +104,7 @@ export function CartPanel({
           
           <div className="flex items-center gap-3">
             <span className="text-base font-bold text-white">
-              {formatNumber(total)} so'm
+              {formatNumber(totalWithDiscount)} so'm
             </span>
             {isExpanded ? (
               <ChevronDown className="w-5 h-5 text-white" />
@@ -107,7 +163,7 @@ export function CartPanel({
           <div className="hidden lg:flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-700">Jami:</span>
             <span className="text-xl font-bold text-brand-600" data-testid="cart-total">
-              {formatNumber(total)} <span className="text-sm">so'm</span>
+              {formatNumber(totalWithDiscount)} <span className="text-sm">so'm</span>
             </span>
           </div>
           

@@ -14,6 +14,7 @@ interface ReceiptData {
   _id: string;
   items: ReceiptItem[];
   total: number;
+  discount?: number;
   paidAmount: number;
   cashAmount?: number;
   cardAmount?: number;
@@ -106,10 +107,24 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
 
           {/* Totals */}
           <div className="border-t-2 border-slate-300 pt-4 space-y-2">
+            {receipt.discount && receipt.discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Asl jami:</span>
+                <span className="text-slate-900">{formatNumber(receipt.total + receipt.discount)} so'm</span>
+              </div>
+            )}
+            
             <div className="flex justify-between text-lg">
               <span className="font-semibold text-slate-700">Jami:</span>
               <span className="font-bold text-slate-900">{formatNumber(receipt.total)} so'm</span>
             </div>
+            
+            {receipt.discount && receipt.discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-orange-600">Chegirma:</span>
+                <span className="font-semibold text-orange-600">-{formatNumber(receipt.discount)} so'm</span>
+              </div>
+            )}
             
             {receipt.paymentMethod === 'mixed' ? (
               <>

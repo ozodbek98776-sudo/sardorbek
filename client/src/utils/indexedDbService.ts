@@ -530,12 +530,19 @@ export const hasProductsCache = async (): Promise<boolean> => {
 export const clearProductsCache = async (): Promise<void> => {
   try {
     const db = await initDB();
+    
+    // Object store mavjudligini tekshirish
+    if (!db.objectStoreNames.contains('products')) {
+      console.warn('⚠️ "products" object store mavjud emas, cache tozalash o\'tkazildi');
+      return;
+    }
+    
     const transaction = db.transaction(['products'], 'readwrite');
     const store = transaction.objectStore('products');
     await store.clear();
     console.log('✅ Mahsulotlar cache tozalandi');
   } catch (error) {
     console.error('❌ Cache tozalashda xato:', error);
-    throw error;
+    // Xato bo'lsa ham davom etish
   }
 };
