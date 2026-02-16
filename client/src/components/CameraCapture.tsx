@@ -9,18 +9,28 @@ interface CameraCaptureProps {
 
 export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const { videoRef, canvasRef, isCameraActive, startCamera, stopCamera, capturePhoto } = useCamera();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    startCamera();
+    startCamera().catch(err => {
+      console.error('Camera start error:', err);
+      setError('Kamera ishlatishda xatolik. Ruxsatni tekshiring.');
+    });
     return () => stopCamera();
   }, [startCamera, stopCamera]);
 
   const handleCapture = async () => {
+    console.log('📸 Capturing photo...');
     const file = await capturePhoto();
+    console.log('📸 Captured file:', file);
     if (file) {
+      console.log('✅ File captured successfully:', file.name);
       onCapture(file);
       stopCamera();
       onClose();
+    } else {
+      console.error('❌ Failed to capture photo');
+      alert('Rasm olishda xatolik');
     }
   };
 
