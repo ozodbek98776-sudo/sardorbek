@@ -244,14 +244,17 @@ export default function ProductsOptimized() {
     if (!socket) return;
     
     const handleProductCreated = (newProduct: Product) => {
+      console.log('✅ Product created via socket:', newProduct.name);
       setProducts(prev => [newProduct, ...prev]);
     };
     
     const handleProductUpdated = (updatedProduct: Product) => {
+      console.log('✅ Product updated via socket:', updatedProduct.name);
       setProducts(prev => prev.map(p => p._id === updatedProduct._id ? updatedProduct : p));
     };
     
     const handleProductDeleted = (data: { _id: string }) => {
+      console.log('✅ Product deleted via socket:', data._id);
       setProducts(prev => prev.filter(p => p._id !== data._id));
     };
     
@@ -278,6 +281,7 @@ export default function ProductsOptimized() {
     try {
       // Avval rasmlarni yuklash
       const imagePaths = await uploadImages();
+      console.log('🖼️ Final image paths:', imagePaths);
       
       // Prices array yaratish - Backend model ga mos
       const prices = [];
@@ -570,14 +574,23 @@ export default function ProductsOptimized() {
         formData.append('images', file);
       });
       
+      console.log('📤 Uploading images:', selectedImages.length);
       const response = await api.post('/products/upload-images', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      console.log('📥 Upload response:', response.data);
       const newImagePaths = response.data.images || [];
-      return [...uploadedImages, ...newImagePaths];
+      
+      // Extract path strings from image objects
+      const imagePaths = newImagePaths.map((img: any) => 
+        typeof img === 'string' ? img : img.path
+      );
+      
+      console.log('✅ New image paths:', imagePaths);
+      return [...uploadedImages, ...imagePaths];
     } catch (error) {
-      console.error('Error uploading images:', error);
+      console.error('❌ Error uploading images:', error);
       showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
       return uploadedImages;
     }
