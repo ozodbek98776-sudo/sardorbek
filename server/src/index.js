@@ -1,4 +1,11 @@
-require('dotenv').config();
+// Load .env file explicitly
+const path = require('path');
+const fs = require('fs');
+const envPath = path.join(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath });
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
