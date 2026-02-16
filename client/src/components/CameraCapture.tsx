@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Camera } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 
@@ -50,7 +50,14 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
 
         {/* Camera Preview */}
         <div className="relative bg-black aspect-video overflow-hidden">
-          {isCameraActive ? (
+          {error ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-red-400 mx-auto mb-2" />
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            </div>
+          ) : isCameraActive ? (
             <video
               ref={videoRef}
               autoPlay
