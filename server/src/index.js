@@ -138,6 +138,9 @@ app.use(compression({
   threshold: 512 // ⚡ 512 byte dan katta javoblarni siqish
 }));
 
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: function(origin, callback) {
     // Development da barcha origin larga ruxsat berish
