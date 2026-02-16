@@ -30,14 +30,25 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
   
   // Label sozlamalari
   const [labelSettings, setLabelSettings] = useState({
-    width: 40,    // mm
-    height: 30,   // mm
+    width: 57,    // mm
+    height: 41,   // mm
     qrSize: 18,   // mm
     columns: 2,   // Bir qatorda nechta
     showPrice: true,
     showCode: true
   });
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
+
+  // Qog'oz o'lchamlari
+  const paperSizes = [
+    { name: '57mm x 41mm', width: 57, height: 41 },
+    { name: '40mm x 30mm', width: 40, height: 30 },
+    { name: '50mm x 40mm', width: 50, height: 40 },
+    { name: '60mm x 40mm', width: 60, height: 40 },
+    { name: '72mm x 130mm', width: 72, height: 130 },
+    { name: '100mm x 150mm', width: 100, height: 150 },
+    { name: 'A4', width: 210, height: 297 },
+  ];
 
   const formatPrice = (num: number) => {
     return new Intl.NumberFormat('uz-UZ').format(num);
@@ -121,34 +132,20 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         // YANGI NARX TIZIMI - eng yaxshi narxni hisoblash
         const unitPrice = getUnitPrice(item.product);
         const displayPrice = unitPrice || item.product.price || 0;
-        const discounts = getDiscountInfo(item.product);
-        
-        // Skitka ma'lumotlarini formatlash
-        let discountHtml = '';
-        if (discounts.length > 0) {
-          discountHtml = discounts.slice(0, 2).map((d: any) => 
-            `<div class="discount-row">${d.minQuantity}+ = ${d.discountPercent}%</div>`
-          ).join('');
-        }
         
         labelsHtml += `
           <div class="label">
-            <div class="row-1">
-              <div class="qr-section">
+            <div class="label-row-1">
+              <div class="qr-code-container">
                 <img src="${item.qrDataUrl}" alt="QR" class="qr-code" />
               </div>
-              <div class="info-section">
+              <div class="product-details">
                 <div class="product-name">${item.product.name}</div>
                 <div class="product-code">Kod: ${item.product.code}</div>
               </div>
             </div>
-            <div class="row-2">
-              <div class="price-section">
-                <div class="product-price">${formatPrice(displayPrice)} so'm</div>
-              </div>
-              <div class="discount-section">
-                ${discountHtml}
-              </div>
+            <div class="label-row-2">
+              <div class="product-price">${formatPrice(displayPrice)} so'm</div>
             </div>
           </div>
         `;
@@ -162,8 +159,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         <title>QR Labels - Batch Print</title>
         <style>
           @page {
-            size: ${labelSettings.width * labelSettings.columns + 2}mm auto;
-            margin: 1mm;
+            size: ${labelSettings.width}mm ${labelSettings.height}mm;
+            margin: 0;
           }
           * {
             margin: 0;
@@ -174,11 +171,14 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             font-family: Arial, sans-serif;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            margin: 0;
+            padding: 0;
           }
           .labels-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 1mm;
+            gap: 0;
+            width: 100%;
           }
           .label {
             width: ${labelSettings.width}mm;
@@ -186,25 +186,27 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             padding: 1mm;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             background: white;
-            border: 0.2mm solid #000;
             page-break-inside: avoid;
           }
           
-          /* ROW 1: QR + Info */
-          .row-1 {
-            flex: 1;
+          .label-row-1 {
             display: flex;
-            gap: 1mm;
+            flex-direction: row;
             align-items: center;
-            border-bottom: 0.2mm solid #000;
-            padding-bottom: 0.5mm;
-            margin-bottom: 0.5mm;
+            gap: 1mm;
+            flex: 1;
+            min-height: 0;
           }
           
-          .qr-section {
-            flex-shrink: 0;
+          .qr-code-container {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
+          
           .qr-code {
             width: ${labelSettings.qrSize}mm;
             height: ${labelSettings.qrSize}mm;
@@ -212,66 +214,49 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             image-rendering: pixelated;
           }
           
-          .info-section {
+          .product-details {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            overflow: hidden;
+            min-width: 0;
+            gap: 0.1mm;
           }
+          
           .product-name {
-            font-size: 7pt;
+            font-size: 8pt;
             font-weight: 700;
             color: #000;
-            line-height: 1.15;
-            margin-bottom: 0.3mm;
+            line-height: 1.05;
             word-break: break-word;
+            margin: 0;
           }
+          
           .product-code {
             font-size: 5.5pt;
             color: #333;
             font-weight: 600;
+            margin: 0;
           }
           
-          /* ROW 2: Price + Discounts */
-          .row-2 {
-            flex: 1;
-            display: flex;
-            gap: 1mm;
-          }
-          
-          .price-section {
-            flex: 0 0 80%;
+          .label-row-2 {
             display: flex;
             align-items: center;
             justify-content: center;
-            border-right: 0.2mm solid #000;
-            padding-right: 0.5mm;
-          }
-          .product-price {
-            font-size: 10pt;
-            font-weight: 900;
-            color: #000;
-            text-align: center;
+            flex: 0 0 auto;
+            padding-top: 0.5mm;
           }
           
-          .discount-section {
-            flex: 0 0 20%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding-left: 0.5mm;
-          }
-          .discount-row {
-            font-size: 4.5pt;
-            font-weight: 700;
+          .product-price {
+            font-size: 15pt;
+            font-weight: 900;
             color: #000;
-            line-height: 1.3;
+            line-height: 1;
+            margin: 0;
           }
           
           @media print {
-            body { background: white; }
-            .label { border: 0.2mm solid #000; }
+            body { background: white; margin: 0; padding: 0; }
           }
         </style>
       </head>
@@ -331,62 +316,63 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         {/* Settings Panel */}
         {showSettings && (
           <div className="p-4 bg-surface-50 border-b border-surface-200">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              <div>
-                <label className="text-xs text-surface-500 mb-1 block">Eni (mm)</label>
-                <input
-                  type="number"
-                  value={labelSettings.width}
-                  onChange={e => setLabelSettings(s => ({ ...s, width: Number(e.target.value) }))}
-                  className="w-full px-2 py-1.5 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-surface-500 mb-1 block">Bo'yi (mm)</label>
-                <input
-                  type="number"
-                  value={labelSettings.height}
-                  onChange={e => setLabelSettings(s => ({ ...s, height: Number(e.target.value) }))}
-                  className="w-full px-2 py-1.5 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-surface-500 mb-1 block">QR (mm)</label>
-                <input
-                  type="number"
-                  value={labelSettings.qrSize}
-                  onChange={e => setLabelSettings(s => ({ ...s, qrSize: Number(e.target.value) }))}
-                  className="w-full px-2 py-1.5 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-surface-500 mb-1 block">Ustunlar</label>
-                <input
-                  type="number"
-                  value={labelSettings.columns}
-                  onChange={e => setLabelSettings(s => ({ ...s, columns: Number(e.target.value) }))}
-                  className="w-full px-2 py-1.5 border rounded-lg text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showPrice"
-                  checked={labelSettings.showPrice}
-                  onChange={e => setLabelSettings(s => ({ ...s, showPrice: e.target.checked }))}
-                  className="rounded"
-                />
-                <label htmlFor="showPrice" className="text-sm">Narx</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showCode"
-                  checked={labelSettings.showCode}
-                  onChange={e => setLabelSettings(s => ({ ...s, showCode: e.target.checked }))}
-                  className="rounded"
-                />
-                <label htmlFor="showCode" className="text-sm">Kod</label>
+            <div className="flex justify-center">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-2xl">
+                <div>
+                  <label className="text-xs text-surface-500 mb-1 block">Qog'oz o'lchami</label>
+                  <select
+                    value={`${labelSettings.width}x${labelSettings.height}`}
+                    onChange={e => {
+                      const selected = paperSizes.find(p => `${p.width}x${p.height}` === e.target.value);
+                      if (selected) {
+                        setLabelSettings(s => ({ ...s, width: selected.width, height: selected.height }));
+                      }
+                    }}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm"
+                  >
+                    {paperSizes.map(size => (
+                      <option key={`${size.width}x${size.height}`} value={`${size.width}x${size.height}`}>
+                        {size.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-surface-500 mb-1 block">Eni (mm)</label>
+                  <input
+                    type="number"
+                    value={labelSettings.width}
+                    onChange={e => setLabelSettings(s => ({ ...s, width: Number(e.target.value) }))}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-surface-500 mb-1 block">Bo'yi (mm)</label>
+                  <input
+                    type="number"
+                    value={labelSettings.height}
+                    onChange={e => setLabelSettings(s => ({ ...s, height: Number(e.target.value) }))}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-surface-500 mb-1 block">QR (mm)</label>
+                  <input
+                    type="number"
+                    value={labelSettings.qrSize}
+                    onChange={e => setLabelSettings(s => ({ ...s, qrSize: Number(e.target.value) }))}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-surface-500 mb-1 block">Ustunlar</label>
+                  <input
+                    type="number"
+                    value={labelSettings.columns}
+                    onChange={e => setLabelSettings(s => ({ ...s, columns: Number(e.target.value) }))}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm"
+                  />
+                </div>
               </div>
             </div>
           </div>

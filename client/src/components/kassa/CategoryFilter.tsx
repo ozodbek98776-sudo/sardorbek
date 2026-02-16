@@ -61,21 +61,6 @@ export function CategoryFilter({
           msOverflowStyle: 'none', // IE/Edge
         }}
       >
-        {/* Barchasi button */}
-        <button
-          onClick={() => {
-            handleCategorySelect('');
-            setShowSubcategories(false);
-          }}
-          className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all ${
-            selectedCategory === '' 
-              ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg' 
-              : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-purple-400'
-          }`}
-        >
-          Barchasi
-        </button>
-        
         {/* Category buttons */}
         {categories.map(category => (
           <button
@@ -100,18 +85,6 @@ export function CategoryFilter({
       {/* Subcategories - Show when category is selected */}
       {selectedCategory && currentSubcategories.length > 0 && showSubcategories && (
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide pl-4">
-          {/* Hammasi button for subcategories */}
-          <button
-            onClick={() => handleSubcategorySelect('')}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full font-medium text-xs transition-all ${
-              selectedSubcategory === '' 
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' 
-                : 'bg-slate-100 text-slate-600 border border-slate-200 hover:border-blue-400'
-            }`}
-          >
-            Hammasi
-          </button>
-          
           {currentSubcategories.map(sub => (
             <button
               key={sub._id}

@@ -71,7 +71,7 @@ router.get('/kassa', async (req, res) => {
     const { search, page = 1, limit = 10, category } = req.query; // 10 ta mahsulot
     const query = {};
 
-    // ✅ SABAB 9 FIX: Kategoriya filtri qo'shish
+    // ✅ Kategoriya filtri qo'shish
     if (category && typeof category === 'string' && category.trim() !== '') {
       query.category = category.trim();
     }
@@ -107,7 +107,7 @@ router.get('/kassa', async (req, res) => {
 
     // Minimal ma'lumotlar - faqat card uchun kerakli
     const products = await Product.find(query)
-      .select('name code price quantity images prices unit') // prices array qo'shildi
+      .select('name code price quantity images prices unit category') // prices array qo'shildi
       .limit(limitNum)
       .skip(skip)
       .lean()
@@ -126,25 +126,18 @@ router.get('/kassa', async (req, res) => {
       return codeA - codeB;
     });
 
-    // Filter out products with invalid or missing data
+    // ✅ Validatsiyani o'chirish - barcha mahsulotlar chiqsin (Products sahifasi kabi)
+    // Faqat nom va kod bo'lsa yetarli
     const validProducts = products.filter(product => {
-      // Juda qisqa nomli tovarlarni o'chirish (1 harf)
       const hasValidName = product.name &&
         product.name.trim().length >= 1 &&
         product.name.trim() !== '';
 
-      // Juda uzun kodli tovarlarni o'chirish (30+ belgi)
       const hasValidCode = product.code &&
         product.code.trim() !== '' &&
         product.code.trim().length <= 30;
 
-      // Narx va miqdor mavjudligi
-      const hasValidData = product.price !== undefined &&
-        product.price !== null &&
-        product.quantity !== undefined &&
-        product.quantity !== null;
-
-      return hasValidName && hasValidCode && hasValidData;
+      return hasValidName && hasValidCode;
     });
 
     console.log(`Kassa endpoint: Page ${pageNum}/${Math.ceil(total / limitNum)}, Found ${validProducts.length} products`);

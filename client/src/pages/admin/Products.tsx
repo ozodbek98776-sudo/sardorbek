@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Package, X, Edit, Trash2, AlertTriangle, DollarSign, QrCode, Upload, Save, Printer } from 'lucide-react';
+import { Plus, Package, X, Edit, Trash2, DollarSign, QrCode, Upload, Save, Printer, Search } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -11,7 +11,7 @@ import { useSocket } from '../../hooks/useSocket';
 import { extractArrayFromResponse } from '../../utils/arrayHelpers';
 import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
-import { StatCard, LoadingSpinner, EmptyState, ActionButton, Badge, UniversalPageHeader } from '../../components/common';
+import { LoadingSpinner, EmptyState, ActionButton, Badge } from '../../components/common';
 import BatchQRPrint from '../../components/BatchQRPrint';
 import { convertUsdToUzs } from '../../utils/exchangeRate';
 import { clearProductsCache } from '../../utils/indexedDbService';
@@ -632,62 +632,102 @@ export default function ProductsOptimized() {
     <div className="min-h-screen bg-gray-50 w-full h-full">
       {AlertComponent}
       
-      <UniversalPageHeader 
-        title="Mahsulotlar"
-        showSearch 
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        onMenuToggle={onMenuToggle}
-        actions={
-          <div className="flex items-center gap-2">
-            {selectedProductsForBatch.size > 0 && (
-              <ActionButton 
-                icon={Printer}
-                variant="secondary"
-                onClick={openBatchPrint}
+      {/* Header - Responsive */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="px-4 sm:px-6 lg:px-8 py-4">
+          {/* Top Row: Hamburger + Title + Actions */}
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Hamburger Button */}
+              <button
+                onClick={onMenuToggle}
+                className="p-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors active:scale-95 flex-shrink-0 shadow-md"
+                title="Menyuni ochish/yopish"
               >
-                Senik ({selectedProductsForBatch.size})
+                <Plus className="w-5 h-5" />
+              </button>
+              
+              {/* Title */}
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
+                Mahsulotlar
+              </h1>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              {selectedProductsForBatch.size > 0 && (
+                <ActionButton 
+                  icon={Printer}
+                  variant="secondary"
+                  onClick={openBatchPrint}
+                >
+                  Senik ({selectedProductsForBatch.size})
+                </ActionButton>
+              )}
+              <ActionButton 
+                icon={Plus}
+                variant="primary"
+                onClick={openAddModal}
+              >
+                Qo'shish
               </ActionButton>
-            )}
-            <ActionButton 
-              icon={Plus}
-              variant="primary"
-              onClick={openAddModal}
-            >
-              Qo'shish
-            </ActionButton>
+            </div>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <div className="p-4 space-y-4 w-full h-full">
-        {/* Stats Cards - O'zgaradigan statistika (DB dagi jami mahsulotlar soni) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Jami"
-            value={stats.total}
-            icon={Package}
-            color="blue"
-          />
-          <StatCard
-            title="Kam qolgan"
-            value={stats.lowStock}
-            icon={AlertTriangle}
-            color="orange"
-          />
-          <StatCard
-            title="Tugagan"
-            value={stats.outOfStock}
-            icon={X}
-            color="red"
-          />
-          <StatCard
-            title="Jami qiymat"
-            value={`${formatNumber(stats.totalValue)} so'm`}
-            icon={DollarSign}
-            color="green"
-          />
+        {/* Search and Statistics - Kassa sahifasidagi kabi */}
+        <div className="relative space-y-3">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-3 border border-blue-200">
+              <p className="text-[10px] sm:text-xs text-blue-600 font-semibold">Jami</p>
+              <p className="text-lg sm:text-xl font-bold text-blue-700">{stats.total}</p>
+            </div>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-2 sm:p-3 border border-orange-200">
+              <p className="text-[10px] sm:text-xs text-orange-600 font-semibold">Kam qolgan</p>
+              <p className="text-lg sm:text-xl font-bold text-orange-700">{stats.lowStock}</p>
+            </div>
+            <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-2 sm:p-3 border border-red-200">
+              <p className="text-[10px] sm:text-xs text-red-600 font-semibold">Tugagan</p>
+              <p className="text-lg sm:text-xl font-bold text-red-700">{stats.outOfStock}</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 sm:p-3 border border-green-200">
+              <p className="text-[10px] sm:text-xs text-green-600 font-semibold">Jami qiymat</p>
+              <p className="text-sm sm:text-base font-bold text-green-700 truncate">{formatNumber(stats.totalValue)}</p>
+            </div>
+          </div>
+          
+          {/* Search Input */}
+          <div className="relative group">
+            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-focus-within:text-brand-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Mahsulot qidirish..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 sm:pl-12 pr-10 sm:pr-12 py-2 sm:py-3 bg-white border-2 border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 text-xs sm:text-sm transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Category Filter */}
+        <CategoryFilter
+          categories={categoriesForFilter}
+          selectedCategory={categoryFilter}
+          selectedSubcategory={subcategoryFilter}
+          onCategoryChange={setCategoryFilter}
+          onSubcategoryChange={setSubcategoryFilter}
+        />
 
         {/* Batch selection toolbar */}
         {filteredProducts.length > 0 && (
@@ -706,15 +746,6 @@ export default function ProductsOptimized() {
             </span>
           </div>
         )}
-
-        {/* Category Filter */}
-        <CategoryFilter
-          categories={categoriesForFilter}
-          selectedCategory={categoryFilter}
-          selectedSubcategory={subcategoryFilter}
-          onCategoryChange={setCategoryFilter}
-          onSubcategoryChange={setSubcategoryFilter}
-        />
 
         {/* Products Grid */}
         {loading ? (
