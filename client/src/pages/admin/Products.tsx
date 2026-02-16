@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Package, X, Edit, Trash2, DollarSign, QrCode, Upload, Save, Printer, Search } from 'lucide-react';
+import { Plus, Package, X, Edit, Trash2, DollarSign, QrCode, Upload, Save, Printer, Search, Camera } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -13,6 +13,7 @@ import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
 import { LoadingSpinner, EmptyState, ActionButton, Badge } from '../../components/common';
 import BatchQRPrint from '../../components/BatchQRPrint';
+import CameraCapture from '../../components/CameraCapture';
 import { convertUsdToUzs } from '../../utils/exchangeRate';
 import { clearProductsCache } from '../../utils/indexedDbService';
 
@@ -47,6 +48,7 @@ export default function ProductsOptimized() {
   const [showModal, setShowModal] = useState(false);
   const [showBatchPrint, setShowBatchPrint] = useState(false);
   const [showSingleLabelPrint, setShowSingleLabelPrint] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductsForBatch, setSelectedProductsForBatch] = useState<Set<string>>(new Set());
@@ -56,7 +58,6 @@ export default function ProductsOptimized() {
   
   // Form state - simplified
   const [formData, setFormData] = useState({
-    code: '',
     name: '',
     description: '',
     unitPrice: '',
@@ -269,8 +270,8 @@ export default function ProductsOptimized() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.unitPrice) {
-      showAlert('Nom va narx majburiy', 'Xatolik', 'danger');
+    if (!formData.name) {
+      showAlert('Mahsulot nomi majburiy', 'Xatolik', 'danger');
       return;
     }
     
@@ -352,7 +353,6 @@ export default function ProductsOptimized() {
       }
       
       const data = {
-        code: formData.code,
         name: formData.name,
         description: formData.description,
         quantity: Number(parseNumber(formData.quantity)) || 0,
@@ -369,7 +369,6 @@ export default function ProductsOptimized() {
       };
       
       console.log('💾 Frontend - Saving product with data:', {
-        code: data.code,
         name: data.name,
         pricesCount: data.prices.length,
         prices: data.prices,
@@ -421,7 +420,6 @@ export default function ProductsOptimized() {
   const openAddModal = () => {
     setEditingProduct(null);
     setFormData({
-      code: '',
       name: '',
       description: '',
       unitPrice: '',
@@ -486,7 +484,6 @@ export default function ProductsOptimized() {
     });
     
     setFormData({
-      code: product.code,
       name: product.name,
       description: (product as any).description || '',
       // Yangi format bo'lsa prices array dan, eski format bo'lsa to'g'ridan-to'g'ri fieldlardan
@@ -542,6 +539,15 @@ export default function ProductsOptimized() {
       return;
     }
     setSelectedImages(prev => [...prev, ...files]);
+  };
+  
+  // Camera dan rasm qo'shish
+  const handleCameraCapture = (file: File) => {
+    if (selectedImages.length + uploadedImages.length >= 8) {
+      showAlert('Maksimal 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
+      return;
+    }
+    setSelectedImages(prev => [...prev, file]);
   };
   
   // Rasmni o'chirish (yangi tanlangan)
@@ -924,16 +930,6 @@ export default function ProductsOptimized() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kod</label>
-                <input 
-                  type="text" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={formData.code} 
-                  onChange={e => setFormData({...formData, code: e.target.value})}
-                  required 
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Birlik</label>
                 <select 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -977,7 +973,6 @@ export default function ProductsOptimized() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value, subcategory: ''})}
-                  required
                 >
                   <option value="">Kategoriya tanlang</option>
                   {categories.map(category => (
@@ -1052,7 +1047,7 @@ export default function ProductsOptimized() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi</label>
                 <input 
                   type="text" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -1061,7 +1056,6 @@ export default function ProductsOptimized() {
                     const value = parseNumber(e.target.value);
                     setFormData({...formData, unitPrice: value});
                   }}
-                  required
                   placeholder="0"
                 />
               </div>
@@ -1298,16 +1292,31 @@ export default function ProductsOptimized() {
                   </div>
                 ))}
                 
-                {/* Rasm qo'shish tugmasi */}
+                {/* Rasm qo'shish tugmalari */}
                 {(uploadedImages.length + selectedImages.length) < 8 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                  >
-                    <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                    <span className="text-xs text-gray-500">Qo'shish</span>
-                  </button>
+                  <>
+                    {/* Fayl yuklash */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                      title="Fayldan rasm tanlash"
+                    >
+                      <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                      <span className="text-xs text-gray-500">Fayl</span>
+                    </button>
+                    
+                    {/* Camera */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCamera(true)}
+                      className="w-full h-20 border-2 border-dashed border-purple-300 rounded-lg flex flex-col items-center justify-center hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                      title="Kameradan rasm olish"
+                    >
+                      <Camera className="w-5 h-5 text-purple-400 mb-1" />
+                      <span className="text-xs text-purple-600">Kamera</span>
+                    </button>
+                  </>
                 )}
               </div>
               
@@ -1372,6 +1381,14 @@ export default function ProductsOptimized() {
             prices: (p as any).prices
           }))}
           onClose={closeBatchPrint}
+        />
+      )}
+
+      {/* Camera Capture Modal */}
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onClose={() => setShowCamera(false)}
         />
       )}
     </div>
