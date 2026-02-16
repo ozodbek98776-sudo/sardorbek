@@ -9,8 +9,6 @@ if (fs.existsSync(envPath)) {
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 const compression = require('compression');
 const http = require('http');
 const { Server } = require('socket.io');
