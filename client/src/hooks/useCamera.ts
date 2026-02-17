@@ -1,10 +1,17 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 export const useCamera = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+
+  // Ensure refs are created immediately
+  useEffect(() => {
+    console.log('🎥 useCamera hook mounted');
+    console.log('🎥 videoRef:', videoRef);
+    console.log('🎥 canvasRef:', canvasRef);
+  }, []);
 
   const startCamera = useCallback(async () => {
     try {
