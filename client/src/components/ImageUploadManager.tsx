@@ -41,11 +41,15 @@ export default function ImageUploadManager({
 
       console.log('📥 Upload response:', response.data);
       const newImagePaths = response.data.images || [];
+      
+      console.log('📥 Raw image paths:', newImagePaths);
 
       // Extract path strings from image objects
-      const imagePaths = newImagePaths.map((img: any) =>
-        typeof img === 'string' ? img : img.path
-      );
+      const imagePaths = newImagePaths.map((img: any) => {
+        const path = typeof img === 'string' ? img : img.path;
+        console.log('🖼️ Processed image path:', path);
+        return path;
+      });
 
       console.log('✅ Images uploaded:', imagePaths);
       return imagePaths;
@@ -132,22 +136,41 @@ export default function ImageUploadManager({
       {/* Yuklangan rasmlar */}
       {uploadedImages.length > 0 && (
         <div className="grid grid-cols-4 gap-2">
-          {uploadedImages.map((imagePath, index) => (
-            <div key={`uploaded-${index}`} className="relative group">
-              <img
-                src={`${UPLOADS_URL}${imagePath}`}
-                alt={`Rasm ${index + 1}`}
-                className="w-full h-20 object-cover rounded-lg border border-gray-200"
-              />
-              <button
-                type="button"
-                onClick={() => removeImage(index)}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
+          {uploadedImages.map((imagePath, index) => {
+            // Rasm URL'ini to'g'ri shakllantirish
+            let imageUrl = imagePath;
+            if (!imagePath.startsWith('http')) {
+              // Agar path `/uploads/` bilan boshlanmasa, qo'shish
+              if (!imagePath.startsWith('/uploads/')) {
+                imageUrl = `/uploads/${imagePath}`;
+              }
+              // Base URL qo'shish
+              imageUrl = `${UPLOADS_URL}${imageUrl}`;
+            }
+            
+            console.log(`🖼️ Image ${index + 1} URL:`, imageUrl);
+            
+            return (
+              <div key={`uploaded-${index}`} className="relative group">
+                <img
+                  src={imageUrl}
+                  alt={`Rasm ${index + 1}`}
+                  className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                  onError={(e) => {
+                    console.error(`❌ Image ${index + 1} load error:`, imageUrl);
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ERasm yuklana olmadi%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
