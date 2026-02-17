@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { API_BASE_URL } from './config/api';
 import ErrorBoundary from './components/ErrorBoundary';
+import DebugModal from './components/DebugModal';
 import { cleanupAllModals } from './utils/modalCleanup';
 
 // Eager loading - darhol kerak bo'lgan sahifalar
@@ -198,6 +199,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          <DebugModal />
         </AuthProvider>
       </LanguageProvider>
     </ErrorBoundary>
