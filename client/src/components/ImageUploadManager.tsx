@@ -35,27 +35,56 @@ export default function ImageUploadManager({
       });
 
       console.log('📤 Uploading images:', files.length);
+      console.log('📤 Files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
+      
       const response = await api.post('/products/upload-images', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      console.log('📥 Upload response:', response.data);
-      const newImagePaths = response.data.images || [];
+      console.log('📥 Upload response status:', response.status);
+      console.log('📥 Upload response data:', response.data);
       
-      console.log('📥 Raw image paths:', newImagePaths);
+      // Response structure ni tekshirish
+      let newImagePaths: any[] = [];
+      
+      if (response.data.images) {
+        newImagePaths = response.data.images;
+        console.log('📥 Images from response.data.images:', newImagePaths);
+      } else if (Array.isArray(response.data)) {
+        newImagePaths = response.data;
+        console.log('📥 Images from response.data (array):', newImagePaths);
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        newImagePaths = response.data.data;
+        console.log('📥 Images from response.data.data:', newImagePaths);
+      } else {
+        console.warn('⚠️ Unexpected response structure:', response.data);
+        newImagePaths = [];
+      }
 
       // Extract path strings from image objects
       const imagePaths = newImagePaths.map((img: any) => {
-        const path = typeof img === 'string' ? img : img.path;
+        let path = '';
+        if (typeof img === 'string') {
+          path = img;
+        } else if (img.path) {
+          path = img.path;
+        } else if (img.url) {
+          path = img.url;
+        } else {
+          console.warn('⚠️ Unknown image format:', img);
+          path = '';
+        }
         console.log('🖼️ Processed image path:', path);
         return path;
-      });
+      }).filter(p => p); // Filter out empty paths
 
-      console.log('✅ Images uploaded:', imagePaths);
+      console.log('✅ Images uploaded successfully:', imagePaths);
       return imagePaths;
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error uploading images:', err);
-      setError('Rasmlarni yuklashda xatolik');
+      console.error('❌ Error response:', err.response?.data);
+      console.error('❌ Error message:', err.message);
+      setError('Rasmlarni yuklashda xatolik: ' + (err.response?.data?.message || err.message));
       return [];
     } finally {
       setIsUploading(false);
