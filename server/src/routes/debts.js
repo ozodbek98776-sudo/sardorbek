@@ -72,11 +72,25 @@ router.get('/stats', auth, serviceWrapper(async (req, res) => {
 
 router.post('/', auth, authorize('admin', 'cashier'), serviceWrapper(async (req, res) => {
   const result = await debtService.createDebt(req.body, req.user);
+  
+  // ⚡ Socket.IO - Real-time update for statistics
+  if (global.io && result.success) {
+    global.io.emit('debt:created', result.debt);
+    console.log('📡 Socket emit: debt:created');
+  }
+  
   return result;
 }));
 
 router.put('/:id', auth, authorize('admin', 'cashier'), serviceWrapper(async (req, res) => {
   const result = await debtService.updateDebt(req.params.id, req.body, req.user);
+  
+  // ⚡ Socket.IO - Real-time update for statistics
+  if (global.io && result.success) {
+    global.io.emit('debt:updated', result.debt);
+    console.log('📡 Socket emit: debt:updated');
+  }
+  
   return result;
 }));
 

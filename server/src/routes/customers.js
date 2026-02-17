@@ -39,11 +39,25 @@ router.get('/:id/stats', auth, checkPermission('customers', 'read'), serviceWrap
 
 router.post('/', auth, checkPermission('customers', 'create'), serviceWrapper(async (req, res) => {
   const result = await customerService.createCustomer(req.body, req.user);
+  
+  // ⚡ Socket.IO - Real-time update for statistics
+  if (global.io && result.success) {
+    global.io.emit('customer:created', result.customer);
+    console.log('📡 Socket emit: customer:created');
+  }
+  
   return result;
 }));
 
 router.put('/:id', auth, checkPermission('customers', 'update'), serviceWrapper(async (req, res) => {
   const result = await customerService.updateCustomer(req.params.id, req.body, req.user);
+  
+  // ⚡ Socket.IO - Real-time update for statistics
+  if (global.io && result.success) {
+    global.io.emit('customer:updated', result.customer);
+    console.log('📡 Socket emit: customer:updated');
+  }
+  
   return result;
 }));
 

@@ -4,6 +4,7 @@ import { User, DollarSign, Target, Calendar, TrendingUp, Award } from 'lucide-re
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { UniversalPageHeader, StatCard } from '../../components/common';
 
 interface Task {
@@ -28,6 +29,13 @@ interface SalaryInfo {
 export default function MyProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // ⚡ Realtime statistics updates
+  const realtimeStats = useRealtimeStats((newStats) => {
+    console.log('📊 Realtime stats updated:', newStats);
+    // Stats will be used for dashboard-level statistics
+  });
+  
   const [loading, setLoading] = useState(true);
   const [salaryInfo, setSalaryInfo] = useState<SalaryInfo | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);

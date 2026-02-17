@@ -991,6 +991,13 @@ router.post('/', auth, async (req, res) => {
     }
 
     console.log('✅ Chek muvaffaqiyatli yaratildi va javob yuborilmoqda');
+    
+    // ⚡ Socket.IO - Real-time update for statistics
+    if (global.io) {
+      global.io.emit('receipt:created', receipt);
+      console.log('📡 Socket emit: receipt:created');
+    }
+    
     res.status(201).json(receipt);
   } catch (error) {
     console.error('❌❌❌ POST /receipts XATOSI ❌❌❌');

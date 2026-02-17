@@ -7,6 +7,7 @@ import { UPLOADS_URL } from '../../config/api';
 import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
+import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { formatNumber } from '../../utils/format';
 import { getDiscountPrices } from '../../utils/pricing';
 import { 
@@ -40,6 +41,12 @@ export default function KassaProNew() {
   const { showAlert, AlertComponent } = useAlert();
   const { categories } = useCategories();
   const socket = useSocket();
+  
+  // ⚡ Realtime statistics updates
+  const realtimeStats = useRealtimeStats((newStats) => {
+    console.log('📊 Realtime stats updated:', newStats);
+    setStats(newStats);
+  });
   
   // State
   const [activeTab, setActiveTab] = useState<'products' | 'receipts'>('products');

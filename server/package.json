@@ -9,6 +9,8 @@
     "build": "echo 'No build step required for Node.js'",
     "seed:categories": "node src/scripts/seedCategories.js",
     "seed:quantity": "node src/scripts/update-all-products-quantity.js",
+    "seed:clean-before-16": "node scripts/seed-clean-before-16.js",
+    "restore:last-100-products": "node scripts/restore-last-100-products.js",
     "optimize:kassa": "node src/scripts/add-kassa-performance-indexes.js",
     "optimize:helpers": "node src/scripts/add-helpers-indexes.js",
     "fix:indexes": "node src/scripts/fix-indexes.js",

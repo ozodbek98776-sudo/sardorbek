@@ -15,6 +15,19 @@ export const useCamera = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // Video stream'i to'liq yuklanishini kutish
+        await new Promise<void>((resolve) => {
+          const onLoadedMetadata = () => {
+            videoRef.current?.removeEventListener('loadedmetadata', onLoadedMetadata);
+            resolve();
+          };
+          videoRef.current?.addEventListener('loadedmetadata', onLoadedMetadata);
+          
+          // Timeout - agar 5 sekundda yuklanmasa, baribir davom etish
+          setTimeout(resolve, 5000);
+        });
+        
         setStream(mediaStream);
         setIsCameraActive(true);
       }

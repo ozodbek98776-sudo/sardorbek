@@ -6,7 +6,6 @@ import { getUnitPrice } from '../utils/pricing';
 
 interface Product {
   _id: string;
-  code: string;
   name: string;
   price: number;
   unit?: string;
@@ -73,7 +72,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         });
         items.push({ product, copies: 1, qrDataUrl });
       } catch (err) {
-        console.error('QR error for', product.code, err);
+        console.error('QR error for', product.name, err);
       }
     }
 
@@ -141,7 +140,6 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
               </div>
               <div class="product-details">
                 <div class="product-name">${item.product.name}</div>
-                <div class="product-code">Kod: ${item.product.code}</div>
               </div>
             </div>
             <div class="label-row-2">
@@ -418,7 +416,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                       {item.product.name}
                     </div>
                     <div className="text-sm text-surface-500">
-                      Kod: {item.product.code} • {formatPrice(item.product.price)} so'm
+                      {formatPrice(item.product.price)} so'm
                     </div>
                   </div>
 

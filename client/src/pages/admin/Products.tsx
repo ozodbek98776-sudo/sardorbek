@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Package, X, Edit, Trash2, DollarSign, QrCode, Upload, Save, Printer, Search, Camera } from 'lucide-react';
+import { Plus, Package, X, Edit, Trash2, DollarSign, QrCode, Save, Printer, Search } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -8,12 +8,13 @@ import { useAlert } from '../../hooks/useAlert';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { UPLOADS_URL } from '../../config/api';
 import { useSocket } from '../../hooks/useSocket';
+import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { extractArrayFromResponse } from '../../utils/arrayHelpers';
 import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
 import { LoadingSpinner, EmptyState, ActionButton, Badge } from '../../components/common';
 import BatchQRPrint from '../../components/BatchQRPrint';
-import CameraCapture from '../../components/CameraCapture';
+import ImageUploadManager from '../../components/ImageUploadManager';
 import { convertUsdToUzs } from '../../utils/exchangeRate';
 import { clearProductsCache } from '../../utils/indexedDbService';
 
@@ -23,6 +24,12 @@ export default function ProductsOptimized() {
   const socket = useSocket();
   const { categories } = useCategories(); // Kategoriyalarni yuklash
   
+  // ⚡ Realtime statistics updates
+  const realtimeStats = useRealtimeStats((newStats) => {
+    console.log('📊 Realtime stats updated:', newStats);
+    setStats(newStats);
+  });
+  
   // Core state - simplified
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +37,7 @@ export default function ProductsOptimized() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [subcategoryFilter, setSubcategoryFilter] = useState<string>('');
   const [stockFilter] = useState('all');
+  const [isSubmitting, setIsSubmitting] = useState(false); // ⚡ Prevent double submission
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,7 +56,6 @@ export default function ProductsOptimized() {
   const [showModal, setShowModal] = useState(false);
   const [showBatchPrint, setShowBatchPrint] = useState(false);
   const [showSingleLabelPrint, setShowSingleLabelPrint] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductsForBatch, setSelectedProductsForBatch] = useState<Set<string>>(new Set());
@@ -80,9 +87,7 @@ export default function ProductsOptimized() {
   });
   
   // Rasm yuklash uchun state
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Refs
   const loadMoreRef = useRef<HTMLDivElement>(null); // Infinite scroll uchun
@@ -273,15 +278,21 @@ export default function ProductsOptimized() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // ⚡ Prevent double submission
+    if (isSubmitting) {
+      console.warn('⚠️ Form submission already in progress');
+      return;
+    }
+    
     if (!formData.name) {
       showAlert('Mahsulot nomi majburiy', 'Xatolik', 'danger');
       return;
     }
     
+    setIsSubmitting(true); // Disable button
+    
     try {
-      // Avval rasmlarni yuklash
-      const imagePaths = await uploadImages();
-      console.log('🖼️ Final image paths:', imagePaths);
+      console.log('🖼️ Final image paths:', uploadedImages);
       
       // Prices array yaratish - Backend model ga mos
       const prices = [];
@@ -363,7 +374,7 @@ export default function ProductsOptimized() {
         category: formData.category,
         subcategory: formData.subcategory,
         unit: formData.unit,
-        images: imagePaths,
+        images: uploadedImages,
         prices: prices, // Backend model ga mos prices array
         // Karobka ma'lumotlari
         boxInfo: {
@@ -403,6 +414,8 @@ export default function ProductsOptimized() {
       console.error('❌ Error saving product:', error);
       const errorMsg = error.response?.data?.message || 'Xatolik yuz berdi';
       showAlert(errorMsg, 'Xatolik', 'danger');
+    } finally {
+      setIsSubmitting(false); // ⚡ Re-enable button
     }
   };
   
@@ -442,7 +455,6 @@ export default function ProductsOptimized() {
       discount2: { minQuantity: '', percent: '' },
       discount3: { minQuantity: '', percent: '' }
     });
-    setSelectedImages([]);
     setUploadedImages([]);
     setShowModal(true);
   };
@@ -523,7 +535,6 @@ export default function ProductsOptimized() {
       typeof img === 'string' ? img : img.path
     );
     setUploadedImages(imagePaths);
-    setSelectedImages([]);
     
     setShowModal(true);
   };
@@ -531,69 +542,7 @@ export default function ProductsOptimized() {
   const closeModal = () => {
     setShowModal(false);
     setEditingProduct(null);
-    setSelectedImages([]);
     setUploadedImages([]);
-  };
-  
-  // Rasm tanlash
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + selectedImages.length + uploadedImages.length > 8) {
-      showAlert('Maksimal 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
-      return;
-    }
-    setSelectedImages(prev => [...prev, ...files]);
-  };
-  
-  // Camera dan rasm qo'shish
-  const handleCameraCapture = (file: File) => {
-    if (selectedImages.length + uploadedImages.length >= 8) {
-      showAlert('Maksimal 8 ta rasm yuklash mumkin', 'Ogohlantirish', 'warning');
-      return;
-    }
-    setSelectedImages(prev => [...prev, file]);
-  };
-  
-  // Rasmni o'chirish (yangi tanlangan)
-  const removeSelectedImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  // Rasmni o'chirish (yuklangan)
-  const removeUploadedImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  // Rasmlarni serverga yuklash
-  const uploadImages = async (): Promise<string[]> => {
-    if (selectedImages.length === 0) return uploadedImages;
-    
-    try {
-      const formData = new FormData();
-      selectedImages.forEach(file => {
-        formData.append('images', file);
-      });
-      
-      console.log('📤 Uploading images:', selectedImages.length);
-      const response = await api.post('/products/upload-images', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      console.log('📥 Upload response:', response.data);
-      const newImagePaths = response.data.images || [];
-      
-      // Extract path strings from image objects
-      const imagePaths = newImagePaths.map((img: any) => 
-        typeof img === 'string' ? img : img.path
-      );
-      
-      console.log('✅ New image paths:', imagePaths);
-      return [...uploadedImages, ...imagePaths];
-    } catch (error) {
-      console.error('❌ Error uploading images:', error);
-      showAlert('Rasmlarni yuklashda xatolik', 'Xatolik', 'danger');
-      return uploadedImages;
-    }
   };
   
   const openQRModal = (product: Product) => {
@@ -851,7 +800,6 @@ export default function ProductsOptimized() {
 
                       {/* Product Info */}
                       <div className="space-y-2">
-                        <div className="text-xs text-gray-500 font-mono">#{product.code}</div>
                         <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
                         
                         {/* Kategoriya va Bo'lim */}
@@ -1266,85 +1214,11 @@ export default function ProductsOptimized() {
             {/* Rasm yuklash */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Rasmlar (maksimal 8 ta)</label>
-              
-              {/* Yuklangan va tanlangan rasmlar */}
-              <div className="grid grid-cols-4 gap-2 mb-2">
-                {/* Yuklangan rasmlar */}
-                {uploadedImages.map((imagePath, index) => (
-                  <div key={`uploaded-${index}`} className="relative group">
-                    <img 
-                      src={`${UPLOADS_URL}${imagePath}`}
-                      alt={`Rasm ${index + 1}`}
-                      className="w-full h-20 object-cover rounded-lg border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeUploadedImage(index)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                
-                {/* Yangi tanlangan rasmlar */}
-                {selectedImages.map((file, index) => (
-                  <div key={`selected-${index}`} className="relative group">
-                    <img 
-                      src={URL.createObjectURL(file)}
-                      alt={`Yangi rasm ${index + 1}`}
-                      className="w-full h-20 object-cover rounded-lg border border-blue-300"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeSelectedImage(index)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                
-                {/* Rasm qo'shish tugmalari */}
-                {(uploadedImages.length + selectedImages.length) < 8 && (
-                  <>
-                    {/* Fayl yuklash */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                      title="Fayldan rasm tanlash"
-                    >
-                      <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                      <span className="text-xs text-gray-500">Fayl</span>
-                    </button>
-                    
-                    {/* Camera */}
-                    <button
-                      type="button"
-                      onClick={() => setShowCamera(true)}
-                      className="w-full h-20 border-2 border-dashed border-purple-300 rounded-lg flex flex-col items-center justify-center hover:border-purple-400 hover:bg-purple-50 transition-colors"
-                      title="Kameradan rasm olish"
-                    >
-                      <Camera className="w-5 h-5 text-purple-400 mb-1" />
-                      <span className="text-xs text-purple-600">Kamera</span>
-                    </button>
-                  </>
-                )}
-              </div>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageSelect}
-                className="hidden"
+              <ImageUploadManager
+                maxImages={8}
+                initialImages={uploadedImages}
+                onImagesChange={setUploadedImages}
               />
-              
-              <p className="text-xs text-gray-500">
-                {uploadedImages.length + selectedImages.length}/8 ta rasm
-              </p>
             </div>
 
             <div className="flex items-center gap-3 pt-4">
@@ -1357,10 +1231,11 @@ export default function ProductsOptimized() {
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
-                {editingProduct ? 'Yangilash' : 'Saqlash'}
+                {isSubmitting ? 'Saqlanmoqda...' : (editingProduct ? 'Yangilash' : 'Saqlash')}
               </button>
             </div>
           </form>
@@ -1372,7 +1247,6 @@ export default function ProductsOptimized() {
         <BatchQRPrint 
           products={[{
             _id: selectedProduct._id,
-            code: selectedProduct.code,
             name: selectedProduct.name,
             price: (selectedProduct as any).unitPrice || (selectedProduct as any).price || 0,
             unit: selectedProduct.unit,
@@ -1387,7 +1261,6 @@ export default function ProductsOptimized() {
         <BatchQRPrint 
           products={getSelectedProductsForBatch().map(p => ({
             _id: p._id,
-            code: p.code,
             name: p.name,
             price: (p as any).unitPrice || (p as any).price || 0,
             unit: p.unit,
@@ -1397,13 +1270,6 @@ export default function ProductsOptimized() {
         />
       )}
 
-      {/* Camera Capture Modal */}
-      {showCamera && (
-        <CameraCapture
-          onCapture={handleCameraCapture}
-          onClose={() => setShowCamera(false)}
-        />
-      )}
     </div>
   );
 }

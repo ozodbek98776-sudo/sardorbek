@@ -51,12 +51,6 @@ const priceSchema = new mongoose.Schema({
 }, { _id: false });
 
 const productSchema = new mongoose.Schema({
-  code: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true
-  },
   name: { 
     type: String, 
     required: true,
@@ -288,15 +282,14 @@ productSchema.statics.getUnitTypes = function() {
 };
 
 // Performance indexes
-productSchema.index({ code: 1 }, { unique: true });
 productSchema.index({ name: 1 });
 productSchema.index({ warehouse: 1, isMainWarehouse: 1 });
-productSchema.index({ isMainWarehouse: 1, code: 1 });
+productSchema.index({ isMainWarehouse: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ subcategory: 1 });
 productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ createdAt: -1 });
-productSchema.index({ name: 'text', code: 'text' });
+productSchema.index({ name: 'text' });
 productSchema.index({ quantity: 1 });
 productSchema.index({ 'prices.type': 1, 'prices.isActive': 1 });
 productSchema.index({ unit: 1 });

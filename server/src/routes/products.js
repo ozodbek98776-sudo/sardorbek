@@ -107,25 +107,11 @@ router.get('/kassa', async (req, res) => {
 
     // Minimal ma'lumotlar - faqat card uchun kerakli
     const products = await Product.find(query)
-      .select('name code price quantity images prices unit category') // prices array qo'shildi
+      .select('name price quantity images prices unit category') // prices array qo'shildi
       .limit(limitNum)
       .skip(skip)
-      .lean()
-      .hint({ code: 1 });
+      .lean();
     
-    // ⚡ Raqamli sort - JavaScript'da (1, 2, 3, 10, 100...)
-    products.sort((a, b) => {
-      const codeA = parseInt(a.code) || 999999;
-      const codeB = parseInt(b.code) || 999999;
-      
-      // Agar ikkalasi ham raqam bo'lmasa, string sort
-      if (codeA === 999999 && codeB === 999999) {
-        return String(a.code).localeCompare(String(b.code));
-      }
-      
-      return codeA - codeB;
-    });
-
     // ✅ Validatsiyani o'chirish - barcha mahsulotlar chiqsin (Products sahifasi kabi)
     // Faqat nom va kod bo'lsa yetarli
     const validProducts = products.filter(product => {
@@ -422,7 +408,7 @@ router.get('/', auth, async (req, res) => {
     const [total, rawProducts] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
-        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category subcategory prices boxInfo')
+        .select('name price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category subcategory prices boxInfo')
         .populate('warehouse', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -453,65 +439,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get next auto-generated code - O'CHIRILGAN KODLARNI QAYTA ISHLATISH
-router.get('/next-code', auth, async (req, res) => {
-  try {
-    // Barcha mahsulot kodlarini olish (faqat raqamli kodlar)
-    const allProducts = await Product.find({}).select('code').lean();
-    
-    // Raqamli kodlarni ajratib olish va sort qilish
-    const numericCodes = allProducts
-      .map(p => parseInt(p.code))
-      .filter(code => !isNaN(code) && code > 0)
-      .sort((a, b) => a - b);
-    
-    console.log(`📊 Mavjud kodlar: ${numericCodes.length} ta`);
-    
-    // Agar hech qanday kod bo'lmasa, 1 dan boshlash
-    if (numericCodes.length === 0) {
-      console.log('✅ Birinchi kod: 1');
-      return res.json({ code: '1' });
-    }
-    
-    // O'chirilgan kodlarni topish (bo'shliqlarni qidirish)
-    let nextCode = null;
-    
-    for (let i = 1; i <= numericCodes[numericCodes.length - 1]; i++) {
-      if (!numericCodes.includes(i)) {
-        nextCode = i;
-        console.log(`♻️ O'chirilgan kod topildi va qayta ishlatiladi: ${nextCode}`);
-        break;
-      }
-    }
-    
-    // Agar bo'shliq topilmasa, eng katta koddan keyin davom etish
-    if (!nextCode) {
-      nextCode = numericCodes[numericCodes.length - 1] + 1;
-      console.log(`➕ Yangi kod: ${nextCode} (davom etish)`);
-    }
-    
-    res.json({ code: String(nextCode) });
-  } catch (error) {
-    console.error('❌ Next code error:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
-// Check if code exists
-router.get('/check-code/:code', auth, async (req, res) => {
-  try {
-    const { excludeId } = req.query;
-    const query = { code: req.params.code };
-    if (excludeId) {
-      query._id = { $ne: excludeId };
-    }
-    const exists = await Product.findOne(query);
-    res.json({ exists: !!exists });
-  } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
 // QR kod bo'yicha mahsulot qidirish - SCANNER UCHUN
 router.get('/scan-qr/:code', auth, async (req, res) => {
   try {
@@ -519,12 +446,16 @@ router.get('/scan-qr/:code', auth, async (req, res) => {
     
     console.log(`🔍 QR Scanner: Mahsulot qidirilmoqda - ${code}`);
     
-    // Mahsulotni kod yoki ID bo'yicha qidirish
-    let query = { code: code };
+    // Mahsulotni ID bo'yicha qidirish
+    let query = { _id: code };
     
-    // Agar MongoDB ObjectId formatida bo'lsa, ID bo'yicha ham qidirish
-    if (code.match(/^[0-9a-fA-F]{24}$/)) {
-      query = { $or: [{ code: code }, { _id: code }] };
+    // Agar MongoDB ObjectId formatida bo'lmasa, qidiruv qilmaylik
+    if (!code.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Mahsulot topilmadi',
+        code: code
+      });
     }
     
     const product = await Product.findOne(query)

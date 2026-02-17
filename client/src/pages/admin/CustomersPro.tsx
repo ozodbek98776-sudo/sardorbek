@@ -8,12 +8,20 @@ import { Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatPhone, displayPhone } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { regions, regionNames } from '../../data/regions';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 
 export default function CustomersPro() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const { showConfirm, showAlert, AlertComponent } = useAlert();
+  
+  // ⚡ Realtime statistics updates
+  const realtimeStats = useRealtimeStats((newStats) => {
+    console.log('📊 Realtime stats updated:', newStats);
+    // Stats will be used for dashboard-level statistics
+  });
+  
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

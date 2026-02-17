@@ -34,7 +34,6 @@ export interface BoxInfo {
 
 export interface Product {
   _id: string;
-  code: string;
   name: string;
   description?: string;
   
@@ -179,7 +178,6 @@ export interface Debt {
 export interface DebtItem {
   product: Product;
   name?: string;
-  code?: string;
   quantity: number;
   price: number;
 }

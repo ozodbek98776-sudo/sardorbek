@@ -8,6 +8,7 @@ import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber, formatPhone } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { regions, regionNames } from '../../data/regions';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +19,13 @@ export default function Debts() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { showConfirm, showAlert, AlertComponent } = useAlert();
+  
+  // ⚡ Realtime statistics updates
+  const realtimeStats = useRealtimeStats((newStats) => {
+    console.log('📊 Realtime stats updated:', newStats);
+    // Stats will be used for dashboard-level statistics
+  });
+  
   const [debts, setDebts] = useState<Debt[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [stats, setStats] = useState({

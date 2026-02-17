@@ -1,10 +1,5 @@
 // Load .env file explicitly
-const path = require('path');
-const fs = require('fs');
-const envPath = path.join(__dirname, '../.env');
-if (fs.existsSync(envPath)) {
-  require('dotenv').config({ path: envPath });
-}
+require('dotenv').config();
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -13,6 +8,8 @@ const compression = require('compression');
 const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
+const path = require('path');
+const fs = require('fs');
 
 // Middleware imports
 const { errorHandler, notFound } = require('./middleware/errorHandler');

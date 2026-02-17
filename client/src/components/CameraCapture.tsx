@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Camera } from 'lucide-react';
+import { X, Camera, Loader } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 
 interface CameraCaptureProps {
@@ -10,27 +10,44 @@ interface CameraCaptureProps {
 export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const { videoRef, canvasRef, isCameraActive, startCamera, stopCamera, capturePhoto } = useCamera();
   const [error, setError] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
-    startCamera().catch(err => {
-      console.error('Camera start error:', err);
-      setError('Kamera ishlatishda xatolik. Ruxsatni tekshiring.');
-    });
-    return () => stopCamera();
+    const initCamera = async () => {
+      try {
+        await startCamera();
+      } catch (err) {
+        console.error('Camera start error:', err);
+        setError('Kamera ishlatishda xatolik. Ruxsatni tekshiring.');
+      }
+    };
+
+    initCamera();
+
+    return () => {
+      stopCamera();
+    };
   }, [startCamera, stopCamera]);
 
   const handleCapture = async () => {
-    console.log('📸 Capturing photo...');
-    const file = await capturePhoto();
-    console.log('📸 Captured file:', file);
-    if (file) {
-      console.log('✅ File captured successfully:', file.name);
-      onCapture(file);
-      stopCamera();
-      onClose();
-    } else {
-      console.error('❌ Failed to capture photo');
-      alert('Rasm olishda xatolik');
+    try {
+      setIsCapturing(true);
+      console.log('📸 Capturing photo...');
+      const file = await capturePhoto();
+      console.log('📸 Captured file:', file);
+      if (file) {
+        console.log('✅ File captured successfully:', file.name);
+        onCapture(file);
+        stopCamera();
+        onClose();
+      } else {
+        setError('Rasm olishda xatolik');
+      }
+    } catch (err) {
+      console.error('❌ Capture error:', err);
+      setError('Rasm olishda xatolik');
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -81,17 +98,27 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
         <div className="p-4 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={isCapturing}
+            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Bekor qilish
           </button>
           <button
             onClick={handleCapture}
-            disabled={!isCameraActive}
+            disabled={!isCameraActive || isCapturing}
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Camera className="w-4 h-4" />
-            Rasm olish
+            {isCapturing ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Yuklanmoqda...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4" />
+                Rasm olish
+              </>
+            )}
           </button>
         </div>
       </div>
