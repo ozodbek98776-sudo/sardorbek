@@ -9,14 +9,16 @@ export const useCamera = () => {
   // Ensure refs are created immediately
   useEffect(() => {
     console.log('🎥 useCamera hook mounted');
-    console.log('🎥 videoRef:', videoRef);
-    console.log('🎥 canvasRef:', canvasRef);
+    console.log('🎥 videoRef object:', videoRef);
+    console.log('🎥 videoRef.current:', videoRef.current);
+    console.log('🎥 canvasRef object:', canvasRef);
+    console.log('🎥 canvasRef.current:', canvasRef.current);
   }, []);
 
   const startCamera = useCallback(async () => {
     try {
-      console.log('🎥 Camera ishga tushmoqda...');
-      console.log('🎥 videoRef.current:', videoRef.current);
+      console.log('🎥 startCamera called');
+      console.log('🎥 videoRef.current before getUserMedia:', videoRef.current);
       
       // Birinchi orqa kamera bilan urinish, agar ishlamasa oldingi kamera ishlatish
       let mediaStream: MediaStream | null = null;
@@ -44,17 +46,11 @@ export const useCamera = () => {
       }
       
       console.log('🎥 Media stream olingan:', mediaStream.getTracks().length, 'track');
-      
-      // Wait a bit for ref to be available
-      let attempts = 0;
-      while (!videoRef.current && attempts < 10) {
-        console.log('⏳ videoRef.current kutilmoqda... attempt', attempts + 1);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
+      console.log('🎥 videoRef.current after getUserMedia:', videoRef.current);
       
       if (!videoRef.current) {
         console.error('❌ videoRef.current hali ham mavjud emas!');
+        console.error('❌ videoRef object:', videoRef);
         throw new Error('Video ref mavjud emas - component render qilinmadi');
       }
       

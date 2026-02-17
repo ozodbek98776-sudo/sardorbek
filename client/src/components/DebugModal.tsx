@@ -15,6 +15,8 @@ export default function DebugModal() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🐛 DebugModal component mounted - intercepting console');
+    
     // Original console methods
     const originalLog = console.log;
     const originalError = console.error;
@@ -41,6 +43,9 @@ export default function DebugModal() {
       originalInfo(...args);
       addLog('info', args);
     };
+
+    // Test log
+    console.log('🐛 Console interception active');
 
     return () => {
       console.log = originalLog;
@@ -120,7 +125,10 @@ export default function DebugModal() {
     <>
       {/* Debug Button - Fixed position */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          console.log('🐛 Debug modal toggle clicked');
+          setIsOpen(!isOpen);
+        }}
         className="fixed bottom-4 right-4 z-40 w-12 h-12 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-bold text-lg"
         title="Debug Modal"
       >
