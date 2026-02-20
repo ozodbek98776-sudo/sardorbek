@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, Camera, X, Loader } from 'lucide-react';
 import CameraCapture from './CameraCapture';
 import api from '../utils/api';
@@ -20,6 +20,26 @@ export default function ImageUploadManager({
   const [showCamera, setShowCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // MUAMMO 5 YECHIMI: initialImages o'zgarganda state yangilash
+  useEffect(() => {
+    setUploadedImages(initialImages);
+  }, [initialImages]);
+
+  // Cleanup function - komponent unmount bo'lganda yoki modal yopilganda
+  // keraksiz rasmlarni o'chirish uchun
+  const cleanupUnusedImages = async (imagesToCleanup: string[]) => {
+    if (imagesToCleanup.length === 0) return;
+    
+    try {
+      console.log('🧹 Cleaning up unused images:', imagesToCleanup);
+      await api.post('/products/cleanup-images', { imagePaths: imagesToCleanup });
+      console.log('✅ Cleanup successful');
+    } catch (err) {
+      console.error('❌ Cleanup error:', err);
+      // Cleanup xatosi muhim emas, faqat log qilamiz
+    }
+  };
 
   // Rasmlarni serverga yuklash
   const uploadImagesToServer = async (files: File[]): Promise<string[]> => {
@@ -44,7 +64,7 @@ export default function ImageUploadManager({
       console.log('📥 Upload response status:', response.status);
       console.log('📥 Upload response data:', response.data);
       
-      // Response structure ni tekshirish
+      // MUAMMO 3 YECHIMI: Response structure ni to'g'ri handle qilish
       let newImagePaths: any[] = [];
       
       if (response.data.images) {
@@ -61,7 +81,7 @@ export default function ImageUploadManager({
         newImagePaths = [];
       }
 
-      // Extract path strings from image objects
+      // Path stringlarni extract qilish - object yoki string bo'lishi mumkin
       const imagePaths = newImagePaths.map((img: any) => {
         let path = '';
         if (typeof img === 'string') {
@@ -74,9 +94,21 @@ export default function ImageUploadManager({
           console.warn('⚠️ Unknown image format:', img);
           path = '';
         }
+        
+        // Path ni normalizatsiya qilish - faqat path qaytarish, URL emas
+        if (path.startsWith('http')) {
+          // Agar to'liq URL bo'lsa, faqat path qismini olish
+          try {
+            const url = new URL(path);
+            path = url.pathname;
+          } catch {
+            // URL parse qila olmasa, o'zini qaytarish
+          }
+        }
+        
         console.log('🖼️ Processed image path:', path);
         return path;
-      }).filter(p => p); // Filter out empty paths
+      }).filter(p => p); // Bo'sh pathlarni filtrlash
 
       console.log('✅ Images uploaded successfully:', imagePaths);
       return imagePaths;
@@ -166,15 +198,21 @@ export default function ImageUploadManager({
       {uploadedImages.length > 0 && (
         <div className="grid grid-cols-4 gap-2">
           {uploadedImages.map((imagePath, index) => {
-            // Rasm URL'ini to'g'ri shakllantirish
+            // MUAMMO 2 YECHIMI: Path handling to'g'rilash
             let imageUrl = imagePath;
+            
+            // Agar to'liq URL bo'lsa, o'zgartirishsiz qoldirish
             if (!imagePath.startsWith('http')) {
+              // Path ni normalizatsiya qilish
+              let normalizedPath = imagePath;
+              
               // Agar path `/uploads/` bilan boshlanmasa, qo'shish
-              if (!imagePath.startsWith('/uploads/')) {
-                imageUrl = `/uploads/${imagePath}`;
+              if (!normalizedPath.startsWith('/uploads/')) {
+                normalizedPath = `/uploads/products/${normalizedPath}`;
               }
+              
               // Base URL qo'shish
-              imageUrl = `${UPLOADS_URL}${imageUrl}`;
+              imageUrl = `${UPLOADS_URL}${normalizedPath}`;
             }
             
             console.log(`🖼️ Image ${index + 1} URL:`, imageUrl);

@@ -505,6 +505,12 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
     // Kim yuklayotganini aniqlash
     const uploadedBy = req.user?.role === 'cashier' ? 'cashier' : 'admin';
     
+    // MUAMMO 4 YECHIMI: Sharp mavjud emasligini log qilish
+    if (!sharpLib) {
+      console.warn('⚠️ Sharp module not available - images will not be compressed');
+      console.warn('⚠️ To enable compression, run: npm install sharp');
+    }
+    
     if (sharpLib) {
       for (const file of req.files) {
         try {
@@ -539,38 +545,77 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
           const compressedSize = fs.statSync(inputPath).size;
           console.log(`✅ Rasm siqildi: ${file.filename} (${(compressedSize / 1024).toFixed(2)} KB)`);
           
-          imagePaths.push({
-            path: `/uploads/products/${file.filename}`,
-            uploadedBy: uploadedBy,
-            uploadedAt: new Date()
-          });
+          // MUAMMO 3 YECHIMI: Consistent format - faqat path string qaytarish
+          imagePaths.push(`/uploads/products/${file.filename}`);
         } catch (compressionError) {
           console.error(`⚠️ Rasm siqishda xatolik: ${file.filename}`, compressionError);
           // Agar siqish xatosi bo'lsa, asl rasmni saqlab qolish
-          imagePaths.push({
-            path: `/uploads/products/${file.filename}`,
-            uploadedBy: uploadedBy,
-            uploadedAt: new Date()
-          });
+          imagePaths.push(`/uploads/products/${file.filename}`);
         }
       }
     } else {
       // Sharp not available - use original files
-      console.log('⚠️ Sharp module not available, using original images');
       for (const file of req.files) {
-        imagePaths.push({
-          path: `/uploads/products/${file.filename}`,
-          uploadedBy: uploadedBy,
-          uploadedAt: new Date()
-        });
+        imagePaths.push(`/uploads/products/${file.filename}`);
       }
     }
     
     console.log('📦 Rasm pathlar:', imagePaths);
     
+    // Consistent response format - faqat path stringlar array
     res.json({ images: imagePaths });
   } catch (error) {
     console.error('❌ Upload xatosi:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// MUAMMO 5 YECHIMI: Cleanup unused images - bekor qilingan rasmlarni o'chirish
+router.post('/cleanup-images', auth, authorize('admin', 'cashier'), async (req, res) => {
+  try {
+    const { imagePaths } = req.body;
+    
+    if (!imagePaths || !Array.isArray(imagePaths) || imagePaths.length === 0) {
+      return res.status(400).json({ message: 'Rasm yo\'llari ko\'rsatilmagan' });
+    }
+    
+    console.log('🧹 Cleaning up unused images:', imagePaths);
+    
+    const deletedFiles = [];
+    const errors = [];
+    
+    for (const imagePath of imagePaths) {
+      try {
+        // Path ni normalizatsiya qilish
+        let filePath = imagePath;
+        if (filePath.startsWith('/uploads/')) {
+          filePath = filePath.replace('/uploads/', '');
+        }
+        
+        const fullPath = path.join(__dirname, '../../uploads', filePath);
+        
+        // Fayl mavjudligini tekshirish
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+          deletedFiles.push(imagePath);
+          console.log(`✅ O'chirildi: ${imagePath}`);
+        } else {
+          console.warn(`⚠️ Fayl topilmadi: ${fullPath}`);
+        }
+      } catch (err) {
+        console.error(`❌ O'chirishda xatolik: ${imagePath}`, err);
+        errors.push({ path: imagePath, error: err.message });
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      deleted: deletedFiles.length,
+      deletedFiles,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('❌ Cleanup xatosi:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
