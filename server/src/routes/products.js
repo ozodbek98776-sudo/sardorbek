@@ -112,18 +112,9 @@ router.get('/kassa', async (req, res) => {
       .skip(skip)
       .lean();
     
-    // ✅ Validatsiyani o'chirish - barcha mahsulotlar chiqsin (Products sahifasi kabi)
-    // Faqat nom va kod bo'lsa yetarli
+    // ✅ Faqat nom bo'lsa yetarli (code ixtiyoriy - bazada ko'p mahsulotlarda yo'q)
     const validProducts = products.filter(product => {
-      const hasValidName = product.name &&
-        product.name.trim().length >= 1 &&
-        product.name.trim() !== '';
-
-      const hasValidCode = product.code &&
-        product.code.trim() !== '' &&
-        product.code.trim().length <= 30;
-
-      return hasValidName && hasValidCode;
+      return product.name && product.name.trim().length >= 1;
     });
 
     console.log(`Kassa endpoint: Page ${pageNum}/${Math.ceil(total / limitNum)}, Found ${validProducts.length} products`);
