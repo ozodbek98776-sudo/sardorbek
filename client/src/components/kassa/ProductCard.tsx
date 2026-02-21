@@ -21,9 +21,9 @@ export const ProductCard = memo(function ProductCard({
   const isOutOfStock = product.quantity <= 0;
   const isLowStock = product.quantity <= 10 && product.quantity > 0;
   
-  const imageUrl = product.images && product.images.length > 0 
-    ? `${UPLOADS_URL}${product.images[0]}` 
-    : null;
+  const firstImage = product.images && product.images.length > 0 ? product.images[0] : null;
+  const imagePath = firstImage ? (typeof firstImage === 'string' ? firstImage : (firstImage as any).path) : null;
+  const imageUrl = imagePath ? `${UPLOADS_URL}${imagePath}` : null;
   
   // Skidka narxlarini olish
   const discountPrices = getDiscountPrices(product);
