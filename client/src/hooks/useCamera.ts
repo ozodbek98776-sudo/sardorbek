@@ -1,152 +1,109 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 export const useCamera = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
 
-  // Ensure refs are created immediately
-  useEffect(() => {
-    console.log('🎥 useCamera hook mounted');
-    console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
-    console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
   }, []);
 
   const startCamera = useCallback(async () => {
+    // Get media stream first
+    let mediaStream: MediaStream | null = null;
+
     try {
-      console.log('🎥 startCamera called');
-      console.log('🎥 videoRef.current before getUserMedia:', videoRef.current);
-      
-      // Birinchi orqa kamera bilan urinish, agar ishlamasa oldingi kamera ishlatish
-      let mediaStream: MediaStream | null = null;
-      
-      try {
-        console.log('🎥 Orqa kamera bilan urinish...');
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }, // Orqa kamera
-          audio: false
-        });
-        console.log('✅ Orqa kamera muvaffaqiyatli ishga tushdi');
-      } catch (backCameraError) {
-        console.warn('⚠️ Orqa kamera ishlamadi, oldingi kamera bilan urinish:', backCameraError);
-        // Orqa kamera ishlamasa, oldingi kamera bilan urinish
-        console.log('🎥 Oldingi kamera bilan urinish...');
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true, // Istalgan kamera
-          audio: false
-        });
-        console.log('✅ Oldingi kamera muvaffaqiyatli ishga tushdi');
-      }
-      
-      if (!mediaStream) {
-        throw new Error('Kamera olinmadi');
-      }
-      
-      console.log('🎥 Media stream olingan:', mediaStream.getTracks().length, 'track');
-      console.log('🎥 videoRef.current after getUserMedia:', videoRef.current);
-      
-      if (!videoRef.current) {
-        console.error('❌ videoRef.current hali ham mavjud emas!');
-        throw new Error('Video ref mavjud emas - component render qilinmadi');
-      }
-      
-      console.log('🎥 Video ref ga stream o\'rnatilmoqda...');
-      videoRef.current.srcObject = mediaStream;
-      
-      // Video play qilishni boshlash
-      try {
-        await videoRef.current.play();
-        console.log('✅ Video play boshlandi');
-      } catch (playError) {
-        console.warn('⚠️ Video play xatosi:', playError);
-      }
-      
-      // Video stream'i to'liq yuklanishini kutish
-      await new Promise<void>((resolve) => {
-        const onLoadedMetadata = () => {
-          console.log('✅ Video metadata loaded');
-          if (videoRef.current) {
-            videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata);
-          }
-          resolve();
-        };
-        if (videoRef.current) {
-          videoRef.current.addEventListener('loadedmetadata', onLoadedMetadata);
-        }
-        
-        // Timeout - agar 5 sekundda yuklanmasa, baribir davom etish
-        setTimeout(() => {
-          console.warn('⚠️ Video metadata timeout - baribir davom etish');
-          resolve();
-        }, 5000);
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
       });
-      
-      setStream(mediaStream);
-      setIsCameraActive(true);
-      console.log('✅ Camera faol');
-    } catch (error) {
-      console.error('❌ Camera xatosi:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Noma\'lum xatolik';
-      console.error('Xatolik tafsilotlari:', errorMessage);
-      
-      // Xatolik turini aniqlash
-      if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission denied')) {
-        alert('Kamera ruxsati berilmagan. Brauzer sozlamalarida ruxsat bering.');
-      } else if (errorMessage.includes('NotFoundError') || errorMessage.includes('no camera')) {
-        alert('Kamera topilmadi. Qurilmada kamera mavjud emasmi?');
-      } else {
-        alert('Kamera ishlatishda xatolik: ' + errorMessage);
-      }
-      
-      setIsCameraActive(false);
+    } catch {
+      // Fallback to any camera
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
     }
+
+    if (!mediaStream) {
+      throw new Error('Kamera olinmadi');
+    }
+
+    // Wait for video ref to be available (DOM render cycle)
+    const waitForRef = (): Promise<HTMLVideoElement> => {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const check = () => {
+          if (videoRef.current) {
+            resolve(videoRef.current);
+          } else if (attempts++ > 50) {
+            reject(new Error('Video element topilmadi'));
+          } else {
+            requestAnimationFrame(check);
+          }
+        };
+        check();
+      });
+    };
+
+    const video = await waitForRef();
+    video.srcObject = mediaStream;
+    streamRef.current = mediaStream;
+
+    try {
+      await video.play();
+    } catch {
+      // Autoplay may fail on some browsers, that's ok
+    }
+
+    // Wait for video dimensions to be available
+    await new Promise<void>((resolve) => {
+      if (video.videoWidth > 0) {
+        resolve();
+        return;
+      }
+      const onLoaded = () => {
+        video.removeEventListener('loadeddata', onLoaded);
+        resolve();
+      };
+      video.addEventListener('loadeddata', onLoaded);
+      setTimeout(resolve, 3000);
+    });
+
+    setIsCameraActive(true);
   }, []);
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-      setIsCameraActive(false);
-    }
-  }, [stream]);
-
   const capturePhoto = useCallback(async (): Promise<File | null> => {
-    if (!videoRef.current || !canvasRef.current) return null;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.videoWidth === 0) return null;
 
-    const context = canvasRef.current.getContext('2d');
+    const context = canvas.getContext('2d');
     if (!context) return null;
 
-    // Video o'lchamini canvas ga o'rnatish
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
 
-    // Video frameni canvas ga chizish
-    context.drawImage(videoRef.current, 0, 0);
-
-    // Canvas ni blob ga aylantirish
     return new Promise((resolve) => {
-      canvasRef.current?.toBlob((blob) => {
+      canvas.toBlob((blob) => {
         if (blob) {
-          const file = new File(
-            [blob],
-            `camera-${Date.now()}.jpg`,
-            { type: 'image/jpeg' }
-          );
-          resolve(file);
+          resolve(new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' }));
         } else {
           resolve(null);
         }
-      }, 'image/jpeg', 0.9);
+      }, 'image/jpeg', 0.85);
     });
   }, []);
 
-  return {
-    videoRef,
-    canvasRef,
-    isCameraActive,
-    startCamera,
-    stopCamera,
-    capturePhoto
-  };
+  return { videoRef, canvasRef, isCameraActive, startCamera, stopCamera, capturePhoto };
 };

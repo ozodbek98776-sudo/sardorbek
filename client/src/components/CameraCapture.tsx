@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, Camera, Loader } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 
@@ -12,74 +12,63 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    console.log('🎥 CameraCapture component mounted');
-    console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
-    console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
-    
-    const initCamera = async () => {
-      try {
-        setIsInitializing(true);
-        console.log('🎥 Starting camera...');
-        await startCamera();
-        console.log('✅ Camera started successfully');
-        setIsInitializing(false);
-      } catch (err: any) {
-        console.error('❌ Camera start error:', err);
-        console.error('❌ Error message:', err.message);
-        setError(err.message || 'Kamera ishlatishda xatolik. Ruxsatni tekshiring.');
-        setIsInitializing(false);
-      }
-    };
+    mountedRef.current = true;
 
-    initCamera();
+    startCamera()
+      .then(() => {
+        if (mountedRef.current) setIsInitializing(false);
+      })
+      .catch((err: Error) => {
+        if (mountedRef.current) {
+          setError(err.message || 'Kamera ishlatishda xatolik');
+          setIsInitializing(false);
+        }
+      });
 
     return () => {
-      console.log('🎥 CameraCapture component unmounting');
+      mountedRef.current = false;
       stopCamera();
     };
-  }, [startCamera, stopCamera]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCapture = async () => {
     try {
       setIsCapturing(true);
-      console.log('📸 Capturing photo...');
       const file = await capturePhoto();
-      console.log('📸 Captured file:', file);
       if (file) {
-        console.log('✅ File captured successfully:', file.name);
         onCapture(file);
         stopCamera();
         onClose();
       } else {
         setError('Rasm olishda xatolik');
       }
-    } catch (err) {
-      console.error('❌ Capture error:', err);
+    } catch {
       setError('Rasm olishda xatolik');
     } finally {
       setIsCapturing(false);
     }
   };
 
+  const handleClose = () => {
+    stopCamera();
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-lg w-full max-w-md overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">Rasm olish</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Camera Preview */}
         <div className="relative bg-black aspect-video overflow-hidden">
-          {/* Video element DOIM DOM da bo'lishi kerak — ref ishlashi uchun */}
           <video
             ref={videoRef}
             autoPlay
@@ -104,13 +93,11 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
           ) : null}
         </div>
 
-        {/* Hidden Canvas */}
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Controls */}
         <div className="p-4 flex gap-3">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isCapturing}
             className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
