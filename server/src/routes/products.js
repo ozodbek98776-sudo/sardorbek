@@ -530,7 +530,7 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
           }
           
           // Compress and optimize image
-          const compressedBuffer = await sharpLib(inputPath)
+          const compressedBuffer = await sharpLib(inputPath, { failOn: 'none' })
             .rotate() // Auto-rotate based on EXIF data
             .resize(1920, 1920, {
               fit: 'inside',
