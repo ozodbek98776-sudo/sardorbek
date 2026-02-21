@@ -180,10 +180,11 @@ export default function ProductModal({
                 value={formData.costPriceUsd || ''}
                 onChange={(e) => {
                   const value = e.target.value ? Number(e.target.value) : '';
-                  handleFormChange({ costPriceUsd: String(value) });
                   if (value) {
                     const uzsValue = convertUsdToUzs(Number(value));
-                    handleFormChange({ costPrice: String(uzsValue) });
+                    handleFormChange({ costPriceUsd: String(value), costPrice: String(uzsValue) });
+                  } else {
+                    handleFormChange({ costPriceUsd: '', costPrice: '' });
                   }
                 }}
                 placeholder="0.00"
