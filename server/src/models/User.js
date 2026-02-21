@@ -19,9 +19,12 @@ const userSchema = new mongoose.Schema({
   terminationDate: { type: Date },
   
   // Bonus tizimi
-  bonusPercentage: { type: Number, default: 0, min: 0, max: 100 }, // Bonus foizi (0-100%)
-  totalEarnings: { type: Number, default: 0 }, // Jami ishlab topgan summa
-  totalBonus: { type: Number, default: 0 } // Jami bonus summa
+  bonusPercentage: { type: Number, default: 0, min: 0, max: 100 },
+  totalEarnings: { type: Number, default: 0 },
+  totalBonus: { type: Number, default: 0 },
+
+  // QR Attendance token
+  qrToken: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
@@ -29,6 +32,15 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
+
+// Auto-generate QR token for new users
+userSchema.pre('save', function (next) {
+  if (!this.qrToken) {
+    this.qrToken = 'QR-' + this._id.toString() + '-' + Date.now().toString(36);
+  }
+  next();
+});
+
 
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compare(password, this.password);

@@ -33,6 +33,7 @@ const HRDashboard = lazy(() => import('./pages/admin/hr/HRDashboard'));
 const Employees = lazy(() => import('./pages/admin/hr/Employees'));
 const SalarySettings = lazy(() => import('./pages/admin/hr/SalarySettings'));
 const KPIManagement = lazy(() => import('./pages/admin/hr/KPIManagement'));
+const AttendanceQR = lazy(() => import('./pages/admin/hr/AttendanceQR'));
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
 const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
@@ -184,6 +185,7 @@ function App() {
                 <Route path="hr/employees" element={<Suspense fallback={<PageLoader />}><Employees /></Suspense>} />
                 <Route path="hr/salary" element={<Suspense fallback={<PageLoader />}><SalarySettings /></Suspense>} />
                 <Route path="hr/kpi" element={<Suspense fallback={<PageLoader />}><KPIManagement /></Suspense>} />
+                <Route path="hr/attendance-qr" element={<Suspense fallback={<PageLoader />}><AttendanceQR /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />
                 <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
                 <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />

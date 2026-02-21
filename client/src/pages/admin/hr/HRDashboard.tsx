@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Users, DollarSign, TrendingUp, Award, Clock, Calendar } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Award, Clock, Calendar, QrCode } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader, StatCard } from '../../../components/common';
@@ -213,6 +213,17 @@ export default function HRDashboard() {
             <div className="text-left">
               <p className="font-medium text-gray-900">KPI Boshqaruvi</p>
               <p className="text-sm text-gray-600">KPI va bonuslar</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/admin/hr/attendance-qr'}
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all"
+          >
+            <QrCode className="w-5 h-5 text-purple-600" />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">QR Davomat</p>
+              <p className="text-sm text-gray-600">Check-in / Check-out</p>
             </div>
           </button>
         </div>

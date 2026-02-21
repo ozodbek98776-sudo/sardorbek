@@ -57,23 +57,32 @@ router.get('/employee/:employeeId/current', async (req, res) => {
 // Yangi maosh sozlamasi yaratish
 router.post('/', async (req, res) => {
   try {
-    const { 
-      employee, 
-      baseSalary, 
-      bonusEnabled, 
-      maxBonus, 
+    const {
+      employee,
+      salaryType,
+      hourlyRate,
+      baseSalary,
+      bonusEnabled,
+      maxBonus,
       minBonus,
       allowances,
       deductions,
-      effectiveFrom 
+      effectiveFrom
     } = req.body;
-    
+
     // Validatsiya
-    if (!employee || !baseSalary) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Xodim va asosiy maosh majburiy' 
+    if (!employee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Xodim majburiy'
       });
+    }
+
+    if (salaryType === 'hourly' && !hourlyRate) {
+      return res.status(400).json({ success: false, message: 'Soatlik stavka majburiy' });
+    }
+    if (salaryType === 'monthly' && !baseSalary) {
+      return res.status(400).json({ success: false, message: 'Oylik maosh majburiy' });
     }
     
     // Xodim mavjudligini tekshirish
@@ -103,7 +112,9 @@ router.post('/', async (req, res) => {
     // Yangi sozlama yaratish
     const settingData = {
       employee,
-      baseSalary,
+      salaryType: salaryType || 'hourly',
+      hourlyRate: hourlyRate || 0,
+      baseSalary: baseSalary || 0,
       bonusEnabled: bonusEnabled !== false,
       maxBonus: maxBonus || 0,
       minBonus: minBonus || 0,

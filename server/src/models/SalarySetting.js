@@ -8,10 +8,24 @@ const salarySettingSchema = new mongoose.Schema({
     index: true
   },
   
-  // Fixed maosh
+  // Maosh turi
+  salaryType: {
+    type: String,
+    enum: ['hourly', 'monthly'],
+    default: 'hourly'
+  },
+
+  // Soatlik stavka
+  hourlyRate: {
+    type: Number,
+    default: 0,
+    min: [0, 'Soatlik stavka manfiy bo\'lishi mumkin emas']
+  },
+
+  // Fixed oylik maosh (monthly turi uchun)
   baseSalary: {
     type: Number,
-    required: true,
+    default: 0,
     min: [0, 'Maosh manfiy bo\'lishi mumkin emas']
   },
   

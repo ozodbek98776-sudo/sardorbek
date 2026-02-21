@@ -1,6 +1,7 @@
 const SalarySetting = require('../models/SalarySetting');
 const KPIRecord = require('../models/KPIRecord');
 const AdvancePayment = require('../models/AdvancePayment');
+const Attendance = require('../models/Attendance');
 
 class SalaryCalculator {
   /**
@@ -17,9 +18,20 @@ class SalaryCalculator {
         throw new Error('Xodim uchun maosh sozlamalari topilmadi');
       }
       
-      // 2. Base Salary
-      const baseSalary = salarySetting.baseSalary;
-      
+      // 2. Base Salary — soatlik yoki oylik
+      let baseSalary = 0;
+      let totalWorkHours = 0;
+
+      if (salarySetting.salaryType === 'hourly') {
+        // Soatlik: hourlyRate * oylik ish soatlari
+        const attendanceStats = await Attendance.getMonthlyStats(employeeId, year, month);
+        totalWorkHours = attendanceStats.totalWorkHours || 0;
+        baseSalary = salarySetting.hourlyRate * totalWorkHours;
+      } else {
+        // Oylik: fixed baseSalary
+        baseSalary = salarySetting.baseSalary;
+      }
+
       // 3. KPI Bonus hisoblash
       const totalBonus = await this.calculateKPIBonus(
         employeeId, 
@@ -44,6 +56,9 @@ class SalaryCalculator {
       const netSalary = grossSalary - deductions - advancePayments;
       
       return {
+        salaryType: salarySetting.salaryType || 'monthly',
+        hourlyRate: salarySetting.hourlyRate || 0,
+        totalWorkHours,
         baseSalary,
         totalBonus,
         allowances,

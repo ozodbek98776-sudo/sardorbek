@@ -284,4 +284,185 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ============ QR ATTENDANCE ENDPOINTS ============
+
+// QR check-in (auth kerak emas - planshet/kiosk uchun, lekin admin token kerak)
+router.post('/qr-checkin', async (req, res) => {
+  try {
+    const { qrToken } = req.body;
+
+    if (!qrToken) {
+      return res.status(400).json({ success: false, message: 'QR token majburiy' });
+    }
+
+    // Find employee by QR token
+    const employee = await User.findOne({ qrToken, status: 'active' });
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Xodim topilmadi yoki faol emas' });
+    }
+
+    // Check if already checked in today
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const existing = await Attendance.findOne({
+      employee: employee._id,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `${employee.name} bugun allaqachon check-in qilgan (${new Date(existing.checkIn).toLocaleTimeString('uz-UZ')})`,
+        attendance: existing
+      });
+    }
+
+    const now = new Date();
+    // Late check: 09:00 dan keyin
+    const workStart = new Date(now);
+    workStart.setHours(9, 0, 0, 0);
+    const isLate = now > workStart;
+    const lateMinutes = isLate ? Math.round((now - workStart) / (1000 * 60)) : 0;
+
+    const attendance = new Attendance({
+      employee: employee._id,
+      date: startOfDay,
+      checkIn: now,
+      status: isLate ? 'late' : 'present',
+      isLate,
+      lateMinutes
+    });
+
+    await attendance.save();
+    await attendance.populate('employee', 'name role position');
+
+    res.status(201).json({
+      success: true,
+      message: `${employee.name} check-in qildi!`,
+      attendance,
+      isLate,
+      lateMinutes
+    });
+  } catch (error) {
+    console.error('QR check-in xatolik:', error);
+    res.status(500).json({ success: false, message: 'Serverda xatolik' });
+  }
+});
+
+// QR check-out
+router.post('/qr-checkout', async (req, res) => {
+  try {
+    const { qrToken } = req.body;
+
+    if (!qrToken) {
+      return res.status(400).json({ success: false, message: 'QR token majburiy' });
+    }
+
+    const employee = await User.findOne({ qrToken, status: 'active' });
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Xodim topilmadi' });
+    }
+
+    // Find today's attendance
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const attendance = await Attendance.findOne({
+      employee: employee._id,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (!attendance) {
+      return res.status(400).json({
+        success: false,
+        message: `${employee.name} bugun check-in qilmagan`
+      });
+    }
+
+    if (attendance.checkOut) {
+      return res.status(400).json({
+        success: false,
+        message: `${employee.name} bugun allaqachon check-out qilgan (${new Date(attendance.checkOut).toLocaleTimeString('uz-UZ')})`
+      });
+    }
+
+    const now = new Date();
+    attendance.checkOut = now;
+    attendance.workHours = (now - attendance.checkIn) / (1000 * 60 * 60);
+
+    await attendance.save();
+    await attendance.populate('employee', 'name role position');
+
+    res.json({
+      success: true,
+      message: `${employee.name} check-out qildi! Ish soati: ${attendance.workHours.toFixed(1)} soat`,
+      attendance
+    });
+  } catch (error) {
+    console.error('QR check-out xatolik:', error);
+    res.status(500).json({ success: false, message: 'Serverda xatolik' });
+  }
+});
+
+// QR token generate/regenerate for employee
+router.post('/qr-generate/:employeeId', async (req, res) => {
+  try {
+    const employee = await User.findById(req.params.employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Xodim topilmadi' });
+    }
+
+    employee.qrToken = 'QR-' + employee._id.toString() + '-' + Date.now().toString(36);
+    await employee.save();
+
+    res.json({
+      success: true,
+      qrToken: employee.qrToken,
+      employee: { _id: employee._id, name: employee.name, role: employee.role }
+    });
+  } catch (error) {
+    console.error('QR generate xatolik:', error);
+    res.status(500).json({ success: false, message: 'Serverda xatolik' });
+  }
+});
+
+// Get today's attendance (QR dashboard uchun)
+router.get('/today', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const attendances = await Attendance.find({
+      date: { $gte: startOfDay, $lte: endOfDay }
+    }).populate('employee', 'name role position').sort({ checkIn: -1 }).lean();
+
+    // All active employees
+    const allEmployees = await User.find({ status: 'active', role: { $ne: 'admin' } })
+      .select('name role position').lean();
+
+    const checkedInIds = attendances.map(a => a.employee._id.toString());
+    const notCheckedIn = allEmployees.filter(e => !checkedInIds.includes(e._id.toString()));
+
+    res.json({
+      success: true,
+      attendances,
+      notCheckedIn,
+      summary: {
+        total: allEmployees.length,
+        present: attendances.filter(a => a.checkIn).length,
+        checkedOut: attendances.filter(a => a.checkOut).length,
+        absent: notCheckedIn.length,
+        late: attendances.filter(a => a.isLate).length
+      }
+    });
+  } catch (error) {
+    console.error('Bugungi davomat xatolik:', error);
+    res.status(500).json({ success: false, message: 'Serverda xatolik' });
+  }
+});
+
 module.exports = router;

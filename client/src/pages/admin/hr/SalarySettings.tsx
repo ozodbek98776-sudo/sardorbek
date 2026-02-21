@@ -15,6 +15,8 @@ interface Employee {
 interface SalarySetting {
   _id: string;
   employee: Employee;
+  salaryType: 'hourly' | 'monthly';
+  hourlyRate: number;
   baseSalary: number;
   effectiveFrom: string;
   effectiveTo?: string;
@@ -28,6 +30,8 @@ export default function SalarySettings() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
+    salaryType: 'hourly' as 'hourly' | 'monthly',
+    hourlyRate: '',
     baseSalary: '',
     effectiveFrom: new Date().toISOString().split('T')[0]
   });
@@ -86,7 +90,9 @@ export default function SalarySettings() {
     try {
       const data = {
         employee: selectedEmployee,
-        baseSalary: Number(formData.baseSalary),
+        salaryType: formData.salaryType,
+        hourlyRate: formData.salaryType === 'hourly' ? Number(formData.hourlyRate) : 0,
+        baseSalary: formData.salaryType === 'monthly' ? Number(formData.baseSalary) : 0,
         effectiveFrom: formData.effectiveFrom,
         bonusEnabled: false,
         maxBonus: 0,
@@ -122,6 +128,8 @@ export default function SalarySettings() {
 
   const resetForm = () => {
     setFormData({
+      salaryType: 'hourly',
+      hourlyRate: '',
       baseSalary: '',
       effectiveFrom: new Date().toISOString().split('T')[0]
     });
@@ -196,12 +204,18 @@ export default function SalarySettings() {
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
                       <div className="flex items-center gap-2 mb-2">
                         <DollarSign className="w-5 h-5 text-blue-600" />
-                        <p className="text-sm font-medium text-blue-900">Oylik Maosh</p>
+                        <p className="text-sm font-medium text-blue-900">
+                          {currentSetting.salaryType === 'hourly' ? 'Soatlik Stavka' : 'Oylik Maosh'}
+                        </p>
                       </div>
                       <p className="text-3xl font-bold text-blue-600">
-                        {currentSetting.baseSalary.toLocaleString()}
+                        {currentSetting.salaryType === 'hourly'
+                          ? (currentSetting.hourlyRate || 0).toLocaleString()
+                          : currentSetting.baseSalary.toLocaleString()}
                       </p>
-                      <p className="text-xs text-blue-700 mt-1">so'm</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        {currentSetting.salaryType === 'hourly' ? "so'm / soat" : "so'm / oy"}
+                      </p>
                     </div>
 
                     {/* To'lov sanasi */}
@@ -295,25 +309,61 @@ export default function SalarySettings() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Maosh Belgilash</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Base Salary */}
+              {/* Salary Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Oylik Maosh (so'm) *
+                  Maosh turi *
                 </label>
-                <input
-                  type="number"
-                  required
-                  value={formData.baseSalary}
-                  onChange={(e) => setFormData({ ...formData, baseSalary: e.target.value })}
+                <select
+                  value={formData.salaryType}
+                  onChange={(e) => setFormData({ ...formData, salaryType: e.target.value as 'hourly' | 'monthly' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="5000000"
-                  min="0"
-                  step="100000"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Masalan: 5000000 (5 million so'm)
-                </p>
+                >
+                  <option value="hourly">Soatlik</option>
+                  <option value="monthly">Oylik (fixed)</option>
+                </select>
               </div>
+
+              {/* Hourly Rate */}
+              {formData.salaryType === 'hourly' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Soatlik stavka (so'm) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={formData.hourlyRate}
+                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="15000"
+                    min="0"
+                    step="1000"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Masalan: 15000 (15 ming so'm/soat). 8 soat × 22 kun = {formData.hourlyRate ? (Number(formData.hourlyRate) * 8 * 22).toLocaleString() : '0'} so'm/oy
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Oylik Maosh (so'm) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={formData.baseSalary}
+                    onChange={(e) => setFormData({ ...formData, baseSalary: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="5000000"
+                    min="0"
+                    step="100000"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Masalan: 5000000 (5 million so'm)
+                  </p>
+                </div>
+              )}
 
               {/* Effective From */}
               <div>
