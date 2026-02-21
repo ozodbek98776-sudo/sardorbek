@@ -5,7 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface Employee {
   _id: string;
@@ -315,7 +315,7 @@ export default function AttendanceQR() {
                   <div className="flex items-center gap-3">
                     {emp.qrToken ? (
                       <div className="w-16 h-16 flex-shrink-0">
-                        <QRCode value={emp.qrToken} size={64} level="M" />
+                        <QRCodeCanvas value={emp.qrToken} size={64} level="M" />
                       </div>
                     ) : (
                       <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
