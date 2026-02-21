@@ -199,3 +199,204 @@ Client console:
 🧹 Cleaning up newly uploaded images on cancel: ['/uploads/products/123.jpg']
 ✅ Cleanup successful
 ```
+
+
+---
+
+## 🆕 Warehouses.tsx ga Rasm Yuklash Qo'shildi
+
+### Qo'shilgan Funksiyalar
+
+1. ✅ **ImageUploadManager integratsiyasi**
+   - Mahsulot qo'shish/tahrirlashda rasmlar yuklash imkoniyati
+   - Maksimal 8 ta rasm yuklash
+   - Gallery va kameradan rasm olish
+
+2. ✅ **Rasm State Management**
+   ```typescript
+   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+   const [initialUploadedImages, setInitialUploadedImages] = useState<string[]>([]);
+   ```
+
+3. ✅ **Cleanup on Cancel**
+   - Modal yopilganda yangi yuklangan rasmlar o'chiriladi
+   - Faqat yangi rasmlar cleanup qilinadi (eski rasmlar saqlanadi)
+
+4. ✅ **Rasm Ko'rsatish**
+   - Mahsulotlar ro'yxatida birinchi rasm ko'rsatiladi
+   - Rasm yo'q bo'lsa, Package icon ko'rsatiladi
+   - Rasm yuklanmasa, fallback icon ko'rsatiladi
+
+### O'zgartirilgan Kodlar
+
+**Import qo'shildi:**
+```typescript
+import ImageUploadManager from '../../components/ImageUploadManager';
+import { UPLOADS_URL } from '../../config/api';
+```
+
+**State qo'shildi:**
+```typescript
+const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+const [initialUploadedImages, setInitialUploadedImages] = useState<string[]>([]);
+```
+
+**handleProductSubmit yangilandi:**
+```typescript
+const data = {
+  // ... boshqa fieldlar
+  images: uploadedImages
+};
+```
+
+**openAddProductModal yangilandi:**
+```typescript
+setUploadedImages([]);
+setInitialUploadedImages([]);
+```
+
+**openEditProductModal yangilandi:**
+```typescript
+const productImages = (product as any).images || [];
+setUploadedImages(productImages);
+setInitialUploadedImages(productImages);
+```
+
+**closeAddProductModal yangilandi:**
+```typescript
+const newlyUploadedImages = uploadedImages.filter(
+  img => !initialUploadedImages.includes(img)
+);
+
+if (newlyUploadedImages.length > 0) {
+  await api.post('/products/cleanup-images', { 
+    imagePaths: newlyUploadedImages 
+  });
+}
+```
+
+**Modal ichiga ImageUploadManager qo'shildi:**
+```typescript
+<div>
+  <label className="text-sm font-medium text-surface-700 mb-2 block">Rasmlar</label>
+  <ImageUploadManager
+    maxImages={8}
+    initialImages={uploadedImages}
+    onImagesChange={setUploadedImages}
+  />
+</div>
+```
+
+**Mahsulotlar ro'yxatida rasm ko'rsatish:**
+```typescript
+const productImages = (product as any).images || [];
+const firstImage = productImages[0];
+
+let imageUrl = '';
+if (firstImage) {
+  if (firstImage.startsWith('http')) {
+    imageUrl = firstImage;
+  } else {
+    const normalizedPath = firstImage.startsWith('/uploads/') 
+      ? firstImage 
+      : `/uploads/products/${firstImage}`;
+    imageUrl = `${UPLOADS_URL}${normalizedPath}`;
+  }
+}
+
+{imageUrl ? (
+  <img 
+    src={imageUrl}
+    alt={product.name}
+    className="w-12 h-12 object-cover rounded-xl"
+  />
+) : (
+  <div className="w-10 h-10 bg-brand-100 rounded-xl">
+    <Package className="w-5 h-5 text-brand-600" />
+  </div>
+)}
+```
+
+### Test Qilish
+
+1. **Yangi mahsulot qo'shish:**
+   - Omborni tanlang
+   - "Tovar qo'shish" tugmasini bosing
+   - Rasmlar yuklang (gallery yoki camera)
+   - ✅ Rasmlar ko'rinishi kerak
+   - "Bekor qilish" bosing
+   - ✅ Rasmlar serverdan o'chirilishi kerak
+
+2. **Mahsulotni tahrirlash:**
+   - Mavjud mahsulotni tahrirlang
+   - ✅ Eski rasmlar ko'rinishi kerak
+   - Yangi rasmlar qo'shing
+   - "Bekor qilish" bosing
+   - ✅ Faqat yangi rasmlar o'chirilishi kerak
+
+3. **Rasmlarni saqlash:**
+   - Mahsulot qo'shing/tahrirlang
+   - Rasmlar yuklang
+   - "Saqlash" bosing
+   - ✅ Rasmlar mahsulotda saqlanishi kerak
+   - ✅ Mahsulotlar ro'yxatida birinchi rasm ko'rinishi kerak
+
+### Natijalar
+
+✅ Warehouses.tsx da rasm yuklash ishlaydi
+✅ ImageUploadManager to'g'ri integratsiya qilindi
+✅ Cleanup funksiyasi ishlaydi
+✅ Mahsulotlar ro'yxatida rasmlar ko'rsatiladi
+✅ Path handling to'g'ri ishlaydi
+✅ Kod diagnostikasiz (no errors)
+
+
+---
+
+## 🐛 CameraCapture Circular Structure Xatosi Tuzatildi
+
+### Muammo
+```
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'HTMLCanvasElement'
+    |     property '__reactFiber$wevtodjfmdd' -> object with constructor 'FiberNode'
+    --- property 'stateNode' closes the circle
+```
+
+### Sabab
+Console.log da ref obyektlarini (videoRef, canvasRef) to'g'ridan-to'g'ri chiqarish. Bu obyektlar React Fiber node larga bog'langan va circular reference yaratadi.
+
+### Yechim
+
+**CameraCapture.tsx:**
+```typescript
+// NOTO'G'RI ❌
+console.log('🎥 videoRef from hook:', videoRef);
+console.log('🎥 canvasRef from hook:', canvasRef);
+
+// TO'G'RI ✅
+console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
+console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
+```
+
+**useCamera.ts:**
+```typescript
+// NOTO'G'RI ❌
+console.log('🎥 videoRef object:', videoRef);
+console.log('🎥 canvasRef object:', canvasRef);
+
+// TO'G'RI ✅
+console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
+console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
+```
+
+### Qoida
+React ref obyektlarini console.log qilishda:
+- ❌ To'g'ridan-to'g'ri ref obyektini chiqarma
+- ✅ Faqat ref.current ni yoki uning mavjudligini tekshir
+- ✅ Agar kerak bo'lsa, ref.current ning xususiyatlarini chiqar
+
+### Natija
+✅ Circular structure xatosi bartaraf etildi
+✅ Console.log lar ishlaydi
+✅ Kamera funksiyasi buzilmadi

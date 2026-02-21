@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "C:\\Users\\User\\Desktop\\sardorbek.biznesjon.uz\\.claude"
+    ],
+    "allow": [
+      "Bash(git add:*)"
+    ]
+  }
+}

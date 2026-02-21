@@ -15,8 +15,8 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
 
   useEffect(() => {
     console.log('🎥 CameraCapture component mounted');
-    console.log('🎥 videoRef from hook:', videoRef);
-    console.log('🎥 canvasRef from hook:', canvasRef);
+    console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
+    console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
     
     const initCamera = async () => {
       try {

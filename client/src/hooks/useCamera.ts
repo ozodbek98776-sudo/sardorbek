@@ -9,10 +9,8 @@ export const useCamera = () => {
   // Ensure refs are created immediately
   useEffect(() => {
     console.log('🎥 useCamera hook mounted');
-    console.log('🎥 videoRef object:', videoRef);
-    console.log('🎥 videoRef.current:', videoRef.current);
-    console.log('🎥 canvasRef object:', canvasRef);
-    console.log('🎥 canvasRef.current:', canvasRef.current);
+    console.log('🎥 videoRef.current:', videoRef.current ? 'exists' : 'null');
+    console.log('🎥 canvasRef.current:', canvasRef.current ? 'exists' : 'null');
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -50,7 +48,6 @@ export const useCamera = () => {
       
       if (!videoRef.current) {
         console.error('❌ videoRef.current hali ham mavjud emas!');
-        console.error('❌ videoRef object:', videoRef);
         throw new Error('Video ref mavjud emas - component render qilinmadi');
       }
       

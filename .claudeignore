@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build outputs
+client/dist/
+dist/
+
+# Logs
+server/logs/
+*.log
+
+# Environment (sensitive)
+.env
+.env.local
+.env.production
+server/.env
+client/.env
+
+# Uploads (binary files)
+server/uploads/
+uploads/
+
+# Lock files (katta, kontekst yemaydi)
+package-lock.json
+client/package-lock.json
+server/package-lock.json
+
+# Test artifacts
+client/playwright-report/
+client/test-results/
+test-results/
+server/coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+# Documentation (keraksiz kontekst)
+*.md
+!CLAUDE.md
+!README.md
+
+# Backup files
+server/backups/
+backups/

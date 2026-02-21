@@ -8,6 +8,8 @@ import { useAlert } from '../../hooks/useAlert';
 import { QRCodeSVG } from 'qrcode.react';
 import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
+import ImageUploadManager from '../../components/ImageUploadManager';
+import { UPLOADS_URL } from '../../config/api';
 
 export default function Warehouses() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -33,6 +35,8 @@ export default function Warehouses() {
     packageCount: '', unitsPerPackage: '', totalCost: ''
   });
   const [codeError, setCodeError] = useState('');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [initialUploadedImages, setInitialUploadedImages] = useState<string[]>([]);
 
   useEffect(() => { fetchWarehouses(); }, []);
 
@@ -102,7 +106,8 @@ export default function Warehouses() {
         costPrice: finalCostPrice,
         price: Number(productFormData.wholesalePrice),
         quantity: finalQuantity,
-        warehouse: selectedWarehouse._id
+        warehouse: selectedWarehouse._id,
+        images: uploadedImages
       };
       if (editingProduct) {
         await api.put(`/products/${editingProduct._id}`, data);
@@ -156,6 +161,9 @@ export default function Warehouses() {
       wholesalePrice: String(product.price),
       quantity: String(product.quantity)
     });
+    const productImages = (product as any).images || [];
+    setUploadedImages(productImages);
+    setInitialUploadedImages(productImages);
     setCodeError('');
     setShowAddProductModal(true);
   };
@@ -173,11 +181,28 @@ export default function Warehouses() {
     setWarehouseSearchQuery('');
   };
 
-  const closeAddProductModal = () => {
+  const closeAddProductModal = async () => {
+    // Yangi yuklangan rasmlarni topish va o'chirish
+    const newlyUploadedImages = uploadedImages.filter(
+      img => !initialUploadedImages.includes(img)
+    );
+    
+    if (newlyUploadedImages.length > 0) {
+      try {
+        console.log('🧹 Cleaning up newly uploaded images on cancel:', newlyUploadedImages);
+        await api.post('/products/cleanup-images', { imagePaths: newlyUploadedImages });
+        console.log('✅ Cleanup successful');
+      } catch (err) {
+        console.error('❌ Cleanup error:', err);
+      }
+    }
+    
     setShowAddProductModal(false);
     setEditingProduct(null);
     setProductFormData({ code: '', name: '', costPrice: '', wholesalePrice: '', quantity: '' });
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setUploadedImages([]);
+    setInitialUploadedImages([]);
     setCodeError('');
   };
 
@@ -189,6 +214,8 @@ export default function Warehouses() {
       console.error('Error getting next code:', err);
     }
     setPackageData({ packageCount: '', unitsPerPackage: '', totalCost: '' });
+    setUploadedImages([]);
+    setInitialUploadedImages([]);
     setCodeError('');
     setShowAddProductModal(true);
   };
@@ -240,13 +267,17 @@ export default function Warehouses() {
   return (
     <div className="min-h-screen bg-surface-50 w-full h-full">
       {AlertComponent}
-      <Header 
+      <UniversalPageHeader 
         title="Omborlar"
+        onMenuToggle={onMenuToggle}
         actions={
-          <button onClick={() => setShowModal(true)} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Yangi ombor</span>
-          </button>
+          <ActionButton
+            icon={Plus}
+            onClick={() => setShowModal(true)}
+            variant="primary"
+          >
+            Yangi ombor
+          </ActionButton>
         }
       />
 
@@ -390,10 +421,39 @@ export default function Warehouses() {
                       p.name.toLowerCase().includes(warehouseSearchQuery.toLowerCase()) ||
                       p.code.toLowerCase().includes(warehouseSearchQuery.toLowerCase())
                     )
-                    .map(product => (
-                    <div key={product._id} className="flex items-center justify-between py-4">
+                    .map(product => {
+                    const productImages = (product as any).images || [];
+                    const firstImage = productImages[0];
+                    
+                    // Rasm URL ni to'g'ri formatlash
+                    let imageUrl = '';
+                    if (firstImage) {
+                      if (firstImage.startsWith('http')) {
+                        imageUrl = firstImage;
+                      } else {
+                        const normalizedPath = firstImage.startsWith('/uploads/') 
+                          ? firstImage 
+                          : `/uploads/products/${firstImage}`;
+                        imageUrl = `${UPLOADS_URL}${normalizedPath}`;
+                      }
+                    }
+                    
+                    return (
+                    <div key={product._id} className="flex items-center justify-between py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
+                        {imageUrl ? (
+                          <img 
+                            src={imageUrl}
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded-xl border border-surface-200"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              const fallback = (e.target as HTMLImageElement).nextElementSibling;
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center ${imageUrl ? 'hidden' : ''}`}>
                           <Package className="w-5 h-5 text-brand-600" />
                         </div>
                         <div>
@@ -422,7 +482,8 @@ export default function Warehouses() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>
@@ -464,6 +525,17 @@ export default function Warehouses() {
                 <input type="text" className="input" placeholder="Tovar nomi" value={productFormData.name}
                   onChange={e => setProductFormData({...productFormData, name: e.target.value})} required />
               </div>
+              
+              {/* Rasm yuklash */}
+              <div>
+                <label className="text-sm font-medium text-surface-700 mb-2 block">Rasmlar</label>
+                <ImageUploadManager
+                  maxImages={8}
+                  initialImages={uploadedImages}
+                  onImagesChange={setUploadedImages}
+                />
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-surface-700 mb-2 block">Tan narxi (so'm)</label>
