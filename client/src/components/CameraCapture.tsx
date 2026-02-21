@@ -79,6 +79,14 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
 
         {/* Camera Preview */}
         <div className="relative bg-black aspect-video overflow-hidden">
+          {/* Video element DOIM DOM da bo'lishi kerak — ref ishlashi uchun */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`w-full h-full object-cover ${isCameraActive && !error ? '' : 'hidden'}`}
+          />
           {error ? (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
@@ -86,28 +94,14 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             </div>
-          ) : isInitializing ? (
+          ) : (isInitializing || !isCameraActive) ? (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
                 <Loader className="w-12 h-12 text-blue-400 mx-auto mb-2 animate-spin" />
                 <p className="text-blue-400 text-sm">Kamera ishga tushmoqda...</p>
               </div>
             </div>
-          ) : isCameraActive ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center">
-                <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">Kamera yuklanmoqda...</p>
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Hidden Canvas */}
