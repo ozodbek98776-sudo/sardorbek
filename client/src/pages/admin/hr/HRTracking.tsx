@@ -1,19 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { QrCode, Camera, UserCheck, UserX, Clock, RefreshCw, Printer, MapPin, Navigation, Save, Loader2, Users } from 'lucide-react';
+import { QrCode, UserCheck, UserX, Clock, RefreshCw, Printer, MapPin, Navigation, Save, Loader2, Users } from 'lucide-react';
 import axios from 'axios';
 import { QRCodeCanvas } from 'qrcode.react';
 import { API_BASE_URL, FRONTEND_URL } from '../../../config/api';
 import { UniversalPageHeader } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
-
-interface Employee {
-  _id: string;
-  name: string;
-  role: string;
-  position?: string;
-  qrToken?: string;
-}
 
 interface AttendanceRecord {
   _id: string;
@@ -24,6 +16,13 @@ interface AttendanceRecord {
   status: string;
   isLate: boolean;
   lateMinutes: number;
+}
+
+interface Employee {
+  _id: string;
+  name: string;
+  role: string;
+  position?: string;
 }
 
 interface TodaySummary {
@@ -46,7 +45,7 @@ interface StoreLocationData {
   isActive: boolean;
 }
 
-type TabType = 'today' | 'scanner' | 'qrcodes' | 'location';
+type TabType = 'today' | 'location';
 
 export default function HRTracking() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -59,10 +58,6 @@ export default function HRTracking() {
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
   const [notCheckedIn, setNotCheckedIn] = useState<Employee[]>([]);
   const [summary, setSummary] = useState<TodaySummary>({ total: 0, present: 0, checkedOut: 0, absent: 0, late: 0 });
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [scanResult, setScanResult] = useState<string | null>(null);
-  const [scanMode, setScanMode] = useState<'checkin' | 'checkout'>('checkin');
-  const qrInputRef = useRef<HTMLInputElement>(null);
 
   // Location state
   const [location, setLocation] = useState<StoreLocationData | null>(null);
@@ -89,7 +84,6 @@ export default function HRTracking() {
 
   useEffect(() => {
     fetchTodayAttendance();
-    fetchEmployees();
     fetchLocation();
   }, []);
 
@@ -106,63 +100,6 @@ export default function HRTracking() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/hr/employees`, { headers });
-      setEmployees(res.data.employees || []);
-    } catch (error) {
-      console.error('Xodimlar xatolik:', error);
-    }
-  };
-
-  const handleQRScan = async (qrToken: string) => {
-    try {
-      const endpoint = scanMode === 'checkin' ? 'qr-checkin' : 'qr-checkout';
-      const res = await axios.post(`${API_BASE_URL}/hr/attendance/${endpoint}`, { qrToken }, { headers });
-      setAlertModal({ isOpen: true, type: 'success', title: scanMode === 'checkin' ? 'Check-in!' : 'Check-out!', message: res.data.message });
-      fetchTodayAttendance();
-      setScanResult(null);
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      setAlertModal({ isOpen: true, type: 'danger', title: 'Xatolik', message: err.response?.data?.message || 'Xatolik yuz berdi' });
-    }
-  };
-
-  const handleQRInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && scanResult) handleQRScan(scanResult);
-  };
-
-  const generateQR = async (employeeId: string) => {
-    try {
-      const res = await axios.post(`${API_BASE_URL}/hr/attendance/qr-generate/${employeeId}`, {}, { headers });
-      setAlertModal({ isOpen: true, type: 'success', title: 'QR yaratildi', message: `${res.data.employee.name} uchun QR kod yaratildi` });
-      fetchEmployees();
-    } catch (error) {
-      console.error('QR generate xatolik:', error);
-    }
-  };
-
-  const printQR = (employee: Employee) => {
-    if (!employee.qrToken) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html><head><title>${employee.name} - QR</title>
-      <style>body{text-align:center;font-family:sans-serif;padding:40px}
-      .name{font-size:24px;font-weight:bold;margin:20px 0}
-      .role{color:#666;font-size:16px}
-      canvas{margin:20px auto;display:block}</style></head>
-      <body>
-        <div class="name">${employee.name}</div>
-        <div class="role">${employee.role} ${employee.position ? '- ' + employee.position : ''}</div>
-        <div id="qr"></div>
-        <p style="color:#999;font-size:12px;margin-top:20px">Sardorbek Furnitura - HR Tracking</p>
-        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
-        <script>QRCode.toCanvas(document.createElement('canvas'),${JSON.stringify(employee.qrToken)},{width:250},function(e,c){document.getElementById('qr').appendChild(c);window.print()})<\/script>
-      </body></html>
-    `);
   };
 
   // ---- Location APIs ----
@@ -273,9 +210,7 @@ export default function HRTracking() {
 
   const tabs: { key: TabType; label: string; icon: typeof Clock }[] = [
     { key: 'today', label: 'Bugungi', icon: Clock },
-    { key: 'scanner', label: 'Skaner', icon: Camera },
-    { key: 'qrcodes', label: 'QR kodlar', icon: QrCode },
-    { key: 'location', label: 'Lokatsiya', icon: MapPin },
+    { key: 'location', label: 'Lokatsiya & QR', icon: MapPin },
   ];
 
   return (
@@ -329,7 +264,7 @@ export default function HRTracking() {
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -378,79 +313,7 @@ export default function HRTracking() {
           </div>
         )}
 
-        {/* ===== Tab: Skaner ===== */}
-        {activeTab === 'scanner' && (
-          <div className="bg-white rounded-lg p-6 border border-gray-200 space-y-4">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button onClick={() => setScanMode('checkin')} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${scanMode === 'checkin' ? 'bg-green-600 text-white' : 'text-gray-600'}`}>Check-in</button>
-              <button onClick={() => setScanMode('checkout')} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${scanMode === 'checkout' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Check-out</button>
-            </div>
-            <div className="text-center space-y-4">
-              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${scanMode === 'checkin' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                <Camera className={`w-12 h-12 ${scanMode === 'checkin' ? 'text-green-600' : 'text-blue-600'}`} />
-              </div>
-              <p className="text-gray-600">QR kodni skanerlang yoki token ni kiriting</p>
-              <input
-                ref={qrInputRef}
-                type="text"
-                value={scanResult || ''}
-                onChange={(e) => setScanResult(e.target.value)}
-                onKeyDown={handleQRInput}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="QR token..."
-                autoFocus
-              />
-              <button
-                onClick={() => scanResult && handleQRScan(scanResult)}
-                disabled={!scanResult}
-                className={`w-full py-3 rounded-lg text-white font-medium transition-colors disabled:opacity-50 ${scanMode === 'checkin' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-              >
-                {scanMode === 'checkin' ? 'Check-in' : 'Check-out'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ===== Tab: QR Kodlar ===== */}
-        {activeTab === 'qrcodes' && (
-          <div className="space-y-3">
-            <h3 className="font-semibold text-gray-900">Xodimlar QR kodlari</h3>
-            {employees.filter(e => e.role !== 'admin').map(emp => (
-              <div key={emp._id} className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {emp.qrToken ? (
-                      <div className="w-16 h-16 flex-shrink-0">
-                        <QRCodeCanvas value={emp.qrToken} size={64} level="M" />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                        <QrCode className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-gray-900">{emp.name}</p>
-                      <p className="text-xs text-gray-500">{emp.role} {emp.position ? `• ${emp.position}` : ''}</p>
-                      {emp.qrToken && <p className="text-xs text-gray-400 font-mono mt-1">{emp.qrToken}</p>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {emp.qrToken ? (
-                      <>
-                        <button onClick={() => printQR(emp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Print"><Printer className="w-4 h-4" /></button>
-                        <button onClick={() => generateQR(emp._id)} className="p-2 text-gray-500 hover:bg-gray-50 rounded-lg" title="Qayta yaratish"><RefreshCw className="w-4 h-4" /></button>
-                      </>
-                    ) : (
-                      <button onClick={() => generateQR(emp._id)} className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">QR yaratish</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ===== Tab: Lokatsiya ===== */}
+        {/* ===== Tab: Lokatsiya & QR ===== */}
         {activeTab === 'location' && (
           <div className="max-w-4xl mx-auto space-y-6">
             {locationLoading ? (
