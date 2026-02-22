@@ -135,11 +135,14 @@ export default function KassaProNew() {
           limit: '50'
         });
         
-        // ✅ SABAB 8 FIX: Kategoriya parametrini qo'shish
+        // ✅ Kategoriya va bo'lim parametrini qo'shish
         if (selectedCategory) {
           params.append('category', selectedCategory);
         }
-        
+        if (selectedSection) {
+          params.append('subcategory', selectedSection);
+        }
+
         const res = await api.get(`/products/kassa?${params.toString()}`);
         
         // Yangi format: { products: [...], pagination: {...} }
@@ -260,7 +263,7 @@ export default function KassaProNew() {
         console.error('❌ Cache xatosi:', cacheErr);
       }
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedSection]);
   
   // ⚡ Fetch statistics - DB dagi jami mahsulotlar soni (search bo'yicha)
   const fetchStats = useCallback(async (searchTerm: string = '') => {
@@ -306,14 +309,14 @@ export default function KassaProNew() {
     });
   }, [loadingMore, hasMore, page, fetchProducts]);
   
-  // Category o'zgartirilganda mahsulotlarni qayta yuklash
+  // Category yoki bo'lim o'zgartirilganda mahsulotlarni qayta yuklash
   useEffect(() => {
-    console.log('🔄 Category o\'zgartirildi:', selectedCategory);
+    console.log('🔄 Filter o\'zgartirildi:', selectedCategory, selectedSection);
     setPage(1);
     setHasMore(true);
     setDisplayedProducts([]);
     fetchProducts(1, false);
-  }, [selectedCategory, fetchProducts]);
+  }, [selectedCategory, selectedSection, fetchProducts]);
   
   // Infinite scroll observer (OPTIMIZED)
   useEffect(() => {

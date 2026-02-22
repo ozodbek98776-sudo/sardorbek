@@ -68,12 +68,17 @@ const upload = multer({
 // Kassa uchun alohida endpoint - token talab qilmaydi
 router.get('/kassa', async (req, res) => {
   try {
-    const { search, page = 1, limit = 10, category } = req.query; // 10 ta mahsulot
+    const { search, page = 1, limit = 10, category, subcategory } = req.query; // 10 ta mahsulot
     const query = {};
 
     // ✅ Kategoriya filtri qo'shish
     if (category && typeof category === 'string' && category.trim() !== '') {
       query.category = category.trim();
+    }
+
+    // ✅ Bo'lim (subcategory) filtri
+    if (subcategory && typeof subcategory === 'string' && subcategory.trim() !== '') {
+      query.subcategory = subcategory.trim();
     }
 
     // Search query faqat string va bo'sh bo'lmasa
