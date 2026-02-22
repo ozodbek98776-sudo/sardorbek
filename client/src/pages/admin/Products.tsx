@@ -743,23 +743,23 @@ export default function ProductsOptimized() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredProducts.map(product => {
                 const productImage = getProductImage(product);
-                
-                // Narxlarni prices array dan olish - xavfsizlik tekshiruvi
+
                 const pricesData = (product as any).prices;
                 const prices = Array.isArray(pricesData) ? pricesData : [];
                 const unitPrice = prices.find((p: any) => p.type === 'unit');
-                const costPrice = prices.find((p: any) => p.type === 'cost');
                 const displayPrice = unitPrice?.amount || (product as any).unitPrice || product.price || 0;
-                
+                const isOutOfStock = product.quantity <= 0;
+                const isLowStock = product.quantity <= 10 && product.quantity > 0;
+
                 return (
-                  <div 
+                  <div
                     key={product._id}
-                    className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 relative"
+                    className="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 overflow-hidden relative"
                   >
-                    {/* Checkbox for batch selection */}
+                    {/* Checkbox */}
                     <div className="absolute top-2 left-2 z-10">
                       <input
                         type="checkbox"
@@ -770,89 +770,64 @@ export default function ProductsOptimized() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
-                      <button 
-                        onClick={() => openQRModal(product)} 
-                        className="w-8 h-8 bg-purple-50 hover:bg-purple-100 rounded-lg text-purple-600 flex items-center justify-center transition-colors"
+                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openQRModal(product)}
+                        className="w-7 h-7 bg-white/90 hover:bg-purple-100 rounded-lg text-purple-600 flex items-center justify-center transition-colors shadow-sm"
                         title="QR kod"
                       >
-                        <QrCode className="w-4 h-4" />
+                        <QrCode className="w-3.5 h-3.5" />
                       </button>
-                      <button 
-                        onClick={() => openEditModal(product)} 
-                        className="w-8 h-8 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600 flex items-center justify-center transition-colors"
+                      <button
+                        onClick={() => openEditModal(product)}
+                        className="w-7 h-7 bg-white/90 hover:bg-blue-100 rounded-lg text-blue-600 flex items-center justify-center transition-colors shadow-sm"
                         title="Tahrirlash"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button 
-                        onClick={() => handleDelete(product._id)} 
-                        className="w-8 h-8 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 flex items-center justify-center transition-colors"
+                      <button
+                        onClick={() => handleDelete(product._id)}
+                        className="w-7 h-7 bg-white/90 hover:bg-red-100 rounded-lg text-red-600 flex items-center justify-center transition-colors shadow-sm"
                         title="O'chirish"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    <div className="p-4">
-                      {/* Product Image */}
-                      <div className="w-full h-48 rounded-lg overflow-hidden bg-gray-100 mb-3">
-                        {productImage ? (
-                          <img 
-                            src={productImage} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-300" />
-                          </div>
+                    {/* Image */}
+                    <div className="relative w-full aspect-square bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden">
+                      {productImage ? (
+                        <img
+                          src={productImage}
+                          alt={product.name}
+                          loading="lazy"
+                          className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <Package className="w-8 h-8 text-slate-300" />
+                      )}
+                      {/* Stock badge */}
+                      <div className="absolute bottom-2 left-2">
+                        {isLowStock ? (
+                          <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-lg shadow-lg animate-pulse">{product.quantity} ta</span>
+                        ) : !isOutOfStock && (
+                          <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-lg shadow-lg">{product.quantity} ta</span>
                         )}
                       </div>
+                    </div>
 
-                      {/* Product Info */}
-                      <div className="space-y-2">
-                        <h3 className="font-semibold text-gray-900 line-clamp-2">{product.name}</h3>
-                        
-                        {/* Kategoriya va Bo'lim */}
-                        <div className="flex flex-wrap gap-1">
-                          {(product as any).category && (
-                            <Badge variant="primary" size="sm">
-                              {(product as any).category}
-                            </Badge>
-                          )}
-                          {(product as any).subcategory && (
-                            <Badge variant="info" size="sm">
-                              {(product as any).subcategory}
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* Narxlar */}
-                        <div className="space-y-1">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xl font-bold text-blue-600">
-                              {formatNumber(displayPrice)}
-                            </span>
-                            <span className="text-sm text-gray-500">so'm</span>
-                          </div>
-                          {costPrice && (
-                            <div className="text-xs text-gray-500">
-                              Tan narxi: {formatNumber(costPrice.amount)} so'm
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">Miqdor:</span>
-                          <span className={`font-medium ${
-                            product.quantity === 0 ? 'text-red-600' : 
-                            product.quantity <= 50 ? 'text-yellow-600' : 'text-green-600'
-                          }`}>
-                            {product.quantity} {product.unit || 'dona'}
-                          </span>
-                        </div>
-                      </div>
+                    {/* Info */}
+                    <div className="p-2">
+                      {isOutOfStock && (
+                        <span className="inline-block px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded mb-1">TUGAGAN</span>
+                      )}
+                      <h3 className="font-bold text-slate-900 text-sm mb-1 truncate group-hover:text-blue-600 transition-colors">
+                        {product.name}
+                      </h3>
+                      <p className="font-bold text-blue-600 text-base">
+                        {formatNumber(displayPrice)}
+                        <span className="text-xs ml-1">so'm</span>
+                      </p>
                     </div>
                   </div>
                 );

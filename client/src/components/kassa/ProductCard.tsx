@@ -41,23 +41,15 @@ export const ProductCard = memo(function ProductCard({
         disabled={isOutOfStock}
         className={`w-full text-left ${isOutOfStock ? 'opacity-60 cursor-not-allowed' : ''}`}
       >
-        {/* Image - Smaller */}
+        {/* Image */}
         <div className="relative w-full aspect-square bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden">
-          {isOutOfStock && (
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
-              <div className="bg-red-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
-                TUGAGAN
-              </div>
-            </div>
-          )}
-          
           {imageUrl ? (
-            <img 
+            <img
               src={imageUrl}
               alt={product.name}
               loading="lazy"
               decoding="async"
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const parent = e.currentTarget.parentElement;
@@ -72,51 +64,45 @@ export const ProductCard = memo(function ProductCard({
           ) : (
             <Package2 className="w-8 h-8 text-slate-300" />
           )}
-          
-          {/* Stock badge - Larger */}
+
+          {/* Stock badge */}
           <div className="absolute bottom-2 left-2">
-            {isOutOfStock ? (
-              <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg">
-                0 ta
-              </span>
-            ) : isLowStock ? (
+            {isLowStock ? (
               <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-lg shadow-lg animate-pulse">
                 {product.quantity} ta
               </span>
-            ) : (
+            ) : !isOutOfStock && (
               <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-lg shadow-lg">
                 {product.quantity} ta
               </span>
             )}
           </div>
         </div>
-        
-        {/* Info - Larger text, smaller padding */}
+
+        {/* Info */}
         <div className="p-2">
+          {isOutOfStock && (
+            <span className="inline-block px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded mb-1">TUGAGAN</span>
+          )}
           <h3 className="font-bold text-slate-900 text-sm mb-1 truncate group-hover:text-brand-600 transition-colors">
             {product.name}
           </h3>
-          <div>
-            <p className="text-xs text-slate-500 mb-0.5">Narxi</p>
-            <p className="font-bold text-brand-600 text-base">
-              {formatNumber((() => {
-                // Yangi format: prices array
-                const prices = (product as any).prices;
-                if (Array.isArray(prices) && prices.length > 0) {
-                  const unitPrice = prices.find((p: any) => p.type === 'unit');
-                  if (unitPrice?.amount) return unitPrice.amount;
-                }
-                // Eski format: to'g'ridan-to'g'ri price yoki unitPrice
-                return (product as any).unitPrice || product.price || 0;
-              })())}
-              <span className="text-xs ml-1">so'm</span>
+          <p className="font-bold text-brand-600 text-base">
+            {formatNumber((() => {
+              const prices = (product as any).prices;
+              if (Array.isArray(prices) && prices.length > 0) {
+                const unitPrice = prices.find((p: any) => p.type === 'unit');
+                if (unitPrice?.amount) return unitPrice.amount;
+              }
+              return (product as any).unitPrice || product.price || 0;
+            })())}
+            <span className="text-xs ml-1">so'm</span>
+          </p>
+          {hasDiscount && minDiscount && (
+            <p className="text-xs text-emerald-600 font-medium mt-1">
+              {minDiscount.discountPercent}% chegirma {minDiscount.minQuantity}+ ta
             </p>
-            {hasDiscount && minDiscount && (
-              <p className="text-xs text-emerald-600 font-medium mt-1">
-                {minDiscount.discountPercent}% chegirma {minDiscount.minQuantity}+ ta
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </button>
     </div>

@@ -61,14 +61,25 @@ export function CategoryFilter({
           msOverflowStyle: 'none', // IE/Edge
         }}
       >
+        {/* Barchasi button */}
+        <button
+          onClick={() => handleCategorySelect('')}
+          className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all ${
+            !selectedCategory
+              ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+              : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-purple-400'
+          }`}
+        >
+          Barchasi
+        </button>
         {/* Category buttons */}
         {categories.map(category => (
           <button
             key={category._id}
             onClick={() => handleCategorySelect(category.name)}
             className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 ${
-              selectedCategory === category.name 
-                ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg' 
+              selectedCategory === category.name
+                ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
                 : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-purple-400'
             }`}
           >
