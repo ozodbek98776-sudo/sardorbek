@@ -29,12 +29,8 @@ const Expenses = lazy(() => import('./pages/admin/Expenses'));
 const CustomersPro = lazy(() => import('./pages/admin/CustomersPro'));
 const Calculator = lazy(() => import('./pages/admin/Calculator'));
 // HR sahifalari
-const HRDashboard = lazy(() => import('./pages/admin/hr/HRDashboard'));
-const Employees = lazy(() => import('./pages/admin/hr/Employees'));
-const SalarySettings = lazy(() => import('./pages/admin/hr/SalarySettings'));
-const KPIManagement = lazy(() => import('./pages/admin/hr/KPIManagement'));
-const AttendanceQR = lazy(() => import('./pages/admin/hr/AttendanceQR'));
-const StoreLocationSettings = lazy(() => import('./pages/admin/hr/StoreLocationSettings'));
+const HREmployees = lazy(() => import('./pages/admin/hr/HREmployees'));
+const HRTracking = lazy(() => import('./pages/admin/hr/HRTracking'));
 const LocationCheckIn = lazy(() => import('./pages/attendance/LocationCheckIn'));
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
@@ -188,12 +184,8 @@ function App() {
                 <Route path="expenses" element={<Suspense fallback={<PageLoader />}><Expenses /></Suspense>} />
                 <Route path="calculator" element={<Suspense fallback={<PageLoader />}><Calculator /></Suspense>} />
                 {/* HR Routes */}
-                <Route path="hr" element={<Suspense fallback={<PageLoader />}><HRDashboard /></Suspense>} />
-                <Route path="hr/employees" element={<Suspense fallback={<PageLoader />}><Employees /></Suspense>} />
-                <Route path="hr/salary" element={<Suspense fallback={<PageLoader />}><SalarySettings /></Suspense>} />
-                <Route path="hr/kpi" element={<Suspense fallback={<PageLoader />}><KPIManagement /></Suspense>} />
-                <Route path="hr/attendance-qr" element={<Suspense fallback={<PageLoader />}><AttendanceQR /></Suspense>} />
-                <Route path="hr/store-location" element={<Suspense fallback={<PageLoader />}><StoreLocationSettings /></Suspense>} />
+                <Route path="hr" element={<Suspense fallback={<PageLoader />}><HREmployees /></Suspense>} />
+                <Route path="hr/tracking" element={<Suspense fallback={<PageLoader />}><HRTracking /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />
                 <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
                 <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />
