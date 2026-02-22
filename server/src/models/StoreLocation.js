@@ -17,7 +17,7 @@ const storeLocationSchema = new mongoose.Schema({
   },
   allowedRadius: {
     type: Number,
-    default: 100, // meters
+    default: 30, // meters
     min: 10,
     max: 5000
   },

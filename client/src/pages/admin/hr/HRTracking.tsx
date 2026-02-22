@@ -89,7 +89,7 @@ export default function HRTracking() {
     name: "Sardor Furnitura do'koni",
     latitude: '',
     longitude: '',
-    allowedRadius: '100',
+    allowedRadius: '30',
     address: '',
     workStartTime: '09:00'
   });
@@ -382,7 +382,7 @@ export default function HRTracking() {
                           />
                           <Circle
                             center={[parseFloat(locationForm.latitude), parseFloat(locationForm.longitude)]}
-                            radius={parseInt(locationForm.allowedRadius) || 100}
+                            radius={30}
                             pathOptions={{ color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 0.15 }}
                           />
                         </>
@@ -411,11 +411,6 @@ export default function HRTracking() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
                       <input type="number" step="any" value={locationForm.longitude} onChange={e => setLocationForm(p => ({ ...p, longitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50" readOnly />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ruxsat etilgan radius (metr)</label>
-                      <input type="number" value={locationForm.allowedRadius} onChange={e => setLocationForm(p => ({ ...p, allowedRadius: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" min="10" max="5000" />
-                      <p className="text-xs text-gray-400 mt-1">Xodim shu radius ichida bo'lishi kerak</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ish boshlanish vaqti</label>
@@ -453,7 +448,6 @@ export default function HRTracking() {
                           <p className="text-sm text-gray-500">QR URL:</p>
                           <p className="text-xs font-mono bg-gray-50 p-2 rounded break-all">{qrUrl}</p>
                         </div>
-                        <p className="text-sm text-gray-500">Radius: <span className="font-semibold text-gray-700">{location.allowedRadius}m</span></p>
                         <div className="flex flex-wrap gap-2 pt-2">
                           <button onClick={handlePrintStoreQR} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                             <Printer className="w-4 h-4" /> Chop etish

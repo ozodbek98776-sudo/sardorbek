@@ -37,15 +37,19 @@ router.post('/', async (req, res) => {
     // Deactivate existing locations
     await StoreLocation.updateMany({}, { isActive: false });
 
-    const location = new StoreLocation({
+    const locationData = {
       name,
       latitude,
       longitude,
-      allowedRadius: allowedRadius || 100,
+      allowedRadius: allowedRadius || 30,
       address,
-      workStartTime: workStartTime || '09:00',
-      createdBy: req.user._id
-    });
+      workStartTime: workStartTime || '09:00'
+    };
+    // Only set createdBy if it's a valid ObjectId
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      locationData.createdBy = req.user._id;
+    }
+    const location = new StoreLocation(locationData);
 
     await location.save();
 
