@@ -29,14 +29,17 @@
     "test:e2e:analyze": "node e2e/analyze-results.js"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.21",
     "@types/qrcode": "^1.5.6",
     "axios": "^1.6.2",
     "html5-qrcode": "^2.3.8",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.303.0",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-leaflet": "^4.2.1",
     "react-qr-code": "^2.0.18",
     "react-router-dom": "^6.21.1",
     "socket.io-client": "^4.8.3",

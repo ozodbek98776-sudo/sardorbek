@@ -796,7 +796,7 @@ export default function ProductsOptimized() {
 
                     <div className="p-4">
                       {/* Product Image */}
-                      <div className="w-full h-32 rounded-lg overflow-hidden bg-gray-100 mb-3">
+                      <div className="w-full h-48 rounded-lg overflow-hidden bg-gray-100 mb-3">
                         {productImage ? (
                           <img 
                             src={productImage} 

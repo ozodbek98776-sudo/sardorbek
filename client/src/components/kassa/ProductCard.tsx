@@ -96,9 +96,6 @@ export const ProductCard = memo(function ProductCard({
           <h3 className="font-bold text-slate-900 text-sm mb-1 truncate group-hover:text-brand-600 transition-colors">
             {product.name}
           </h3>
-          <p className="text-xs text-slate-500 mb-2 font-mono">
-            #{product.code}
-          </p>
           <div>
             <p className="text-xs text-slate-500 mb-0.5">Narxi</p>
             <p className="font-bold text-brand-600 text-base">

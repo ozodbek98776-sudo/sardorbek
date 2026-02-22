@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { QrCode, UserCheck, UserX, Clock, RefreshCw, Printer, MapPin, Navigation, Save, Loader2, Users } from 'lucide-react';
-import axios from 'axios';
 import { QRCodeCanvas } from 'qrcode.react';
-import { API_BASE_URL, FRONTEND_URL } from '../../../config/api';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import api from '../../../utils/api';
+import { FRONTEND_URL } from '../../../config/api';
 import { UniversalPageHeader } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
+
+// Fix leaflet default marker icon
+const markerIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
 interface AttendanceRecord {
   _id: string;
@@ -47,6 +59,15 @@ interface StoreLocationData {
 
 type TabType = 'today' | 'location';
 
+function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
+
 export default function HRTracking() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
   const navigate = useNavigate();
@@ -80,8 +101,6 @@ export default function HRTracking() {
     message: string;
   }>({ isOpen: false, type: 'success', title: '', message: '' });
 
-  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-
   useEffect(() => {
     fetchTodayAttendance();
     fetchLocation();
@@ -91,7 +110,7 @@ export default function HRTracking() {
   const fetchTodayAttendance = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_BASE_URL}/hr/attendance/today`, { headers });
+      const res = await api.get('/hr/attendance/today');
       setAttendances(res.data.attendances || []);
       setNotCheckedIn(res.data.notCheckedIn || []);
       setSummary(res.data.summary || { total: 0, present: 0, checkedOut: 0, absent: 0, late: 0 });
@@ -106,7 +125,7 @@ export default function HRTracking() {
   const fetchLocation = async () => {
     try {
       setLocationLoading(true);
-      const res = await axios.get(`${API_BASE_URL}/hr/store-location`, { headers });
+      const res = await api.get('/hr/store-location');
       if (res.data.success && res.data.data) {
         const loc = res.data.data;
         setLocation(loc);
@@ -128,7 +147,7 @@ export default function HRTracking() {
 
   const handleSaveLocation = async () => {
     if (!locationForm.latitude || !locationForm.longitude) {
-      setAlertModal({ isOpen: true, type: 'warning', title: 'Ogohlantirish', message: 'Latitude va longitude majburiy' });
+      setAlertModal({ isOpen: true, type: 'warning', title: 'Ogohlantirish', message: 'Xaritadan joy tanlang yoki GPS ishlating' });
       return;
     }
     setSaving(true);
@@ -142,8 +161,8 @@ export default function HRTracking() {
         workStartTime: locationForm.workStartTime
       };
       const res = location
-        ? await axios.put(`${API_BASE_URL}/hr/store-location/${location._id}`, payload, { headers })
-        : await axios.post(`${API_BASE_URL}/hr/store-location`, payload, { headers });
+        ? await api.put(`/hr/store-location/${location._id}`, payload)
+        : await api.post('/hr/store-location', payload);
       if (res.data.success) setLocation(res.data.data);
       setAlertModal({ isOpen: true, type: 'success', title: 'Muvaffaqiyatli', message: 'Saqlandi!' });
     } catch (error) {
@@ -158,7 +177,7 @@ export default function HRTracking() {
     if (!location) return;
     if (!confirm('QR tokenni yangilash? Eski QR kod ishlamay qoladi.')) return;
     try {
-      const res = await axios.post(`${API_BASE_URL}/hr/store-location/${location._id}/regenerate-token`, {}, { headers });
+      const res = await api.post(`/hr/store-location/${location._id}/regenerate-token`);
       if (res.data.success) {
         setLocation(prev => prev ? { ...prev, qrToken: res.data.data.qrToken } : null);
         setAlertModal({ isOpen: true, type: 'success', title: 'Muvaffaqiyatli', message: 'QR token yangilandi' });
@@ -176,7 +195,11 @@ export default function HRTracking() {
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLocationForm(prev => ({ ...prev, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) }));
+        setLocationForm(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6)
+        }));
         setGpsLoading(false);
       },
       () => {
@@ -186,6 +209,14 @@ export default function HRTracking() {
       { enableHighAccuracy: true, timeout: 15000 }
     );
   };
+
+  const handleMapClick = useCallback((lat: number, lng: number) => {
+    setLocationForm(prev => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6)
+    }));
+  }, []);
 
   const handlePrintStoreQR = () => {
     const printWindow = window.open('', '_blank');
@@ -207,6 +238,10 @@ export default function HRTracking() {
   const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
 
   const qrUrl = location ? `${FRONTEND_URL}/attendance/check-in?store=${location.qrToken}` : '';
+
+  const mapCenter: [number, number] = locationForm.latitude && locationForm.longitude
+    ? [parseFloat(locationForm.latitude), parseFloat(locationForm.longitude)]
+    : [41.311081, 69.240562]; // Default: Tashkent
 
   const tabs: { key: TabType; label: string; icon: typeof Clock }[] = [
     { key: 'today', label: 'Bugungi', icon: Clock },
@@ -322,11 +357,44 @@ export default function HRTracking() {
               </div>
             ) : (
               <>
+                {/* Map */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-indigo-600" /> Xaritadan joy tanlang
+                  </h2>
+                  <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: 350 }}>
+                    <MapContainer
+                      center={mapCenter}
+                      zoom={16}
+                      style={{ height: '100%', width: '100%' }}
+                      key={`${mapCenter[0]}-${mapCenter[1]}`}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <MapClickHandler onMapClick={handleMapClick} />
+                      {locationForm.latitude && locationForm.longitude && (
+                        <>
+                          <Marker
+                            position={[parseFloat(locationForm.latitude), parseFloat(locationForm.longitude)]}
+                            icon={markerIcon}
+                          />
+                          <Circle
+                            center={[parseFloat(locationForm.latitude), parseFloat(locationForm.longitude)]}
+                            radius={parseInt(locationForm.allowedRadius) || 100}
+                            pathOptions={{ color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 0.15 }}
+                          />
+                        </>
+                      )}
+                    </MapContainer>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">Xaritada bosib do'kon joyini belgilang. Ko'k doira — ruxsat etilgan radius.</p>
+                </div>
+
                 {/* Form */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-indigo-600" /> Do'kon Lokatsiyasi
-                  </h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Do'kon sozlamalari</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
@@ -338,11 +406,11 @@ export default function HRTracking() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                      <input type="number" step="any" value={locationForm.latitude} onChange={e => setLocationForm(p => ({ ...p, latitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="41.311081" />
+                      <input type="number" step="any" value={locationForm.latitude} onChange={e => setLocationForm(p => ({ ...p, latitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50" readOnly />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                      <input type="number" step="any" value={locationForm.longitude} onChange={e => setLocationForm(p => ({ ...p, longitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="69.240562" />
+                      <input type="number" step="any" value={locationForm.longitude} onChange={e => setLocationForm(p => ({ ...p, longitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50" readOnly />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ruxsat etilgan radius (metr)</label>
