@@ -403,13 +403,13 @@ export default function ProductsOptimized() {
         showAlert('Mahsulot qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       
-      closeModal();
+      closeModal(true); // Save muvaffaqiyatli — cleanup qilma
     } catch (error: any) {
       console.error('❌ Error saving product:', error);
       const errorMsg = error.response?.data?.message || 'Xatolik yuz berdi';
       showAlert(errorMsg, 'Xatolik', 'danger');
     } finally {
-      setIsSubmitting(false); // ⚡ Re-enable button
+      setIsSubmitting(false);
     }
   };
   
@@ -535,23 +535,22 @@ export default function ProductsOptimized() {
     setShowModal(true);
   };
   
-  const closeModal = async () => {
-    // MUAMMO 5 YECHIMI: Bekor qilinganda yangi yuklangan rasmlarni o'chirish
-    const newlyUploadedImages = uploadedImages.filter(
-      img => !initialUploadedImages.includes(img)
-    );
-    
-    if (newlyUploadedImages.length > 0) {
-      console.log('🧹 Cleaning up newly uploaded images on cancel:', newlyUploadedImages);
-      try {
-        await api.post('/products/cleanup-images', { imagePaths: newlyUploadedImages });
-        console.log('✅ Cleanup successful');
-      } catch (err) {
-        console.error('❌ Cleanup error:', err);
-        // Cleanup xatosi muhim emas
+  const closeModal = async (skipCleanup = false) => {
+    // Cleanup faqat cancel/bekor qilinganda ishlaydi, save dan keyin EMAS
+    if (!skipCleanup) {
+      const newlyUploadedImages = uploadedImages.filter(
+        img => !initialUploadedImages.includes(img)
+      );
+
+      if (newlyUploadedImages.length > 0) {
+        try {
+          await api.post('/products/cleanup-images', { imagePaths: newlyUploadedImages });
+        } catch (err) {
+          console.error('Cleanup error:', err);
+        }
       }
     }
-    
+
     setShowModal(false);
     setEditingProduct(null);
     setUploadedImages([]);
