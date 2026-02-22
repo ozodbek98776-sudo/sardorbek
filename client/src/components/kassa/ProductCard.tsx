@@ -87,6 +87,12 @@ export const ProductCard = memo(function ProductCard({
           <h3 className="font-bold text-slate-900 text-sm mb-1 truncate group-hover:text-brand-600 transition-colors">
             {product.name}
           </h3>
+          {((product as Record<string, unknown>).category || (product as Record<string, unknown>).subcategory) && (
+            <p className="text-[10px] text-slate-400 truncate mb-1">
+              {(product as Record<string, unknown>).category as string}
+              {(product as Record<string, unknown>).subcategory ? ` / ${(product as Record<string, unknown>).subcategory as string}` : ''}
+            </p>
+          )}
           <p className="font-bold text-brand-600 text-base">
             {formatNumber((() => {
               const prices = (product as any).prices;

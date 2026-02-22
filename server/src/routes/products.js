@@ -107,7 +107,7 @@ router.get('/kassa', async (req, res) => {
 
     // Minimal ma'lumotlar - faqat card uchun kerakli
     const products = await Product.find(query)
-      .select('name code price quantity images prices unit category') // prices array + code qo'shildi
+      .select('name code price quantity images prices unit category subcategory') // prices array + code + subcategory
       .limit(limitNum)
       .skip(skip)
       .lean();
