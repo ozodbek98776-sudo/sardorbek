@@ -53,9 +53,16 @@ export default function Login() {
       
       // Login muvaffaqiyatli bo'lsa, user ma'lumotlarini olish
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      
+
+      // Redirect parametri bo'lsa, o'sha yerga qaytarish
+      const params = new URLSearchParams(window.location.search);
+      const redirectUrl = params.get('redirect');
+      if (redirectUrl) {
+        navigate(redirectUrl, { replace: true });
+        return;
+      }
+
       // Role bo'yicha yo'naltirish
-      console.log('✅ Login muvaffaqiyatli, role:', userData.role);
       switch (userData.role) {
         case 'admin':
           navigate('/admin', { replace: true });
@@ -67,8 +74,7 @@ export default function Login() {
           navigate('/helper', { replace: true });
           break;
         default:
-          console.warn('⚠️ Noma\'lum role:', userData.role);
-          navigate('/admin', { replace: true }); // Default admin paneliga
+          navigate('/admin', { replace: true });
           break;
       }
       

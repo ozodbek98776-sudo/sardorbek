@@ -59,6 +59,8 @@ const hrSalaryRoutes = require('./routes/hr/salary');
 const hrKPIRoutes = require('./routes/hr/kpi');
 const hrPayrollRoutes = require('./routes/hr/payroll');
 const hrAttendanceRoutes = require('./routes/hr/attendance');
+const hrStoreLocationRoutes = require('./routes/hr/storeLocation');
+const hrLocationAttendanceRoutes = require('./routes/hr/locationAttendance');
 
 const app = express();
 const server = http.createServer(app);
@@ -250,6 +252,8 @@ app.use('/api/hr/salary', adminLimiter, hrSalaryRoutes);
 app.use('/api/hr/kpi', adminLimiter, hrKPIRoutes);
 app.use('/api/hr/payroll', adminLimiter, hrPayrollRoutes);
 app.use('/api/hr/attendance', adminLimiter, hrAttendanceRoutes);
+app.use('/api/hr/store-location', adminLimiter, hrStoreLocationRoutes);
+app.use('/api/hr/location-attendance', hrLocationAttendanceRoutes);
 
 // Make io available to routes
 app.set('io', io);

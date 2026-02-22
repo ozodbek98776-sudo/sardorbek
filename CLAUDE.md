@@ -82,6 +82,14 @@ cd client && npm run test:e2e  # Playwright e2e
 - jQuery yoki boshqa eski kutubxonalar
 - `SELECT *` yoki cheksiz MongoDB query (doim limit/pagination)
 
+## Skill shablonlar (MAJBURIY)
+Quyidagi vazifalarni bajarishdan OLDIN tegishli skill faylni o'qi va shablon sifatida ishlat:
+- **API endpoint** yaratish → `.claude/skills/api-endpoint.md` o'qi
+- **Bug/xato** tuzatish → `.claude/skills/bug-fix.md` o'qi
+- **Test** yozish → `.claude/skills/test-write.md` o'qi
+- **Refactor** qilish → `.claude/skills/refactor.md` o'qi
+Bu token tejaydi — noldan yozish o'rniga tayyor shablondan foydalaniladi.
+
 ## Muhim eslatmalar
 - `.env` fayllar gitda YO'Q — `.env.example` dan nusxa ol
 - Rasmlar `server/uploads/` ga saqlanadi, Sharp orqali optimize qilinadi

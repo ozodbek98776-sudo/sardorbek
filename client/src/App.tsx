@@ -34,6 +34,8 @@ const Employees = lazy(() => import('./pages/admin/hr/Employees'));
 const SalarySettings = lazy(() => import('./pages/admin/hr/SalarySettings'));
 const KPIManagement = lazy(() => import('./pages/admin/hr/KPIManagement'));
 const AttendanceQR = lazy(() => import('./pages/admin/hr/AttendanceQR'));
+const StoreLocationSettings = lazy(() => import('./pages/admin/hr/StoreLocationSettings'));
+const LocationCheckIn = lazy(() => import('./pages/attendance/LocationCheckIn'));
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
 const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
@@ -74,9 +76,13 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode; roles?
     );
   }
   
-  // Token yo'q bo'lsa login sahifasiga yo'naltirish
+  // Token yo'q bo'lsa login sahifasiga yo'naltirish (hozirgi URL ni saqlash)
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const currentPath = window.location.pathname + window.location.search;
+    const loginUrl = currentPath !== '/' && currentPath !== '/login'
+      ? `/login?redirect=${encodeURIComponent(currentPath)}`
+      : '/login';
+    return <Navigate to={loginUrl} replace />;
   }
   
   // Role tekshirish - agar roles berilgan bo'lsa va user role'i mos kelmasa
@@ -153,6 +159,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/product/:id" element={<Suspense fallback={<PageLoader />}><ProductView /></Suspense>} />
+              <Route path="/attendance/check-in" element={<ProtectedRoute roles={['admin', 'cashier', 'helper']}><Suspense fallback={<PageLoader />}><LocationCheckIn /></Suspense></ProtectedRoute>} />
               <Route path="/" element={<RoleRedirect />} />
               
               {/* Kassa Routes - TO'LIQ HIMOYALANGAN - Admin va Kassir uchun */}
@@ -186,6 +193,7 @@ function App() {
                 <Route path="hr/salary" element={<Suspense fallback={<PageLoader />}><SalarySettings /></Suspense>} />
                 <Route path="hr/kpi" element={<Suspense fallback={<PageLoader />}><KPIManagement /></Suspense>} />
                 <Route path="hr/attendance-qr" element={<Suspense fallback={<PageLoader />}><AttendanceQR /></Suspense>} />
+                <Route path="hr/store-location" element={<Suspense fallback={<PageLoader />}><StoreLocationSettings /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />
                 <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
                 <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />

@@ -40,6 +40,29 @@ const attendanceSchema = new mongoose.Schema({
     default: 0
   },
   
+  // GPS Location data
+  checkInLocation: {
+    latitude: Number,
+    longitude: Number,
+    distance: Number,
+    accuracy: Number
+  },
+  checkOutLocation: {
+    latitude: Number,
+    longitude: Number,
+    distance: Number,
+    accuracy: Number
+  },
+  checkInMethod: {
+    type: String,
+    enum: ['admin_qr', 'location_qr', 'manual'],
+    default: 'admin_qr'
+  },
+  storeLocation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StoreLocation'
+  },
+
   // Izoh
   notes: String,
   

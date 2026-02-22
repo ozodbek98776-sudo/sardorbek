@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, DollarSign, Target, Calendar, TrendingUp, Award } from 'lucide-react';
+import { User, DollarSign, Target, Calendar, TrendingUp, Award, MapPin, CheckCircle, XCircle, Clock, Loader2, LogIn, LogOut, AlertTriangle, QrCode } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { UniversalPageHeader, StatCard } from '../../components/common';
+import api from '../../utils/api';
 
 interface Task {
   id: string;
@@ -26,27 +27,127 @@ interface SalaryInfo {
   estimatedSalary: number;
 }
 
+type AttendanceStep = 'idle' | 'scanning' | 'gps_loading' | 'checking' | 'success' | 'error' | 'gps_denied';
+
+interface TodayAttendance {
+  checkIn: string;
+  checkOut?: string;
+  workHours?: number;
+  isLate?: boolean;
+  lateMinutes?: number;
+  checkInMethod?: string;
+}
+
 export default function MyProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // ⚡ Realtime statistics updates
   const realtimeStats = useRealtimeStats((newStats) => {
     console.log('📊 Realtime stats updated:', newStats);
-    // Stats will be used for dashboard-level statistics
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [salaryInfo, setSalaryInfo] = useState<SalaryInfo | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentMonthRecords, setCurrentMonthRecords] = useState<DailyRecord[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Attendance state
+  const [attStep, setAttStep] = useState<AttendanceStep>('idle');
+  const [todayAtt, setTodayAtt] = useState<TodayAttendance | null>(null);
+  const [canCheckIn, setCanCheckIn] = useState(false);
+  const [canCheckOut, setCanCheckOut] = useState(false);
+  const [attMessage, setAttMessage] = useState('');
+  const [attError, setAttError] = useState('');
+  const [storeToken, setStoreToken] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
+
   useEffect(() => {
     if (user) {
       fetchMyData();
+      fetchAttendanceStatus();
     }
   }, [user]);
+
+  const fetchAttendanceStatus = async () => {
+    try {
+      const res = await api.get('/hr/location-attendance/status');
+      const data = res.data.data;
+      setCanCheckIn(data.canCheckIn);
+      setCanCheckOut(data.canCheckOut);
+      setTodayAtt(data.attendance);
+    } catch {
+      // Status olishda xatolik — silent
+    }
+  };
+
+  const handleQRScan = () => {
+    setShowScanner(true);
+    setAttStep('scanning');
+    setAttError('');
+    setAttMessage('');
+  };
+
+  const processStoreToken = (token: string) => {
+    // URL yoki token parse
+    let extractedToken = token;
+    if (token.includes('store=')) {
+      const url = new URL(token);
+      extractedToken = url.searchParams.get('store') || '';
+    }
+    if (!extractedToken.startsWith('STORE-')) {
+      setAttStep('error');
+      setAttError('Bu davomat QR kodi emas');
+      return;
+    }
+    setStoreToken(extractedToken);
+    setShowScanner(false);
+    requestGPS(extractedToken);
+  };
+
+  const requestGPS = (token: string) => {
+    if (!navigator.geolocation) {
+      setAttStep('gps_denied');
+      setAttError('GPS qo\'llab-quvvatlanmaydi');
+      return;
+    }
+    setAttStep('gps_loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => performAttendance(token, pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+      (err) => {
+        setAttStep('gps_denied');
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            setAttError('GPS ruxsat berilmadi. Brauzer sozlamalaridan joylashuvga ruxsat bering.');
+            break;
+          case err.POSITION_UNAVAILABLE:
+            setAttError('GPS signal topilmadi.');
+            break;
+          default:
+            setAttError('GPS vaqti tugadi. Qayta urinib ko\'ring.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  const performAttendance = async (token: string, lat: number, lng: number, accuracy: number) => {
+    setAttStep('checking');
+    try {
+      const endpoint = canCheckIn ? '/hr/location-attendance/check-in' : '/hr/location-attendance/check-out';
+      const res = await api.post(endpoint, { storeToken: token, latitude: lat, longitude: lng, accuracy });
+      setAttStep('success');
+      setAttMessage(res.data.message);
+      fetchAttendanceStatus();
+    } catch (err: unknown) {
+      setAttStep('error');
+      const error = err as { response?: { data?: { message?: string } } };
+      setAttError(error.response?.data?.message || 'Xatolik yuz berdi');
+    }
+  };
+
+  const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
 
   const fetchMyData = async () => {
     try {
@@ -154,6 +255,138 @@ export default function MyProfile() {
               {user?.phone && <p className="text-purple-200 text-sm mt-1">{user.phone}</p>}
             </div>
           </div>
+        </div>
+
+        {/* Attendance Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Bugungi Davomat</h2>
+            </div>
+          </div>
+
+          {/* Today's attendance info */}
+          {todayAtt ? (
+            <div className="flex items-center gap-4 mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-green-800">Keldi: <strong>{formatTime(todayAtt.checkIn)}</strong></span>
+                  {todayAtt.isLate && (
+                    <span className="text-yellow-600 text-xs flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {todayAtt.lateMinutes} daq. kechikish
+                    </span>
+                  )}
+                  {todayAtt.checkOut && (
+                    <span className="text-blue-700">Ketdi: <strong>{formatTime(todayAtt.checkOut)}</strong></span>
+                  )}
+                  {todayAtt.workHours != null && todayAtt.workHours > 0 && (
+                    <span className="text-gray-600">{todayAtt.workHours.toFixed(1)} soat</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <Clock className="w-5 h-5 text-gray-400" />
+              <p className="text-sm text-gray-500">Bugun hali check-in qilinmagan</p>
+            </div>
+          )}
+
+          {/* Attendance action */}
+          {attStep === 'idle' && (canCheckIn || canCheckOut) && (
+            <button
+              onClick={handleQRScan}
+              className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98] ${
+                canCheckIn
+                  ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:shadow-lg'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg'
+              }`}
+            >
+              <QrCode className="w-6 h-6" />
+              {canCheckIn ? 'Keldim (Check-in)' : 'Ketdim (Check-out)'}
+            </button>
+          )}
+
+          {attStep === 'idle' && !canCheckIn && !canCheckOut && todayAtt?.checkOut && (
+            <div className="text-center py-3 text-sm text-gray-500">
+              Bugungi davomat to'liq qayd etilgan
+            </div>
+          )}
+
+          {/* Scanner input */}
+          {showScanner && attStep === 'scanning' && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">Do'kondagi QR kodni skanerlang yoki tokenni kiriting:</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="STORE-... yoki URL"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
+                      processStoreToken((e.target as HTMLInputElement).value);
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => { setShowScanner(false); setAttStep('idle'); }}
+                  className="px-4 py-3 bg-gray-200 text-gray-600 rounded-xl hover:bg-gray-300"
+                >
+                  Bekor
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">
+                Telefoningiz kamerasi bilan QR skanerlang — u avtomatik bu sahifani ochadi
+              </p>
+            </div>
+          )}
+
+          {/* GPS loading */}
+          {attStep === 'gps_loading' && (
+            <div className="text-center py-4">
+              <Loader2 className="w-8 h-8 mx-auto text-indigo-500 animate-spin mb-2" />
+              <p className="text-sm text-gray-600">GPS aniqlanmoqda...</p>
+            </div>
+          )}
+
+          {/* Checking */}
+          {attStep === 'checking' && (
+            <div className="text-center py-4">
+              <Loader2 className="w-8 h-8 mx-auto text-indigo-500 animate-spin mb-2" />
+              <p className="text-sm text-gray-600">{canCheckIn ? 'Check-in' : 'Check-out'} amalga oshirilmoqda...</p>
+            </div>
+          )}
+
+          {/* Success */}
+          {attStep === 'success' && (
+            <div className="text-center py-4">
+              <CheckCircle className="w-10 h-10 mx-auto text-green-500 mb-2" />
+              <p className="text-green-700 font-medium">{attMessage}</p>
+              <button
+                onClick={() => setAttStep('idle')}
+                className="mt-3 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200"
+              >
+                Yopish
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {(attStep === 'error' || attStep === 'gps_denied') && (
+            <div className="text-center py-4">
+              <XCircle className="w-10 h-10 mx-auto text-red-500 mb-2" />
+              <p className="text-red-700 text-sm mb-3">{attError}</p>
+              <button
+                onClick={() => { setAttStep('idle'); setAttError(''); }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+              >
+                Qayta urinish
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Salary Stats */}

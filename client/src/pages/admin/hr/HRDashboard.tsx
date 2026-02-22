@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Users, DollarSign, TrendingUp, Award, Clock, Calendar, QrCode } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Award, Clock, Calendar, QrCode, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader, StatCard } from '../../../components/common';
@@ -182,7 +182,7 @@ export default function HRDashboard() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Tezkor Harakatlar</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <button
             onClick={() => window.location.href = '/admin/hr/employees'}
             className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
@@ -224,6 +224,17 @@ export default function HRDashboard() {
             <div className="text-left">
               <p className="font-medium text-gray-900">QR Davomat</p>
               <p className="text-sm text-gray-600">Check-in / Check-out</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/admin/hr/store-location'}
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all"
+          >
+            <MapPin className="w-5 h-5 text-indigo-600" />
+            <div className="text-left">
+              <p className="font-medium text-gray-900">Do'kon QR</p>
+              <p className="text-sm text-gray-600">GPS davomat sozlash</p>
             </div>
           </button>
         </div>
