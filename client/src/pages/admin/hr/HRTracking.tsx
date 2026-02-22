@@ -392,40 +392,23 @@ export default function HRTracking() {
                   <p className="text-xs text-gray-400 mt-2">Xaritada bosib do'kon joyini belgilang. Ko'k doira — ruxsat etilgan radius.</p>
                 </div>
 
-                {/* Form */}
+                {/* Ish vaqti + Tugmalar */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Do'kon sozlamalari</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                      <input type="text" value={locationForm.name} onChange={e => setLocationForm(p => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Manzil</label>
-                      <input type="text" value={locationForm.address} onChange={e => setLocationForm(p => ({ ...p, address: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Masalan: Chilonzor 9-kvartal" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                      <input type="number" step="any" value={locationForm.latitude} onChange={e => setLocationForm(p => ({ ...p, latitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50" readOnly />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                      <input type="number" step="any" value={locationForm.longitude} onChange={e => setLocationForm(p => ({ ...p, longitude: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50" readOnly />
-                    </div>
-                    <div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+                    <div className="w-full sm:w-auto">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ish boshlanish vaqti</label>
-                      <input type="time" value={locationForm.workStartTime} onChange={e => setLocationForm(p => ({ ...p, workStartTime: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                      <input type="time" value={locationForm.workStartTime} onChange={e => setLocationForm(p => ({ ...p, workStartTime: e.target.value }))} className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-3 mt-6">
-                    <button onClick={handleGetCurrentLocation} disabled={gpsLoading} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
-                      {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
-                      Hozirgi joylashuvni ishlat
-                    </button>
-                    <button onClick={handleSaveLocation} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Saqlash
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={handleGetCurrentLocation} disabled={gpsLoading} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
+                        {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                        Hozirgi joylashuv
+                      </button>
+                      <button onClick={handleSaveLocation} disabled={saving} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Saqlash
+                      </button>
+                    </div>
                   </div>
                 </div>
 
