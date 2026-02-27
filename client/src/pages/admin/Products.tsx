@@ -79,6 +79,10 @@ export default function ProductsOptimized() {
       unitsPerBox: '',
       boxWeight: ''
     },
+    // Metr o'ram ma'lumotlari
+    metrInfo: {
+      metersPerOram: ''
+    },
     // Chegirma sozlamalari
     discount1: { minQuantity: '', percent: '' },
     discount2: { minQuantity: '', percent: '' },
@@ -374,6 +378,10 @@ export default function ProductsOptimized() {
         boxInfo: {
           unitsPerBox: Number(formData.boxInfo.unitsPerBox) || 1,
           boxWeight: Number(formData.boxInfo.boxWeight) || 0
+        },
+        // Metr o'ram ma'lumotlari
+        metrInfo: {
+          metersPerOram: Number(formData.metrInfo?.metersPerOram) || 0
         }
       };
       
@@ -445,6 +453,9 @@ export default function ProductsOptimized() {
         unitsPerBox: '',
         boxWeight: ''
       },
+      metrInfo: {
+        metersPerOram: ''
+      },
       discount1: { minQuantity: '', percent: '' },
       discount2: { minQuantity: '', percent: '' },
       discount3: { minQuantity: '', percent: '' }
@@ -509,6 +520,10 @@ export default function ProductsOptimized() {
       boxInfo: {
         unitsPerBox: boxInfo.unitsPerBox ? String(boxInfo.unitsPerBox) : '',
         boxWeight: boxInfo.boxWeight ? String(boxInfo.boxWeight) : ''
+      },
+      metrInfo: {
+        metersPerOram: (product as any).metrInfo?.metersPerOram
+          ? String((product as any).metrInfo.metersPerOram) : ''
       },
       discount1: {
         minQuantity: discount1?.minQuantity ? String(discount1.minQuantity) : '',

@@ -32,6 +32,10 @@ export interface BoxInfo {
   boxWeight: number;
 }
 
+export interface MetrInfo {
+  metersPerOram: number;
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -41,6 +45,7 @@ export interface Product {
   unit: UnitType;
   prices: ProductPrice[];
   boxInfo?: BoxInfo;
+  metrInfo?: MetrInfo;
   
   // ESKI NARX FIELDLARI (backward compatibility uchun)
   costPrice?: number;

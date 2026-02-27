@@ -42,18 +42,25 @@ const calculateDiscountedPrice = (product: Product, quantity: number): number =>
   return discountedPrice;
 };
 
-export function CartItem({ 
-  item, 
-  onQuantityChange, 
-  onRemove 
+export function CartItem({
+  item,
+  onQuantityChange,
+  onRemove
 }: CartItemProps) {
-  // Discount'ni hisobga olgan narxni hisoblash
+  const metersPerOram = (item as any).metrInfo?.metersPerOram;
+  const isOramMode = item.unit === 'metr' && metersPerOram > 0;
+  // Display value: o'ram mode da o'ramda, aks holda metrda
+  const displayQuantity = isOramMode
+    ? Math.round((item.cartQuantity / metersPerOram) * 10) / 10
+    : item.cartQuantity;
+  const maxDisplay = isOramMode
+    ? Math.floor(item.quantity / metersPerOram)
+    : item.quantity;
+
   const discountedPrice = calculateDiscountedPrice(item as Product, item.cartQuantity);
   const price = discountedPrice;
   const total = price * item.cartQuantity;
-  const hasDiscount = discountedPrice < (item.price || 0);
-  
-  // Agar miqdor 0 ga tushsa, avtomatik o'chirish
+
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity <= 0) {
       onRemove();
@@ -61,9 +68,19 @@ export function CartItem({
       onQuantityChange(newQuantity);
     }
   };
-  
+
+  // o'ram mode: o'ram sonidan metrga aylantirish
+  const handleOramChange = (oramCount: number) => {
+    if (oramCount <= 0) {
+      onRemove();
+    } else {
+      const meters = oramCount * metersPerOram;
+      handleQuantityChange(Math.min(meters, item.quantity));
+    }
+  };
+
   return (
-    <div 
+    <div
       data-testid="cart-item"
       className="bg-slate-50 border border-slate-200 rounded-lg p-2 hover:border-brand-300 transition-all"
     >
@@ -72,65 +89,79 @@ export function CartItem({
         {/* Name - Flexible */}
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-slate-900 text-sm truncate">{item.name}</h4>
+          {isOramMode && (
+            <p className="text-[10px] text-slate-500">{item.cartQuantity} metr</p>
+          )}
         </div>
-        
-        {/* Quantity Controls - Compact */}
+
+        {/* Quantity Controls */}
         <div className="flex items-center gap-1">
-          <button 
-            onClick={() => handleQuantityChange(Math.max(0, item.cartQuantity - 1))}
+          <button
+            onClick={() => isOramMode
+              ? handleOramChange(Math.max(0, displayQuantity - 1))
+              : handleQuantityChange(Math.max(0, item.cartQuantity - 1))
+            }
             className="w-6 h-6 flex items-center justify-center bg-slate-200 hover:bg-slate-300 rounded font-bold text-slate-700 transition-colors text-sm"
           >
             −
           </button>
-          
+
           <input
             type="number"
-            value={item.cartQuantity}
+            value={displayQuantity}
             onChange={(e) => {
               const value = e.target.value;
-              // Bo'sh bo'lsa 0 ga o'rnatamiz
               if (value === '') {
-                handleQuantityChange(0);
+                isOramMode ? handleOramChange(0) : handleQuantityChange(0);
                 return;
               }
-              
-              const numValue = parseInt(value);
+              const numValue = parseFloat(value);
               if (!isNaN(numValue) && numValue >= 0) {
-                // Maksimal miqdordan oshsa, maksimalga o'rnatamiz
-                handleQuantityChange(Math.min(numValue, item.quantity));
+                if (isOramMode) {
+                  handleOramChange(Math.min(numValue, maxDisplay));
+                } else {
+                  handleQuantityChange(Math.min(Math.round(numValue), item.quantity));
+                }
               }
             }}
-            onFocus={(e) => e.target.select()} // Bosganda barcha raqamni tanlaydi
+            onFocus={(e) => e.target.select()}
             onBlur={(e) => {
-              // Focus yo'qolganda validatsiya
-              const value = parseInt(e.target.value);
+              const value = parseFloat(e.target.value);
               if (isNaN(value) || value < 0) {
-                handleQuantityChange(0);
-              } else if (value > item.quantity) {
-                handleQuantityChange(item.quantity);
+                isOramMode ? handleOramChange(0) : handleQuantityChange(0);
+              } else if (value > maxDisplay) {
+                isOramMode ? handleOramChange(maxDisplay) : handleQuantityChange(item.quantity);
               }
             }}
             min={0}
-            max={item.quantity}
+            max={maxDisplay}
+            step={isOramMode ? 1 : 1}
             className="w-10 h-6 text-center border-2 border-slate-300 rounded font-semibold text-xs focus:border-brand-500 focus:bg-white focus:outline-none transition-all"
           />
-          
-          <button 
-            onClick={() => handleQuantityChange(item.cartQuantity + 1)}
-            disabled={item.cartQuantity >= item.quantity}
+
+          <button
+            onClick={() => isOramMode
+              ? handleOramChange(Math.min(displayQuantity + 1, maxDisplay))
+              : handleQuantityChange(item.cartQuantity + 1)
+            }
+            disabled={isOramMode ? displayQuantity >= maxDisplay : item.cartQuantity >= item.quantity}
             className="w-6 h-6 flex items-center justify-center bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-bold transition-colors text-sm"
           >
             +
           </button>
+
+          {isOramMode && (
+            <span className="text-[10px] text-slate-500 ml-0.5">o'ram</span>
+          )}
         </div>
-        
+
         {/* Price */}
         <div className="text-right min-w-[80px]">
           <p className="text-sm font-bold text-slate-900">{formatNumber(total)}</p>
         </div>
-        
+
         {/* Remove button */}
-        <button 
+        <button
           onClick={onRemove}
           className="p-1 hover:bg-red-100 text-red-500 rounded transition-colors flex-shrink-0"
           title="O'chirish"
@@ -138,11 +169,11 @@ export function CartItem({
           <X className="w-4 h-4" />
         </button>
       </div>
-      
-      {/* Stock warning - if needed */}
-      {item.cartQuantity >= item.quantity * 0.8 && (
+
+      {/* Stock warning */}
+      {(isOramMode ? displayQuantity >= maxDisplay * 0.8 : item.cartQuantity >= item.quantity * 0.8) && (
         <div className="mt-1 text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-          ⚠️ {item.quantity} ta qoldi
+          ⚠️ {isOramMode ? `${maxDisplay} o'ram` : `${item.quantity} metr`} qoldi
         </div>
       )}
     </div>

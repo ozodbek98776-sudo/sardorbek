@@ -94,6 +94,15 @@ const productSchema = new mongoose.Schema({
       default: 0
     }
   },
+
+  // Metr o'ram ma'lumotlari (agar metrda sotilsa)
+  metrInfo: {
+    metersPerOram: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
   
   warehouse: { 
     type: mongoose.Schema.Types.ObjectId, 

@@ -31,6 +31,7 @@ const Calculator = lazy(() => import('./pages/admin/Calculator'));
 // HR sahifalari
 const HREmployees = lazy(() => import('./pages/admin/hr/HREmployees'));
 const HRTracking = lazy(() => import('./pages/admin/hr/HRTracking'));
+const HRPayroll = lazy(() => import('./pages/admin/hr/HRPayroll'));
 const LocationCheckIn = lazy(() => import('./pages/attendance/LocationCheckIn'));
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
@@ -186,6 +187,7 @@ function App() {
                 {/* HR Routes */}
                 <Route path="hr" element={<Suspense fallback={<PageLoader />}><HREmployees /></Suspense>} />
                 <Route path="hr/tracking" element={<Suspense fallback={<PageLoader />}><HRTracking /></Suspense>} />
+                <Route path="hr/payroll" element={<Suspense fallback={<PageLoader />}><HRPayroll /></Suspense>} />
                 <Route path="helpers" element={<Suspense fallback={<PageLoader />}><HelpersOptimized /></Suspense>} />
                 <Route path="staff-receipts" element={<Suspense fallback={<PageLoader />}><StaffReceipts /></Suspense>} />
                 <Route path="telegram-settings" element={<Suspense fallback={<PageLoader />}><TelegramSettings /></Suspense>} />

@@ -529,6 +529,7 @@ export const adminMenuItems: MenuItem[] = [
   { icon: <TrendingDown className="w-5 h-5" />, label: 'sidebar.expenses', path: '/expenses' },
   { icon: <Calculator className="w-5 h-5" />, label: 'Tez Hisoblash', path: '/calculator' },
   { icon: <Briefcase className="w-5 h-5" />, label: 'HR Moduli', path: '/hr' },
+  { icon: <DollarSign className="w-5 h-5" />, label: "Maosh to'lash", path: '/hr/payroll' },
 ];
 
 export const cashierMenuItems: MenuItem[] = [

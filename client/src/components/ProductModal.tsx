@@ -27,6 +27,9 @@ interface ProductModalProps {
       unitsPerBox: string;
       boxWeight: string;
     };
+    metrInfo: {
+      metersPerOram: string;
+    };
     discount1: { minQuantity: string; percent: string };
     discount2: { minQuantity: string; percent: string };
     discount3: { minQuantity: string; percent: string };
@@ -273,6 +276,32 @@ export default function ProductModal({
               </div>
             </div>
             <p className="text-xs text-gray-500">Masalan: 1 karobkada 24 dona, og'irligi 10 kg</p>
+          </div>
+        )}
+
+        {/* Metr O'ram Information */}
+        {formData.unit === 'metr' && (
+          <div className="border-t pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">O'ram ma'lumotlari</label>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">O'ramda necha metr</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={formData.metrInfo.metersPerOram}
+                onChange={(e) => handleNestedChange('metrInfo', { metersPerOram: e.target.value })}
+                placeholder="15"
+                min="0"
+                step="0.1"
+              />
+            </div>
+            {formData.metrInfo.metersPerOram && Number(formData.metrInfo.metersPerOram) > 0 &&
+             formData.quantity && Number(parseNumber(formData.quantity)) > 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                = {(Number(parseNumber(formData.quantity)) / Number(formData.metrInfo.metersPerOram)).toFixed(1)} o'ram
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">Masalan: 1 o'ramda 15 metr mato</p>
           </div>
         )}
 
