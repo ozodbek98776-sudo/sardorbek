@@ -115,7 +115,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
 <head>
   <title>Label Print</title>
   <style>
-    @page { size: ${LABEL_W}mm ${LABEL_H}mm; margin: 0; }
+    @page { size: ${LABEL_W}mm ${LABEL_H}mm landscape; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
