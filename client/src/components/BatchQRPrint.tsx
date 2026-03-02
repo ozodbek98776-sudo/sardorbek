@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import * as QRCode from 'qrcode';
+import React, { useState, useEffect, useRef } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { X, Printer, Plus, Minus } from 'lucide-react';
 import { getUnitPrice } from '../utils/pricing';
 
@@ -29,43 +29,32 @@ const QR_SIZE = 20;  // mm
 const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const qrContainerRef = useRef<HTMLDivElement>(null);
 
   const formatPrice = (num: number) => new Intl.NumberFormat('uz-UZ').format(num);
 
-  const generateQRDataUrl = async (text: string): Promise<string> => {
-    try {
-      const canvas = document.createElement('canvas');
-      await QRCode.toCanvas(canvas, text, {
-        width: 200,
-        margin: 1,
-        errorCorrectionLevel: 'H',
-        color: { dark: '#000000', light: '#ffffff' }
-      });
-      return canvas.toDataURL('image/png');
-    } catch {
-      try {
-        return await (QRCode as any).toDataURL(text, { width: 200, margin: 1 });
-      } catch {
-        return '';
-      }
-    }
-  };
+  const baseUrl = window.location.origin;
 
+  // Step 1: initialize items without QR (trigger hidden canvas render)
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const items: PrintItem[] = [];
-      // Always use window.location.origin so QR matches current domain
-      const baseUrl = window.location.origin;
-      for (const product of products) {
-        const qrDataUrl = await generateQRDataUrl(`${baseUrl}/product/${product._id}`);
-        items.push({ product, copies: 1, qrDataUrl });
-      }
-      setPrintItems(items);
-      setLoading(false);
-    };
-    load();
+    setPrintItems(products.map(p => ({ product: p, copies: 1, qrDataUrl: '' })));
   }, [products]);
+
+  // Step 2: after canvases rendered, extract data URLs
+  useEffect(() => {
+    if (printItems.length === 0) return;
+    const timer = setTimeout(() => {
+      const updated = printItems.map(item => {
+        const canvas = document.getElementById(`qr-${item.product._id}`) as HTMLCanvasElement | null;
+        const qrDataUrl = canvas ? canvas.toDataURL('image/png') : '';
+        return { ...item, qrDataUrl };
+      });
+      setPrintItems(updated);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printItems.length]);
 
   const updateCopies = (index: number, delta: number) => {
     setPrintItems(prev => prev.map((item, i) =>
@@ -203,18 +192,39 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     printWindow.document.close();
   };
 
+  // Hidden canvases for QR generation (always rendered)
+  const hiddenQRs = (
+    <div ref={qrContainerRef} style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }}>
+      {products.map(p => (
+        <QRCodeCanvas
+          key={p._id}
+          id={`qr-${p._id}`}
+          value={`${baseUrl}/product/${p._id}`}
+          size={200}
+          marginSize={1}
+          level="H"
+        />
+      ))}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-        <div className="bg-white rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">QR kodlar yaratilmoqda...</p>
+      <>
+        {hiddenQRs}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-2xl p-8 text-center">
+            <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-slate-600">QR kodlar yaratilmoqda...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
+    <>
+    {hiddenQRs}
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -324,6 +334,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
