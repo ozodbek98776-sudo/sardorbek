@@ -93,18 +93,16 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
 
       for (let i = 0; i < item.copies; i++) {
         labelsHtml += `
-          <div class="label">
-            <div class="label-inner">
-              <div class="label-left">
-                <div class="label-name">${item.product.name}</div>
-                <div class="label-price">${formatPrice(displayPrice)} so'm</div>
-              </div>
-              <div class="label-qr">
-                ${item.qrDataUrl
-                  ? `<img src="${item.qrDataUrl}" alt="QR" />`
-                  : `<div class="qr-empty">QR</div>`
-                }
-              </div>
+          <div style="width:${LABEL_W}mm;height:${LABEL_H}mm;display:flex;flex-direction:row;align-items:center;padding:2mm;gap:3mm;page-break-after:always;page-break-inside:avoid;background:white;box-sizing:border-box;">
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:2mm;min-width:0;overflow:hidden;">
+              <div style="font-family:Arial,sans-serif;font-size:8pt;font-weight:700;color:#000;line-height:1.2;word-break:break-word;">${item.product.name}</div>
+              <div style="font-family:Arial,sans-serif;font-size:16pt;font-weight:900;color:#CC0000;line-height:1;">${formatPrice(displayPrice)} so'm</div>
+            </div>
+            <div style="flex:0 0 ${QR_SIZE}mm;width:${QR_SIZE}mm;height:${QR_SIZE}mm;">
+              ${item.qrDataUrl
+                ? `<img src="${item.qrDataUrl}" alt="QR" style="width:${QR_SIZE}mm;height:${QR_SIZE}mm;display:block;" />`
+                : `<div style="width:${QR_SIZE}mm;height:${QR_SIZE}mm;background:#eee;display:flex;align-items:center;justify-content:center;font-size:6pt;color:#999;">QR</div>`
+              }
             </div>
           </div>`;
       }
@@ -115,74 +113,14 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
 <head>
   <title>Label Print</title>
   <style>
-    @page { size: ${LABEL_W}mm ${LABEL_H}mm landscape; margin: 0; }
+    @page { size: ${LABEL_W}mm ${LABEL_H}mm; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .label {
-      width: ${LABEL_W}mm;
-      height: ${LABEL_H}mm;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: white;
-      page-break-after: always;
-      page-break-inside: avoid;
-    }
-    .label-inner {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      width: 100%;
-      padding: 2mm;
-      gap: 3mm;
-    }
-    .label-left {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2mm;
-      min-width: 0;
-    }
-    .label-name {
-      font-size: 8pt;
-      font-weight: 700;
-      color: #000;
-      line-height: 1.2;
-      word-break: break-word;
-    }
-    .label-price {
-      font-size: 16pt;
-      font-weight: 900;
-      color: #CC0000;
-      line-height: 1;
-    }
-    .label-qr {
-      flex: 0 0 auto;
-    }
-    .label-qr img {
-      width: ${QR_SIZE}mm;
-      height: ${QR_SIZE}mm;
-      display: block;
-      image-rendering: pixelated;
-    }
-    .qr-empty {
-      width: ${QR_SIZE}mm;
-      height: ${QR_SIZE}mm;
-      background: #eee;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 6pt;
-      color: #999;
+      margin: 0;
+      padding: 0;
     }
   </style>
 </head>
