@@ -57,23 +57,40 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     generateAllQRs();
   }, [products]);
 
+  const generateQRDataUrl = async (text: string): Promise<string> => {
+    // Try canvas method first (more reliable in browser)
+    try {
+      const canvas = document.createElement('canvas');
+      await QRCode.toCanvas(canvas, text, {
+        width: 200,
+        margin: 1,
+        errorCorrectionLevel: 'H',
+        color: { dark: '#000000', light: '#ffffff' }
+      });
+      return canvas.toDataURL('image/png');
+    } catch {
+      // Fallback: toDataURL method
+      try {
+        return await (QRCode as any).toDataURL(text, {
+          width: 200,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+        });
+      } catch {
+        return '';
+      }
+    }
+  };
+
   const generateAllQRs = async () => {
     setLoading(true);
     const items: PrintItem[] = [];
 
     for (const product of products) {
       const productUrl = `${FRONTEND_URL}/product/${product._id}`;
-      try {
-        const qrDataUrl = await QRCode.toDataURL(productUrl, {
-          width: 200,
-          margin: 1,
-          errorCorrectionLevel: 'H',
-          color: { dark: '#000000', light: '#ffffff' }
-        });
-        items.push({ product, copies: 1, qrDataUrl });
-      } catch (err) {
-        console.error('QR error for', product.name, err);
-      }
+      const qrDataUrl = await generateQRDataUrl(productUrl);
+      // Always add product, even if QR failed (empty string = no QR shown)
+      items.push({ product, copies: 1, qrDataUrl });
     }
 
     setPrintItems(items);
@@ -136,7 +153,10 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
           <div class="label">
             <div class="label-row-1">
               <div class="qr-code-container">
-                <img src="${item.qrDataUrl}" alt="QR" class="qr-code" />
+                ${item.qrDataUrl
+                  ? `<img src="${item.qrDataUrl}" alt="QR" class="qr-code" />`
+                  : `<div class="qr-code" style="background:#eee;display:flex;align-items:center;justify-content:center;font-size:6pt;color:#999;">QR</div>`
+                }
               </div>
               <div class="product-details">
                 <div class="product-name">${item.product.name}</div>
@@ -405,11 +425,17 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                   className="flex items-center gap-3 p-3 bg-surface-50 rounded-xl"
                 >
                   {/* QR Preview */}
-                  <img 
-                    src={item.qrDataUrl} 
-                    alt="QR"
-                    className="w-12 h-12 rounded border border-surface-200"
-                  />
+                  {item.qrDataUrl ? (
+                    <img
+                      src={item.qrDataUrl}
+                      alt="QR"
+                      className="w-12 h-12 rounded border border-surface-200"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded border border-surface-200 bg-slate-100 flex items-center justify-center text-xs text-slate-400">
+                      QR
+                    </div>
+                  )}
 
                   {/* Product Info */}
                   <div className="flex-1 min-w-0">
