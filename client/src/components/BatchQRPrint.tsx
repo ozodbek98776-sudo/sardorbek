@@ -138,7 +138,6 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       display: flex;
       flex-direction: column;
       background: white;
-      border: 0.3mm solid #000;
       page-break-after: always;
       page-break-inside: avoid;
     }
@@ -149,7 +148,6 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       line-height: 1;
       text-align: center;
       padding-bottom: 1.5mm;
-      border-bottom: 0.3mm solid #ccc;
       margin-bottom: 1.5mm;
     }
     .label-bottom {
