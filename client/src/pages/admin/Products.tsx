@@ -656,7 +656,7 @@ export default function ProductsOptimized() {
                   variant="secondary"
                   onClick={openBatchPrint}
                 >
-                  Senik ({selectedProductsForBatch.size})
+                  Label chiqarish ({selectedProductsForBatch.size})
                 </ActionButton>
               )}
               <ActionButton 

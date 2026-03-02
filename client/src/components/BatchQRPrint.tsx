@@ -187,6 +187,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
             justify-content: space-between;
             background: white;
             page-break-inside: avoid;
+            page-break-after: always;
           }
           
           .label-row-1 {
