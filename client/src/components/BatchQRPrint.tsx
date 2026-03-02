@@ -273,12 +273,12 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                 const unitPrice = getUnitPrice(item.product);
                 const displayPrice = unitPrice || item.product.price || 0;
                 return (
-                  <div key={item.product._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div key={item.product._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                     {/* QR preview */}
                     {item.qrDataUrl ? (
-                      <img src={item.qrDataUrl} alt="QR" className="w-12 h-12 rounded border border-slate-200" />
+                      <img src={item.qrDataUrl} alt="QR" className="w-12 h-12 rounded" />
                     ) : (
-                      <div className="w-12 h-12 rounded border border-slate-200 bg-slate-100 flex items-center justify-center text-xs text-slate-400">QR</div>
+                      <div className="w-12 h-12 rounded bg-slate-100 flex items-center justify-center text-xs text-slate-400">QR</div>
                     )}
 
                     {/* Info */}
