@@ -62,7 +62,7 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
         </div>
 
         {/* Receipt Content */}
-        <div ref={printRef} className="flex-1 overflow-y-auto p-6">
+        <div ref={printRef} id="receipt-print-content" className="flex-1 overflow-y-auto p-6">
           {/* Print Header */}
           <div className="text-center mb-6 print:block">
             <h2 className="text-2xl font-bold text-slate-900">SARDORBEK FURNITURA</h2>
@@ -188,11 +188,17 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
           body * {
             visibility: hidden;
           }
-          .print\\:block, .print\\:block * {
+          #receipt-print-content,
+          #receipt-print-content * {
             visibility: visible;
           }
-          .print\\:hidden {
-            display: none !important;
+          #receipt-print-content {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            overflow: visible;
           }
         }
       `}</style>

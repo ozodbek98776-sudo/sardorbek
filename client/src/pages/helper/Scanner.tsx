@@ -460,7 +460,12 @@ export default function HelperScanner() {
       };
 
       await api.post('/receipts', receiptData);
-      
+
+      // Notify cashier via socket
+      if (socket) {
+        socket.emit('helper:receipt:new');
+      }
+
       const customerName = selectedCustomer._id === 'default' ? 'Oddiy mijoz' : selectedCustomer.name;
       showAlert(`Chek ${customerName} uchun saqlandi!`, 'Muvaffaqiyat', 'success');
       setCart([]);

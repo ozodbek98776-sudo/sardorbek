@@ -135,7 +135,7 @@ export function CartItem({
             }}
             min={0}
             max={maxDisplay}
-            step={isOramMode ? 1 : 1}
+            step={isOramMode ? 0.1 : 1}
             className="w-10 h-6 text-center border-2 border-slate-300 rounded font-semibold text-xs focus:border-brand-500 focus:bg-white focus:outline-none transition-all"
           />
 

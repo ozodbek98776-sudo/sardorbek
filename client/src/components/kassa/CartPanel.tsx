@@ -50,18 +50,6 @@ const calculateDiscountedPrice = (product: Product, quantity: number): number =>
   return discountedPrice;
 };
 
-interface CartPanelProps {
-  cart: CartItemType[];
-  total: number;
-  itemCount: number;
-  onQuantityChange: (id: string, quantity: number) => void;
-  onRemove: (id: string) => void;
-  onClear: () => void;
-  onSave: () => void;
-  onCheckout: () => void;
-  isModal?: boolean; // Modal rejimida ishlaydimi
-}
-
 export function CartPanel({ 
   cart, 
   total, 

@@ -514,11 +514,16 @@ export default function KassaProNew() {
       updateStats();
     });
     
+    // Helper new receipt notification
+    socket.on('helper:receipt:new', () => {
+      fetchHelperReceipts();
+    });
+
     return () => {
-      console.log('🔌 Socket.IO listeners removing...');
       socket.off('product:updated');
       socket.off('product:created');
       socket.off('product:deleted');
+      socket.off('helper:receipt:new');
     };
   }, [socket, searchQuery, fetchStats, selectedCategory]);
   
@@ -1188,6 +1193,22 @@ export default function KassaProNew() {
           setSavedReceipts(updated);
           localStorage.setItem('savedReceipts', JSON.stringify(updated));
           showAlert('Chek o\'chirildi', 'Ma\'lumot', 'info');
+        }}
+        helperReceipts={helperReceipts}
+        onLoadHelper={(receipt) => {
+          const cartItems = (receipt.items || []).map((item: any) => ({
+            _id: item.product?._id || item.product || item._id,
+            name: item.name,
+            code: item.code || '',
+            price: item.price,
+            cartQuantity: item.quantity,
+            quantity: item.quantity,
+            unit: item.unit || 'dona',
+            prices: item.prices || [],
+            images: []
+          }));
+          setCart(cartItems);
+          showAlert('Helper cheki savatga olindi!', 'Muvaffaqiyat', 'success');
         }}
       />
       

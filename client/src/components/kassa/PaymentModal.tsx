@@ -47,13 +47,6 @@ export function PaymentModal({
   // Modal scroll lock
   useModalScrollLock(isOpen);
   
-  // Debug: Mijozlar sonini ko'rsatish
-  console.log('🔵 PaymentModal render:', {
-    isOpen,
-    customersCount: Array.isArray(customers) ? customers.length : 'NOT ARRAY',
-    customers: customers
-  });
-  
   const totalPaid = cashAmount + cardAmount + clickAmount;
   const debtAmount = Math.max(0, total - discount - totalPaid);
   const changeAmount = Math.max(0, totalPaid - (total - discount));
@@ -68,28 +61,15 @@ export function PaymentModal({
   };
   
   const handleSubmit = () => {
-    console.log('🔵 PaymentModal handleSubmit boshlandi');
-    console.log('   - Total:', total);
-    console.log('   - Cash:', cashAmount);
-    console.log('   - Card:', cardAmount);
-    console.log('   - Click:', clickAmount);
-    console.log('   - Total Paid:', totalPaid);
-    console.log('   - Debt:', debtAmount);
-    console.log('   - Customer:', selectedCustomer);
-    
     if (totalPaid <= 0) {
-      console.error('❌ Total paid 0 yoki manfiy!');
       alert('To\'lov summasi 0 dan katta bo\'lishi kerak!');
       return;
     }
-    
+
     if (debtAmount > 0 && !selectedCustomer) {
-      console.error('❌ Qarz bor lekin mijoz tanlanmagan!');
       alert('Qarzga sotish uchun mijozni tanlang!');
       return;
     }
-    
-    console.log('✅ Validatsiya o\'tdi, onPayment chaqirilmoqda...');
     
     onPayment({
       customer: selectedCustomer,
@@ -415,7 +395,7 @@ export function PaymentModal({
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-lg font-semibold"
                 />
                 <button
-                  onClick={() => setCashAmount(total)}
+                  onClick={() => setCashAmount(total - discount)}
                   className="px-4 py-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold rounded-xl transition-all whitespace-nowrap"
                 >
                   To'liq
@@ -438,7 +418,7 @@ export function PaymentModal({
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-lg font-semibold"
                 />
                 <button
-                  onClick={() => setCardAmount(total)}
+                  onClick={() => setCardAmount(total - discount)}
                   className="px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-xl transition-all whitespace-nowrap"
                 >
                   To'liq
@@ -461,7 +441,7 @@ export function PaymentModal({
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-lg font-semibold"
                 />
                 <button
-                  onClick={() => setClickAmount(total)}
+                  onClick={() => setClickAmount(total - discount)}
                   className="px-4 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded-xl transition-all whitespace-nowrap"
                 >
                   To'liq
