@@ -105,18 +105,15 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       for (let i = 0; i < item.copies; i++) {
         labelsHtml += `
           <div class="label">
-            <div class="label-body">
-              <div class="label-info">
-                <div class="label-name">${item.product.name}</div>
-                <div class="label-price">${formatPrice(displayPrice)} so'm</div>
-                <div class="label-unit">${unit}</div>
-              </div>
+            <div class="label-price">${formatPrice(displayPrice)} so'm</div>
+            <div class="label-bottom">
               <div class="label-qr">
                 ${item.qrDataUrl
                   ? `<img src="${item.qrDataUrl}" alt="QR" />`
                   : `<div class="qr-empty">QR</div>`
                 }
               </div>
+              <div class="label-name">${item.product.name}</div>
             </div>
           </div>`;
       }
@@ -139,43 +136,32 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       height: ${LABEL_H}mm;
       padding: 2mm;
       display: flex;
-      align-items: stretch;
+      flex-direction: column;
       background: white;
       border: 0.3mm solid #000;
       page-break-after: always;
       page-break-inside: avoid;
     }
-    .label-body {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      width: 100%;
-      gap: 2mm;
-    }
-    .label-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 1mm;
-      min-width: 0;
-    }
-    .label-name {
-      font-size: 7pt;
-      font-weight: 700;
-      color: #000;
-      line-height: 1.1;
-      word-break: break-word;
-    }
     .label-price {
-      font-size: 14pt;
+      font-size: 18pt;
       font-weight: 900;
       color: #CC0000;
       line-height: 1;
+      text-align: center;
+      padding-bottom: 1.5mm;
+      border-bottom: 0.3mm solid #ccc;
+      margin-bottom: 1.5mm;
     }
-    .label-unit {
-      font-size: 6pt;
-      color: #555;
+    .label-bottom {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex: 1;
+      gap: 2mm;
+      min-height: 0;
+    }
+    .label-qr {
+      flex: 0 0 auto;
     }
     .label-qr img {
       width: ${QR_SIZE}mm;
@@ -192,6 +178,15 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       justify-content: center;
       font-size: 6pt;
       color: #999;
+    }
+    .label-name {
+      flex: 1;
+      font-size: 8pt;
+      font-weight: 700;
+      color: #000;
+      line-height: 1.2;
+      word-break: break-word;
+      text-align: right;
     }
   </style>
 </head>
