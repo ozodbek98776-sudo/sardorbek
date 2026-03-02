@@ -107,13 +107,13 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
           <div class="label">
             <div class="label-price">${formatPrice(displayPrice)} so'm</div>
             <div class="label-bottom">
+              <div class="label-name">${item.product.name}</div>
               <div class="label-qr">
                 ${item.qrDataUrl
                   ? `<img src="${item.qrDataUrl}" alt="QR" />`
                   : `<div class="qr-empty">QR</div>`
                 }
               </div>
-              <div class="label-name">${item.product.name}</div>
             </div>
           </div>`;
       }
@@ -184,7 +184,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       color: #000;
       line-height: 1.2;
       word-break: break-word;
-      text-align: right;
+      text-align: left;
     }
   </style>
 </head>
