@@ -933,8 +933,8 @@ export default function KassaProNew() {
                                       </div>
                                     )}
                                     {product.images && product.images.length > 0 ? (
-                                      <img 
-                                        src={`${UPLOADS_URL}${product.images[0]}`}
+                                      <img
+                                        src={`${UPLOADS_URL}${typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).path}`}
                                         alt={product.name}
                                         className="w-full h-full object-cover"
                                         onError={(e) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, DollarSign, Save } from 'lucide-react';
 import { Product } from '../types';
 import { formatNumber, formatInputNumber, parseNumber } from '../utils/format';
@@ -59,6 +59,31 @@ export default function ProductModal({
     const category = categories.find(c => c.name === formData.category);
     return category?.subcategories || [];
   }, [formData.category, categories]);
+
+  const [markupPercent, setMarkupPercent] = useState('');
+
+  // Init markup when editing product
+  useEffect(() => {
+    const cost = parseFloat(formData.costPrice) || 0;
+    const unit = parseFloat(formData.unitPrice) || 0;
+    if (cost > 0 && unit > 0 && unit > cost) {
+      setMarkupPercent((((unit - cost) / cost) * 100).toFixed(1));
+    } else {
+      setMarkupPercent('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingProduct?._id]);
+
+  // Recalculate unitPrice when costPrice changes (if markup is set)
+  useEffect(() => {
+    if (!markupPercent) return;
+    const cost = parseFloat(formData.costPrice) || 0;
+    if (cost > 0) {
+      const computed = Math.round(cost * (1 + Number(markupPercent) / 100));
+      onFormChange({ ...formData, unitPrice: String(computed) });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.costPrice]);
 
   const handleFormChange = (updates: any) => {
     onFormChange({ ...formData, ...updates });
@@ -216,20 +241,55 @@ export default function ProductModal({
         </div>
 
         {/* Selling Price */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi</label>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sotish narxi</label>
+          <div className="flex gap-2">
+            {/* Markup % input */}
+            <div className="relative w-28 flex-shrink-0">
+              <input
+                type="number"
+                min="0"
+                max="10000"
+                step="0.1"
+                className="w-full pl-3 pr-7 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={markupPercent}
+                onChange={(e) => {
+                  const pct = e.target.value;
+                  setMarkupPercent(pct);
+                  const cost = parseFloat(formData.costPrice) || 0;
+                  if (cost > 0 && pct !== '') {
+                    const computed = Math.round(cost * (1 + Number(pct) / 100));
+                    handleFormChange({ unitPrice: String(computed) });
+                  }
+                }}
+                placeholder="0"
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium pointer-events-none">%</span>
+            </div>
+            {/* Unit price input */}
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={formData.unitPrice ? formatInputNumber(formData.unitPrice) : ''}
               onChange={(e) => {
                 const value = parseNumber(e.target.value);
                 handleFormChange({ unitPrice: value });
+                const cost = parseFloat(formData.costPrice) || 0;
+                if (cost > 0 && value) {
+                  const pct = ((Number(value) - cost) / cost) * 100;
+                  setMarkupPercent(pct > 0 ? pct.toFixed(1) : '');
+                } else {
+                  setMarkupPercent('');
+                }
               }}
               placeholder="0"
             />
           </div>
+          {formData.costPrice && formData.unitPrice && markupPercent && (
+            <p className="text-xs text-green-600 mt-1">
+              Tan narxi: {formatNumber(Number(formData.costPrice))} + {markupPercent}% = {formatNumber(Number(formData.unitPrice))} so'm
+            </p>
+          )}
         </div>
 
         {/* Box Information */}
@@ -335,6 +395,11 @@ export default function ProductModal({
                   min="0"
                   max="100"
                 />
+                {formData.discount1.percent && formData.unitPrice && (
+                  <p className="text-xs text-green-700 mt-0.5 font-medium">
+                    = {formatNumber(Math.round(Number(formData.unitPrice) * (1 - Number(formData.discount1.percent) / 100)))} so'm
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -365,6 +430,11 @@ export default function ProductModal({
                   min="0"
                   max="100"
                 />
+                {formData.discount2.percent && formData.unitPrice && (
+                  <p className="text-xs text-blue-700 mt-0.5 font-medium">
+                    = {formatNumber(Math.round(Number(formData.unitPrice) * (1 - Number(formData.discount2.percent) / 100)))} so'm
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -395,6 +465,11 @@ export default function ProductModal({
                   min="0"
                   max="100"
                 />
+                {formData.discount3.percent && formData.unitPrice && (
+                  <p className="text-xs text-purple-700 mt-0.5 font-medium">
+                    = {formatNumber(Math.round(Number(formData.unitPrice) * (1 - Number(formData.discount3.percent) / 100)))} so'm
+                  </p>
+                )}
               </div>
             </div>
           </div>
