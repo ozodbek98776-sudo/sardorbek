@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign, TrendingDown, Briefcase, Calculator
+  CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign, TrendingDown, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -527,7 +527,6 @@ export const adminMenuItems: MenuItem[] = [
   { icon: <Users className="w-5 h-5" />, label: 'sidebar.customers', path: '/customers' },
   { icon: <CreditCard className="w-5 h-5" />, label: 'sidebar.debts', path: '/debts' },
   { icon: <TrendingDown className="w-5 h-5" />, label: 'sidebar.expenses', path: '/expenses' },
-  { icon: <Calculator className="w-5 h-5" />, label: 'Tez Hisoblash', path: '/calculator' },
   { icon: <Briefcase className="w-5 h-5" />, label: 'HR Moduli', path: '/hr' },
   { icon: <DollarSign className="w-5 h-5" />, label: "Maosh to'lash", path: '/hr/payroll' },
 ];

@@ -18,6 +18,7 @@ const { sanitizeInput } = require('./middleware/validator');
 const { apiLimiter, kassaLimiter, adminLimiter } = require('./middleware/rateLimiter');
 const logger = require('./services/loggerService');
 const backupService = require('./services/backupService');
+const { scheduleProductReport } = require('./services/productReportScheduler');
 const performanceMonitor = require('./middleware/performanceMonitor');
 
 // Telegram Botlar import qilish
@@ -329,6 +330,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/universal
       backupService.scheduleBackup();
       logger.info('Backup scheduler ishga tushdi');
     }
+
+    // 📊 Mahsulot hisoboti scheduler - har kuni soat 22:00 da
+    scheduleProductReport();
   })
   .catch(err => {
     logger.error('MongoDB connection error', { error: err.message });

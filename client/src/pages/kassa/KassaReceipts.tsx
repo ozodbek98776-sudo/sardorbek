@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw, ChevronDown, ChevronUp, CheckCircle, XCircle, Users, Clock, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
 import { formatNumber } from '../../utils/format';
@@ -43,6 +43,30 @@ export default function KassaReceipts() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [expandedImages, setExpandedImages] = useState<{ [key: number]: boolean }>({});
   const { showAlert, showConfirm, AlertComponent } = useAlert();
+
+  const todayStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayReceipts = receipts.filter(r => new Date(r.createdAt) >= today);
+    const totalAmount = todayReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
+    const pendingCount = todayReceipts.filter(r => r.status === 'pending').length;
+    const approvedCount = todayReceipts.filter(r => r.status === 'approved').length;
+
+    const byStaff: Record<string, { name: string; role: string; count: number; total: number; pending: number; approved: number }> = {};
+    todayReceipts.forEach(r => {
+      const key = r.createdBy.name;
+      if (!byStaff[key]) {
+        byStaff[key] = { name: r.createdBy.name, role: r.createdBy.role, count: 0, total: 0, pending: 0, approved: 0 };
+      }
+      byStaff[key].count++;
+      byStaff[key].total += r.totalAmount;
+      if (r.status === 'pending') byStaff[key].pending++;
+      if (r.status === 'approved') byStaff[key].approved++;
+    });
+
+    return { todayReceipts, totalAmount, pendingCount, approvedCount, byStaff: Object.values(byStaff) };
+  }, [receipts]);
 
   useEffect(() => {
     fetchReceipts();
@@ -306,6 +330,42 @@ export default function KassaReceipts() {
     printWindow.print();
   };
 
+  const handleApprove = async (receiptId: string) => {
+    const confirmed = await showConfirm(
+      'Bu chekni kassaga o\'tkazmoqchimisiz?',
+      'Tasdiqlangandan keyin mahsulot miqdori kamayadi',
+      'success'
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.put(`/receipts/${receiptId}/approve`);
+      showAlert('Chek muvaffaqiyatli tasdiqlandi', 'Muvaffaqiyat', 'success');
+      await fetchReceipts();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showAlert(err.response?.data?.message || 'Tasdiqlashda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
+  const handleReject = async (receiptId: string) => {
+    const confirmed = await showConfirm(
+      'Bu chekni rad etmoqchimisiz?',
+      'Rad etilgan chek qayta tiklanmaydi',
+      'danger'
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.put(`/receipts/${receiptId}/reject`);
+      showAlert('Chek rad etildi', 'Muvaffaqiyat', 'success');
+      await fetchReceipts();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showAlert(err.response?.data?.message || 'Rad etishda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
   const handleDelete = async (receiptId: string) => {
     try {
       console.log('=== DELETE RECEIPT START ===');
@@ -373,6 +433,88 @@ export default function KassaReceipts() {
         </div>
       </div>
 
+      {/* Today Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs text-surface-500">Bugungi cheklar</p>
+              <p className="text-sm sm:text-base font-bold text-surface-900">{todayStats.todayReceipts.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-xs text-surface-500">Jami summa</p>
+              <p className="text-sm sm:text-base font-bold text-green-700">{formatNumber(todayStats.totalAmount)}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-3.5 h-3.5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-xs text-surface-500">Kutilmoqda</p>
+              <p className="text-sm sm:text-base font-bold text-yellow-700">{todayStats.pendingCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs text-surface-500">Tasdiqlangan</p>
+              <p className="text-sm sm:text-base font-bold text-emerald-700">{todayStats.approvedCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Staff Breakdown */}
+      {todayStats.byStaff.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-surface-500" />
+            <h2 className="text-xs sm:text-sm font-semibold text-surface-700">Xodimlar bo'yicha (bugun)</h2>
+          </div>
+          <div className="grid gap-1.5">
+            {todayStats.byStaff.map((staff) => (
+              <div key={staff.name} className="flex items-center justify-between p-2 bg-surface-50 rounded-lg text-xs sm:text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <User className="w-3 h-3 text-brand-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-medium text-surface-900 truncate block">{staff.name}</span>
+                    <span className="text-xs text-surface-400">{staff.role === 'helper' ? 'Yordamchi' : staff.role === 'cashier' ? 'Kassir' : staff.role}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="text-right">
+                    <span className="text-surface-500">{staff.count} chek</span>
+                    {staff.pending > 0 && (
+                      <span className="ml-1 text-xs text-yellow-600">({staff.pending} kutilmoqda)</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-brand-700 whitespace-nowrap">{formatNumber(staff.total)} so'm</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Receipts List */}
       {receipts.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
@@ -381,7 +523,7 @@ export default function KassaReceipts() {
           <p className="text-sm sm:text-base text-surface-500">Hali hech qanday chek yaratilmagan</p>
         </div>
       ) : (
-        <div className="max-h-[calc(100vh-180px)] overflow-y-auto scroll-smooth-instagram momentum-scroll">
+        <div className="max-h-[calc(100vh-360px)] overflow-y-auto scroll-smooth-instagram momentum-scroll">
           <div className="grid gap-3 sm:gap-4 pr-1">
             {receipts.map((receipt) => (
             <div key={receipt._id} className="bg-white rounded-xl shadow-sm p-3 sm:p-4 hover:shadow-md transition-shadow">
@@ -391,14 +533,25 @@ export default function KassaReceipts() {
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-brand-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-sm sm:text-base text-surface-900 truncate">Chek #{receipt.receiptNumber}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm sm:text-base text-surface-900 truncate">Chek #{receipt.receiptNumber}</h3>
+                    {receipt.status === 'pending' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">Kutilmoqda</span>
+                    )}
+                    {receipt.status === 'approved' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Tasdiqlangan</span>
+                    )}
+                    {receipt.status === 'rejected' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">Rad etilgan</span>
+                    )}
+                  </div>
                   <p className="text-xs text-surface-500">
-                    {new Date(receipt.createdAt).toLocaleString('uz-UZ', { 
-                      day: '2-digit', 
-                      month: '2-digit', 
+                    {new Date(receipt.createdAt).toLocaleString('uz-UZ', {
+                      day: '2-digit',
+                      month: '2-digit',
                       year: 'numeric',
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </p>
                 </div>
@@ -447,7 +600,25 @@ export default function KassaReceipts() {
               </div>
 
               {/* Actions - Mobile Optimized */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {receipt.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => handleApprove(receipt._id)}
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-2 p-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition-colors text-xs sm:text-sm font-medium"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Tasdiqlash</span>
+                    </button>
+                    <button
+                      onClick={() => handleReject(receipt._id)}
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-2 p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs sm:text-sm font-medium"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>Rad etish</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => openDetailModal(receipt)}
                   className="flex-1 flex items-center justify-center gap-1 sm:gap-2 p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors text-xs sm:text-sm"
@@ -457,10 +628,10 @@ export default function KassaReceipts() {
                 </button>
                 <button
                   onClick={() => handlePrint(receipt)}
-                  className="flex-1 flex items-center justify-center gap-1 sm:gap-2 p-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition-colors text-xs sm:text-sm"
+                  className="flex items-center justify-center gap-1 sm:gap-2 p-2 bg-surface-50 hover:bg-surface-100 text-surface-600 rounded-lg transition-colors text-xs sm:text-sm"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Print</span>
+                  <span className="hidden sm:inline">Print</span>
                 </button>
                 <button
                   onClick={() => handleDelete(receipt._id)}

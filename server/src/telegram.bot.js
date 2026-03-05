@@ -460,6 +460,77 @@ ${paymentInfo}━━━━━━━━━━━━━━━━━━━━━
     }
   }
 
+  // Barcha mahsulotlarni POS botga yuborish (22:00 hisobot)
+  async sendProductReport() {
+    if (!this.bot || !this.adminChatId) {
+      console.log('⚠️ Bot yoki adminChatId yo\'q, hisobot yuborilmadi');
+      return false;
+    }
+
+    try {
+      const Product = require('./models/Product');
+      const products = await Product.find({ quantity: { $gt: 0 } }).lean();
+
+      if (products.length === 0) {
+        await this.bot.sendMessage(this.adminChatId, '📦 Omborda mahsulot yo\'q', { parse_mode: 'Markdown' });
+        return true;
+      }
+
+      // Header xabar
+      await this.bot.sendMessage(this.adminChatId,
+        `📊 *KUNLIK MAHSULOT HISOBOTI*\n📅 ${new Date().toLocaleDateString('uz-UZ')}\n📦 Jami: ${products.length} ta mahsulot`,
+        { parse_mode: 'Markdown' }
+      );
+
+      const path = require('path');
+      const fs = require('fs');
+
+      for (const product of products) {
+        // Product info text
+        const unitPrice = product.prices?.find(p => p.type === 'unit' && p.isActive);
+        const boxPrice = product.prices?.find(p => p.type === 'box' && p.isActive);
+        const discountPrices = product.prices?.filter(p => p.type?.startsWith('discount') && p.isActive) || [];
+
+        let info = `📦 *${product.name}*\n`;
+        info += `🔢 Kod: \`${product.code || '-'}\`\n`;
+        info += `📏 Qoldiq: ${product.quantity} ${product.unit || 'dona'}\n`;
+        if (unitPrice) info += `💰 Dona narx: ${this.formatNumber(unitPrice.amount)} so'm\n`;
+        if (boxPrice) info += `📦 Karobka narx: ${this.formatNumber(boxPrice.amount)} so'm\n`;
+        if (discountPrices.length > 0) {
+          discountPrices.forEach((d, i) => {
+            info += `🏷 Chegirma ${i + 1}: ${this.formatNumber(d.amount)} so'm (${d.minQuantity}+ dona)\n`;
+          });
+        }
+
+        // Rasm bilan yoki rasmsiz yuborish
+        const hasImage = product.images && product.images.length > 0;
+        if (hasImage) {
+          const imagePath = path.join(__dirname, '../uploads', product.images[0].path);
+          if (fs.existsSync(imagePath)) {
+            try {
+              await this.bot.sendPhoto(this.adminChatId, imagePath, { caption: info, parse_mode: 'Markdown' });
+            } catch {
+              await this.bot.sendMessage(this.adminChatId, info, { parse_mode: 'Markdown' });
+            }
+          } else {
+            await this.bot.sendMessage(this.adminChatId, info, { parse_mode: 'Markdown' });
+          }
+        } else {
+          await this.bot.sendMessage(this.adminChatId, info, { parse_mode: 'Markdown' });
+        }
+
+        // Telegram API rate limit - 50ms delay
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      console.log(`✅ Mahsulot hisoboti yuborildi: ${products.length} ta`);
+      return true;
+    } catch (error) {
+      console.error('❌ Mahsulot hisoboti yuborishda xatolik:', error);
+      return false;
+    }
+  }
+
   // Botni to'xtatish
   stopBot() {
     if (this.bot) {
