@@ -90,6 +90,9 @@ export function PaymentModal({
     setCashAmount(0);
     setCardAmount(0);
     setClickAmount(0);
+    setDiscount(0);
+    setTotalClickCount(0);
+    setIsCollapsed(false);
     setShowNewCustomerForm(false);
     setNewCustomerName('');
     setNewCustomerPhone('');
@@ -389,7 +392,7 @@ export function PaymentModal({
                 <input
                   type="number"
                   value={cashAmount || ''}
-                  onChange={(e) => setCashAmount(Number(e.target.value))}
+                  onChange={(e) => setCashAmount(Math.max(0, Number(e.target.value)))}
                   onFocus={(e) => e.target.select()}
                   placeholder="0"
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-lg font-semibold"
@@ -412,7 +415,7 @@ export function PaymentModal({
                 <input
                   type="number"
                   value={cardAmount || ''}
-                  onChange={(e) => setCardAmount(Number(e.target.value))}
+                  onChange={(e) => setCardAmount(Math.max(0, Number(e.target.value)))}
                   onFocus={(e) => e.target.select()}
                   placeholder="0"
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-lg font-semibold"
@@ -435,7 +438,7 @@ export function PaymentModal({
                 <input
                   type="number"
                   value={clickAmount || ''}
-                  onChange={(e) => setClickAmount(Number(e.target.value))}
+                  onChange={(e) => setClickAmount(Math.max(0, Number(e.target.value)))}
                   onFocus={(e) => e.target.select()}
                   placeholder="0"
                   className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-lg font-semibold"

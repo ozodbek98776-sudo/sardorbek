@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ShoppingCart, Search, X, Package2 } from 'lucide-react';
+import { ShoppingCart, Search, X, Package2, Calendar } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { UPLOADS_URL } from '../../config/api';
@@ -9,12 +9,14 @@ import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { formatNumber } from '../../utils/format';
-import { getDiscountPrices } from '../../utils/pricing';
-import { 
-  cacheProducts, 
+import { getDiscountPrices, calculateDiscountedPrice } from '../../utils/pricing';
+import {
+  cacheProducts,
   getCachedProducts,
-  clearProductsCache
+  clearProductsCache,
+  saveOfflineSale
 } from '../../utils/indexedDbService';
+import { initSyncListeners } from '../../utils/syncService';
 
 // Yangi komponentlar
 import { KassaHeader } from '../../components/kassa/KassaHeader';
@@ -66,6 +68,14 @@ export default function KassaProNew() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [savedReceipts, setSavedReceipts] = useState<SavedReceipt[]>([]);
   const [helperReceipts, setHelperReceipts] = useState<any[]>([]);
+  const toLocalDateStr = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const [receiptStartDate, setReceiptStartDate] = useState(toLocalDateStr(new Date()));
+  const [receiptEndDate, setReceiptEndDate] = useState(toLocalDateStr(new Date()));
   
   // Statistics state - DB dagi jami mahsulotlar soni
   const [stats, setStats] = useState({
@@ -84,37 +94,6 @@ export default function KassaProNew() {
   const [showProductDetail, setShowProductDetail] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false); // Mobile cart modal
   const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
-  
-  // Computed values - Discount'ni hisobga olgan jami narx
-  const calculateDiscountedPrice = (product: any, quantity: number): number => {
-    const prices = product.prices;
-    let basePrice = product.price || 0;
-    
-    if (Array.isArray(prices) && prices.length > 0) {
-      const unitPrice = prices.find((p: any) => p.type === 'unit');
-      if (unitPrice?.amount) {
-        basePrice = unitPrice.amount;
-      }
-    }
-    
-    if (!Array.isArray(prices) || prices.length === 0) {
-      return basePrice;
-    }
-    
-    const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
-    
-    if (discounts.length === 0) {
-      return basePrice;
-    }
-    
-    const bestDiscount = discounts.reduce((best: any, current: any) => 
-      current.minQuantity > best.minQuantity ? current : best
-    );
-    
-    const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
-    
-    return discountedPrice;
-  };
   
   const total = cart.reduce((sum, item) => {
     const discountedPrice = calculateDiscountedPrice(item, item.cartQuantity);
@@ -356,7 +335,10 @@ export default function KassaProNew() {
         // 2. Backend'dan yangi ma'lumotlarni olish
         await fetchProducts();
         
-        // 3. Boshqa ma'lumotlarni yuklash
+        // 3. Offline sync listener'larni ishga tushirish
+        initSyncListeners();
+
+        // 4. Boshqa ma'lumotlarni yuklash
         fetchStats('');
         fetchCustomers();
         fetchHelperReceipts();
@@ -370,7 +352,12 @@ export default function KassaProNew() {
     
     // Auto-refresh o'chirildi - Socket.IO event'lar yetarli
   }, [fetchProducts, fetchStats]);
-  
+
+  // Sana o'zgarganda cheklar qayta yuklanadi
+  useEffect(() => {
+    fetchHelperReceipts();
+  }, [receiptStartDate, receiptEndDate]);
+
   // Socket.IO - Real-time updates + Cache update
   useEffect(() => {
     if (!socket) return;
@@ -566,9 +553,15 @@ export default function KassaProNew() {
     }
   };
   
-  const fetchHelperReceipts = async () => {
+  const fetchHelperReceipts = async (start?: string, end?: string) => {
     try {
-      const res = await api.get('/receipts/kassa');
+      const s = new Date(start || receiptStartDate);
+      s.setHours(0, 0, 0, 0);
+      const e = new Date(end || receiptEndDate);
+      e.setHours(23, 59, 59, 999);
+      const res = await api.get('/receipts/kassa', {
+        params: { startDate: s.toISOString(), endDate: e.toISOString() }
+      });
       setHelperReceipts(res.data || []);
     } catch (err) {
       console.error('Error fetching helper receipts:', err);
@@ -787,10 +780,33 @@ export default function KassaProNew() {
       } else {
         showAlert('Chek saqlandi!', 'Muvaffaqiyat', 'success');
       }
-    } catch (err: any) {
-      console.error('❌ To\'lov xatosi:', err);
-      console.error('❌ Xato tafsilotlari:', err.response?.data);
-      showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+
+      // Offline bo'lsa IndexedDB'ga saqlash
+      if (!navigator.onLine) {
+        try {
+          await saveOfflineSale({
+            items: cart.map(item => ({
+              product: item._id,
+              name: item.name,
+              code: item.code || '',
+              price: calculateDiscountedPrice(item, item.cartQuantity),
+              quantity: item.cartQuantity
+            })),
+            total: finalTotal,
+            paymentMethod: finalPaymentMethod as 'cash' | 'card'
+          });
+          setCart([]);
+          setShowPayment(false);
+          showAlert('Offline saqlandi! Internet qaytganda avtomatik yuboriladi', 'Ma\'lumot', 'info');
+          return;
+        } catch (offlineErr) {
+          // fallthrough to error below
+        }
+      }
+
+      showAlert(error.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
     }
   };
   
@@ -1010,6 +1026,35 @@ export default function KassaProNew() {
                 </>
               ) : (
                 <div className="space-y-4">
+                  {/* Date Range Filter */}
+                  <div className="bg-white rounded-xl px-3 py-2 shadow-sm border border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="date"
+                        value={receiptStartDate}
+                        max={receiptEndDate}
+                        onChange={(e) => setReceiptStartDate(e.target.value)}
+                        className="w-[110px] px-1.5 py-1 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-slate-50"
+                      />
+                      <span className="text-xs text-slate-400">—</span>
+                      <input
+                        type="date"
+                        value={receiptEndDate}
+                        min={receiptStartDate}
+                        max={toLocalDateStr(new Date())}
+                        onChange={(e) => setReceiptEndDate(e.target.value)}
+                        className="w-[110px] px-1.5 py-1 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-slate-50"
+                      />
+                      <button
+                        onClick={() => { const today = toLocalDateStr(new Date()); setReceiptStartDate(today); setReceiptEndDate(today); }}
+                        className="ml-auto px-2 py-1 rounded text-[10px] font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors flex-shrink-0"
+                      >
+                        Bugun
+                      </button>
+                    </div>
+                  </div>
+
                   {helperReceipts.length === 0 ? (
                     <div className="bg-white rounded-xl p-8 text-center">
                       <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">

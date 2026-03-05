@@ -4,6 +4,7 @@ import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { calculateDiscountedPriceWithInfo } from '../../utils/pricing';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -11,46 +12,6 @@ interface ProductDetailModalProps {
   product: Product | null;
   onAddToCart: (product: Product, quantity: number) => void;
 }
-
-// Discount hisoblash funksiyasi
-const calculateDiscountedPrice = (product: Product, quantity: number): { price: number; discount?: { percent: number; minQuantity: number } } => {
-  // Yangi format: prices array'dan unit price'ni olish
-  const prices = (product as any).prices;
-  let basePrice = product.price || 0;
-  
-  if (Array.isArray(prices) && prices.length > 0) {
-    const unitPrice = prices.find((p: any) => p.type === 'unit');
-    if (unitPrice?.amount) {
-      basePrice = unitPrice.amount;
-    }
-  }
-  
-  // Agar prices array bo'lmasa, base price qaytarish
-  if (!Array.isArray(prices) || prices.length === 0) {
-    return { price: basePrice };
-  }
-  
-  const discounts = prices.filter((p: any) => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
-  
-  if (discounts.length === 0) {
-    return { price: basePrice };
-  }
-  
-  // Eng katta discount-ni olish (eng ko'p miqdor uchun)
-  const bestDiscount = discounts.reduce((best: any, current: any) => 
-    current.minQuantity > best.minQuantity ? current : best
-  );
-  
-  const discountedPrice = basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
-  
-  return {
-    price: discountedPrice,
-    discount: {
-      percent: bestDiscount.discountPercent || 0,
-      minQuantity: bestDiscount.minQuantity
-    }
-  };
-};
 
 export function ProductDetailModal({ 
   isOpen, 
@@ -68,7 +29,7 @@ export function ProductDetailModal({
   // Miqdor o'zgarganda skidka narxini yangilash
   useEffect(() => {
     if (product) {
-      const { price, discount: disc } = calculateDiscountedPrice(product, quantity);
+      const { price, discount: disc } = calculateDiscountedPriceWithInfo(product, quantity);
       setDiscountedPrice(price);
       setDiscount(disc);
     }

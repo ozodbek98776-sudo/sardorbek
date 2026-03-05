@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Receipt, ShoppingBag, Eye, User } from 'lucide-react';
 import { formatNumber } from '../../utils/format';
+import { UPLOADS_URL } from '../../config/api';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface SavedReceipt {
@@ -219,13 +220,23 @@ export function SavedReceiptsModal({
               <div className="space-y-3">
                 {selectedReceipt.items.map((item, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
-                    ) : (
-                      <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center">
-                        <ShoppingBag className="w-8 h-8 text-slate-400" />
-                      </div>
-                    )}
+                    {(() => {
+                      const imgPath = item.images?.[0]
+                        ? (typeof item.images[0] === 'string' ? item.images[0] : item.images[0].path)
+                        : item.image;
+                      return imgPath ? (
+                        <img
+                          src={imgPath.startsWith('http') ? imgPath : `${UPLOADS_URL}${imgPath}`}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center">
+                          <ShoppingBag className="w-8 h-8 text-slate-400" />
+                        </div>
+                      );
+                    })()}
                     <div className="flex-1">
                       <h4 className="font-bold text-slate-900 mb-1">{item.name}</h4>
                       <div className="flex items-center gap-3 text-sm">

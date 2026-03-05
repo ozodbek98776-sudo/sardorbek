@@ -9,6 +9,7 @@ const Receipt = require('../models/Receipt');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
 const Debt = require('../models/Debt');
+const User = require('../models/User');
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.post('/helper-receipt', auth, async (req, res) => {
 });
 
 // Atomic transaction endpoint - print va database o'zgarishlarini birgalikda amalga oshirish
-router.post('/kassa-atomic', async (req, res) => {
+router.post('/kassa-atomic', auth, async (req, res) => {
   try {
     const { items, total, paymentMethod, customer, receiptNumber, printSuccess } = req.body;
 
@@ -171,8 +172,8 @@ router.post('/kassa-atomic', async (req, res) => {
   }
 });
 
-// Kassa uchun chek yaratish (auth talab qilmaydi) - ATOMIC TRANSACTION
-router.post('/kassa', async (req, res) => {
+// Kassa uchun chek yaratish - ATOMIC TRANSACTION
+router.post('/kassa', auth, async (req, res) => {
   const session = await mongoose.startSession();
   
   try {
@@ -262,9 +263,10 @@ router.post('/kassa', async (req, res) => {
           console.log(`✅ Mijoz ${customerData.name} ga ${remainingAmount} so'm qarz qo'shildi`);
         }
 
-        // Agar mijozning qarzi bo'lsa, xarid summasini qarzdan ayirish - ATOMIC
-        if (customerData.debt > 0) {
-          const paymentAmount = Math.min(paidAmount || total, customerData.debt);
+        // Agar mijozning OLDINGI qarzi bo'lsa (yangi qo'shilgan remainingAmount bundan tashqari), qarzni to'lash
+        const existingDebt = customerData.debt || 0;
+        if (existingDebt > 0 && (paidAmount || total) > 0) {
+          const paymentAmount = Math.min(paidAmount || total, existingDebt);
 
           await Customer.findByIdAndUpdate(
             customer,
@@ -280,13 +282,13 @@ router.post('/kassa', async (req, res) => {
             $expr: { $lt: ['$paidAmount', '$amount'] }
           }).sort({ createdAt: 1 }).session(session);
 
-          let remainingPayment = paymentAmount;
+          let remainingPaymentForDebt = paymentAmount;
 
           for (const debt of debts) {
-            if (remainingPayment <= 0) break;
+            if (remainingPaymentForDebt <= 0) break;
 
             const debtBalance = debt.amount - debt.paidAmount;
-            const paymentForThisDebt = Math.min(remainingPayment, debtBalance);
+            const paymentForThisDebt = Math.min(remainingPaymentForDebt, debtBalance);
 
             debt.payments.push({
               amount: paymentForThisDebt,
@@ -302,10 +304,8 @@ router.post('/kassa', async (req, res) => {
             }
 
             await debt.save({ session });
-            remainingPayment -= paymentForThisDebt;
+            remainingPaymentForDebt -= paymentForThisDebt;
           }
-
-          console.log(`Customer ${customerData.name}: ${paymentAmount} so'm qarzdan ayrildi`);
         }
       }
     }
@@ -801,7 +801,7 @@ router.post('/', auth, async (req, res) => {
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     console.log('User:', req.user);
     
-    const { items, total, paidAmount, cashAmount, cardAmount, paymentMethod, customer, isReturn } = req.body;
+    const { items, total, paidAmount, cashAmount, cardAmount, clickAmount, paymentMethod, customer, isReturn } = req.body;
     const isHelper = req.user.role === 'helper';
 
     // To'langan summani hisoblash
@@ -840,6 +840,7 @@ router.post('/', auth, async (req, res) => {
       paidAmount: actualPaidAmount,
       cashAmount: cashAmount || 0,
       cardAmount: cardAmount || 0,
+      clickAmount: clickAmount || 0,
       paymentMethod,
       customer,
       status: isHelper ? 'pending' : 'completed',

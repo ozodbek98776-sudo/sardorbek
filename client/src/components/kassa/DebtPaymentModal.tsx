@@ -3,6 +3,7 @@ import { X, Wallet, User, Phone, DollarSign, CheckCircle } from 'lucide-react';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useAlert } from '../../hooks/useAlert';
 
 interface Debt {
   _id: string;
@@ -34,6 +35,7 @@ export function DebtPaymentModal({
   const [paymentAmount, setPaymentAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { showAlert, AlertComponent } = useAlert();
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
@@ -106,12 +108,12 @@ export function DebtPaymentModal({
     const remainingAmount = selectedDebt.amount - selectedDebt.paidAmount;
     
     if (isNaN(amount) || amount <= 0) {
-      alert('To\'lov summasini to\'g\'ri kiriting');
+      showAlert('To\'lov summasini to\'g\'ri kiriting', 'Xatolik', 'danger');
       return;
     }
 
     if (amount > remainingAmount) {
-      alert('To\'lov summasi qarz summasidan oshib ketdi');
+      showAlert('To\'lov summasi qarz summasidan oshib ketdi', 'Xatolik', 'danger');
       return;
     }
 
@@ -123,7 +125,7 @@ export function DebtPaymentModal({
       });
 
       // Success
-      alert('To\'lov muvaffaqiyatli qabul qilindi!');
+      showAlert('To\'lov muvaffaqiyatli qabul qilindi!', 'Muvaffaqiyat', 'success');
       setSelectedDebt(null);
       setPaymentAmount('');
       fetchDebts(); // Refresh list
@@ -131,9 +133,9 @@ export function DebtPaymentModal({
       if (onPaymentSuccess) {
         onPaymentSuccess();
       }
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      alert(error.response?.data?.message || 'To\'lov qabul qilinmadi');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showAlert(err.response?.data?.message || 'To\'lov qabul qilinmadi', 'Xatolik', 'danger');
     } finally {
       setSubmitting(false);
     }
@@ -170,6 +172,7 @@ export function DebtPaymentModal({
         style={{ marginBottom: '80px' }}
         onClick={(e) => e.stopPropagation()}
       >
+        {AlertComponent}
         {/* Header */}
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">

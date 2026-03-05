@@ -1,10 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw, ChevronDown, ChevronUp, CheckCircle, XCircle, Users, Clock, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
 import { formatNumber } from '../../utils/format';
 import { useSocket } from '../../hooks/useSocket';
 import { UPLOADS_URL } from '../../config/api';
+
+const toLocalDateStr = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 interface ReceiptItem {
   product: {
@@ -36,25 +43,23 @@ interface Receipt {
 }
 
 export default function KassaReceipts() {
-  const socket = useSocket(); // ⚡ Socket.IO hook
+  const socket = useSocket();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [expandedImages, setExpandedImages] = useState<{ [key: number]: boolean }>({});
+  const [startDate, setStartDate] = useState(toLocalDateStr(new Date()));
+  const [endDate, setEndDate] = useState(toLocalDateStr(new Date()));
   const { showAlert, showConfirm, AlertComponent } = useAlert();
 
-  const todayStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const todayReceipts = receipts.filter(r => new Date(r.createdAt) >= today);
-    const totalAmount = todayReceipts.reduce((sum, r) => sum + r.totalAmount, 0);
-    const pendingCount = todayReceipts.filter(r => r.status === 'pending').length;
-    const approvedCount = todayReceipts.filter(r => r.status === 'approved').length;
+  const filteredStats = useMemo(() => {
+    const totalAmount = receipts.reduce((sum, r) => sum + r.totalAmount, 0);
+    const pendingCount = receipts.filter(r => r.status === 'pending').length;
+    const approvedCount = receipts.filter(r => r.status === 'approved').length;
 
     const byStaff: Record<string, { name: string; role: string; count: number; total: number; pending: number; approved: number }> = {};
-    todayReceipts.forEach(r => {
+    receipts.forEach(r => {
       const key = r.createdBy.name;
       if (!byStaff[key]) {
         byStaff[key] = { name: r.createdBy.name, role: r.createdBy.role, count: 0, total: 0, pending: 0, approved: 0 };
@@ -65,29 +70,43 @@ export default function KassaReceipts() {
       if (r.status === 'approved') byStaff[key].approved++;
     });
 
-    return { todayReceipts, totalAmount, pendingCount, approvedCount, byStaff: Object.values(byStaff) };
+    return { totalAmount, pendingCount, approvedCount, byStaff: Object.values(byStaff) };
   }, [receipts]);
+
+  const fetchReceipts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      const response = await api.get('/receipts/kassa', {
+        params: { startDate: start.toISOString(), endDate: end.toISOString() }
+      });
+      setReceipts(response.data);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      showAlert(err.response?.data?.message || 'Cheklar yuklashda xatolik', 'Xatolik', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchReceipts();
-  }, []);
+  }, [startDate, endDate]);
 
-  // ⚡ Socket.IO - Real-time updates for receipts
+  // Socket.IO - Real-time updates for receipts
   useEffect(() => {
     if (!socket) return;
 
-    // Yangi chek kelganda
-    socket.on('receipt:created', async (data: any) => {
-      console.log('📡 Kassa Receipts Socket: Yangi chek keldi', data);
-      // Chek ma'lumotlarini to'liq olish
+    socket.on('receipt:created', async (data: { _id: string }) => {
       try {
         const response = await api.get(`/receipts/${data._id}`);
         const newReceipt = response.data;
-        setReceipts(prev => [newReceipt, ...prev]); // Eng oldinga qo'shish
+        setReceipts(prev => [newReceipt, ...prev]);
         showAlert('Yangi chek keldi!', 'Yangilik', 'success');
-      } catch (error) {
-        console.error('Chek ma\'lumotlarini olishda xatolik:', error);
-        // Agar xatolik bo'lsa, barcha cheklar ro'yxatini qayta yuklash
+      } catch {
         fetchReceipts();
       }
     });
@@ -96,23 +115,6 @@ export default function KassaReceipts() {
       socket.off('receipt:created');
     };
   }, [socket]);
-
-  const fetchReceipts = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching receipts from /receipts/kassa...');
-      const response = await api.get('/receipts/kassa');
-      console.log('Receipts response:', response.data);
-      console.log('Total receipts:', response.data.length);
-      setReceipts(response.data);
-    } catch (error: any) {
-      console.error('Cheklar yuklashda xatolik:', error);
-      console.error('Error response:', error.response);
-      showAlert(error.response?.data?.message || 'Cheklar yuklashda xatolik', 'Xatolik', 'danger');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePrint = (receipt: Receipt) => {
     const printWindow = window.open('', '_blank', 'width=600,height=800');
@@ -430,6 +432,42 @@ export default function KassaReceipts() {
               <h1 className="text-sm sm:text-base font-bold text-surface-900 truncate">Cheklar</h1>
             </div>
           </div>
+          <button
+            onClick={() => fetchReceipts()}
+            className="p-2 hover:bg-surface-100 rounded-lg transition-colors"
+            title="Yangilash"
+          >
+            <RefreshCw className={`w-4 h-4 text-surface-500 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Date Range Filter */}
+      <div className="bg-white rounded-lg shadow-sm px-2 py-1.5 mb-2">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-surface-500 flex-shrink-0" />
+          <input
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-[110px] px-1.5 py-1 rounded border border-surface-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-surface-50"
+          />
+          <span className="text-xs text-surface-400">—</span>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            max={toLocalDateStr(new Date())}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-[110px] px-1.5 py-1 rounded border border-surface-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-surface-50"
+          />
+          <button
+            onClick={() => { const today = toLocalDateStr(new Date()); setStartDate(today); setEndDate(today); }}
+            className="ml-auto px-2 py-1 rounded text-[10px] font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors flex-shrink-0"
+          >
+            Bugun
+          </button>
         </div>
       </div>
 
@@ -441,8 +479,8 @@ export default function KassaReceipts() {
               <FileText className="w-3.5 h-3.5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-surface-500">Bugungi cheklar</p>
-              <p className="text-sm sm:text-base font-bold text-surface-900">{todayStats.todayReceipts.length}</p>
+              <p className="text-xs text-surface-500">Cheklar</p>
+              <p className="text-sm sm:text-base font-bold text-surface-900">{receipts.length}</p>
             </div>
           </div>
         </div>
@@ -453,7 +491,7 @@ export default function KassaReceipts() {
             </div>
             <div>
               <p className="text-xs text-surface-500">Jami summa</p>
-              <p className="text-sm sm:text-base font-bold text-green-700">{formatNumber(todayStats.totalAmount)}</p>
+              <p className="text-sm sm:text-base font-bold text-green-700">{formatNumber(filteredStats.totalAmount)}</p>
             </div>
           </div>
         </div>
@@ -464,7 +502,7 @@ export default function KassaReceipts() {
             </div>
             <div>
               <p className="text-xs text-surface-500">Kutilmoqda</p>
-              <p className="text-sm sm:text-base font-bold text-yellow-700">{todayStats.pendingCount}</p>
+              <p className="text-sm sm:text-base font-bold text-yellow-700">{filteredStats.pendingCount}</p>
             </div>
           </div>
         </div>
@@ -475,21 +513,21 @@ export default function KassaReceipts() {
             </div>
             <div>
               <p className="text-xs text-surface-500">Tasdiqlangan</p>
-              <p className="text-sm sm:text-base font-bold text-emerald-700">{todayStats.approvedCount}</p>
+              <p className="text-sm sm:text-base font-bold text-emerald-700">{filteredStats.approvedCount}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Staff Breakdown */}
-      {todayStats.byStaff.length > 0 && (
+      {filteredStats.byStaff.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-2 sm:p-3 mb-2">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-4 h-4 text-surface-500" />
-            <h2 className="text-xs sm:text-sm font-semibold text-surface-700">Xodimlar bo'yicha (bugun)</h2>
+            <h2 className="text-xs sm:text-sm font-semibold text-surface-700">Xodimlar bo'yicha</h2>
           </div>
           <div className="grid gap-1.5">
-            {todayStats.byStaff.map((staff) => (
+            {filteredStats.byStaff.map((staff) => (
               <div key={staff.name} className="flex items-center justify-between p-2 bg-surface-50 rounded-lg text-xs sm:text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-6 h-6 bg-brand-100 rounded-full flex items-center justify-center flex-shrink-0">

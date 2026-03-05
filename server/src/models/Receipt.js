@@ -50,6 +50,7 @@ const receiptSchema = new mongoose.Schema({
   paidAmount: { type: Number, default: 0 }, // To'langan summa
   cashAmount: { type: Number, default: 0 }, // Naqd pul summasi
   cardAmount: { type: Number, default: 0 }, // Karta summasi
+  clickAmount: { type: Number, default: 0 }, // CLICK summasi
   remainingAmount: { type: Number, default: 0 }, // Qoldiq summa
   receiptNumber: { type: String }, // Chek raqami
   metadata: {

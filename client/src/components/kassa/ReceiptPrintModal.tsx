@@ -18,12 +18,14 @@ interface ReceiptData {
   paidAmount: number;
   cashAmount?: number;
   cardAmount?: number;
-  paymentMethod: 'cash' | 'card' | 'mixed';
+  clickAmount?: number;
+  paymentMethod: 'cash' | 'card' | 'click' | 'mixed';
   customer?: {
     name: string;
     phone: string;
   };
   createdAt: string;
+  receiptNumber?: string;
 }
 
 interface ReceiptPrintModalProps {
@@ -70,7 +72,7 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
             <p className="text-xs text-slate-500 mt-1">
               {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
             </p>
-            <p className="text-xs text-slate-500">Chek #: {receipt._id.slice(-8)}</p>
+            <p className="text-xs text-slate-500">Chek #: {receipt.receiptNumber || receipt._id.slice(-8)}</p>
           </div>
 
           {/* Customer Info */}
@@ -128,19 +130,31 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
             
             {receipt.paymentMethod === 'mixed' ? (
               <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Naqd:</span>
-                  <span className="text-slate-900">{formatNumber(receipt.cashAmount || 0)} so'm</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Karta:</span>
-                  <span className="text-slate-900">{formatNumber(receipt.cardAmount || 0)} so'm</span>
-                </div>
+                {(receipt.cashAmount || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Naqd:</span>
+                    <span className="text-slate-900">{formatNumber(receipt.cashAmount || 0)} so'm</span>
+                  </div>
+                )}
+                {(receipt.cardAmount || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Karta:</span>
+                    <span className="text-slate-900">{formatNumber(receipt.cardAmount || 0)} so'm</span>
+                  </div>
+                )}
+                {(receipt.clickAmount || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">CLICK:</span>
+                    <span className="text-slate-900">{formatNumber(receipt.clickAmount || 0)} so'm</span>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">To'lov turi:</span>
-                <span className="text-slate-900">{receipt.paymentMethod === 'cash' ? 'Naqd' : 'Karta'}</span>
+                <span className="text-slate-900">
+                  {receipt.paymentMethod === 'cash' ? 'Naqd' : receipt.paymentMethod === 'card' ? 'Karta' : 'CLICK'}
+                </span>
               </div>
             )}
             

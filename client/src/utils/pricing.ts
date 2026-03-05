@@ -189,6 +189,67 @@ export const getUnitLabel = (unit: string): string => {
   return labels[unit] || unit;
 };
 
+/**
+ * Kassa uchun oddiy narx hisoblash — discount bilan
+ * Barcha kassa komponentlari shu funksiyani ishlatadi (DRY)
+ */
+export const calculateDiscountedPrice = (product: { price?: number; prices?: Array<{ type: string; amount?: number; minQuantity?: number; discountPercent?: number; isActive?: boolean }> }, quantity: number): number => {
+  const prices = product.prices;
+  let basePrice = product.price || 0;
+
+  if (Array.isArray(prices) && prices.length > 0) {
+    const unitPrice = prices.find(p => p.type === 'unit');
+    if (unitPrice?.amount) {
+      basePrice = unitPrice.amount;
+    }
+  }
+
+  if (!Array.isArray(prices) || prices.length === 0) {
+    return basePrice;
+  }
+
+  const discounts = prices.filter(p => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+
+  if (discounts.length === 0) {
+    return basePrice;
+  }
+
+  const bestDiscount = discounts.reduce((best, current) =>
+    (current.minQuantity || 0) > (best.minQuantity || 0) ? current : best
+  );
+
+  return basePrice * (1 - (bestDiscount.discountPercent || 0) / 100);
+};
+
+/**
+ * Kassa ProductDetailModal uchun — narx + discount info qaytaradi
+ */
+export const calculateDiscountedPriceWithInfo = (product: { price?: number; prices?: Array<{ type: string; amount?: number; minQuantity?: number; discountPercent?: number; isActive?: boolean }> }, quantity: number): { price: number; discount?: { percent: number; minQuantity: number } } => {
+  const price = calculateDiscountedPrice(product, quantity);
+  const prices = product.prices;
+
+  if (!Array.isArray(prices) || prices.length === 0) {
+    return { price };
+  }
+
+  const discounts = prices.filter(p => p.type && p.type.startsWith('discount') && p.minQuantity && p.minQuantity <= quantity);
+  if (discounts.length === 0) {
+    return { price };
+  }
+
+  const bestDiscount = discounts.reduce((best, current) =>
+    (current.minQuantity || 0) > (best.minQuantity || 0) ? current : best
+  );
+
+  return {
+    price,
+    discount: {
+      percent: bestDiscount.discountPercent || 0,
+      minQuantity: bestDiscount.minQuantity || 0
+    }
+  };
+};
+
 // KASSA UCHUN HELPER FUNKSIYALAR
 
 export const formatProductForKassa = (product: any) => {
