@@ -18,13 +18,56 @@ function versionPlugin(): Plugin {
   };
 }
 
+// Rollup 4 Linux da chunk fayllarga extra hash qo'shadi,
+// lekin entry bundle (index-*.js) eski short-hash nomlarni saqlaydi.
+// Bu plugin entry bundle ichidagi short-hash reflarni to'g'ri long-hash bilan almashtiradi.
+function fixChunkRefsPlugin(): Plugin {
+  return {
+    name: 'fix-chunk-refs',
+    apply: 'build',
+    closeBundle() {
+      const distAssets = path.resolve(__dirname, 'dist/assets');
+      if (!fs.existsSync(distAssets)) return;
+
+      const files = fs.readdirSync(distAssets);
+      const entryFile = files.find(f => /^index-[^.]+\.js$/.test(f));
+      if (!entryFile) return;
+
+      const entryPath = path.join(distAssets, entryFile);
+      let entry = fs.readFileSync(entryPath, 'utf-8');
+      const fileSet = new Set(files);
+      const toFix = new Map<string, string>();
+
+      // Entry bundle ichidagi barcha JS chunk referenslarini topamiz
+      const re = /assets\/([\w-]+)\.js\b/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(entry)) !== null) {
+        const ref = m[1];
+        if (!fileSet.has(`${ref}.js`) && !toFix.has(ref)) {
+          // Mos keluvchi to'liq nomli faylni topamiz
+          const actual = files.find(f => f.startsWith(`${ref}-`) && f.endsWith('.js'));
+          if (actual) toFix.set(ref, actual.slice(0, -3));
+        }
+      }
+
+      if (toFix.size === 0) return;
+
+      for (const [ref, actual] of toFix) {
+        entry = entry.replaceAll(`${ref}.js`, `${actual}.js`);
+      }
+      fs.writeFileSync(entryPath, entry);
+    }
+  };
+}
+
 export default defineConfig({
   plugins: [
     react({
       // Fast Refresh optimizatsiyasi
       fastRefresh: true
     }),
-    versionPlugin()
+    versionPlugin(),
+    fixChunkRefsPlugin()
   ],
   server: {
     port: 5173,
