@@ -73,7 +73,7 @@ export default function ProductsOptimized() {
     quantity: '',
     category: '',
     subcategory: '', // Bo'lim uchun
-    unit: 'dona' as 'dona' | 'kg' | 'metr' | 'litr' | 'karobka',
+    unit: 'dona' as 'dona' | 'kg' | 'metr' | 'litr' | 'karobka' | 'qop',
     // Karobka ma'lumotlari
     boxInfo: {
       unitsPerBox: '',
@@ -82,6 +82,10 @@ export default function ProductsOptimized() {
     // Metr o'ram ma'lumotlari
     metrInfo: {
       metersPerOram: ''
+    },
+    // Pachka ma'lumotlari (dona uchun)
+    pachkaInfo: {
+      unitsPerPachka: ''
     },
     // Chegirma sozlamalari
     discount1: { minQuantity: '', percent: '' },
@@ -382,6 +386,10 @@ export default function ProductsOptimized() {
         // Metr o'ram ma'lumotlari
         metrInfo: {
           metersPerOram: Number(formData.metrInfo?.metersPerOram) || 0
+        },
+        // Pachka ma'lumotlari (dona uchun)
+        pachkaInfo: {
+          unitsPerPachka: Number(formData.pachkaInfo?.unitsPerPachka) || 0
         }
       };
       
@@ -456,6 +464,9 @@ export default function ProductsOptimized() {
       metrInfo: {
         metersPerOram: ''
       },
+      pachkaInfo: {
+        unitsPerPachka: ''
+      },
       discount1: { minQuantity: '', percent: '' },
       discount2: { minQuantity: '', percent: '' },
       discount3: { minQuantity: '', percent: '' }
@@ -524,6 +535,10 @@ export default function ProductsOptimized() {
       metrInfo: {
         metersPerOram: (product as any).metrInfo?.metersPerOram
           ? String((product as any).metrInfo.metersPerOram) : ''
+      },
+      pachkaInfo: {
+        unitsPerPachka: (product as any).pachkaInfo?.unitsPerPachka
+          ? String((product as any).pachkaInfo.unitsPerPachka) : ''
       },
       discount1: {
         minQuantity: discount1?.minQuantity ? String(discount1.minQuantity) : '',

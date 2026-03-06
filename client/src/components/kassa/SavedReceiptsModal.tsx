@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Receipt, ShoppingBag, Eye, User } from 'lucide-react';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDateTime } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
@@ -147,7 +147,7 @@ export function SavedReceiptsModal({
                     const items = Array.isArray(receipt.items) ? receipt.items : [];
                     const customerName = receipt.customer?.name || 'Oddiy mijoz';
                     const savedAt = receipt.createdAt
-                      ? new Date(receipt.createdAt).toLocaleString('uz-UZ')
+                      ? formatDateTime(receipt.createdAt)
                       : '';
                     return (
                       <div key={receipt._id} className="p-4 hover:bg-orange-50 transition-colors">
@@ -302,7 +302,7 @@ export function SavedReceiptsModal({
                   <h3 className="text-xl font-bold">Helper Cheki</h3>
                   <p className="text-sm text-orange-100">
                     {selectedHelper.customer?.name || 'Oddiy mijoz'} •{' '}
-                    {selectedHelper.createdAt ? new Date(selectedHelper.createdAt).toLocaleString('uz-UZ') : ''}
+                    {selectedHelper.createdAt ? formatDateTime(selectedHelper.createdAt) : ''}
                   </p>
                 </div>
               </div>

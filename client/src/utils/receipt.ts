@@ -1,5 +1,5 @@
 import { CartItem, Customer } from '../types';
-import { formatNumber } from './format';
+import { formatNumber, formatDateTime } from './format';
 
 export interface ReceiptData {
   items: CartItem[];
@@ -28,7 +28,7 @@ export const formatReceiptData = (data: ReceiptData): string => {
   
   // Chek ma'lumotlari - Professional format (rasmga o'xshash)
   receipt += `CHK: ${receiptNumber}\n`;
-  receipt += `     ${date.toLocaleDateString('uz-UZ')} ${date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}\n`;
+  receipt += `     ${formatDateTime(date)}\n`;
   receipt += `     KASSIR: ${cashier}\n`;
   
   if (data.customer) {

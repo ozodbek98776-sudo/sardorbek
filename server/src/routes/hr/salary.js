@@ -6,6 +6,35 @@ const { auth } = require('../../middleware/auth');
 const { adminOnly } = require('../../middleware/permissions');
 
 router.use(auth);
+
+// Xodim o'z maosh ma'lumotlarini ko'rishi (adminOnly emas)
+router.get('/my-salary', async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const setting = await SalarySetting.findOne({
+      employee: userId,
+      $or: [
+        { effectiveTo: { $exists: false } },
+        { effectiveTo: null },
+        { effectiveTo: { $gte: new Date() } }
+      ]
+    })
+      .populate('employee', 'name role')
+      .sort({ effectiveFrom: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      setting: setting || null,
+      baseSalary: setting?.baseSalary || setting?.hourlyRate || 0,
+      salaryType: setting?.salaryType || 'hourly'
+    });
+  } catch (error) {
+    console.error('My-salary olishda xatolik:', error);
+    res.status(500).json({ success: false, message: 'Serverda xatolik' });
+  }
+});
+
 router.use(adminOnly);
 
 // Xodim uchun maosh sozlamalarini olish

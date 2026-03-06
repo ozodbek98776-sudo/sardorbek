@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { CheckCircle2, X, AlertTriangle, User, Calendar, DollarSign, ArrowLeft, CreditCard } from 'lucide-react';
 import { Debt } from '../../types';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { UniversalPageHeader } from '../../components/common';
 
@@ -133,7 +133,7 @@ export default function DebtApprovals() {
                       <div className="flex items-center gap-4 mt-2 text-sm text-surface-600">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          <span>Muddat: {new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
+                          <span>Muddat: {formatDate(debt.dueDate)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <DollarSign className="w-4 h-4" />

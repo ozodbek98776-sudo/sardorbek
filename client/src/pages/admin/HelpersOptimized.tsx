@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { Users, Plus, Edit2, Trash2, User, Phone, Lock, ShoppingCart, Shield, DollarSign, X, Receipt, Calendar, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { useHelpersStore, Helper } from '../../store/helpersStore';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
+import { formatDateTime } from '../../utils/format';
 
 // Format number helper
 const formatNumber = (num: number) => {
@@ -639,7 +640,7 @@ export default function HelpersOptimized() {
                               <h4 className="font-semibold">Chek #{receipt._id.slice(-6)}</h4>
                               <div className="flex items-center gap-2 text-sm text-surface-500">
                                 <Calendar className="w-4 h-4" />
-                                {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+                                {formatDateTime(receipt.createdAt)}
                               </div>
                             </div>
                           </div>

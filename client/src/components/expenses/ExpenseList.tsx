@@ -1,6 +1,6 @@
 import React from 'react';
 import { Edit, Trash2, Calendar, User } from 'lucide-react';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDate as fmtDate } from '../../utils/format';
 import { EmptyState } from '../common';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_COLORS, EXPENSE_TYPES } from '../../constants/expenses';
 
@@ -25,14 +25,7 @@ interface ExpenseListProps {
   onDelete: (id: string) => void;
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('uz-UZ', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-};
+const formatDate = (dateString: string) => fmtDate(dateString);
 
 export const ExpenseList = React.memo(function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
 

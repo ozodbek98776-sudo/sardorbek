@@ -15,7 +15,7 @@ const PriceLabel: React.FC<PriceLabelProps> = ({
   code,
   name,
   quantity,
-  date = new Date().toLocaleDateString('uz-UZ'),
+  date = `${String(new Date().getDate()).padStart(2,'0')}.${String(new Date().getMonth()+1).padStart(2,'0')}.${new Date().getFullYear()}`,
   qrData
 }) => {
   const formatPrice = (num: number) => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingDown, Calendar, Filter } from 'lucide-react';
 import api from '../utils/api';
-import { formatNumber } from '../utils/format';
+import { formatNumber, formatDateTime } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface Expense {
@@ -271,13 +271,7 @@ export function ExpensesHistoryModal({
                           <span className="text-xs text-slate-500">• {expense.type}</span>
                         )}
                         <span className="text-xs text-slate-500">
-                          {new Date(expense.date).toLocaleDateString('uz-UZ', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatDateTime(expense.date)}
                         </span>
                       </div>
                     </div>

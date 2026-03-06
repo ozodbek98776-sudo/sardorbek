@@ -8,7 +8,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDateTime } from '../../utils/format';
 import { getDiscountPrices, calculateDiscountedPrice } from '../../utils/pricing';
 import {
   cacheProducts,
@@ -58,6 +58,7 @@ export default function KassaProNew() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +74,37 @@ export default function KassaProNew() {
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  };
+  const DateInput = ({ value, onChange, min, max }: { value: string; onChange: (v: string) => void; min?: string; max?: string }) => {
+    const [parts, setParts] = useState(() => { const [y,m,d] = value.split('-'); return { d, m, y }; });
+    const [editing, setEditing] = useState(false);
+    useEffect(() => { if (!editing) { const [y,m,d] = value.split('-'); setParts({ d, m, y }); } }, [value, editing]);
+    const commit = () => {
+      setEditing(false);
+      const dd = String(Math.min(31, Math.max(1, Number(parts.d) || 1))).padStart(2,'0');
+      const mm = String(Math.min(12, Math.max(1, Number(parts.m) || 1))).padStart(2,'0');
+      const yy = parts.y.length === 4 ? parts.y : '2026';
+      const val = `${yy}-${mm}-${dd}`;
+      if (max && val > max) { onChange(max); return; }
+      if (min && val < min) { onChange(min); return; }
+      onChange(val);
+    };
+    const set = (field: 'd'|'m'|'y', raw: string) => { setEditing(true); setParts(p => ({ ...p, [field]: raw })); };
+    return (
+      <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg border border-slate-200 bg-slate-50">
+        <input type="text" inputMode="numeric" value={parts.d} onFocus={e => e.target.select()} onBlur={commit}
+          onChange={e => set('d', e.target.value.replace(/\D/g,'').slice(0,2))}
+          className="w-[26px] text-center text-sm bg-transparent outline-none" />
+        <span className="text-sm text-slate-400">.</span>
+        <input type="text" inputMode="numeric" value={parts.m} onFocus={e => e.target.select()} onBlur={commit}
+          onChange={e => set('m', e.target.value.replace(/\D/g,'').slice(0,2))}
+          className="w-[26px] text-center text-sm bg-transparent outline-none" />
+        <span className="text-sm text-slate-400">.</span>
+        <input type="text" inputMode="numeric" value={parts.y} onFocus={e => e.target.select()} onBlur={commit}
+          onChange={e => set('y', e.target.value.replace(/\D/g,'').slice(0,4))}
+          className="w-[44px] text-center text-sm bg-transparent outline-none" />
+      </div>
+    );
   };
   const [receiptStartDate, setReceiptStartDate] = useState(toLocalDateStr(new Date()));
   const [receiptEndDate, setReceiptEndDate] = useState(toLocalDateStr(new Date()));
@@ -299,16 +331,15 @@ export default function KassaProNew() {
   
   // Infinite scroll observer (OPTIMIZED)
   useEffect(() => {
-    if (!hasMore || loadingMore) return;
+    if (!hasMore || loadingMore || displayedProducts.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          console.log('👀 Scroll pastga yetdi, yangi mahsulotlar yuklanmoqda...');
           loadMoreProducts();
         }
       },
-      { threshold: 0.1, rootMargin: '200px' } // 200px oldindan yuklash
+      { threshold: 0.1, rootMargin: '200px' }
     );
 
     if (loadMoreRef.current) {
@@ -316,7 +347,7 @@ export default function KassaProNew() {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loadMoreProducts]);
+  }, [hasMore, loadingMore, loadMoreProducts, displayedProducts.length]);
   
   // Fetch data - BIRINCHI YUKLASH
   useEffect(() => {
@@ -334,6 +365,7 @@ export default function KassaProNew() {
         
         // 2. Backend'dan yangi ma'lumotlarni olish
         await fetchProducts();
+        setInitialLoading(false);
         
         // 3. Offline sync listener'larni ishga tushirish
         initSyncListeners();
@@ -345,9 +377,10 @@ export default function KassaProNew() {
         loadSavedReceipts();
       } catch (err) {
         console.error('❌ Initialization xatosi:', err);
+        setInitialLoading(false);
       }
     };
-    
+
     initializeData();
     
     // Auto-refresh o'chirildi - Socket.IO event'lar yetarli
@@ -1011,6 +1044,7 @@ export default function KassaProNew() {
                     products={displayedProducts}
                     selectedCategory={selectedCategory}
                     selectedSection={selectedSection}
+                    initialLoading={initialLoading}
                     onProductClick={(product) => {
                       setSelectedProductForDetail(product);
                       setShowProductDetail(true);
@@ -1027,28 +1061,15 @@ export default function KassaProNew() {
               ) : (
                 <div className="space-y-4">
                   {/* Date Range Filter */}
-                  <div className="bg-white rounded-xl px-3 py-2 shadow-sm border border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <input
-                        type="date"
-                        value={receiptStartDate}
-                        max={receiptEndDate}
-                        onChange={(e) => setReceiptStartDate(e.target.value)}
-                        className="w-[110px] px-1.5 py-1 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-slate-50"
-                      />
-                      <span className="text-xs text-slate-400">—</span>
-                      <input
-                        type="date"
-                        value={receiptEndDate}
-                        min={receiptStartDate}
-                        max={toLocalDateStr(new Date())}
-                        onChange={(e) => setReceiptEndDate(e.target.value)}
-                        className="w-[110px] px-1.5 py-1 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-slate-50"
-                      />
+                  <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <DateInput value={receiptStartDate} max={receiptEndDate} onChange={setReceiptStartDate} />
+                      <span className="text-sm text-slate-400">—</span>
+                      <DateInput value={receiptEndDate} min={receiptStartDate} max={toLocalDateStr(new Date())} onChange={setReceiptEndDate} />
                       <button
                         onClick={() => { const today = toLocalDateStr(new Date()); setReceiptStartDate(today); setReceiptEndDate(today); }}
-                        className="ml-auto px-2 py-1 rounded text-[10px] font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors flex-shrink-0"
+                        className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors flex-shrink-0"
                       >
                         Bugun
                       </button>
@@ -1076,13 +1097,7 @@ export default function KassaProNew() {
                                 Chek #{receipt.receiptNumber || receipt._id.slice(-6)}
                               </p>
                               <p className="text-sm text-slate-500">
-                                {new Date(receipt.createdAt).toLocaleString('uz-UZ', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatDateTime(receipt.createdAt)}
                               </p>
                             </div>
                             <div className="text-right">

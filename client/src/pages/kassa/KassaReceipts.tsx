@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FileText, Printer, Trash2, Eye, Calendar, User, Package, DollarSign, RefreshCw, ChevronDown, ChevronUp, CheckCircle, XCircle, Users, Clock, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDateTime } from '../../utils/format';
 import { useSocket } from '../../hooks/useSocket';
 import { UPLOADS_URL } from '../../config/api';
 
@@ -12,6 +12,38 @@ const toLocalDateStr = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
+function DateInput({ value, onChange, min, max }: { value: string; onChange: (v: string) => void; min?: string; max?: string }) {
+  const [parts, setParts] = useState(() => { const [y,m,d] = value.split('-'); return { d, m, y }; });
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { if (!editing) { const [y,m,d] = value.split('-'); setParts({ d, m, y }); } }, [value, editing]);
+  const commit = () => {
+    setEditing(false);
+    const dd = String(Math.min(31, Math.max(1, Number(parts.d) || 1))).padStart(2,'0');
+    const mm = String(Math.min(12, Math.max(1, Number(parts.m) || 1))).padStart(2,'0');
+    const yy = parts.y.length === 4 ? parts.y : '2026';
+    const val = `${yy}-${mm}-${dd}`;
+    if (max && val > max) { onChange(max); return; }
+    if (min && val < min) { onChange(min); return; }
+    onChange(val);
+  };
+  const set = (field: 'd'|'m'|'y', raw: string) => { setEditing(true); setParts(p => ({ ...p, [field]: raw })); };
+  return (
+    <div className="flex items-center gap-0.5 px-1.5 py-1 rounded border border-surface-200 bg-surface-50">
+      <input type="text" inputMode="numeric" value={parts.d} onFocus={e => e.target.select()} onBlur={commit}
+        onChange={e => set('d', e.target.value.replace(/\D/g,'').slice(0,2))}
+        className="w-[24px] text-center text-xs bg-transparent outline-none" />
+      <span className="text-xs text-surface-400">.</span>
+      <input type="text" inputMode="numeric" value={parts.m} onFocus={e => e.target.select()} onBlur={commit}
+        onChange={e => set('m', e.target.value.replace(/\D/g,'').slice(0,2))}
+        className="w-[24px] text-center text-xs bg-transparent outline-none" />
+      <span className="text-xs text-surface-400">.</span>
+      <input type="text" inputMode="numeric" value={parts.y} onFocus={e => e.target.select()} onBlur={commit}
+        onChange={e => set('y', e.target.value.replace(/\D/g,'').slice(0,4))}
+        className="w-[40px] text-center text-xs bg-transparent outline-none" />
+    </div>
+  );
+}
 
 interface ReceiptItem {
   product: {
@@ -288,13 +320,7 @@ export default function KassaReceipts() {
           `}
           <div class="info-row">
             <span class="info-label">📅 Sana:</span>
-            <span class="info-value">${new Date(receipt.createdAt).toLocaleString('uz-UZ', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric',
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}</span>
+            <span class="info-value">${formatDateTime(receipt.createdAt)}</span>
           </div>
         </div>
 
@@ -446,22 +472,9 @@ export default function KassaReceipts() {
       <div className="bg-white rounded-lg shadow-sm px-2 py-1.5 mb-2">
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-surface-500 flex-shrink-0" />
-          <input
-            type="date"
-            value={startDate}
-            max={endDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-[110px] px-1.5 py-1 rounded border border-surface-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-surface-50"
-          />
+          <DateInput value={startDate} max={endDate} onChange={setStartDate} />
           <span className="text-xs text-surface-400">—</span>
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            max={toLocalDateStr(new Date())}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-[110px] px-1.5 py-1 rounded border border-surface-200 text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 bg-surface-50"
-          />
+          <DateInput value={endDate} min={startDate} max={toLocalDateStr(new Date())} onChange={setEndDate} />
           <button
             onClick={() => { const today = toLocalDateStr(new Date()); setStartDate(today); setEndDate(today); }}
             className="ml-auto px-2 py-1 rounded text-[10px] font-medium bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors flex-shrink-0"
@@ -584,13 +597,7 @@ export default function KassaReceipts() {
                     )}
                   </div>
                   <p className="text-xs text-surface-500">
-                    {new Date(receipt.createdAt).toLocaleString('uz-UZ', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    {formatDateTime(receipt.createdAt)}
                   </p>
                 </div>
               </div>

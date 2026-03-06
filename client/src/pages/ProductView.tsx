@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Package, ArrowLeft, Tag, Box, Phone, MapPin, Clock, ChevronRight, Percent, ShoppingBag, Menu, X, Home, ShoppingCart, Users, BarChart3, Settings, Package2, Warehouse, FileText, UserCircle, QrCode } from 'lucide-react';
 import axios from 'axios';
-import { formatNumber } from '../utils/format';
+import { formatNumber, formatDate } from '../utils/format';
 import { UPLOADS_URL } from '../config/api';
 
 // API URL
@@ -230,11 +230,7 @@ export default function ProductView() {
                   QR kod orqali ko'rilmoqda
                 </p>
                 <p className="text-xs text-surface-400 text-center">
-                  {new Date().toLocaleDateString('uz-UZ', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
+                  {formatDate(new Date())}
                 </p>
               </div>
             </div>
@@ -460,7 +456,7 @@ export default function ProductView() {
 
           {/* Footer Note */}
           <p className="text-center text-xs text-surface-400 pt-4">
-            QR kod orqali ko'rilmoqda • {new Date().toLocaleDateString('uz-UZ')}
+            QR kod orqali ko'rilmoqda • {formatDate(new Date())}
           </p>
         </div>
       </div>

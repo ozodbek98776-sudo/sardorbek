@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Debt, Customer } from '../../types';
 import api from '../../utils/api';
-import { formatNumber, formatInputNumber, parseNumber, formatPhone } from '../../utils/format';
+import { formatNumber, formatInputNumber, parseNumber, formatPhone, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
@@ -769,7 +769,7 @@ export default function Debts() {
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center gap-1.5 text-surface-600">
                               <Calendar className="w-4 h-4" />
-                              <span className="font-medium">{new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
+                              <span className="font-medium">{formatDate(debt.dueDate)}</span>
                             </div>
                             {/* Muddat berilgan kunlar */}
                             {debt.extensionDays > 0 && (

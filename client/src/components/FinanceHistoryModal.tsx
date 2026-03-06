@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Filter } from 'lucide-react';
 import api from '../utils/api';
-import { formatNumber } from '../utils/format';
+import { formatNumber, formatDateTime } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface Transaction {
@@ -394,13 +394,7 @@ export function FinanceHistoryModal({
                         {transaction.category}
                       </span>
                       <span className="text-xs text-slate-500">
-                        {new Date(transaction.date).toLocaleDateString('uz-UZ', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        {formatDateTime(transaction.date)}
                       </span>
                     </div>
                   </div>

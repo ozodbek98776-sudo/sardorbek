@@ -16,7 +16,8 @@ const UNIT_TYPES = {
   KILOGRAM: 'kg',    // Kilogram
   METER: 'metr',     // Metr
   LITER: 'litr',     // Litr
-  BOX: 'karobka'     // Karobka
+  BOX: 'karobka',    // Karobka
+  SACK: 'qop'        // Qop
 };
 
 // Narx sxemasi - har bir narx turi uchun
@@ -98,6 +99,15 @@ const productSchema = new mongoose.Schema({
   // Metr o'ram ma'lumotlari (agar metrda sotilsa)
   metrInfo: {
     metersPerOram: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
+
+  // Pachka ma'lumotlari (dona birligi uchun)
+  pachkaInfo: {
+    unitsPerPachka: {
       type: Number,
       default: 0,
       min: 0

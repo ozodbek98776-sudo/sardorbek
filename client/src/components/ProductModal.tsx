@@ -22,13 +22,16 @@ interface ProductModalProps {
     quantity: string;
     category: string;
     subcategory: string;
-    unit: 'dona' | 'kg' | 'metr' | 'litr' | 'karobka';
+    unit: 'dona' | 'kg' | 'metr' | 'litr' | 'karobka' | 'qop';
     boxInfo: {
       unitsPerBox: string;
       boxWeight: string;
     };
     metrInfo: {
       metersPerOram: string;
+    };
+    pachkaInfo: {
+      unitsPerPachka: string;
     };
     discount1: { minQuantity: string; percent: string };
     discount2: { minQuantity: string; percent: string };
@@ -128,6 +131,7 @@ export default function ProductModal({
               <option value="metr">Metr</option>
               <option value="litr">Litr</option>
               <option value="karobka">Karobka</option>
+              <option value="qop">Qop</option>
             </select>
           </div>
         </div>
@@ -336,6 +340,29 @@ export default function ProductModal({
               </div>
             </div>
             <p className="text-xs text-gray-500">Masalan: 1 karobkada 24 dona, og'irligi 10 kg</p>
+          </div>
+        )}
+
+        {/* Pachka Information - dona birligi uchun */}
+        {formData.unit === 'dona' && (
+          <div className="border-t pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Pachka ma'lumotlari (ixtiyoriy)</label>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">1 pachkada nechta dona?</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={formData.pachkaInfo.unitsPerPachka}
+                onChange={(e) => handleNestedChange('pachkaInfo', { unitsPerPachka: e.target.value })}
+                placeholder="Masalan: 100"
+                min="1"
+              />
+            </div>
+            {formData.pachkaInfo.unitsPerPachka && Number(formData.pachkaInfo.unitsPerPachka) > 1 && (
+              <p className="text-xs text-blue-600 mt-1">
+                1 pachka = {formData.pachkaInfo.unitsPerPachka} dona
+              </p>
+            )}
           </div>
         )}
 

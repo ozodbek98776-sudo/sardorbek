@@ -5,6 +5,7 @@ import api from '../../utils/api';
 import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 import { useAlert } from '../../hooks/useAlert';
 import { LoadingSpinner, EmptyState, Badge, UniversalPageHeader, Card } from '../../components/common';
+import { formatDate } from '../../utils/format';
 
 export default function Orders() {
   const { showAlert, AlertComponent } = useAlert();
@@ -116,7 +117,7 @@ export default function Orders() {
                         <div className="flex items-center justify-between gap-4 flex-wrap">
                           <div className="flex items-center gap-4 text-sm text-surface-500">
                             <span>{order.items.length} ta mahsulot</span>
-                            <span>{new Date(order.createdAt).toLocaleDateString('uz-UZ')}</span>
+                            <span>{formatDate(order.createdAt)}</span>
                           </div>
                           <p className="font-bold text-surface-900">{order.total.toLocaleString()} so'm</p>
                         </div>

@@ -5,7 +5,7 @@ import {
   DollarSign, Clock, FileText, Printer, Trash2
 } from 'lucide-react';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDateTime as fmtDateTime } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData } from '../../utils/receipt';
 import { CartItem } from '../../types';
@@ -129,16 +129,7 @@ export default function StaffReceipts() {
     setExpandedReceipt(expandedReceipt === id ? null : id);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = (dateString: string) => fmtDateTime(dateString);
 
   const clearFilters = () => {
     setSelectedHelper('');

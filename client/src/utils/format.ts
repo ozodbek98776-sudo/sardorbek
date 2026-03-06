@@ -52,24 +52,22 @@ export const displayPhone = (phone: string): string => {
   return '+998 (' + digits.slice(3, 5) + ') ' + digits.slice(5, 8) + '-' + digits.slice(8, 10) + '-' + digits.slice(10);
 };
 
-// Format date to Uzbek locale
+// Format date as DD.MM.YYYY
 export const formatDate = (date: string | Date): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = d.getFullYear();
+  return `${dd}.${mm}.${yy}`;
 };
 
-// Format date and time to Uzbek locale
+// Format date and time as DD.MM.YYYY HH:MM
 export const formatDateTime = (date: string | Date): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}.${mm}.${yy} ${hh}:${min}`;
 };

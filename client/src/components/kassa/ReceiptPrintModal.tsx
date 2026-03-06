@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDateTime } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface ReceiptItem {
@@ -70,7 +70,7 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
             <h2 className="text-2xl font-bold text-slate-900">SARDORBEK FURNITURA</h2>
             <p className="text-sm text-slate-600">Savdo Cheki</p>
             <p className="text-xs text-slate-500 mt-1">
-              {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+              {formatDateTime(receipt.createdAt)}
             </p>
             <p className="text-xs text-slate-500">Chek #: {receipt.receiptNumber || receipt._id.slice(-8)}</p>
           </div>

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Customer } from '../../types';
 import api from '../../utils/api';
-import { formatNumber, formatPhone, displayPhone } from '../../utils/format';
+import { formatNumber, formatPhone, displayPhone, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { regions, regionNames } from '../../data/regions';
@@ -618,7 +618,7 @@ export default function CustomersPro() {
                             </span>
                           </div>
                           <span className="text-xs text-slate-500">
-                            {new Date(debt.createdAt).toLocaleDateString('uz-UZ')}
+                            {formatDate(debt.createdAt)}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">

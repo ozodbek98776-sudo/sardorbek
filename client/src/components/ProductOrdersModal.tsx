@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Package, CheckCircle, XCircle, Calendar, User } from 'lucide-react';
 import api from '../utils/api';
-import { formatNumber } from '../utils/format';
+import { formatNumber, formatDate } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface ProductOrder {
@@ -173,7 +173,7 @@ export function ProductOrdersModal({ isOpen, onClose, onOrderReceived }: Product
                           {statusLabels[order.status]}
                         </span>
                         <span className="text-xs text-slate-500">
-                          {new Date(order.orderDate).toLocaleDateString('uz-UZ')}
+                          {formatDate(order.orderDate)}
                         </span>
                       </div>
                       <p className="text-sm text-slate-600 mb-2">{order.description}</p>

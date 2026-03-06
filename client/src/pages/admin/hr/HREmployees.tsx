@@ -5,6 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader, StatCard, ActionButton } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
+import { formatDate } from '../../../utils/format';
 
 interface Employee {
   _id: string;
@@ -562,7 +563,7 @@ export default function HREmployees() {
                     <p className="text-2xl font-bold text-purple-900">
                       {(currentSalarySetting.salaryType === 'hourly' ? currentSalarySetting.hourlyRate : currentSalarySetting.baseSalary).toLocaleString()} so'm
                     </p>
-                    <p className="text-xs text-purple-600 mt-1">{new Date(currentSalarySetting.effectiveFrom).toLocaleDateString('uz-UZ')} dan</p>
+                    <p className="text-xs text-purple-600 mt-1">{formatDate(currentSalarySetting.effectiveFrom)} dan</p>
                   </div>
                 )}
 
@@ -605,7 +606,7 @@ export default function HREmployees() {
                       <div key={s._id} className="flex justify-between items-center bg-gray-50 rounded-lg p-3 border border-gray-200 mb-2">
                         <div>
                           <p className="font-semibold text-gray-900">{s.baseSalary.toLocaleString()} so'm</p>
-                          <p className="text-xs text-gray-500">{new Date(s.effectiveFrom).toLocaleDateString('uz-UZ')} - {new Date(s.effectiveTo!).toLocaleDateString('uz-UZ')}</p>
+                          <p className="text-xs text-gray-500">{formatDate(s.effectiveFrom)} - {formatDate(s.effectiveTo!)}</p>
                         </div>
                         <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Tugagan</span>
                       </div>

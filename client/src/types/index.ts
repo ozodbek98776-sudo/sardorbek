@@ -17,7 +17,7 @@ export interface ProductImage {
 
 // YANGI NARX TIZIMI TURLARI
 export type PriceType = 'cost' | 'unit' | 'box' | 'discount1' | 'discount2' | 'discount3';
-export type UnitType = 'dona' | 'kg' | 'metr' | 'litr' | 'karobka';
+export type UnitType = 'dona' | 'kg' | 'metr' | 'litr' | 'karobka' | 'qop';
 
 export interface ProductPrice {
   type: PriceType;
@@ -36,6 +36,10 @@ export interface MetrInfo {
   metersPerOram: number;
 }
 
+export interface PachkaInfo {
+  unitsPerPachka: number;
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -46,6 +50,7 @@ export interface Product {
   prices: ProductPrice[];
   boxInfo?: BoxInfo;
   metrInfo?: MetrInfo;
+  pachkaInfo?: PachkaInfo;
   
   // ESKI NARX FIELDLARI (backward compatibility uchun)
   costPrice?: number;

@@ -14,7 +14,7 @@ const XPrinterLabel: React.FC<XPrinterLabelProps> = ({
   code,
   name,
   quantity,
-  date = new Date().toLocaleDateString('uz-UZ')
+  date = `${String(new Date().getDate()).padStart(2,'0')}.${String(new Date().getMonth()+1).padStart(2,'0')}.${new Date().getFullYear()}`
 }) => {
   const qrRef = useRef<HTMLCanvasElement>(null);
 

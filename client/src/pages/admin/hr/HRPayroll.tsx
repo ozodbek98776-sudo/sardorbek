@@ -5,7 +5,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
-import { formatNumber } from '../../../utils/format';
+import { formatNumber, formatDate } from '../../../utils/format';
 
 interface Payroll {
   _id: string;
@@ -227,7 +227,7 @@ export default function HRPayroll() {
                         )}
                         {p.status === 'paid' && p.paymentDate && (
                           <span className="text-xs text-gray-400">
-                            {new Date(p.paymentDate).toLocaleDateString('uz-UZ')}
+                            {formatDate(p.paymentDate)}
                           </span>
                         )}
                       </td>

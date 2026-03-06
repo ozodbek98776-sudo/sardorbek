@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Search, DollarSign, X, Calendar, Eye, Trash2, CheckCircle, Clock, FileText } from 'lucide-react';
 import { Debt } from '../../types';
 import api from '../../utils/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 
 export default function KassaDebts() {
@@ -275,7 +275,7 @@ export default function KassaDebts() {
                 {debt.dueDate && (
                   <div className="flex items-center gap-1 text-[8px] text-slate-500 mb-1.5">
                     <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
-                    <span className="truncate">Muddat: {new Date(debt.dueDate).toLocaleDateString('uz-UZ')}</span>
+                    <span className="truncate">Muddat: {formatDate(debt.dueDate)}</span>
                   </div>
                 )}
 
@@ -335,7 +335,7 @@ export default function KassaDebts() {
                   <p><span className="text-slate-500">Qoldiq:</span> <span className="font-bold text-orange-600">{formatNumber(selectedDebt.amount - selectedDebt.paidAmount)} so'm</span></p>
                   <p><span className="text-slate-500">Holat:</span> <span className={`px-2 py-1 rounded text-sm font-semibold ${getStatusColor(selectedDebt.status)}`}>{getStatusText(selectedDebt.status)}</span></p>
                   {selectedDebt.dueDate && (
-                    <p><span className="text-slate-500">Muddat:</span> <span className="font-medium">{new Date(selectedDebt.dueDate).toLocaleDateString('uz-UZ')}</span></p>
+                    <p><span className="text-slate-500">Muddat:</span> <span className="font-medium">{formatDate(selectedDebt.dueDate)}</span></p>
                   )}
                 </div>
               </div>
