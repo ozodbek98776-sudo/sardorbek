@@ -881,13 +881,13 @@ export default function KassaProNew() {
       />
       
       {/* Main Content - Fully Responsive */}
-      <div className="w-full h-[calc(100vh-64px)] overflow-hidden">
+      <div className="w-full h-[calc(100vh-64px)] overflow-y-auto lg:overflow-hidden">
         <div className="h-full max-w-[1920px] mx-auto">
           {/* Desktop: Side by side | Mobile: Stacked with fixed cart */}
           <div className="h-full flex flex-col lg:flex-row lg:gap-4 lg:p-4">
-            
-            {/* Left: Products/Receipts - Scrollable */}
-            <div className="flex-1 overflow-y-auto lg:overflow-y-auto px-3 py-3 lg:px-0 lg:py-0 space-y-3 lg:space-y-4">
+
+            {/* Left: Products/Receipts - Scrollable (desktop only) */}
+            <div className="flex-1 lg:overflow-y-auto px-3 py-3 lg:px-0 lg:py-0 space-y-3 lg:space-y-4">
               {/* Tabs */}
               <KassaTabs
                 activeTab={activeTab}

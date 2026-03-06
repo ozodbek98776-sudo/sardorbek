@@ -118,7 +118,7 @@ export default function ProductModal({
         </div>
 
         {/* Unit Selection */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Birlik</label>
             <select
@@ -134,6 +134,23 @@ export default function ProductModal({
               <option value="qop">Qop</option>
             </select>
           </div>
+          {/* Pachka - dona tanlanganda shu yerda ko'rinadi */}
+          {formData.unit === 'dona' && (
+            <div className="bg-blue-50 rounded-lg p-3">
+              <label className="block text-xs font-medium text-blue-700 mb-1">1 pachkada nechta dona? (ixtiyoriy)</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                value={formData.pachkaInfo.unitsPerPachka}
+                onChange={(e) => handleFormChange({ pachkaInfo: { unitsPerPachka: e.target.value } })}
+                placeholder="Masalan: 100"
+                min="1"
+              />
+              {formData.pachkaInfo.unitsPerPachka && Number(formData.pachkaInfo.unitsPerPachka) > 1 && (
+                <p className="text-xs text-blue-600 mt-1">1 pachka = {formData.pachkaInfo.unitsPerPachka} dona</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Product Name */}
@@ -343,28 +360,6 @@ export default function ProductModal({
           </div>
         )}
 
-        {/* Pachka Information - dona birligi uchun */}
-        {formData.unit === 'dona' && (
-          <div className="border-t pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Pachka ma'lumotlari (ixtiyoriy)</label>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">1 pachkada nechta dona?</label>
-              <input
-                type="number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={formData.pachkaInfo.unitsPerPachka}
-                onChange={(e) => handleNestedChange('pachkaInfo', { unitsPerPachka: e.target.value })}
-                placeholder="Masalan: 100"
-                min="1"
-              />
-            </div>
-            {formData.pachkaInfo.unitsPerPachka && Number(formData.pachkaInfo.unitsPerPachka) > 1 && (
-              <p className="text-xs text-blue-600 mt-1">
-                1 pachka = {formData.pachkaInfo.unitsPerPachka} dona
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Metr O'ram Information */}
         {formData.unit === 'metr' && (

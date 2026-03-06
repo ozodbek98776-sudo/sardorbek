@@ -759,7 +759,18 @@ export default function ProductsOptimized() {
 
         {/* Products Grid */}
         {loading ? (
-          <LoadingSpinner size="lg" text="Yuklanmoqda..." />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="w-full aspect-square bg-gray-200 animate-pulse" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+                  <div className="h-5 bg-gray-200 rounded animate-pulse w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : filteredProducts.length === 0 ? (
           <EmptyState
             icon={Package}
