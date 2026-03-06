@@ -1,0 +1,18 @@
+# Barcha matn fayllar LF (Unix) bo'lsin - build hash consistency uchun
+* text=auto eol=lf
+
+# Binary fayllar o'zgartirilmasin
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Windows batch fayllar CRLF bo'lsin
+*.bat text eol=crlf
+*.cmd text eol=crlf
