@@ -29,7 +29,7 @@ ssh $VPS "cd $PROJECT && git pull origin main"
 
 # 2. Frontend build (eski dist o'chirilib yangi build qilinadi)
 echo "[2/3] Frontend build..."
-ssh $VPS "bash -c '$NVM_CMD && rm -rf $PROJECT/client/dist && cd $PROJECT/client && npm run build'"
+ssh $VPS "bash -c '$NVM_CMD && cd $PROJECT/client && npm run build'"
 
 # 3. Backend restart
 echo "[3/3] Backend restart..."
