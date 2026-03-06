@@ -38,22 +38,31 @@ function fixChunkRefsPlugin(): Plugin {
       const fileSet = new Set(files);
       const toFix = new Map<string, string>();
 
-      // Entry bundle ichidagi barcha JS chunk referenslarini topamiz
-      const re = /assets\/([\w-]+)\.js\b/g;
+      // Entry bundle ichidagi barcha JS va CSS referenslarini topamiz
+      const re = /assets\/([\w-]+)\.(js|css)\b/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(entry)) !== null) {
         const ref = m[1];
-        if (!fileSet.has(`${ref}.js`) && !toFix.has(ref)) {
-          // Mos keluvchi to'liq nomli faylni topamiz
-          const actual = files.find(f => f.startsWith(`${ref}-`) && f.endsWith('.js'));
-          if (actual) toFix.set(ref, actual.slice(0, -3));
+        const ext = m[2];
+        const key = `${ref}.${ext}`;
+        if (!fileSet.has(key) && !toFix.has(key)) {
+          // Mos keluvchi uzun nomli faylni topamiz
+          const actual = files.find(f => f.startsWith(`${ref}-`) && f.endsWith(`.${ext}`));
+          if (actual) {
+            toFix.set(key, actual.slice(0, -(ext.length + 1)));
+          } else if (ext === 'css') {
+            // Mos CSS yo'q — asosiy CSS faylga yo'naltiramiz
+            const mainCss = files.find(f => f.startsWith('index-') && f.endsWith('.css'));
+            if (mainCss) toFix.set(key, mainCss.slice(0, -4));
+          }
         }
       }
 
       if (toFix.size === 0) return;
 
-      for (const [ref, actual] of toFix) {
-        entry = entry.replaceAll(`${ref}.js`, `${actual}.js`);
+      for (const [key, actual] of toFix) {
+        const ext = key.split('.').pop()!;
+        entry = entry.replaceAll(key, `${actual}.${ext}`);
       }
       fs.writeFileSync(entryPath, entry);
     }
