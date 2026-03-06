@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { 
@@ -428,15 +429,17 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
         </div>
       )}
 
-      {/* Exchange Rate Modal */}
-      {showExchangeRateModal && (
+    </aside>
+
+      {/* Exchange Rate Modal - portal orqali body ga render qilinadi (sidebar transform bug fix) */}
+      {showExchangeRateModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
-            onClick={() => setShowExchangeRateModal(false)} 
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowExchangeRateModal(false)}
           />
-          
-          <div 
+
+          <div
             className="relative w-full sm:w-auto max-w-md p-4 sm:p-8 rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[90vh] overflow-hidden z-10"
             style={{
               background: 'linear-gradient(145deg, #ffffff 0%, #faf5ff 100%)',
@@ -449,8 +452,8 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                 <DollarSign className="w-5 h-5" />
                 USD/UZS Kursi
               </h3>
-              <button 
-                onClick={() => setShowExchangeRateModal(false)} 
+              <button
+                onClick={() => setShowExchangeRateModal(false)}
                 className="flex-shrink-0 p-2 rounded-xl transition-all"
                 style={{ background: '#f0fdf4', color: '#22c55e' }}
               >
@@ -466,17 +469,17 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                   </label>
                   <div className="relative">
                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#a1a1aa' }} />
-                    <input 
-                      type="number" 
-                      className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none" 
+                    <input
+                      type="number"
+                      className="w-full pl-12 pr-4 py-4 rounded-2xl transition-all duration-200 focus:outline-none"
                       style={{
                         background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
                         border: '1.5px solid #bbf7d0',
                         color: '#15803d'
                       }}
-                      placeholder="12000" 
+                      placeholder="12000"
                       value={exchangeRate}
-                      onChange={e => setExchangeRate(Number(e.target.value))} 
+                      onChange={e => setExchangeRate(Number(e.target.value))}
                       min="1"
                     />
                   </div>
@@ -485,9 +488,9 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                   </p>
                 </div>
                 <div className="flex gap-4 pt-4">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowExchangeRateModal(false)} 
+                  <button
+                    type="button"
+                    onClick={() => setShowExchangeRateModal(false)}
                     className="flex-1 px-6 py-3.5 font-semibold rounded-2xl transition-all duration-200"
                     style={{
                       background: '#f0fdf4',
@@ -496,9 +499,9 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
                   >
                     Bekor qilish
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={handleExchangeRateSave} 
+                  <button
+                    type="button"
+                    onClick={handleExchangeRateSave}
                     className="flex-1 px-6 py-3.5 text-white font-semibold rounded-2xl transition-all duration-200"
                     style={{
                       background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
@@ -511,10 +514,9 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-
-    </aside>
     </>
   );
 }
