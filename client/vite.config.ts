@@ -1,12 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import fs from 'fs'
+import path from 'path'
+
+function versionPlugin(): Plugin {
+  return {
+    name: 'version-json',
+    closeBundle() {
+      const version = { v: Date.now().toString() };
+      const outDir = path.resolve(__dirname, 'dist');
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(outDir, 'version.json'),
+        JSON.stringify(version)
+      );
+    }
+  };
+}
 
 export default defineConfig({
   plugins: [
     react({
       // Fast Refresh optimizatsiyasi
       fastRefresh: true
-    })
+    }),
+    versionPlugin()
   ],
   server: {
     port: 5173,

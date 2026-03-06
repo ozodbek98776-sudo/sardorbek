@@ -6,6 +6,7 @@ import { API_BASE_URL } from './config/api';
 import ErrorBoundary from './components/ErrorBoundary';
 import DebugModal from './components/DebugModal';
 import { cleanupAllModals } from './utils/modalCleanup';
+import { useVersionCheck } from './hooks/useVersionCheck';
 
 // Eager loading - darhol kerak bo'lgan sahifalar
 import Login from './pages/Login';
@@ -140,6 +141,8 @@ const RoleRedirect = () => {
 };
 
 function App() {
+  useVersionCheck();
+
   // Cleanup modals on mount
   useEffect(() => {
     cleanupAllModals();
