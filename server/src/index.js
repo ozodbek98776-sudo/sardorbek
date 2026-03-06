@@ -79,13 +79,16 @@ const io = new Server(server, {
   pingInterval: 25000
 });
 
+// Server start vaqti — pm2 restart bo'lganda o'zgaradi
+const SERVER_START_TIME = Date.now().toString();
+
 // Socket.IO connection handler
 io.on('connection', (socket) => {
-  console.log('✅ Socket.IO client connected:', socket.id);
-  
-  socket.on('disconnect', () => {
-    console.log('❌ Socket.IO client disconnected:', socket.id);
-  });
+  // Yangi ulangan clientga server versiyasini yuborish
+  // Client eski versiyani eslab, yangi versiya kelsa o'zi reload qiladi
+  socket.emit('app:version', SERVER_START_TIME);
+
+  socket.on('disconnect', () => {});
 });
 
 // Make io globally available

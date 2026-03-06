@@ -1,35 +1,44 @@
 import { useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 
-const CHECK_INTERVAL = 2 * 60 * 1000; // 2 daqiqa
+const POLL_INTERVAL = 2 * 60 * 1000; // 2 daqiqa (socket ishlamasa)
 
 export function useVersionCheck() {
-  const currentVersion = useRef<string | null>(null);
+  const httpVersion = useRef<string | null>(null);
+  const socketVersion = useRef<string | null>(null);
 
+  // --- HTTP polling (zapas) ---
   useEffect(() => {
-    const fetchVersion = async () => {
+    const check = async () => {
       try {
-        const res = await fetch(`/version.json?t=${Date.now()}`, {
-          cache: 'no-store',
-        });
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
-        const data = await res.json();
-        const v: string = data.v;
-
-        if (!currentVersion.current) {
-          currentVersion.current = v;
-          return;
-        }
-
-        if (currentVersion.current !== v) {
-          window.location.reload();
-        }
-      } catch {
-        // Tarmoq xatosi — keyingi tekshirishda ko'riladi
-      }
+        const { v } = await res.json();
+        if (!httpVersion.current) { httpVersion.current = v; return; }
+        if (httpVersion.current !== v) window.location.reload();
+      } catch { /* tarmoq xatosi */ }
     };
-
-    fetchVersion();
-    const id = setInterval(fetchVersion, CHECK_INTERVAL);
+    check();
+    const id = setInterval(check, POLL_INTERVAL);
     return () => clearInterval(id);
+  }, []);
+
+  // --- Socket.io (darhol) ---
+  useEffect(() => {
+    const url = window.location.origin;
+    const socket = io(url, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: Infinity,
+    });
+
+    socket.on('app:version', (v: string) => {
+      if (!socketVersion.current) { socketVersion.current = v; return; }
+      if (socketVersion.current !== v) window.location.reload();
+    });
+
+    return () => { socket.disconnect(); };
   }, []);
 }
