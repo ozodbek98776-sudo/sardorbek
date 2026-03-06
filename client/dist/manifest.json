@@ -1,0 +1,88 @@
+{
+  "name": "Sardorbek Furnetura - Biznes Boshqaruv Tizimi",
+  "short_name": "Sardorbek.Furnetura",
+  "description": "Professional mebel biznesini boshqarish tizimi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "uz",
+  "categories": ["business", "productivity", "finance"],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-narrow.png", 
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/o5sk1awh.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Statistika",
+      "short_name": "Statistika",
+      "description": "Biznes tahlillarini ko'rish",
+      "url": "/admin",
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mahsulotlar",
+      "short_name": "Mahsulotlar", 
+      "description": "Mahsulotlarni boshqarish",
+      "url": "/admin/products",
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "POS Tizimi",
+      "short_name": "POS",
+      "description": "Savdo nuqtasi",
+      "url": "/cashier",
+      "icons": [{ "src": "/o5sk1awh.png", "sizes": "192x192" }]
+    }
+  ]
+}
