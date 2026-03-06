@@ -2,28 +2,34 @@
 # =============================================
 # SARDORBEK DEPLOY SKRIPTI
 # =============================================
-# QOIDALAR:
-#   1. Lokal: kod yoz → npm run build → commit → push
-#   2. VPS: git pull → pm2 restart (rebuild YO'Q)
+# Workflow:
+#   Lokal: kod yoz → git push
+#   VPS:   git pull → npm run build → pm2 restart
 #
-# SABAB: Windows va Linux Vite turli hash nomlar
-# chiqaradi. Dist lokal build dan kelishi shart.
+# VPS da build qilinadi - bu standart va to'g'ri.
+# index.html va barcha fayllar bir xil muhitdan
+# chiqadi → hash mos keladi → muammo yo'q.
 # =============================================
 
 set -e
 
 VPS="root@207.180.195.154"
 PROJECT="/var/www/sardorbek"
+NVM="export NVM_DIR=\"\$HOME/.nvm\" && [ -s \"\$NVM_DIR/nvm.sh\" ] && \\. \"\$NVM_DIR/nvm.sh\""
 
 echo "🚀 Deploy boshlandi..."
 
-# 1. VPS dan so'nggi commit olish
+# 1. So'nggi kodlarni olish
 echo "📥 git pull..."
 ssh $VPS "cd $PROJECT && git pull origin main"
 
-# 2. Backend restart (server fayllari o'zgargan bo'lsa)
+# 2. Frontend build (VPS da - standart)
+echo "🔨 Frontend build..."
+ssh $VPS "$NVM && cd $PROJECT/client && npm run build"
+
+# 3. Backend restart
 echo "🔄 Backend restart..."
-ssh $VPS "cd $PROJECT && pm2 restart sardorbek-backend --update-env"
+ssh $VPS "pm2 restart sardorbek-backend --update-env"
 
 echo "✅ Deploy tugadi!"
 echo "🌐 https://sardorbek.biznesjon.uz"
