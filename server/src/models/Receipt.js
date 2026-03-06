@@ -59,4 +59,9 @@ const receiptSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+receiptSchema.index({ createdAt: -1 });
+receiptSchema.index({ createdBy: 1 });
+receiptSchema.index({ customer: 1 });
+receiptSchema.index({ status: 1 });
+
 module.exports = mongoose.model('Receipt', receiptSchema);

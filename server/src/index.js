@@ -26,7 +26,7 @@ const POSTelegramBot = require('./telegram.bot');
 const DebtTelegramBot = require('./debt.bot');
 
 // Security configuration
-const { validateSecurityConfig, logSecurityEvent } = require('./config/security');
+const { securityConfig, validateSecurityConfig, logSecurityEvent } = require('./config/security');
 
 // XAVFSIZLIK: Server ishga tushishdan oldin xavfsizlik tekshiruvlari
 const securityErrors = validateSecurityConfig();
@@ -95,23 +95,7 @@ io.on('connection', (socket) => {
 global.io = io;
 
 // ⚡ Security - Helmet middleware
-// Helmet temporarily disabled for debugging
-// app.use(helmet({
-//   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
-//     directives: {
-//       defaultSrc: ["'self'"],
-//       styleSrc: ["'self'", "'unsafe-inline'"],
-//       scriptSrc: ["'self'"],
-//       imgSrc: ["'self'", "data:", "https:"],
-//       connectSrc: ["'self'", "wss:", "ws:"],
-//       fontSrc: ["'self'"],
-//       objectSrc: ["'none'"],
-//       mediaSrc: ["'self'"],
-//       frameSrc: ["'none'"],
-//     },
-//   } : false, // Development da o'chirilgan
-//   crossOriginEmbedderPolicy: false
-// }));
+app.use(helmet(securityConfig.helmet));
 
 // ⚡ Request logging (VAQTINCHA O'CHIRILDI)
 // app.use(logger.requestLogger());
@@ -119,8 +103,8 @@ global.io = io;
 // ⚡ Performance monitoring - VAQTINCHA O'CHIRILDI
 // app.use(performanceMonitor.middleware());
 
-// ⚡ Input sanitization - XAVFSIZLIK UCHUN YOQILDI (VAQTINCHA O'CHIRILDI)
-// app.use(sanitizeInput);
+// ⚡ Input sanitization - XSS va NoSQL injection himoya
+app.use(sanitizeInput);
 
 // ⚡ HTTP Keep-Alive - connection'larni qayta ishlatish
 app.use((req, res, next) => {

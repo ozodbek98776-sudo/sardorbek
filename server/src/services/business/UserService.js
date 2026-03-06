@@ -188,38 +188,6 @@ class UserService extends BaseService {
         throw this.createValidationError('Login/telefon va parol kiritilishi kerak');
       }
 
-      // Hardcoded admin check
-      const HARDCODED_ADMIN = {
-        login: 'admin',
-        password: 'admin123',
-        name: 'System Admin',
-        role: 'admin'
-      };
-
-      // Agar hardcoded admin bo'lsa
-      if (loginOrPhone === HARDCODED_ADMIN.login && password === HARDCODED_ADMIN.password) {
-        // Hardcoded admin uchun fake user object
-        const adminUser = {
-          _id: 'hardcoded-admin-id',
-          name: HARDCODED_ADMIN.name,
-          login: HARDCODED_ADMIN.login,
-          role: HARDCODED_ADMIN.role
-        };
-
-        const token = this.generateToken(adminUser);
-
-        this.logOperation('Hardcoded admin logged in', {
-          login: HARDCODED_ADMIN.login,
-          role: HARDCODED_ADMIN.role
-        });
-
-        return {
-          success: true,
-          token,
-          user: adminUser
-        };
-      }
-
       // Database dan foydalanuvchi qidirish
       let user = null;
       

@@ -12,4 +12,6 @@ const customerSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+customerSchema.index({ createdBy: 1 });
+
 module.exports = mongoose.model('Customer', customerSchema);

@@ -8,29 +8,25 @@ const router = express.Router();
 // Service larni olish
 const debtService = serviceFactory.debt;
 
-// Kassa uchun qarzlarni olish (auth talab qilmaydi) - faqat tasdiqlangan qarzlar
-router.get('/kassa', serviceWrapper(async (req, res) => {
-  const filters = { 
+// Kassa uchun qarzlarni olish - faqat tasdiqlangan qarzlar
+router.get('/kassa', auth, serviceWrapper(async (req, res) => {
+  const filters = {
     status: req.query.status || 'approved',
     type: req.query.type
   };
   const result = await debtService.getDebts(filters);
-  return result.data; // Return only the data array for backward compatibility
+  return result.data;
 }));
 
-// Kassa uchun qarz o'chirish (auth talab qilmaydi)
-router.delete('/kassa/:id', serviceWrapper(async (req, res) => {
-  // Dummy user for kassa operations
-  const kassaUser = { _id: 'kassa-user', role: 'admin', name: 'Kassa' };
-  const result = await debtService.deleteDebt(req.params.id, kassaUser);
+// Kassa uchun qarz o'chirish
+router.delete('/kassa/:id', auth, serviceWrapper(async (req, res) => {
+  const result = await debtService.deleteDebt(req.params.id, req.user);
   return result;
 }));
 
-// Kassa uchun yangi qarz qo'shish (auth talab qilmaydi)
-router.post('/kassa', serviceWrapper(async (req, res) => {
-  // Dummy user for kassa operations
-  const kassaUser = { _id: 'kassa-user', role: 'admin', name: 'Kassa' };
-  const result = await debtService.createDebt(req.body, kassaUser);
+// Kassa uchun yangi qarz qo'shish
+router.post('/kassa', auth, serviceWrapper(async (req, res) => {
+  const result = await debtService.createDebt(req.body, req.user);
   return result;
 }));
 

@@ -19,18 +19,7 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Hardcoded admin check
-    if (decoded.id === 'hardcoded-admin-id') {
-      req.user = {
-        _id: 'hardcoded-admin-id',
-        name: 'System Admin',
-        login: 'admin',
-        role: 'admin'
-      };
-      return next();
-    }
-    
+
     // Database dan foydalanuvchi qidirish
     const user = await User.findById(decoded.id).select('-password');
     if (!user) return res.status(401).json({ message: 'Foydalanuvchi topilmadi' });

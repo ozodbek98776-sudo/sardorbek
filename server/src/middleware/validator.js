@@ -204,9 +204,8 @@ const sanitizeInput = (req, res, next) => {
   const sanitize = (obj) => {
     if (typeof obj === 'string') {
       return obj
-        .replace(/[<>]/g, '') // Remove < and >
         .replace(/javascript:/gi, '') // XSS prevention
-        .replace(/on\w+=/gi, '') // Remove event handlers
+        .replace(/on\w+\s*=/gi, '') // Remove event handlers (onclick=, onload= va h.k.)
         .trim();
     }
     if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {

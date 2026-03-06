@@ -73,19 +73,17 @@ router.post('/:id/receive', auth, authorize('admin'), async (req, res) => {
       throw error;
     }
     
-    // Update product quantities
-    for (const item of order.products) {
+    // Update product quantities (parallel)
+    await Promise.all(order.products.map(async (item) => {
       const product = await Product.findById(item.product);
       if (product) {
         product.quantity += item.quantity;
         await product.save();
-        
-        // Emit socket event for real-time update
         if (global.io) {
           global.io.emit('product:updated', product);
         }
       }
-    }
+    }));
     
     // Update order status
     order.status = 'received';
