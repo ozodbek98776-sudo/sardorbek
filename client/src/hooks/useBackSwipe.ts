@@ -103,8 +103,20 @@ export const useBackSwipe = (config: SwipeConfig = {}) => {
     const findSwipeTarget = (el: HTMLElement): { target: HTMLElement; isModal: boolean } | null => {
       const modal = el.closest('[data-modal="true"]') as HTMLElement;
       if (modal) {
-        const content = modal.querySelector('[data-swipe-content]') as HTMLElement
-          || modal.firstElementChild as HTMLElement;
+        // 1) Explicit data-swipe-content
+        const explicit = modal.querySelector('[data-swipe-content]') as HTMLElement;
+        if (explicit) return { target: explicit, isModal: true };
+
+        // 2) Overlay ni o'tkazib yuborib, haqiqiy content ni topish
+        const children = Array.from(modal.children) as HTMLElement[];
+        const content = children.find(child => {
+          const cls = child.className || '';
+          // Overlay = absolute/fixed inset-0 yoki .overlay class
+          if ((cls.includes('absolute') || cls.includes('fixed')) && cls.includes('inset-0')) return false;
+          if (cls.includes('overlay')) return false;
+          return true;
+        }) || modal.firstElementChild as HTMLElement;
+
         return content ? { target: content, isModal: true } : null;
       }
       const main = document.querySelector('main') as HTMLElement;
