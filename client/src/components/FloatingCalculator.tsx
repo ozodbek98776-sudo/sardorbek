@@ -44,17 +44,20 @@ export default function FloatingCalculator() {
     setBtnPos({ x: newX, y: newY });
   }, []);
 
+  const openCalculator = useCallback(() => {
+    setIsOpen(true);
+    setModalPos({
+      x: Math.max(8, (window.innerWidth - 320) / 2),
+      y: Math.max(8, (window.innerHeight - 500) / 2)
+    });
+  }, []);
+
   const onBtnPointerUp = useCallback(() => {
     btnDragging.current = false;
     if (!btnMoved.current) {
-      setIsOpen(true);
-      // Center modal
-      setModalPos({
-        x: Math.max(8, (window.innerWidth - 320) / 2),
-        y: Math.max(8, (window.innerHeight - 500) / 2)
-      });
+      openCalculator();
     }
-  }, []);
+  }, [openCalculator]);
 
   // Modal drag handlers (header only)
   const onModalPointerDown = useCallback((e: React.PointerEvent) => {
@@ -154,7 +157,8 @@ export default function FloatingCalculator() {
           onPointerDown={onBtnPointerDown}
           onPointerMove={onBtnPointerMove}
           onPointerUp={onBtnPointerUp}
-          className="fixed z-[9999] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center touch-none"
+          onClick={() => { if (!btnMoved.current) openCalculator(); }}
+          className="fixed z-[9999] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center"
           style={{
             left: btnPos.x,
             top: btnPos.y,
