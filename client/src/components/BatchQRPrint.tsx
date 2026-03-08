@@ -5,6 +5,7 @@ import { getUnitPrice } from '../utils/pricing';
 
 interface Product {
   _id: string;
+  code?: number;
   name: string;
   price: number;
   unit?: string;
@@ -89,7 +90,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     printItems.forEach(item => {
       const unitPrice = getUnitPrice(item.product);
       const displayPrice = unitPrice || item.product.price || 0;
-      const shortCode = item.product._id.slice(-6).toUpperCase();
+      const shortCode = String(item.product.code || '');
 
       for (let i = 0; i < item.copies; i++) {
         labelsHtml += `
@@ -293,7 +294,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
               {printItems.map((item, index) => {
                 const unitPrice = getUnitPrice(item.product);
                 const displayPrice = unitPrice || item.product.price || 0;
-                const shortCode = item.product._id.slice(-6).toUpperCase();
+                const shortCode = String(item.product.code || '');
                 return (
                   <div key={item.product._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                     {/* QR preview */}

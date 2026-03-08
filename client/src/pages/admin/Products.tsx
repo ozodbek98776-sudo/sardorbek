@@ -918,9 +918,10 @@ export default function ProductsOptimized() {
 
       {/* Single Label Print Modal */}
       {showSingleLabelPrint && selectedProduct && (
-        <BatchQRPrint 
+        <BatchQRPrint
           products={[{
             _id: selectedProduct._id,
+            code: (selectedProduct as any).code,
             name: selectedProduct.name,
             price: (selectedProduct as any).unitPrice || (selectedProduct as any).price || 0,
             unit: selectedProduct.unit,
@@ -932,9 +933,10 @@ export default function ProductsOptimized() {
 
       {/* Batch QR Print Modal */}
       {showBatchPrint && (
-        <BatchQRPrint 
+        <BatchQRPrint
           products={getSelectedProductsForBatch().map(p => ({
             _id: p._id,
+            code: (p as any).code,
             name: p.name,
             price: (p as any).unitPrice || (p as any).price || 0,
             unit: p.unit,

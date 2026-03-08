@@ -42,6 +42,7 @@ export interface PachkaInfo {
 
 export interface Product {
   _id: string;
+  code?: number;
   name: string;
   description?: string;
   

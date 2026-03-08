@@ -440,43 +440,35 @@ router.get('/', auth, async (req, res) => {
 router.get('/scan-qr/:code', auth, async (req, res) => {
   try {
     const { code } = req.params;
-    
-    console.log(`🔍 QR Scanner: Mahsulot qidirilmoqda - ${code}`);
-    
-    // Mahsulotni ID bo'yicha qidirish
-    let query = { _id: code };
-    
-    // Agar MongoDB ObjectId formatida bo'lmasa, qidiruv qilmaylik
-    if (!code.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Mahsulot topilmadi',
-        code: code
-      });
+
+    let product = null;
+
+    // 1) Raqamli kod bo'lsa — code fieldi bo'yicha qidirish
+    if (/^\d+$/.test(code)) {
+      product = await Product.findOne({ code: Number(code) })
+        .populate('warehouse', 'name location');
     }
-    
-    const product = await Product.findOne(query)
-      .populate('warehouse', 'name location');
-    
+
+    // 2) MongoDB ObjectId bo'lsa — _id bo'yicha qidirish (QR URL dan keladi)
+    if (!product && /^[0-9a-fA-F]{24}$/.test(code)) {
+      product = await Product.findById(code)
+        .populate('warehouse', 'name location');
+    }
+
     if (!product) {
-      console.log(`❌ QR Scanner: Mahsulot topilmadi - ${code}`);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         message: 'Mahsulot topilmadi',
         code: code
       });
     }
-    
-    console.log(`✅ QR Scanner: Mahsulot topildi - ${product.name}`);
-    
-    // Mahsulot ma'lumotlarini to'g'ridan-to'g'ri qaytarish (product object)
+
     res.json(product);
   } catch (error) {
-    console.error('❌ QR Scanner xatosi:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Server xatosi', 
-      error: error.message 
+      message: 'Server xatosi',
+      error: error.message
     });
   }
 });

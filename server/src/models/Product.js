@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+// Auto-increment counter
+const counterSchema = new mongoose.Schema({
+  _id: { type: String, required: true },
+  seq: { type: Number, default: 0 }
+});
+const Counter = mongoose.models.Counter || mongoose.model('Counter', counterSchema);
+
 // Narx turlari uchun enum
 const PRICE_TYPES = {
   COST: 'cost',           // Tan narxi
@@ -52,8 +59,13 @@ const priceSchema = new mongoose.Schema({
 }, { _id: false });
 
 const productSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
+  code: {
+    type: Number,
+    unique: true,
+    index: true
+  },
+  name: {
+    type: String,
     required: true,
     trim: true,
     minlength: 2,
@@ -299,6 +311,19 @@ productSchema.statics.getPriceTypes = function() {
 productSchema.statics.getUnitTypes = function() {
   return UNIT_TYPES;
 };
+
+// Auto-increment code before save
+productSchema.pre('save', async function(next) {
+  if (this.isNew && !this.code) {
+    const counter = await Counter.findByIdAndUpdate(
+      'productCode',
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.code = counter.seq;
+  }
+  next();
+});
 
 // Performance indexes
 productSchema.index({ name: 1 });
