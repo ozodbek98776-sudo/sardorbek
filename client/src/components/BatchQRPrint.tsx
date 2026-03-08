@@ -92,6 +92,10 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       const displayPrice = unitPrice || item.product.price || 0;
       const shortCode = String(item.product.code || '');
 
+      // Nom uzunligiga qarab font-size aniqlash
+      const nameLen = item.product.name.length;
+      const nameFontSize = nameLen <= 10 ? 16 : nameLen <= 18 ? 14 : nameLen <= 25 ? 11 : nameLen <= 35 ? 9 : 7.5;
+
       for (let i = 0; i < item.copies; i++) {
         labelsHtml += `
           <div class="label">
@@ -103,7 +107,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                 }
               </div>
               <div class="top-right">
-                <div class="label-name">${item.product.name}</div>
+                <div class="label-name" style="font-size:${nameFontSize}pt">${item.product.name}</div>
               </div>
             </div>
             <div class="price-section">
@@ -147,6 +151,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       display: flex;
       gap: 2mm;
       align-items: flex-start;
+      max-height: ${QR_SIZE}mm;
+      overflow: hidden;
     }
     .label-qr {
       width: ${QR_SIZE}mm;
@@ -173,7 +179,6 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       text-align: center;
     }
     .label-name {
-      font-size: 15pt;
       font-weight: 900;
       color: #000;
       line-height: 1.1;
