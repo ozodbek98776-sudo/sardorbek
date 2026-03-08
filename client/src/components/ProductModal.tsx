@@ -5,6 +5,7 @@ import { formatNumber, formatInputNumber, parseNumber } from '../utils/format';
 import { convertUsdToUzs } from '../utils/exchangeRate';
 import ImageUploadManager from './ImageUploadManager';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export default function ProductModal({
   onImagesChange,
 }: ProductModalProps) {
   useSwipeToClose(isOpen ? onClose : undefined);
+  useModalScrollLock(isOpen);
 
   // Tanlangan kategoriyaga tegishli bo'limlar
   const selectedCategorySubcategories = useMemo(() => {
