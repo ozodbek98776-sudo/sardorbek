@@ -5,6 +5,7 @@ import { Debt } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatDate } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 export default function KassaDebts() {
   const { showAlert, showConfirm, AlertComponent } = useAlert();
@@ -15,6 +16,8 @@ export default function KassaDebts() {
   const [loading, setLoading] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+
+  useSwipeToClose(showViewModal ? () => setShowViewModal(false) : undefined);
 
   useEffect(() => {
     fetchDebts();

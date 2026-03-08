@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { X, Camera, Loader } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
@@ -9,6 +10,7 @@ interface CameraCaptureProps {
 
 export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const { videoRef, canvasRef, isCameraActive, startCamera, stopCamera, capturePhoto } = useCamera();
+  useSwipeToClose(onClose);
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);

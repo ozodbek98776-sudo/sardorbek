@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { X, Printer, Plus, Minus } from 'lucide-react';
 import { getUnitPrice } from '../utils/pricing';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface Product {
   _id: string;
@@ -31,6 +32,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
   const [printItems, setPrintItems] = useState<PrintItem[]>([]);
   const [loading, setLoading] = useState(true);
   const qrContainerRef = useRef<HTMLDivElement>(null);
+
+  useSwipeToClose(onClose);
 
   const formatPrice = (num: number) => new Intl.NumberFormat('uz-UZ').format(num);
 

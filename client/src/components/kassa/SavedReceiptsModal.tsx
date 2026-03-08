@@ -3,6 +3,7 @@ import { X, Receipt, ShoppingBag, Eye, User } from 'lucide-react';
 import { formatNumber, formatDateTime } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface SavedReceipt {
   id: string;
@@ -35,6 +36,7 @@ export function SavedReceiptsModal({
   const [activeTab, setActiveTab] = useState<'saved' | 'helper'>('saved');
 
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   if (!isOpen) return null;
 

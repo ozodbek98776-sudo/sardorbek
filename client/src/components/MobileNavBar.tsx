@@ -4,6 +4,7 @@ import { Settings, X, Check } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface NavItem {
   icon: React.ReactNode;
@@ -22,6 +23,8 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useSwipeToClose(showSettings ? () => setShowSettings(false) : undefined);
 
   const savedItems = user?.settings?.navbarItems || [];
   // Bo'sh array = hammasi ko'rinadi

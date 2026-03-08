@@ -13,6 +13,7 @@ import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { regions, regionNames } from '../../data/regions';
 import { useAuth } from '../../context/AuthContext';
 import { StatCard, LoadingSpinner, EmptyState, Badge, ActionButton, UniversalPageHeader } from '../../components/common';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 export default function Debts() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -52,6 +53,9 @@ export default function Debts() {
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useSwipeToClose(showModal ? () => setShowModal(false) : undefined);
+  useSwipeToClose(showPaymentModal ? () => setShowPaymentModal(false) : undefined);
 
   // Fetch debts with pagination support
   const fetchDebts = useCallback(async (pageNum: number = 1, append: boolean = false) => {

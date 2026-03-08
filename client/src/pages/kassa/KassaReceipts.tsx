@@ -5,6 +5,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { formatNumber, formatDateTime } from '../../utils/format';
 import { useSocket } from '../../hooks/useSocket';
 import { UPLOADS_URL } from '../../config/api';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 const toLocalDateStr = (date: Date): string => {
   const y = date.getFullYear();
@@ -434,6 +435,8 @@ export default function KassaReceipts() {
     setSelectedReceipt(receipt);
     setShowDetailModal(true);
   };
+
+  useSwipeToClose(showDetailModal ? () => setShowDetailModal(false) : undefined);
 
   if (loading) {
     return (

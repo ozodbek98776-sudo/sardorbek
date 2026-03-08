@@ -3,6 +3,7 @@ import { X, TrendingDown, Calendar, Filter } from 'lucide-react';
 import api from '../utils/api';
 import { formatNumber, formatDateTime } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface Expense {
   _id: string;
@@ -47,6 +48,7 @@ export function ExpensesHistoryModal({
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   // Initialize date range based on initialDateFilter
   useEffect(() => {

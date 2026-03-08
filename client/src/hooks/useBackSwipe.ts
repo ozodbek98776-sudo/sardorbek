@@ -1,161 +1,271 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { closeTopModal, hasOpenModal } from './useSwipeToClose';
 
 interface SwipeConfig {
-  threshold?: number;        // Minimal surish masofasi (px)
-  edgeThreshold?: number;    // Chetidan qancha masofada surish boshlanishi kerak (px)
-  disableOnInput?: boolean;  // Inputlarda ishlashini o'chirish
-  fullScreenSwipe?: boolean; // Ekranning istalgan joyidan swipe qilish
+  threshold?: number;
+  edgeThreshold?: number;
+  disableOnInput?: boolean;
+  fullScreenSwipe?: boolean;
+  overlayId?: string;
 }
 
 /**
- * Mobil qurilmalar uchun professional Swipe navigatsiyasi
- * 
- * Mantiq:
- * - O'ngga swipe (Left -> Right) = Orqaga (Back)
- * - Chapga swipe (Right -> Left) = Oldinga (Forward) [faqat edge mode da]
- * 
- * Rejimlar:
- * - Edge Mode (fullScreenSwipe: false): Faqat ekran chetlaridan
- * - Full Screen Mode (fullScreenSwipe: true): Ekranning istalgan joyidan
+ * Professional iOS-style swipe-back with visual feedback.
+ *
+ * - Sahifa/modal real-time siljiydi (translateX)
+ * - Chap tomonda qorong'u overlay
+ * - Modal ochiq bo'lsa — modal yopadi, aks holda navigate(-1)
+ * - 60fps: faqat transform + opacity (GPU accelerated)
  */
 export const useBackSwipe = (config: SwipeConfig = {}) => {
   const navigate = useNavigate();
   const {
-    threshold = 80,           // Minimal 80px surish kerak (professional feel)
-    edgeThreshold = 30,       // Ekran chetidan 30px masofada
+    threshold = 80,
+    edgeThreshold = 30,
     disableOnInput = true,
-    fullScreenSwipe = true    // Default: ekranning istalgan joyidan
+    fullScreenSwipe = true,
+    overlayId = 'swipe-overlay'
   } = config;
 
+  // Refs — state o'zgarishlarisiz tez ishlash uchun
+  const stateRef = useRef({
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    isValidSwipe: false,
+    startTime: 0,
+    targetEl: null as HTMLElement | null,   // siljitilayotgan element
+    isModal: false,                          // modal mi yoki sahifa mi
+    directionLocked: false,                  // gorizontal/vertikal aniqlandi
+    swiping: false                           // hozir swipe qilyaptimi
+  });
+
   useEffect(() => {
-    // Desktop qurilmalarda ishlamasligi uchun tekshiruv
-    const isMobile = () => {
-      return window.innerWidth <= 768 || 'ontouchstart' in window;
+    const isMobile = window.innerWidth <= 1024 || 'ontouchstart' in window;
+    if (!isMobile) return;
+
+    const screenW = () => window.innerWidth;
+
+    // Siljitish uchun target element topish
+    const findSwipeTarget = (el: HTMLElement): { target: HTMLElement; isModal: boolean } | null => {
+      // Modal content (data-modal ichidagi content div)
+      const modal = el.closest('[data-modal="true"]') as HTMLElement;
+      if (modal) {
+        // Modal ichidagi birinchi child container
+        const content = modal.querySelector('[data-swipe-content]') as HTMLElement
+          || modal.firstElementChild as HTMLElement;
+        return content ? { target: content, isModal: true } : null;
+      }
+
+      // Sahifa — <main> element
+      const main = document.querySelector('main') as HTMLElement;
+      return main ? { target: main, isModal: false } : null;
     };
 
-    if (!isMobile()) return;
+    const getOverlay = (): HTMLElement | null => document.getElementById(overlayId);
 
-    let startX = 0;
-    let startY = 0;
-    let currentX = 0;
-    let currentY = 0;
-    let isValidSwipe = false;
-    let swipeStartTime = 0;
-
+    // ─── TOUCH START ───
     const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      startX = touch.clientX;
-      startY = touch.clientY;
-      currentX = startX;
-      currentY = startY;
-      swipeStartTime = Date.now();
-      isValidSwipe = false;
+      const s = stateRef.current;
+      s.isValidSwipe = false;
+      s.directionLocked = false;
+      s.swiping = false;
+      s.targetEl = null;
+      s.isModal = false;
 
-      // Element tekshiruvi: Input, Modal, Slider va boshqalar
+      const touch = e.touches[0];
+      s.startX = touch.clientX;
+      s.startY = touch.clientY;
+      s.currentX = s.startX;
+      s.startTime = Date.now();
+
       if (disableOnInput) {
         const target = e.target as HTMLElement;
-        const isInput = target.closest('input, textarea, select, input[type="range"]');
-        const isModal = target.closest('.modal, .overlay, [role="dialog"], .swal2-container, .dialog');
-        const isNoSwipe = target.closest('.no-swipe');
-        const isScrollable = target.closest('.overflow-auto, .overflow-scroll, .overflow-y-auto, .overflow-x-auto');
+        if (target.closest('input, textarea, select, [contenteditable], input[type="range"]')) return;
+        if (target.closest('.no-swipe')) return;
 
-        if (isInput || isModal || isNoSwipe) {
-          return;
-        }
-
-        // Scrollable elementlarda faqat edge swipe
-        if (isScrollable && fullScreenSwipe) {
-          const isLeftEdge = startX <= edgeThreshold;
-          if (!isLeftEdge) return;
+        // Scrollable element da faqat chap chetdan
+        const scrollable = target.closest('.overflow-x-auto, .overflow-x-scroll, .scrollbar-hide');
+        if (scrollable) {
+          const sl = scrollable as HTMLElement;
+          // Agar scroll holati 0 dan katta bo'lsa (o'rtada), swipe qilmaslik
+          if (sl.scrollLeft > 5) return;
         }
       }
 
-      // Full screen mode: ekranning istalgan joyidan
-      // Edge mode: faqat ekran chetlaridan
       if (fullScreenSwipe) {
-        isValidSwipe = true;
+        s.isValidSwipe = true;
       } else {
-        const isLeftEdge = startX <= edgeThreshold;
-        const isRightEdge = startX >= window.innerWidth - edgeThreshold;
-        isValidSwipe = isLeftEdge || isRightEdge;
+        s.isValidSwipe = s.startX <= edgeThreshold;
       }
     };
 
+    // ─── TOUCH MOVE ───
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isValidSwipe) return;
+      const s = stateRef.current;
+      if (!s.isValidSwipe) return;
 
       const touch = e.touches[0];
-      currentX = touch.clientX;
-      currentY = touch.clientY;
+      const deltaX = touch.clientX - s.startX;
+      const deltaY = touch.clientY - s.startY;
 
-      const deltaX = currentX - startX;
-      const deltaY = currentY - startY;
+      // Yo'nalishni aniqlash (bir marta)
+      if (!s.directionLocked && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
+        s.directionLocked = true;
+        // Vertikal → swipe emas
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          s.isValidSwipe = false;
+          return;
+        }
+        // Chapga surish → swipe emas (faqat o'ngga)
+        if (deltaX < 0) {
+          s.isValidSwipe = false;
+          return;
+        }
+        // Target topish
+        const result = findSwipeTarget(e.target as HTMLElement);
+        if (!result) { s.isValidSwipe = false; return; }
+        s.targetEl = result.target;
+        s.isModal = result.isModal;
+        s.swiping = true;
 
-      // Agar vertikal harakat gorizontaldan katta bo'lsa, swipe ni bekor qilish
-      if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
-        isValidSwipe = false;
-        return;
+        // GPU tayyor qilish
+        s.targetEl.style.willChange = 'transform';
+        s.targetEl.style.transition = 'none';
       }
 
-      // O'ngga swipe (orqaga qaytish) uchun scroll ni bloklash
-      if (deltaX > 20 && Math.abs(deltaY) < Math.abs(deltaX)) {
+      if (!s.swiping || !s.targetEl) return;
+
+      s.currentX = touch.clientX;
+      const dx = Math.max(0, s.currentX - s.startX);
+
+      // Sahifani siljitish
+      s.targetEl.style.transform = `translateX(${dx}px)`;
+
+      // Overlay qorong'ulik
+      const overlay = getOverlay();
+      if (overlay) {
+        const progress = Math.min(dx / screenW(), 1);
+        overlay.style.opacity = String(progress * 0.5);
+        overlay.style.pointerEvents = 'none';
+        overlay.style.display = 'block';
+      }
+
+      // Browser default (scroll, pull-to-refresh) ni bloklash
+      if (dx > 10) {
         e.preventDefault();
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!isValidSwipe) return;
-
-      const touch = e.changedTouches[0];
-      const endX = touch.clientX;
-      const endY = touch.clientY;
-
-      const deltaX = endX - startX;
-      const deltaY = endY - startY;
-      const swipeDuration = Date.now() - swipeStartTime;
-
-      // Vertikal harakat tekshiruvi
-      if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+    // ─── TOUCH END ───
+    const handleTouchEnd = () => {
+      const s = stateRef.current;
+      if (!s.swiping || !s.targetEl) {
+        resetVisuals();
         return;
       }
 
-      // Minimal masofa tekshiruvi
-      if (Math.abs(deltaX) < threshold) {
-        return;
+      const dx = Math.max(0, s.currentX - s.startX);
+      const duration = Date.now() - s.startTime;
+      const velocity = dx / duration; // px/ms
+      const sw = screenW();
+
+      // Threshold: 30% ekran YOKI tez swipe (velocity > 0.5)
+      const shouldComplete = dx > sw * 0.3 || (velocity > 0.5 && dx > 50);
+
+      if (shouldComplete) {
+        // Animate out
+        const el = s.targetEl;
+        el.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+        el.style.transform = `translateX(${sw}px)`;
+
+        const overlay = getOverlay();
+        if (overlay) {
+          overlay.style.transition = 'opacity 0.25s ease';
+          overlay.style.opacity = '0';
+        }
+
+        setTimeout(() => {
+          // Reset
+          el.style.transition = '';
+          el.style.transform = '';
+          el.style.willChange = '';
+          if (overlay) {
+            overlay.style.transition = '';
+            overlay.style.display = 'none';
+          }
+
+          // Modal yoki navigate
+          if (s.isModal && hasOpenModal()) {
+            closeTopModal();
+          } else {
+            navigate(-1);
+          }
+        }, 250);
+      } else {
+        // Cancel — qaytarish
+        animateBack(s.targetEl);
       }
 
-      // Tezlik hisoblash (velocity) - professional feel uchun
-      const velocity = Math.abs(deltaX) / swipeDuration;
-      const isQuickSwipe = velocity > 0.3; // 0.3 px/ms dan tez
+      s.swiping = false;
+      s.targetEl = null;
+    };
 
-      // O'ngga swipe (Left -> Right) -> Orqaga (Back)
-      if (deltaX > threshold || (isQuickSwipe && deltaX > threshold * 0.6)) {
-        // Smooth animation effect
-        requestAnimationFrame(() => {
-          navigate(-1);
-        });
+    const handleTouchCancel = () => {
+      const s = stateRef.current;
+      if (s.swiping && s.targetEl) {
+        animateBack(s.targetEl);
       }
-      
-      // Chapga swipe (Right -> Left) -> Oldinga (Forward)
-      // Faqat edge mode da va o'ng chetdan boshlanganda
-      else if (!fullScreenSwipe && startX >= window.innerWidth - edgeThreshold && 
-               (deltaX < -threshold || (isQuickSwipe && deltaX < -threshold * 0.6))) {
-        requestAnimationFrame(() => {
-          navigate(1);
-        });
+      s.swiping = false;
+      s.targetEl = null;
+    };
+
+    // ─── HELPERS ───
+    const animateBack = (el: HTMLElement) => {
+      el.style.transition = 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)';
+      el.style.transform = 'translateX(0)';
+
+      const overlay = getOverlay();
+      if (overlay) {
+        overlay.style.transition = 'opacity 0.3s ease';
+        overlay.style.opacity = '0';
+      }
+
+      const cleanup = () => {
+        el.style.transition = '';
+        el.style.transform = '';
+        el.style.willChange = '';
+        if (overlay) {
+          overlay.style.transition = '';
+          overlay.style.display = 'none';
+        }
+        el.removeEventListener('transitionend', cleanup);
+      };
+      el.addEventListener('transitionend', cleanup, { once: true });
+
+      // Fallback agar transitionend fire bo'lmasa
+      setTimeout(cleanup, 350);
+    };
+
+    const resetVisuals = () => {
+      const overlay = getOverlay();
+      if (overlay) {
+        overlay.style.display = 'none';
+        overlay.style.opacity = '0';
       }
     };
 
-    // Passive: false - preventDefault ishlatish uchun
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [navigate, threshold, edgeThreshold, disableOnInput, fullScreenSwipe]);
+  }, [navigate, threshold, edgeThreshold, disableOnInput, fullScreenSwipe, overlayId]);
 };

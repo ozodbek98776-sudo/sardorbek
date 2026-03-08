@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader, StatCard, ActionButton } from '../../../components/common';
 import AlertModal from '../../../components/AlertModal';
 import { formatDate } from '../../../utils/format';
+import { useSwipeToClose } from '../../../hooks/useSwipeToClose';
 
 interface Employee {
   _id: string;
@@ -99,6 +100,11 @@ export default function HREmployees() {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, employeeId: '', employeeName: '' });
 
   const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+
+  useSwipeToClose(showModal ? () => { setShowModal(false); setEditingEmployee(null); } : undefined);
+  useSwipeToClose(showSalaryModal ? () => setShowSalaryModal(false) : undefined);
+  useSwipeToClose(showKPIModal ? () => setShowKPIModal(false) : undefined);
+  useSwipeToClose(showTaskModal ? () => { setShowTaskModal(false); setNewTask({ name: '', dailyReward: '' }); } : undefined);
 
   // Scroll lock for modals
   useEffect(() => {

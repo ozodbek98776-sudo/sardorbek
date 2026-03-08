@@ -4,6 +4,7 @@ import { Product } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { UPLOADS_URL } from '../../config/api';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 import { calculateDiscountedPriceWithInfo } from '../../utils/pricing';
 
 interface ProductDetailModalProps {
@@ -25,6 +26,7 @@ export function ProductDetailModal({
   
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
   
   // Miqdor o'zgarganda skidka narxini yangilash
   useEffect(() => {

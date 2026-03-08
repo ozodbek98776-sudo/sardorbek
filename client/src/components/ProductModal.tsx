@@ -4,6 +4,7 @@ import { Product } from '../types';
 import { formatNumber, formatInputNumber, parseNumber } from '../utils/format';
 import { convertUsdToUzs } from '../utils/exchangeRate';
 import ImageUploadManager from './ImageUploadManager';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -54,6 +55,7 @@ export default function ProductModal({
   uploadedImages,
   onImagesChange,
 }: ProductModalProps) {
+  useSwipeToClose(isOpen ? onClose : undefined);
   if (!isOpen) return null;
 
   // Tanlangan kategoriyaga tegishli bo'limlar

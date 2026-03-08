@@ -10,6 +10,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { printReceipt, ReceiptData } from '../../utils/receipt';
 import { CartItem } from '../../types';
 import { UniversalPageHeader } from '../../components/common';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface HelperReceipt {
   _id: string;
@@ -81,6 +82,8 @@ export default function StaffReceipts() {
     totalAmount: 0,
     totalItems: 0
   });
+
+  useSwipeToClose(showDeleteConfirm ? () => setShowDeleteConfirm(null) : undefined);
 
   useEffect(() => {
     fetchHelpers();

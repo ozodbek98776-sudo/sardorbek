@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -35,7 +36,8 @@ export default function Modal({
 }: ModalProps) {
   // Modal scroll lock
   useModalScrollLock(isOpen);
-  
+  useSwipeToClose(isOpen ? onClose : undefined);
+
   // ESC tugmasi bilan yopish
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

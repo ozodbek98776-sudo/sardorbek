@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
   CreditCard, UserPlus, Receipt, Menu, X, LogOut, Building2, Edit, Phone, Lock, User, Sparkles, Folder, DollarSign, TrendingDown, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 import api from '../utils/api';
 import { formatPhone } from '../utils/format';
 
@@ -34,6 +34,11 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   const [exchangeRate, setExchangeRate] = useState<number>(12000);
   const [formData, setFormData] = useState({ name: '', phone: '', password: '' });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Swipe-to-close: mobile overlay va modallar
+  useSwipeToClose(mobileOpen ? () => setMobileOpen(false) : undefined);
+  useSwipeToClose(showEditModal ? () => setShowEditModal(false) : undefined);
+  useSwipeToClose(showExchangeRateModal ? () => setShowExchangeRateModal(false) : undefined);
 
   // Mobile overlay ni yopish uchun ESC tugmasi
   useEffect(() => {

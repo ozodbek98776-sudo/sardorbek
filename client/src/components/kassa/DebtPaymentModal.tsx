@@ -4,6 +4,7 @@ import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { useAlert } from '../../hooks/useAlert';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface Debt {
   _id: string;
@@ -39,6 +40,7 @@ export function DebtPaymentModal({
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   // Fetch debts
   useEffect(() => {

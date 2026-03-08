@@ -11,6 +11,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { regions, regionNames } from '../../data/regions';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 export default function CustomersPro() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -41,6 +42,9 @@ export default function CustomersPro() {
   const [sortBy, setSortBy] = useState<'name' | 'debt' | 'purchases'>('name');
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useSwipeToClose(showStatsModal ? () => closeStatsModal() : undefined);
+  useSwipeToClose(showModal ? () => closeModal() : undefined);
 
   // Fetch customers with pagination support
   const fetchCustomers = useCallback(async (pageNum: number = 1, append: boolean = false) => {

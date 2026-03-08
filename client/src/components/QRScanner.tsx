@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Camera, Scan, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../utils/api';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface QRScannerProps {
   onScan: (product: any) => void;
@@ -14,6 +15,8 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useSwipeToClose(onClose);
 
   // Body scroll lock when modal is open
   useEffect(() => {

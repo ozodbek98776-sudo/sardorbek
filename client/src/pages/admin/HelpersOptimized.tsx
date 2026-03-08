@@ -4,6 +4,7 @@ import { Users, Plus, Edit2, Trash2, User, Phone, Lock, ShoppingCart, Shield, Do
 import { useHelpersStore, Helper } from '../../store/helpersStore';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import { formatDateTime } from '../../utils/format';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 // Format number helper
 const formatNumber = (num: number) => {
@@ -153,6 +154,9 @@ export default function HelpersOptimized() {
     bonusPercentage: 0
   });
   const [submitting, setSubmitting] = useState(false);
+
+  useSwipeToClose(showModal ? () => setShowModal(false) : undefined);
+  useSwipeToClose(showReceiptsModal ? () => setShowReceiptsModal(false) : undefined);
 
   // Fetch helpers on mount
   useEffect(() => {

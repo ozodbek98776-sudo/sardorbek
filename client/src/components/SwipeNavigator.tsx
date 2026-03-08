@@ -1,26 +1,32 @@
 import { useBackSwipe } from '../hooks/useBackSwipe';
 
 /**
- * Mobil qurilmalar uchun professional global navigatsiya komponenti.
- * Bu komponent vizual ko'rinishga ega emas, faqat swipe funksiyasini ishga tushiradi.
- * App.tsx da BrowserRouter ichiga qo'yilishi kerak.
- * 
- * Xususiyatlar:
- * - Ekranning istalgan joyidan o'nga swipe = orqaga qaytish
- * - Smooth va responsive
- * - Input va modal larda ishlamaydi
- * - Vertikal scroll bilan konflikt qilmaydi
+ * Professional iOS-style swipe navigatsiya.
+ * Visual overlay + sahifa/modal siljishi.
  */
 const SwipeNavigator = () => {
-  // Professional swipe navigatsiyasini faollashtirish
   useBackSwipe({
-    threshold: 80,           // Minimal 80px surish kerak (professional feel)
-    edgeThreshold: 30,       // Edge mode uchun (hozir ishlatilmaydi)
-    disableOnInput: true,    // Inputlarda yozayotganda ishlamaydi
-    fullScreenSwipe: true    // Ekranning istalgan joyidan swipe qilish
+    threshold: 80,
+    edgeThreshold: 30,
+    disableOnInput: true,
+    fullScreenSwipe: true,
+    overlayId: 'swipe-overlay'
   });
 
-  return null; // Vizual hech narsa qaytarmaydi
+  return (
+    <div
+      id="swipe-overlay"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 40%)',
+        zIndex: 9998,
+        display: 'none',
+        opacity: 0,
+        pointerEvents: 'none',
+      }}
+    />
+  );
 };
 
 export default SwipeNavigator;

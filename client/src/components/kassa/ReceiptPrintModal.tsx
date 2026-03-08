@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { X, Printer, Download } from 'lucide-react';
 import { formatNumber, formatDateTime } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface ReceiptItem {
   name: string;
@@ -37,6 +38,7 @@ interface ReceiptPrintModalProps {
 export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   if (!isOpen || !receipt) return null;
 

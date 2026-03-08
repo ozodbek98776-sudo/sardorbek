@@ -3,6 +3,7 @@ import { X, Banknote, CreditCard, AlertTriangle, Smartphone } from 'lucide-react
 import { Customer, CartItem } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -46,7 +47,8 @@ export function PaymentModal({
   
   // Modal scroll lock
   useModalScrollLock(isOpen);
-  
+  useSwipeToClose(isOpen ? onClose : undefined);
+
   const totalPaid = cashAmount + cardAmount + clickAmount;
   const debtAmount = Math.max(0, total - discount - totalPaid);
   const changeAmount = Math.max(0, totalPaid - (total - discount));

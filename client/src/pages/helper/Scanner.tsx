@@ -8,6 +8,7 @@ import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
 import { getDiscountPrices, getUnitLabel, getUnitPrice, getCostPrice } from '../../utils/pricing';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface Customer {
   _id: string;
@@ -43,6 +44,9 @@ export default function HelperScanner() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useSwipeToClose(showCustomerModal ? () => setShowCustomerModal(false) : undefined);
+  useSwipeToClose(scannedProduct ? () => setScannedProduct(null) : undefined);
 
   useEffect(() => {
     fetchProducts();

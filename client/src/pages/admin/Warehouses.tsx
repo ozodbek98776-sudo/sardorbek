@@ -10,6 +10,7 @@ import { extractArrayFromResponse, safeFilter } from '../../utils/arrayHelpers';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import ImageUploadManager from '../../components/ImageUploadManager';
 import { UPLOADS_URL } from '../../config/api';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 export default function Warehouses() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -37,6 +38,11 @@ export default function Warehouses() {
   const [codeError, setCodeError] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [initialUploadedImages, setInitialUploadedImages] = useState<string[]>([]);
+
+  useSwipeToClose(showModal ? () => closeModal() : undefined);
+  useSwipeToClose(showProductsModal ? () => closeProductsModal() : undefined);
+  useSwipeToClose(showAddProductModal ? () => { setShowAddProductModal(false); } : undefined);
+  useSwipeToClose(showQRModal ? () => setShowQRModal(false) : undefined);
 
   useEffect(() => { fetchWarehouses(); }, []);
 

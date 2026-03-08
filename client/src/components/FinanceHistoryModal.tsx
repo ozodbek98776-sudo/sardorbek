@@ -3,6 +3,7 @@ import { X, TrendingUp, TrendingDown, Calendar, DollarSign, Filter } from 'lucid
 import api from '../utils/api';
 import { formatNumber, formatDateTime } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface Transaction {
   _id: string;
@@ -45,6 +46,7 @@ export function FinanceHistoryModal({
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   // Initialize date range based on initialDateFilter
   useEffect(() => {

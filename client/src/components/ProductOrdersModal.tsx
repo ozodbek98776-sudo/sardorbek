@@ -3,6 +3,7 @@ import { X, Package, CheckCircle, XCircle, Calendar, User } from 'lucide-react';
 import api from '../utils/api';
 import { formatNumber, formatDate } from '../utils/format';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
 
 interface ProductOrder {
   _id: string;
@@ -56,6 +57,7 @@ export function ProductOrdersModal({ isOpen, onClose, onOrderReceived }: Product
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
+  useSwipeToClose(isOpen ? onClose : undefined);
 
   useEffect(() => {
     if (isOpen) {

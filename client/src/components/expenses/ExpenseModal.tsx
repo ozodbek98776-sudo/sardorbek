@@ -3,6 +3,7 @@ import { X, DollarSign, FileText, Calendar, Zap, Utensils, Truck, Package, User,
 import { formatInputNumber, parseNumber } from '../../utils/format';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_GRADIENTS, CATEGORY_TYPES } from '../../constants/expenses';
 import api from '../../utils/api';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 
 interface Expense {
   _id?: string;
@@ -306,6 +307,8 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
       onClose();
     }
   }, [loading, resetForm, onClose]);
+
+  useSwipeToClose(isOpen ? handleClose : undefined);
 
   if (!isOpen) return null;
 
