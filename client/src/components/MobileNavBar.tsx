@@ -63,7 +63,10 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
   return (
     <>
       <div className="lg:hidden sticky top-0 z-40 bg-slate-900 shadow-lg">
-        <div className="flex overflow-x-auto scrollbar-hide">
+        <div
+          className="flex overflow-x-auto scrollbar-hide no-swipe"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+        >
           {visibleItems.map((item) => {
             const fullPath = item.path ? `${basePath}${item.path}` : basePath;
             const label = item.label.startsWith('sidebar.') ? t(item.label) : item.label;
@@ -74,15 +77,15 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
                 to={fullPath}
                 end={!item.path}
                 className={({ isActive }) =>
-                  `flex flex-col items-center gap-0.5 px-3 py-2 min-w-[70px] text-center whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
+                  `flex flex-col items-center gap-1 px-4 py-2.5 min-w-[76px] text-center whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
                     isActive
                       ? 'border-cyan-400 text-cyan-400'
                       : 'border-transparent text-slate-400 active:text-slate-200'
                   }`
                 }
               >
-                <span className="[&>svg]:w-4 [&>svg]:h-4">{item.icon}</span>
-                <span className="text-[10px] font-medium leading-tight">{label}</span>
+                <span className="[&>svg]:w-5 [&>svg]:h-5">{item.icon}</span>
+                <span className="text-[11px] font-medium leading-tight">{label}</span>
               </NavLink>
             );
           })}
@@ -90,10 +93,10 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
           {/* Settings button */}
           <button
             onClick={openSettings}
-            className="flex flex-col items-center gap-0.5 px-3 py-2 min-w-[50px] text-slate-500 border-b-2 border-transparent flex-shrink-0"
+            className="flex flex-col items-center gap-1 px-4 py-2.5 min-w-[56px] text-slate-500 border-b-2 border-transparent flex-shrink-0"
           >
-            <Settings className="w-4 h-4" />
-            <span className="text-[9px] font-medium">Sozlash</span>
+            <Settings className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Sozlash</span>
           </button>
         </div>
       </div>
