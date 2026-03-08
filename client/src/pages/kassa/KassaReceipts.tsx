@@ -697,7 +697,7 @@ export default function KassaReceipts() {
 
       {/* Detail Modal */}
       {showDetailModal && selectedReceipt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm" data-modal="true">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
             <div className="sticky top-0 bg-white border-b border-surface-200 p-4 sm:p-6">
               <div className="flex items-center justify-between">

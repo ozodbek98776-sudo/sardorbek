@@ -90,6 +90,7 @@ export default function AlertModal({
   return (
     <div 
       className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4 sm:p-6"
+      data-modal="true"
       style={{ pointerEvents: 'auto' }}
     >
       <div 

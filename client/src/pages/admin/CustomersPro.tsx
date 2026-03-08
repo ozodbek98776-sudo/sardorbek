@@ -550,9 +550,9 @@ export default function CustomersPro() {
 
       {/* Statistika Modal - Clean Design */}
       {showStatsModal && selectedCustomerStats && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/50" 
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" data-modal="true">
+          <div
+            className="absolute inset-0 bg-black/50"
             onClick={closeStatsModal}
           />
           
@@ -677,9 +677,9 @@ export default function CustomersPro() {
 
       {/* Add/Edit Modal - Clean Design */}
       {showModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/50" 
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" data-modal="true">
+          <div
+            className="absolute inset-0 bg-black/50"
           />
           
           <div 

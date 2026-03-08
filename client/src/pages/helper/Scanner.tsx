@@ -543,8 +543,9 @@ export default function HelperScanner() {
 
       {/* Mijoz tanlash modali */}
       {showCustomerModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+          data-modal="true"
           style={{ pointerEvents: 'auto' }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -809,8 +810,9 @@ export default function HelperScanner() {
           )}
 
           {scannedProduct && (
-            <div 
+            <div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+              data-modal="true"
               style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 if (e.target === e.currentTarget) {

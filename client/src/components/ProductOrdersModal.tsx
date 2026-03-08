@@ -121,7 +121,7 @@ export function ProductOrdersModal({ isOpen, onClose, onOrderReceived }: Product
         onClick={onClose} 
       />
       
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-4" data-modal="true">
         <div className="bg-white rounded-2xl lg:rounded-3xl p-6 lg:p-8 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">

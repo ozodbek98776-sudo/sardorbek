@@ -309,7 +309,7 @@ export default function KassaDebts() {
 
       {/* View Modal */}
       {showViewModal && selectedDebt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-modal="true">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scroll-smooth-instagram momentum-scroll">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-slate-900">Qarz tafsilotlari</h3>

@@ -506,7 +506,7 @@ export default function HREmployees() {
 
       {/* ===== Employee Modal ===== */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); setEditingEmployee(null); resetForm(); } }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" data-modal="true" onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); setEditingEmployee(null); resetForm(); } }}>
           <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               {editingEmployee ? 'Xodimni Tahrirlash' : 'Yangi Xodim'}
@@ -553,7 +553,7 @@ export default function HREmployees() {
 
       {/* ===== Salary Modal ===== */}
       {showSalaryModal && salaryEmployee && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowSalaryModal(false); resetSalaryForm(); } }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" data-modal="true" onClick={(e) => { if (e.target === e.currentTarget) { setShowSalaryModal(false); resetSalaryForm(); } }}>
           <div className="bg-white rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-1">{salaryEmployee.name} — Maosh</h2>
             <p className="text-sm text-gray-500 mb-4 capitalize">{salaryEmployee.role}</p>
@@ -627,7 +627,7 @@ export default function HREmployees() {
 
       {/* ===== KPI Modal ===== */}
       {showKPIModal && kpiEmployee && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowKPIModal(false); }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" data-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setShowKPIModal(false); }}>
           <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -703,7 +703,7 @@ export default function HREmployees() {
 
       {/* ===== Add KPI Task Modal ===== */}
       {showTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowTaskModal(false); setNewTask({ name: '', dailyReward: '' }); } }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" data-modal="true" onClick={(e) => { if (e.target === e.currentTarget) { setShowTaskModal(false); setNewTask({ name: '', dailyReward: '' }); } }}>
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Har Kunlik KPI Qo'shish</h2>
             <div className="space-y-4">

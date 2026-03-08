@@ -104,7 +104,7 @@ export default function ProductModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" data-modal="true">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <form
         onSubmit={onSubmit}

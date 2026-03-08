@@ -539,7 +539,7 @@ export default function StaffReceipts() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" data-modal="true">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">

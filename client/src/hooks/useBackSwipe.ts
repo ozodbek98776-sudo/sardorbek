@@ -211,7 +211,7 @@ export const useBackSwipe = (config: SwipeConfig = {}) => {
             el.style.transform = '';
             el.style.willChange = '';
             if (overlay) { overlay.style.transition = ''; overlay.style.display = 'none'; }
-            if (s.isModal && hasOpenModal()) {
+            if (hasOpenModal()) {
               closeTopModal();
             } else {
               navigate(-1);

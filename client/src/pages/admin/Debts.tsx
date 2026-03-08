@@ -921,7 +921,7 @@ export default function Debts() {
 
       {/* Add Debt Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" data-modal="true">
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
               <h3 className="text-lg sm:text-xl font-semibold text-surface-900 truncate">{editingDebt ? 'Qarzni tahrirlash' : 'Yangi qarz'}</h3>
@@ -1097,7 +1097,7 @@ export default function Debts() {
 
       {/* Payment Modal */}
       {showPaymentModal && selectedDebt && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" data-modal="true">
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
               <h3 className="text-lg sm:text-xl font-semibold text-surface-900">To'lov qilish</h3>

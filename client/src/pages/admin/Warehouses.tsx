@@ -343,7 +343,7 @@ export default function Warehouses() {
 
       {/* Add/Edit Warehouse Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" data-modal="true">
           <div className="overlay -z-10" onClick={closeModal} />
           <div className="modal w-full sm:w-auto max-w-md relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
@@ -379,7 +379,7 @@ export default function Warehouses() {
 
       {/* Warehouse Products Modal */}
       {showProductsModal && selectedWarehouse && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-2 lg:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-2 lg:p-4" data-modal="true">
           <div className="overlay -z-10" onClick={closeProductsModal} />
           <div className="modal w-full sm:w-auto max-w-[98vw] lg:max-w-[95vw] relative z-10 flex flex-col max-h-[96vh] lg:max-h-[94vh]">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 lg:p-6 gap-4">
@@ -499,7 +499,7 @@ export default function Warehouses() {
 
       {/* Add/Edit Product Modal */}
       {showAddProductModal && selectedWarehouse && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" data-modal="true">
           <div className="overlay -z-10" onClick={closeAddProductModal} />
           <div className="modal w-full sm:w-auto max-w-lg relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">
@@ -607,7 +607,7 @@ export default function Warehouses() {
       )}
 
       {showQRModal && qrProduct && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" data-modal="true">
           <div className="overlay -z-10" onClick={() => setShowQRModal(false)} />
           <div className="modal w-full sm:w-auto max-w-sm relative z-10 flex flex-col">
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-surface-100 flex items-center justify-between p-4 sm:p-6 gap-4">

@@ -51,6 +51,7 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
   return (
     <div 
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
+      data-modal="true"
       onClick={onClose}
     >
       <div 
