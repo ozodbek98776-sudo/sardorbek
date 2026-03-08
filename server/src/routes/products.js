@@ -405,7 +405,7 @@ router.get('/', auth, async (req, res) => {
     const [total, rawProducts] = await Promise.all([
       Product.countDocuments(query),
       Product.find(query)
-        .select('name price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category subcategory prices boxInfo')
+        .select('name code price quantity description warehouse isMainWarehouse unit images pricingTiers costPrice unitPrice boxPrice previousPrice currentPrice category subcategory prices boxInfo')
         .populate('warehouse', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)

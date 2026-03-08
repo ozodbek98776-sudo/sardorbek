@@ -315,12 +315,31 @@ productSchema.statics.getUnitTypes = function() {
 // Auto-increment code before save
 productSchema.pre('save', async function(next) {
   if (this.isNew && !this.code) {
-    const counter = await Counter.findByIdAndUpdate(
-      'productCode',
-      { $inc: { seq: 1 } },
-      { new: true, upsert: true }
-    );
-    this.code = counter.seq;
+    const Product = mongoose.model('Product');
+    // Bo'sh qolgan kodlarni topish (o'chirilgan mahsulotlar)
+    const allCodes = await Product.find({ code: { $ne: null } })
+      .select('code').sort({ code: 1 }).lean();
+    const usedCodes = new Set(allCodes.map(p => p.code));
+
+    let freeCode = null;
+    for (let i = 1; i <= (allCodes.length + 1); i++) {
+      if (!usedCodes.has(i)) {
+        freeCode = i;
+        break;
+      }
+    }
+
+    if (freeCode) {
+      this.code = freeCode;
+    } else {
+      // Bo'sh kod yo'q — keyingi raqam
+      const counter = await Counter.findByIdAndUpdate(
+        'productCode',
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.code = counter.seq;
+    }
   }
   next();
 });
