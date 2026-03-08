@@ -51,13 +51,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('📦 Extracted serverUser:', serverUser);
           console.log('📦 serverUser.role:', serverUser.role);
           
+          // Server javobini cached settings bilan merge qilish
+          // (hardcoded admin da server settings qaytarmasligi mumkin)
+          if (savedUser) {
+            try {
+              const cached = JSON.parse(savedUser);
+              if (cached.settings && !serverUser.settings?.navbarItems?.length) {
+                serverUser.settings = { ...serverUser.settings, ...cached.settings };
+              }
+            } catch { /* ignore */ }
+          }
+
           // Update user data if different from cached
           if (!savedUser || JSON.stringify(serverUser) !== savedUser) {
-            console.log('🔄 Updating user in state and localStorage');
             localStorage.setItem('user', JSON.stringify(serverUser));
             setUser(serverUser);
-          } else {
-            console.log('✅ Server user matches cached user, no update needed');
           }
           
         } catch (error: any) {

@@ -22,7 +22,7 @@ const auth = async (req, res, next) => {
 
     // Hardcoded admin check
     if (decoded.id === 'hardcoded-admin-id') {
-      req.user = { _id: 'hardcoded-admin-id', name: 'System Admin', login: 'admin', role: 'admin' };
+      req.user = { _id: 'hardcoded-admin-id', name: 'System Admin', login: 'admin', role: 'admin', settings: {} };
       return next();
     }
 
