@@ -24,7 +24,12 @@ const userSchema = new mongoose.Schema({
   totalBonus: { type: Number, default: 0 },
 
   // QR Attendance token
-  qrToken: { type: String, unique: true, sparse: true }
+  qrToken: { type: String, unique: true, sparse: true },
+
+  // User settings
+  settings: {
+    navbarItems: { type: [String], default: [] } // bo'sh = hammasi ko'rinadi
+  }
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

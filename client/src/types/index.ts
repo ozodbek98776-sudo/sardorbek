@@ -1,11 +1,16 @@
 export type UserRole = 'admin' | 'cashier' | 'helper';
 
+export interface UserSettings {
+  navbarItems?: string[];
+}
+
 export interface User {
   _id: string;
   name: string;
   login?: string; // Admin login
   phone: string;
   role: UserRole;
+  settings?: UserSettings;
   createdAt: string;
 }
 

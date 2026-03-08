@@ -237,7 +237,8 @@ class UserService extends BaseService {
         login: user.login,
         phone: user.phone,
         role: user.role,
-        email: user.email
+        email: user.email,
+        settings: user.settings || {}
       };
 
       this.logOperation('User logged in', {

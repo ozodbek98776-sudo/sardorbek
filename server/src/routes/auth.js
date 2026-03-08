@@ -35,6 +35,7 @@ router.get('/me', auth, serviceWrapper(async (req, res) => {
     login: req.user.login,
     phone: req.user.phone || req.user.email,
     role: req.user.role,
+    settings: req.user.settings || {},
     createdAt: req.user.createdAt
   };
 }));
@@ -43,6 +44,16 @@ router.get('/me', auth, serviceWrapper(async (req, res) => {
 router.put('/profile', auth, serviceWrapper(async (req, res) => {
   const result = await userService.updateUser(req.user._id, req.body, req.user);
   return result.user;
+}));
+
+// User settings yangilash
+router.put('/settings', auth, serviceWrapper(async (req, res) => {
+  const User = require('../models/User');
+  const { navbarItems } = req.body;
+  const update = {};
+  if (Array.isArray(navbarItems)) update['settings.navbarItems'] = navbarItems;
+  const user = await User.findByIdAndUpdate(req.user._id, { $set: update }, { new: true }).select('-password');
+  return { success: true, settings: user.settings };
 }));
 
 // Admin login va parolni o'zgartirish
