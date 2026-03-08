@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Calculator, X, Delete, Plus, Minus, Divide, Percent } from 'lucide-react';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
@@ -9,7 +9,49 @@ export default function FloatingCalculator() {
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForNewValue, setWaitingForNewValue] = useState(false);
 
+  // Draggable button
+  const [btnPos, setBtnPos] = useState<{ x: number; y: number } | null>(null);
+  const dragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, bx: 0, by: 0 });
+  const moved = useRef(false);
+
   useModalScrollLock(isOpen);
+
+  // Default position
+  const defaultPos = useCallback(() => ({
+    x: 16,
+    y: window.innerHeight - 72 - 16
+  }), []);
+
+  useEffect(() => {
+    if (!btnPos) setBtnPos(defaultPos());
+  }, [btnPos, defaultPos]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    const pos = btnPos || defaultPos();
+    dragStart.current = { x: t.clientX, y: t.clientY, bx: pos.x, by: pos.y };
+    dragging.current = true;
+    moved.current = false;
+  }, [btnPos, defaultPos]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!dragging.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - dragStart.current.x;
+    const dy = t.clientY - dragStart.current.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true;
+    if (!moved.current) return;
+    e.preventDefault();
+    const nx = Math.max(0, Math.min(window.innerWidth - 56, dragStart.current.bx + dx));
+    const ny = Math.max(0, Math.min(window.innerHeight - 56, dragStart.current.by + dy));
+    setBtnPos({ x: nx, y: ny });
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    dragging.current = false;
+    if (!moved.current) setIsOpen(true);
+  }, []);
 
   // Calculator logic
   const handleNumber = (num: string) => {
@@ -84,11 +126,15 @@ export default function FloatingCalculator() {
 
   return (
     <>
-      {/* Floating Button */}
-      {!isOpen && (
+      {/* Floating Draggable Button */}
+      {!isOpen && btnPos && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed z-[9999] bottom-4 left-4 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center bg-purple-600 hover:bg-purple-700 active:scale-95 transition-transform"
+          onClick={() => { if (!moved.current) setIsOpen(true); }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          className="fixed z-[9999] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center bg-purple-600 hover:bg-purple-700 active:scale-95 transition-[background-color] touch-none"
+          style={{ left: btnPos.x, top: btnPos.y }}
         >
           <Calculator className="w-6 h-6 text-white" />
         </button>
