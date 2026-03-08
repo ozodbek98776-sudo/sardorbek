@@ -206,7 +206,7 @@ function App() {
             </Routes>
           </BrowserRouter>
           <FloatingCalculator />
-          <DebugModal />
+          {/* <DebugModal /> */}
         </AuthProvider>
       </LanguageProvider>
     </ErrorBoundary>
