@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { Calculator, X, Delete, Plus, Minus, Divide, Percent } from 'lucide-react';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 export default function FloatingCalculator() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,74 +9,7 @@ export default function FloatingCalculator() {
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForNewValue, setWaitingForNewValue] = useState(false);
 
-  // Draggable button state
-  const [btnPos, setBtnPos] = useState({ x: -1, y: -1 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const btnDragging = useRef(false);
-  const btnOffset = useRef({ x: 0, y: 0 });
-  const btnMoved = useRef(false);
-
-  // Draggable modal state
-  const [modalPos, setModalPos] = useState({ x: -1, y: -1 });
-  const modalRef = useRef<HTMLDivElement>(null);
-  const modalDragging = useRef(false);
-  const modalOffset = useRef({ x: 0, y: 0 });
-
-  // Set initial button position
-  useEffect(() => {
-    if (btnPos.x === -1) {
-      setBtnPos({ x: window.innerWidth - 70, y: window.innerHeight - 160 });
-    }
-  }, [btnPos.x]);
-
-  // Button drag handlers
-  const onBtnPointerDown = useCallback((e: React.PointerEvent) => {
-    btnDragging.current = true;
-    btnMoved.current = false;
-    btnOffset.current = { x: e.clientX - btnPos.x, y: e.clientY - btnPos.y };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [btnPos]);
-
-  const onBtnPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!btnDragging.current) return;
-    btnMoved.current = true;
-    const newX = Math.max(0, Math.min(window.innerWidth - 56, e.clientX - btnOffset.current.x));
-    const newY = Math.max(0, Math.min(window.innerHeight - 56, e.clientY - btnOffset.current.y));
-    setBtnPos({ x: newX, y: newY });
-  }, []);
-
-  const openCalculator = useCallback(() => {
-    setIsOpen(true);
-    setModalPos({
-      x: Math.max(8, (window.innerWidth - 320) / 2),
-      y: Math.max(8, (window.innerHeight - 500) / 2)
-    });
-  }, []);
-
-  const onBtnPointerUp = useCallback(() => {
-    btnDragging.current = false;
-    if (!btnMoved.current) {
-      openCalculator();
-    }
-  }, [openCalculator]);
-
-  // Modal drag handlers (header only)
-  const onModalPointerDown = useCallback((e: React.PointerEvent) => {
-    modalDragging.current = true;
-    modalOffset.current = { x: e.clientX - modalPos.x, y: e.clientY - modalPos.y };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [modalPos]);
-
-  const onModalPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!modalDragging.current) return;
-    const newX = Math.max(0, Math.min(window.innerWidth - 280, e.clientX - modalOffset.current.x));
-    const newY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - modalOffset.current.y));
-    setModalPos({ x: newX, y: newY });
-  }, []);
-
-  const onModalPointerUp = useCallback(() => {
-    modalDragging.current = false;
-  }, []);
+  useModalScrollLock(isOpen);
 
   // Calculator logic
   const handleNumber = (num: string) => {
@@ -150,43 +84,30 @@ export default function FloatingCalculator() {
 
   return (
     <>
-      {/* Floating Draggable Button */}
+      {/* Floating Button */}
       {!isOpen && (
         <button
-          ref={btnRef}
-          onPointerDown={onBtnPointerDown}
-          onPointerMove={onBtnPointerMove}
-          onPointerUp={onBtnPointerUp}
-          onClick={() => { if (!btnMoved.current) openCalculator(); }}
-          className="fixed z-[9999] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center"
-          style={{
-            left: btnPos.x,
-            top: btnPos.y,
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-            boxShadow: '0 8px 25px -4px rgba(139, 92, 246, 0.5)',
-          }}
+          onClick={() => setIsOpen(true)}
+          className="fixed z-[9999] bottom-4 left-4 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center bg-purple-600 hover:bg-purple-700 active:scale-95 transition-transform"
         >
           <Calculator className="w-6 h-6 text-white" />
         </button>
       )}
 
-      {/* Draggable Calculator Modal */}
+      {/* Calculator Modal */}
       {isOpen && (
         <div
-          ref={modalRef}
-          className="fixed z-[9999] w-[300px] sm:w-[320px] rounded-2xl shadow-2xl overflow-hidden touch-none"
-          style={{
-            left: modalPos.x,
-            top: modalPos.y,
-            boxShadow: '0 25px 60px -12px rgba(0,0,0,0.4)',
-          }}
+          data-modal="true"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setIsOpen(false)}
         >
-          {/* Draggable Header */}
           <div
-            onPointerDown={onModalPointerDown}
-            onPointerMove={onModalPointerMove}
-            onPointerUp={onModalPointerUp}
-            className="flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing select-none"
+            className="w-[300px] sm:w-[320px] rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-4 py-3 select-none"
             style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}
           >
             <div className="flex items-center gap-2 text-white">
@@ -242,6 +163,7 @@ export default function FloatingCalculator() {
                 <Percent className="w-4 h-4" /> Foiz
               </button>
             </div>
+          </div>
           </div>
         </div>
       )}

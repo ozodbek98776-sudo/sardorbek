@@ -30,7 +30,7 @@ export default function AdminLayout() {
 
       {/* Main Content */}
       <main className={`
-        transition-all duration-300 ease-smooth
+        transition-[margin-left] duration-300 ease-smooth
 
         /* Desktop: margin for sidebar */
         ${collapsed ? 'lg:ml-0' : 'lg:ml-64'}
