@@ -104,10 +104,10 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
               </div>
               <div class="top-right">
                 <div class="label-name">${item.product.name}</div>
-                <div class="label-code">Kod: ${shortCode}</div>
               </div>
             </div>
-            <div class="price-row">
+            <div class="price-section">
+              <div class="label-code">Kod: ${shortCode}</div>
               <div class="price-box">
                 <span class="label-price">${formatPrice(displayPrice)}</span>
               </div>
@@ -179,17 +179,18 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       text-transform: uppercase;
       word-break: break-word;
     }
+    .price-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
     .label-code {
       font-size: 7pt;
       color: #555;
-      margin-top: 1mm;
       font-weight: 600;
-    }
-    .price-row {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      text-align: right;
+      margin-bottom: 0.5mm;
     }
     .price-box {
       width: 100%;
@@ -307,8 +308,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="font-black text-slate-900 text-base uppercase leading-tight">{item.product.name}</div>
-                      <div className="text-xs text-slate-500 mt-1">Kod: {shortCode}</div>
-                      <div className="text-lg font-black text-slate-900">{formatPrice(displayPrice)}</div>
+                      <div className="text-xs text-slate-500 mt-1 text-right">Kod: {shortCode}</div>
+                      <div className="text-lg font-black text-slate-900 border border-slate-300 rounded text-center mt-0.5">{formatPrice(displayPrice)}</div>
                     </div>
 
                     {/* Copies */}
