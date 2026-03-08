@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Camera, Scan, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../utils/api';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface QRScannerProps {
   onScan: (product: any) => void;
@@ -17,22 +18,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useSwipeToClose(onClose);
-
-  // Body scroll lock when modal is open
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      document.body.style.overflow = '';
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
+  useModalScrollLock(true);
 
   useEffect(() => {
     // Input'ga avtomatik focus
@@ -95,6 +81,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
 
   return (
     <div 
+      data-modal="true"
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       style={{ pointerEvents: 'auto' }}
       onClick={(e) => {

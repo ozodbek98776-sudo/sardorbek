@@ -5,6 +5,7 @@ import { useHelpersStore, Helper } from '../../store/helpersStore';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import { formatDateTime } from '../../utils/format';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 // Format number helper
 const formatNumber = (num: number) => {
@@ -157,6 +158,7 @@ export default function HelpersOptimized() {
 
   useSwipeToClose(showModal ? () => setShowModal(false) : undefined);
   useSwipeToClose(showReceiptsModal ? () => setShowReceiptsModal(false) : undefined);
+  useModalScrollLock(showModal || showReceiptsModal);
 
   // Fetch helpers on mount
   useEffect(() => {

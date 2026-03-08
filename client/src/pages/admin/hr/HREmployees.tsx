@@ -7,6 +7,7 @@ import { UniversalPageHeader, StatCard, ActionButton } from '../../../components
 import AlertModal from '../../../components/AlertModal';
 import { formatDate } from '../../../utils/format';
 import { useSwipeToClose } from '../../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../../hooks/useModalScrollLock';
 
 interface Employee {
   _id: string;
@@ -105,6 +106,7 @@ export default function HREmployees() {
   useSwipeToClose(showSalaryModal ? () => setShowSalaryModal(false) : undefined);
   useSwipeToClose(showKPIModal ? () => setShowKPIModal(false) : undefined);
   useSwipeToClose(showTaskModal ? () => { setShowTaskModal(false); setNewTask({ name: '', dailyReward: '' }); } : undefined);
+  useModalScrollLock(showModal || showSalaryModal || showKPIModal || showTaskModal);
 
   // Scroll lock for modals
   useEffect(() => {

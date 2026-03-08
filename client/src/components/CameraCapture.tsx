@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { X, Camera, Loader } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
@@ -11,6 +12,7 @@ interface CameraCaptureProps {
 export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const { videoRef, canvasRef, isCameraActive, startCamera, stopCamera, capturePhoto } = useCamera();
   useSwipeToClose(onClose);
+  useModalScrollLock(true);
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -61,8 +63,8 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-lg w-full max-w-md overflow-hidden">
+    <div data-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-lg w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">Rasm olish</h3>
           <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">

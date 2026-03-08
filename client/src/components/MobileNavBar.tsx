@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface NavItem {
   icon: React.ReactNode;
@@ -25,6 +26,7 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
   const [saving, setSaving] = useState(false);
 
   useSwipeToClose(showSettings ? () => setShowSettings(false) : undefined);
+  useModalScrollLock(showSettings);
 
   const savedItems = user?.settings?.navbarItems || [];
   // Bo'sh array = hammasi ko'rinadi
@@ -103,7 +105,7 @@ export default function MobileNavBar({ items, basePath }: MobileNavBarProps) {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end lg:hidden" onClick={() => setShowSettings(false)}>
+        <div data-modal="true" className="fixed inset-0 bg-black/60 z-50 flex items-end lg:hidden" onClick={() => setShowSettings(false)}>
           <div className="bg-white w-full rounded-t-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900">Navbar sozlamalari</h3>

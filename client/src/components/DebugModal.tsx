@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Trash2, ChevronDown } from 'lucide-react';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface LogEntry {
   id: string;
@@ -12,6 +14,8 @@ interface LogEntry {
 export default function DebugModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  useSwipeToClose(isOpen ? () => setIsOpen(false) : undefined);
+  useModalScrollLock(isOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,8 +141,8 @@ export default function DebugModal() {
 
       {/* Debug Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-96 overflow-hidden flex flex-col">
+        <div data-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setIsOpen(false)}>
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-96 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b bg-purple-50">
               <h3 className="text-lg font-semibold text-purple-900">🐛 Debug Logs ({logs.length})</h3>

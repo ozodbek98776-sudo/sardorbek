@@ -11,6 +11,7 @@ import { printReceipt, ReceiptData } from '../../utils/receipt';
 import { CartItem } from '../../types';
 import { UniversalPageHeader } from '../../components/common';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface HelperReceipt {
   _id: string;
@@ -84,6 +85,7 @@ export default function StaffReceipts() {
   });
 
   useSwipeToClose(showDeleteConfirm ? () => setShowDeleteConfirm(null) : undefined);
+  useModalScrollLock(!!showDeleteConfirm);
 
   useEffect(() => {
     fetchHelpers();

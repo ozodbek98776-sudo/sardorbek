@@ -12,6 +12,7 @@ import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { regions, regionNames } from '../../data/regions';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 export default function CustomersPro() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -45,6 +46,7 @@ export default function CustomersPro() {
 
   useSwipeToClose(showStatsModal ? () => closeStatsModal() : undefined);
   useSwipeToClose(showModal ? () => closeModal() : undefined);
+  useModalScrollLock(showStatsModal || showModal);
 
   // Fetch customers with pagination support
   const fetchCustomers = useCallback(async (pageNum: number = 1, append: boolean = false) => {

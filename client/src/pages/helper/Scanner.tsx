@@ -9,6 +9,7 @@ import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
 import { getDiscountPrices, getUnitLabel, getUnitPrice, getCostPrice } from '../../utils/pricing';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface Customer {
   _id: string;
@@ -47,6 +48,7 @@ export default function HelperScanner() {
 
   useSwipeToClose(showCustomerModal ? () => setShowCustomerModal(false) : undefined);
   useSwipeToClose(scannedProduct ? () => setScannedProduct(null) : undefined);
+  useModalScrollLock(showCustomerModal || !!scannedProduct);
 
   useEffect(() => {
     fetchProducts();

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function AlertModal({
 }: AlertModalProps) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   useSwipeToClose(isOpen ? onClose : undefined);
+  useModalScrollLock(isOpen);
 
   // Body scroll lock when modal is open
   useEffect(() => {

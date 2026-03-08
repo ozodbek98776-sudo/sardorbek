@@ -11,6 +11,7 @@ import { UniversalPageHeader, ActionButton } from '../../components/common';
 import ImageUploadManager from '../../components/ImageUploadManager';
 import { UPLOADS_URL } from '../../config/api';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 export default function Warehouses() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -43,6 +44,7 @@ export default function Warehouses() {
   useSwipeToClose(showProductsModal ? () => closeProductsModal() : undefined);
   useSwipeToClose(showAddProductModal ? () => { setShowAddProductModal(false); } : undefined);
   useSwipeToClose(showQRModal ? () => setShowQRModal(false) : undefined);
+  useModalScrollLock(showModal || showProductsModal || showAddProductModal || showQRModal);
 
   useEffect(() => { fetchWarehouses(); }, []);
 

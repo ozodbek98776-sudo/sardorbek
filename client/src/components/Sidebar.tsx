@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import api from '../utils/api';
 import { formatPhone } from '../utils/format';
 
@@ -39,6 +40,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
   useSwipeToClose(mobileOpen ? () => setMobileOpen(false) : undefined);
   useSwipeToClose(showEditModal ? () => setShowEditModal(false) : undefined);
   useSwipeToClose(showExchangeRateModal ? () => setShowExchangeRateModal(false) : undefined);
+  useModalScrollLock(showEditModal || showExchangeRateModal);
 
   // Mobile overlay ni yopish uchun ESC tugmasi
   useEffect(() => {
@@ -312,7 +314,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div data-modal="true" className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
           {/* Backdrop blur - faqat orqa fon */}
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -438,7 +440,7 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
 
       {/* Exchange Rate Modal - portal orqali body ga render qilinadi (sidebar transform bug fix) */}
       {showExchangeRateModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div data-modal="true" className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowExchangeRateModal(false)}

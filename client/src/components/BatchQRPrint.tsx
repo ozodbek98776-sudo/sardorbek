@@ -3,6 +3,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { X, Printer, Plus, Minus } from 'lucide-react';
 import { getUnitPrice } from '../utils/pricing';
 import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 interface Product {
   _id: string;
@@ -34,6 +35,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
   useSwipeToClose(onClose);
+  useModalScrollLock(true);
 
   const formatPrice = (num: number) => new Intl.NumberFormat('uz-UZ').format(num);
 
@@ -253,7 +255,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     return (
       <>
         {hiddenQRs}
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+        <div data-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-2xl p-8 text-center">
             <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-slate-600">QR kodlar yaratilmoqda...</p>
@@ -266,8 +268,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
   return (
     <>
     {hiddenQRs}
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div data-modal="true" className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <div>

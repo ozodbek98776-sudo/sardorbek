@@ -4,6 +4,7 @@ import { formatInputNumber, parseNumber } from '../../utils/format';
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_GRADIENTS, CATEGORY_TYPES } from '../../constants/expenses';
 import api from '../../utils/api';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
 interface Expense {
   _id?: string;
@@ -309,6 +310,7 @@ export function ExpenseModal({ isOpen, onClose, onSave, editingExpense }: Expens
   }, [loading, resetForm, onClose]);
 
   useSwipeToClose(isOpen ? handleClose : undefined);
+  useModalScrollLock(isOpen);
 
   if (!isOpen) return null;
 

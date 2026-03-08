@@ -7,6 +7,8 @@ import { UPLOADS_URL } from '../../config/api';
 import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
+import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { useRealtimeStats } from '../../hooks/useRealtimeStats';
 import { formatNumber, formatDateTime } from '../../utils/format';
 import { getDiscountPrices, calculateDiscountedPrice } from '../../utils/pricing';
@@ -125,6 +127,8 @@ export default function KassaProNew() {
   const [showDebtPayment, setShowDebtPayment] = useState(false);
   const [showProductDetail, setShowProductDetail] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false); // Mobile cart modal
+  useSwipeToClose(showCartModal ? () => setShowCartModal(false) : undefined);
+  useModalScrollLock(showCartModal);
   const [selectedProductForDetail, setSelectedProductForDetail] = useState<Product | null>(null);
   
   const total = cart.reduce((sum, item) => {
@@ -1200,7 +1204,8 @@ export default function KassaProNew() {
       {showCartModal && (
         <>
           <div 
-            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50" 
+            data-modal="true"
+            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={() => setShowCartModal(false)} 
           />
           

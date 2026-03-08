@@ -4,6 +4,8 @@ import { Package, ArrowLeft, Tag, Box, Phone, MapPin, Clock, ChevronRight, Perce
 import axios from 'axios';
 import { formatNumber, formatDate } from '../utils/format';
 import { UPLOADS_URL } from '../config/api';
+import { useSwipeToClose } from '../hooks/useSwipeToClose';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 // API URL
 const API_URL = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -63,6 +65,8 @@ export default function ProductView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  useSwipeToClose(menuOpen ? () => setMenuOpen(false) : undefined);
+  useModalScrollLock(menuOpen);
 
   useEffect(() => {
     if (id) {
@@ -171,6 +175,7 @@ export default function ProductView() {
         <>
           {/* Backdrop */}
           <div 
+            data-modal="true"
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] transition-opacity"
             onClick={() => setMenuOpen(false)}
           />
