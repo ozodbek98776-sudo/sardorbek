@@ -798,7 +798,8 @@ export default function ProductsOptimized() {
                 return (
                   <div
                     key={product._id}
-                    className="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 overflow-hidden relative"
+                    onClick={() => openEditModal(product)}
+                    className="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 overflow-hidden relative cursor-pointer"
                   >
                     {/* Checkbox */}
                     <div className="absolute top-2 left-2 z-10">
@@ -806,12 +807,13 @@ export default function ProductsOptimized() {
                         type="checkbox"
                         checked={selectedProductsForBatch.has(product._id)}
                         onChange={() => toggleProductSelection(product._id)}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-5 h-5 rounded cursor-pointer"
                       />
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => openQRModal(product)}
                         className="w-7 h-7 bg-white/90 hover:bg-purple-100 rounded-lg text-purple-600 flex items-center justify-center transition-colors shadow-sm"
