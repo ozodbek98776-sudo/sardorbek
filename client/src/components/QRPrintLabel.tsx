@@ -53,7 +53,7 @@ const QRPrintLabel: React.FC<QRPrintLabelProps> = ({
       });
       setQrDataUrl(dataUrl);
     } catch (err) {
-      console.error('QR generation error:', err);
+      // QR generation failed silently
     }
   };
 
@@ -68,20 +68,18 @@ const QRPrintLabel: React.FC<QRPrintLabelProps> = ({
     for (let i = 0; i < printCopies; i++) {
       labelsHtml += `
         <div class="label">
-          <div class="top-section">
+          <div class="top-row">
             <div class="qr-box">
-              <img src="${qrDataUrl}" alt="QR" class="qr-code" />
+              <img src="${qrDataUrl}" alt="QR" class="qr-img" />
             </div>
-            <div class="info-box">
-              <div class="product-code">Kod: ${code}</div>
+            <div class="code-box">
+              <div class="product-code">${code}</div>
               <div class="product-name">${name}</div>
-              ${dimensions ? `<div class="product-dimensions">${dimensions}</div>` : ''}
             </div>
           </div>
-          <div class="bottom-section">
-            <div class="price-box">
+          <div class="price-row">
+            <div class="price-border">
               <span class="price-value">${formatPrice(price)}</span>
-              <span class="price-currency">so'm</span>
             </div>
           </div>
         </div>
@@ -98,11 +96,7 @@ const QRPrintLabel: React.FC<QRPrintLabelProps> = ({
             size: ${labelWidth}mm ${labelHeight}mm;
             margin: 0;
           }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: Arial, Helvetica, sans-serif;
             -webkit-print-color-adjust: exact;
@@ -117,77 +111,73 @@ const QRPrintLabel: React.FC<QRPrintLabelProps> = ({
             flex-direction: column;
             page-break-after: always;
           }
-          .label:last-child {
-            page-break-after: auto;
-          }
-          .top-section {
+          .label:last-child { page-break-after: auto; }
+
+          .top-row {
             display: flex;
             gap: 2mm;
-            flex: 1;
+            align-items: flex-start;
           }
           .qr-box {
-            width: 22mm;
-            height: 22mm;
+            width: 16mm;
+            height: 16mm;
             flex-shrink: 0;
           }
-          .qr-code {
-            width: 22mm;
-            height: 22mm;
+          .qr-img {
+            width: 16mm;
+            height: 16mm;
             display: block;
             image-rendering: pixelated;
           }
-          .info-box {
+          .code-box {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            min-height: 16mm;
           }
           .product-code {
-            font-size: 7pt;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 1mm;
+            font-size: 10pt;
+            font-weight: 800;
+            color: #000;
+            letter-spacing: 0.3px;
           }
           .product-name {
-            font-size: 9pt;
-            font-weight: 700;
-            color: #000;
+            font-size: 7pt;
+            color: #555;
+            margin-top: 0.5mm;
             line-height: 1.2;
             text-transform: uppercase;
-            word-break: break-word;
           }
-          .product-dimensions {
-            font-size: 7pt;
-            color: #666;
-            margin-top: 1mm;
+
+          .price-row {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
-          .bottom-section {
-            margin-top: 1.5mm;
-          }
-          .price-box {
-            padding: 1.5mm;
-            text-align: center;
-            background: #f0f0f0;
-            border-radius: 1mm;
+          .price-border {
+            width: 100%;
+            border: 0.6mm solid #000;
+            border-radius: 1.5mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1mm 2mm;
           }
           .price-value {
-            font-size: 14pt;
+            font-size: 22pt;
             font-weight: 900;
             color: #000;
             letter-spacing: -0.5px;
           }
-          .price-currency {
-            font-size: 10pt;
-            font-weight: 700;
-            color: #000;
-            margin-left: 1mm;
-          }
+
           @media print {
             body { background: white; }
           }
           @media screen {
             body { background: #e5e7eb; padding: 10mm; }
-            .label { 
+            .label {
               margin-bottom: 5mm;
               box-shadow: 0 2px 8px rgba(0,0,0,0.1);
               border: 1px solid #ddd;
@@ -215,51 +205,40 @@ const QRPrintLabel: React.FC<QRPrintLabelProps> = ({
   return (
     <div className="qr-print-label w-full">
       {/* Preview */}
-      <div 
-        className="bg-white rounded-lg overflow-hidden mx-auto shadow-md border border-gray-200"
-        style={{ width: '280px', padding: '12px' }}
+      <div
+        className="bg-white rounded-lg overflow-hidden mx-auto border-2 border-gray-300"
+        style={{ width: '280px', padding: '10px' }}
       >
-        {/* Top Section - QR + Info */}
-        <div className="flex gap-3">
-          {/* QR Code */}
+        {/* Top: QR (chap) + Kod (o'ng) */}
+        <div className="flex gap-3 items-start">
           <div className="flex-shrink-0">
             {qrDataUrl ? (
-              <img 
-                src={qrDataUrl} 
+              <img
+                src={qrDataUrl}
                 alt="QR Code"
-                className="w-24 h-24"
+                className="w-16 h-16"
                 style={{ imageRendering: 'pixelated' }}
               />
             ) : (
-              <div className="w-24 h-24 bg-gray-100 flex items-center justify-center">
-                <span className="text-2xl font-bold text-gray-400">QR</span>
+              <div className="w-16 h-16 bg-gray-100 flex items-center justify-center rounded">
+                <span className="text-lg font-bold text-gray-400">QR</span>
               </div>
             )}
           </div>
-
-          {/* Info Box - Kod va Nom */}
-          <div className="flex-1 flex flex-col justify-center">
-            <div className="text-sm font-semibold text-gray-500 mb-1">
-              Kod: {code}
+          <div className="flex-1 flex flex-col justify-center min-h-[64px]">
+            <div className="text-lg font-extrabold text-gray-900 tracking-wide">
+              {code}
             </div>
-            <div className="text-base font-bold text-gray-900 uppercase leading-tight">
+            <div className="text-xs text-gray-500 mt-0.5 uppercase leading-tight">
               {name}
             </div>
-            {dimensions && (
-              <div className="text-sm text-gray-500 mt-1">
-                {dimensions}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Bottom Section - Price */}
-        <div className="mt-3 bg-gray-100 rounded-lg p-2 text-center">
-          <span className="text-2xl font-black text-gray-900">
+        {/* Bottom: Katta narx */}
+        <div className="mt-3 border-2 border-gray-900 rounded-lg flex items-center justify-center py-2.5">
+          <span className="text-4xl font-black text-gray-900 tracking-tight">
             {formatPrice(price)}
-          </span>
-          <span className="text-lg font-bold text-gray-900 ml-1">
-            so'm
           </span>
         </div>
       </div>
