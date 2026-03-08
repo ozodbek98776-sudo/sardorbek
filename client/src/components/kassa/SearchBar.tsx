@@ -48,8 +48,8 @@ export function SearchBar({
     if (!aStartsWith && bStartsWith) return 1;
     
     // Exact code match
-    if (a.code === query && b.code !== query) return -1;
-    if (b.code === query && a.code !== query) return 1;
+    if (String(a.code) === query && String(b.code) !== query) return -1;
+    if (String(b.code) === query && String(a.code) !== query) return 1;
     
     // Code starts with search term
     const aCodeStarts = String(a.code).startsWith(searchTerm);

@@ -89,15 +89,13 @@ router.get('/kassa', async (req, res) => {
 
       if (isNumericSearch) {
         query.$or = [
-          { code: { $regex: `^${searchTerm}`, $options: 'i' } }, // Kod bilan boshlanadi (yuqori prioritet)
-          { code: { $regex: searchTerm, $options: 'i' } }, // Kod tarkibida bor
-          { name: { $regex: searchTerm, $options: 'i' } } // Nom ichida ham qidirish
+          { code: Number(searchTerm) },
+          { $expr: { $regexMatch: { input: { $toString: '$code' }, regex: `^${searchTerm}` } } },
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       } else {
         query.$or = [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { code: { $regex: searchTerm, $options: 'i' } },
-          { code: searchTerm } // Aniq kod bo'yicha qidirish
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       }
     }
@@ -236,14 +234,13 @@ router.get('/search-stats', auth, async (req, res) => {
       
       if (isNumericSearch) {
         query.$or = [
-          { code: { $regex: `^${searchTerm}`, $options: 'i' } },
-          { code: { $regex: searchTerm, $options: 'i' } },
+          { code: Number(searchTerm) },
+          { $expr: { $regexMatch: { input: { $toString: '$code' }, regex: `^${searchTerm}` } } },
           { name: { $regex: searchTerm, $options: 'i' } }
         ];
       } else {
         query.$or = [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { code: { $regex: searchTerm, $options: 'i' } }
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       }
     }
@@ -306,18 +303,17 @@ router.get('/', auth, async (req, res) => {
     const query = {};
 
     if (search) {
-      const isNumericSearch = /^\d+$/.test(search);
+      const searchTerm = String(search).trim();
+      const isNumericSearch = /^\d+$/.test(searchTerm);
       if (isNumericSearch) {
         query.$or = [
-          { code: { $regex: `^${search}`, $options: 'i' } },
-          { code: { $regex: search, $options: 'i' } },
-          { name: { $regex: search, $options: 'i' } }
+          { code: Number(searchTerm) },
+          { $expr: { $regexMatch: { input: { $toString: '$code' }, regex: `^${searchTerm}` } } },
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       } else {
         query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { code: { $regex: search, $options: 'i' } },
-          { code: search }
+          { name: { $regex: searchTerm, $options: 'i' } }
         ];
       }
     }

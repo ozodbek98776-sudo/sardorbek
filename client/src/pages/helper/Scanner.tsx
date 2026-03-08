@@ -227,7 +227,7 @@ export default function HelperScanner() {
           
           // Avval local products'dan qidirish
           let product = products.find(p => 
-            p.code === searchKey || 
+            String(p.code) === searchKey ||
             (p as any)._id === searchKey
           );
 
@@ -330,7 +330,7 @@ export default function HelperScanner() {
           // Xatolik bo'lsa, local'dan qidirish
           let results = products.filter(p =>
             p.name.toLowerCase().includes(query.toLowerCase()) ||
-            p.code.toLowerCase().includes(query.toLowerCase())
+            String(p.code || '').toLowerCase().includes(query.toLowerCase())
           );
           
           if (selectedCategory) {

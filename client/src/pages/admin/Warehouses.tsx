@@ -419,7 +419,7 @@ export default function Warehouses() {
                     .filter(p => 
                       warehouseSearchQuery === '' ||
                       p.name.toLowerCase().includes(warehouseSearchQuery.toLowerCase()) ||
-                      p.code.toLowerCase().includes(warehouseSearchQuery.toLowerCase())
+                      String(p.code || '').toLowerCase().includes(warehouseSearchQuery.toLowerCase())
                     )
                     .map(product => {
                     const productImages = (product as any).images || [];

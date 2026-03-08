@@ -484,7 +484,7 @@ export default function KassaProNew() {
           const searchTerm = searchQuery.trim().toLowerCase();
           const matches = 
             normalizedProduct.name.toLowerCase().includes(searchTerm) ||
-            normalizedProduct.code.toLowerCase().includes(searchTerm);
+            String(normalizedProduct.code || '').toLowerCase().includes(searchTerm);
           
           if (matches) {
             console.log('✅ New product matches search query, adding to results');
