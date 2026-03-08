@@ -44,7 +44,7 @@ const KassaDebts = lazy(() => import('./pages/kassa/KassaDebts'));
 // Employee sahifalari (helper va cashier uchun)
 const MyProfile = lazy(() => import('./pages/employee/MyProfile'));
 const ProductView = lazy(() => import('./pages/ProductView'));
-const SwipeNavigator = lazy(() => import('./components/SwipeNavigator'));
+
 
 // Loading component
 const PageLoader = () => (

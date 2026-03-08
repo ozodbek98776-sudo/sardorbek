@@ -1189,6 +1189,17 @@
     padding-top: max(1rem, var(--safe-area-inset-top));
   }
   
+  /* Swipe overlay — chapdan qorong'u gradient */
+  .swipe-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 40%);
+    z-index: 9998;
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* Instagram-style smooth scrolling utilities */
   .scroll-smooth-instagram {
     scroll-behavior: smooth;
