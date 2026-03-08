@@ -48,8 +48,15 @@ router.put('/profile', auth, serviceWrapper(async (req, res) => {
 
 // User settings yangilash
 router.put('/settings', auth, serviceWrapper(async (req, res) => {
+  const mongoose = require('mongoose');
   const User = require('../models/User');
   const { navbarItems } = req.body;
+
+  // Hardcoded admin uchun — DB da yo'q
+  if (!mongoose.Types.ObjectId.isValid(req.user._id)) {
+    return { success: true, settings: { navbarItems: navbarItems || [] } };
+  }
+
   const update = {};
   if (Array.isArray(navbarItems)) update['settings.navbarItems'] = navbarItems;
   const user = await User.findByIdAndUpdate(req.user._id, { $set: update }, { new: true }).select('-password');
