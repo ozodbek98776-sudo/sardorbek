@@ -152,16 +152,23 @@ export const useBackSwipe = (config: SwipeConfig = {}) => {
       s.currentX = s.startX;
       s.startTime = Date.now();
 
-      if (disableOnInput) {
-        const target = e.target as HTMLElement;
-        if (target.closest('input, textarea, select, [contenteditable], input[type="range"]')) return;
-        if (target.closest('.no-swipe')) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('.no-swipe')) return;
 
-        const scrollable = target.closest('.overflow-x-auto, .overflow-x-scroll, .scrollbar-hide');
-        if (scrollable) {
-          const sl = scrollable as HTMLElement;
-          if (sl.scrollLeft > 5) return;
-        }
+      // Modal ichida bo'lsa — input ustida ham swipe ishlaydi
+      const insideModal = !!target.closest('[data-modal="true"]');
+
+      if (disableOnInput && !insideModal) {
+        if (target.closest('input, textarea, select, [contenteditable], input[type="range"]')) return;
+      }
+
+      // Range input hech qachon swipe qilmasin
+      if (target.closest('input[type="range"]')) return;
+
+      const scrollable = target.closest('.overflow-x-auto, .overflow-x-scroll, .scrollbar-hide');
+      if (scrollable) {
+        const sl = scrollable as HTMLElement;
+        if (sl.scrollLeft > 5) return;
       }
 
       s.isValidSwipe = true;
