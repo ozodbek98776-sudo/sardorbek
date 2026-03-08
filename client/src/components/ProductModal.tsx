@@ -56,7 +56,6 @@ export default function ProductModal({
   onImagesChange,
 }: ProductModalProps) {
   useSwipeToClose(isOpen ? onClose : undefined);
-  if (!isOpen) return null;
 
   // Tanlangan kategoriyaga tegishli bo'limlar
   const selectedCategorySubcategories = useMemo(() => {
@@ -89,6 +88,8 @@ export default function ProductModal({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.costPrice]);
+
+  if (!isOpen) return null;
 
   const handleFormChange = (updates: any) => {
     onFormChange({ ...formData, ...updates });
