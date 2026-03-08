@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAlert } from '../hooks/useAlert';
 import { useAuth } from '../context/AuthContext';
 import Sidebar, { cashierMenuItems } from '../components/Sidebar';
+import SwipeNavigator from '../components/SwipeNavigator';
 
 export default function KassaLayout() {
   const navigate = useNavigate();
@@ -137,6 +138,7 @@ export default function KassaLayout() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)' }}>
+      <SwipeNavigator navItems={cashierMenuItems} basePath="/kassa" />
       {/* Sidebar */}
       <Sidebar 
         items={cashierMenuItems} 

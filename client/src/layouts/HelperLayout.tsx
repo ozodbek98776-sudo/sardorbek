@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useOutletContext } from 'react-router-dom';
 import { LogOut, Sparkles, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar, { helperMenuItems } from '../components/Sidebar';
+import SwipeNavigator from '../components/SwipeNavigator';
 
 export default function HelperLayout() {
   const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ export default function HelperLayout() {
 
   return (
     <div className="min-h-screen bg-surface-50">
+      <SwipeNavigator navItems={helperMenuItems} basePath="/helper" />
       {/* Sidebar */}
       <Sidebar 
         items={helperMenuItems} 

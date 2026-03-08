@@ -153,9 +153,6 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <Suspense fallback={<PageLoader />}>
-              <SwipeNavigator />
-            </Suspense>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/product/:id" element={<Suspense fallback={<PageLoader />}><ProductView /></Suspense>} />

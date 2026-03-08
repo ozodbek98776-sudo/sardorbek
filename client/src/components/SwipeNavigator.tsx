@@ -1,16 +1,18 @@
 import { useBackSwipe } from '../hooks/useBackSwipe';
 
-/**
- * Professional iOS-style swipe navigatsiya.
- * Visual overlay + sahifa/modal siljishi.
- */
-const SwipeNavigator = () => {
+interface SwipeNavigatorProps {
+  navItems?: { path: string }[];
+  basePath?: string;
+}
+
+const SwipeNavigator = ({ navItems, basePath }: SwipeNavigatorProps) => {
   useBackSwipe({
-    threshold: 80,
     edgeThreshold: 30,
     disableOnInput: true,
     fullScreenSwipe: true,
-    overlayId: 'swipe-overlay'
+    overlayId: 'swipe-overlay',
+    navItems,
+    basePath
   });
 
   return (
