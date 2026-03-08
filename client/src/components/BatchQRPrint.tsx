@@ -170,12 +170,13 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       flex-direction: column;
       justify-content: center;
       min-height: ${QR_SIZE}mm;
+      text-align: center;
     }
     .label-name {
-      font-size: 12pt;
+      font-size: 15pt;
       font-weight: 900;
       color: #000;
-      line-height: 1.15;
+      line-height: 1.1;
       text-transform: uppercase;
       word-break: break-word;
     }
