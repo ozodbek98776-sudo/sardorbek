@@ -168,7 +168,8 @@ export const useBackSwipe = (config: SwipeConfig = {}) => {
       const scrollable = target.closest('.overflow-x-auto, .overflow-x-scroll, .scrollbar-hide');
       if (scrollable) {
         const sl = scrollable as HTMLElement;
-        if (sl.scrollLeft > 5) return;
+        // Agar element gorizontal scroll qilish mumkin bo'lsa — swipe bloklash
+        if (sl.scrollWidth > sl.clientWidth + 5) return;
       }
 
       s.isValidSwipe = true;
