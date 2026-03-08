@@ -89,19 +89,27 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
     printItems.forEach(item => {
       const unitPrice = getUnitPrice(item.product);
       const displayPrice = unitPrice || item.product.price || 0;
+      const shortCode = item.product._id.slice(-6).toUpperCase();
 
       for (let i = 0; i < item.copies; i++) {
         labelsHtml += `
           <div class="label">
-            <div class="label-left">
-              <div class="label-name">${item.product.name}</div>
-              <div class="label-price">${formatPrice(displayPrice)} so'm</div>
+            <div class="top-row">
+              <div class="label-qr">
+                ${item.qrDataUrl
+                  ? `<img src="${item.qrDataUrl}" alt="QR" />`
+                  : `<div class="qr-placeholder"></div>`
+                }
+              </div>
+              <div class="top-right">
+                <div class="label-code">${shortCode}</div>
+                <div class="label-name">${item.product.name}</div>
+              </div>
             </div>
-            <div class="label-qr">
-              ${item.qrDataUrl
-                ? `<img src="${item.qrDataUrl}" alt="QR" style="width:${QR_SIZE}mm;height:${QR_SIZE}mm;display:block;" />`
-                : `<div style="width:${QR_SIZE}mm;height:${QR_SIZE}mm;background:#eee;"></div>`
-              }
+            <div class="price-row">
+              <div class="price-box">
+                <span class="label-price">${formatPrice(displayPrice)}</span>
+              </div>
             </div>
           </div>`;
       }
@@ -127,41 +135,75 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       width: ${LABEL_W}mm;
       height: ${LABEL_H}mm;
       display: flex;
-      flex-direction: row;
-      align-items: flex-start;
+      flex-direction: column;
       padding: 2mm;
-      gap: 2mm;
       background: white;
       border: 0.3mm solid #ccc;
       page-break-inside: avoid;
       overflow: hidden;
     }
-    .label-left {
+    .top-row {
+      display: flex;
+      gap: 2mm;
+      align-items: flex-start;
+    }
+    .label-qr {
+      width: ${QR_SIZE}mm;
+      height: ${QR_SIZE}mm;
+      flex-shrink: 0;
+    }
+    .label-qr img {
+      width: ${QR_SIZE}mm;
+      height: ${QR_SIZE}mm;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .qr-placeholder {
+      width: ${QR_SIZE}mm;
+      height: ${QR_SIZE}mm;
+      background: #eee;
+    }
+    .top-right {
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      gap: 1.5mm;
-      min-width: 0;
-      overflow: hidden;
+      justify-content: center;
+      min-height: ${QR_SIZE}mm;
+    }
+    .label-code {
+      font-size: 10pt;
+      font-weight: 800;
+      color: #000;
+      letter-spacing: 0.5px;
     }
     .label-name {
-      font-size: 8pt;
-      font-weight: 700;
-      color: #000;
+      font-size: 7pt;
+      color: #555;
       line-height: 1.2;
+      margin-top: 0.5mm;
+      text-transform: uppercase;
       word-break: break-word;
     }
-    .label-price {
-      font-size: 15pt;
-      font-weight: 900;
-      color: #CC0000;
-      line-height: 1;
+    .price-row {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .label-qr {
-      flex-shrink: 0;
-      width: ${QR_SIZE}mm;
-      height: ${QR_SIZE}mm;
+    .price-box {
+      width: 100%;
+      border: 0.6mm solid #000;
+      border-radius: 1.5mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1mm 2mm;
+    }
+    .label-price {
+      font-size: 20pt;
+      font-weight: 900;
+      color: #000;
+      letter-spacing: -0.5px;
     }
   </style>
 </head>
@@ -251,6 +293,7 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
               {printItems.map((item, index) => {
                 const unitPrice = getUnitPrice(item.product);
                 const displayPrice = unitPrice || item.product.price || 0;
+                const shortCode = item.product._id.slice(-6).toUpperCase();
                 return (
                   <div key={item.product._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                     {/* QR preview */}
@@ -262,8 +305,9 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-500 tracking-wide">{shortCode}</div>
                       <div className="font-semibold text-slate-900 text-sm truncate">{item.product.name}</div>
-                      <div className="text-sm font-bold text-red-600">{formatPrice(displayPrice)} so'm</div>
+                      <div className="text-lg font-black text-slate-900">{formatPrice(displayPrice)}</div>
                     </div>
 
                     {/* Copies */}
