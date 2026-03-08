@@ -103,8 +103,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
                 }
               </div>
               <div class="top-right">
-                <div class="label-code">${shortCode}</div>
                 <div class="label-name">${item.product.name}</div>
+                <div class="label-code">Kod: ${shortCode}</div>
               </div>
             </div>
             <div class="price-row">
@@ -171,19 +171,19 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
       justify-content: center;
       min-height: ${QR_SIZE}mm;
     }
-    .label-code {
+    .label-name {
       font-size: 10pt;
       font-weight: 800;
       color: #000;
-      letter-spacing: 0.5px;
-    }
-    .label-name {
-      font-size: 7pt;
-      color: #555;
       line-height: 1.2;
-      margin-top: 0.5mm;
       text-transform: uppercase;
       word-break: break-word;
+    }
+    .label-code {
+      font-size: 7pt;
+      color: #555;
+      margin-top: 0.5mm;
+      font-weight: 600;
     }
     .price-row {
       flex: 1;
@@ -306,8 +306,8 @@ const BatchQRPrint: React.FC<BatchQRPrintProps> = ({ products, onClose }) => {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-slate-500 tracking-wide">{shortCode}</div>
-                      <div className="font-semibold text-slate-900 text-sm truncate">{item.product.name}</div>
+                      <div className="font-extrabold text-slate-900 text-sm uppercase leading-tight">{item.product.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Kod: {shortCode}</div>
                       <div className="text-lg font-black text-slate-900">{formatPrice(displayPrice)}</div>
                     </div>
 
