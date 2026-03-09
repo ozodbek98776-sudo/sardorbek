@@ -53,6 +53,7 @@ const partnerRoutes = require('./routes/partners');
 const categoryRoutes = require('./routes/categories');
 const monitoringRoutes = require('./routes/monitoring');
 const expenseRoutes = require('./routes/expenses');
+const contactRoutes = require('./routes/contacts');
 
 // HR Routes
 const hrEmployeeRoutes = require('./routes/hr/employees');
@@ -233,6 +234,7 @@ app.use('/api/partners', partnerRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/monitoring', adminLimiter, monitoringRoutes); // Admin operations
 app.use('/api/expenses', adminLimiter, expenseRoutes); // Admin operations - Xarajatlar
+app.use('/api/contacts', contactRoutes);
 
 // HR Routes - Admin only
 app.use('/api/hr/employees', adminLimiter, hrEmployeeRoutes);
