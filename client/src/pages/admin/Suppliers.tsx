@@ -400,19 +400,19 @@ export default function Suppliers() {
       <div className="max-w-4xl mx-auto px-4 pt-4 space-y-4">
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
             <p className="text-xs text-gray-500">Jami kirim</p>
             <p className="text-lg font-bold">{fmt(selected.totalAmount)}</p>
           </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
             <p className="text-xs text-gray-500">To'langan</p>
             <p className="text-lg font-bold text-green-600">{fmt(selected.totalPaid)}</p>
           </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
             <p className="text-xs text-gray-500">Qarz</p>
             <p className={`text-lg font-bold ${selected.totalDebt > 0 ? 'text-red-600' : 'text-gray-400'}`}>{fmt(selected.totalDebt)}</p>
           </div>
-          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
             <p className="text-xs text-gray-500">Kirimlar soni</p>
             <p className="text-lg font-bold">{selected.transactionCount}</p>
           </div>
@@ -431,7 +431,7 @@ export default function Suppliers() {
             )}
           </div>
           {(selected.company || selected.address || selected.note) && (
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-2">
               {selected.company && <p className="text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-gray-400" />{selected.company}</p>}
               {selected.address && <p className="text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-400" />{selected.address}</p>}
               {selected.note && <p className="text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" />{selected.note}</p>}
@@ -447,7 +447,7 @@ export default function Suppliers() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {transactions.map(tx => (
-                <div key={tx._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div key={tx._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <p className="text-xs text-gray-500">
@@ -547,7 +547,7 @@ export default function Suppliers() {
               <h3 className="text-sm font-medium text-gray-700 mb-2">Tanlangan mahsulotlar ({kirimItems.length})</h3>
               <div className="space-y-2 md:max-h-[60vh] md:overflow-y-auto">
                 {kirimItems.map((item, idx) => (
-                  <div key={item.product} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                  <div key={item.product} className="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium truncate flex-1">{item.name}</span>
                       <button onClick={() => removeKirimItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600">
@@ -589,7 +589,7 @@ export default function Suppliers() {
 
         {/* Payment section */}
         {kirimItems.length > 0 && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 max-w-xl">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 max-w-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold text-gray-900">Jami:</h3>
               <p className="text-lg font-bold text-orange-600">{fmt(kirimTotal)} so'm</p>
