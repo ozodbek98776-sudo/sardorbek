@@ -345,33 +345,35 @@ export default function Suppliers() {
         </button>
         <h1 className="text-lg font-bold">{view === 'edit' ? "Tahrirlash" : "Yangi ta'minotchi"}</h1>
       </div>
-      <div className="px-4 pt-4 space-y-4">
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Ism *</label>
-          <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
-          <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Kompaniya</label>
-          <input value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Manzil</label>
-          <input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      <div className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Ism *</label>
+            <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+            <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Kompaniya</label>
+            <input value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Manzil</label>
+            <input value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
         </div>
         <div>
           <label className="text-sm font-medium text-gray-700 mb-1 block">Izoh</label>
           <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} rows={2}
             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
         </div>
-        <button onClick={saveSupplier} className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm">
+        <button onClick={saveSupplier} className="w-full md:w-auto md:px-12 py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm">
           {view === 'edit' ? 'Saqlash' : "Qo'shish"}
         </button>
       </div>
@@ -395,9 +397,9 @@ export default function Suppliers() {
         </button>
       </div>
 
-      <div className="px-4 pt-4 space-y-4">
+      <div className="max-w-4xl mx-auto px-4 pt-4 space-y-4">
         {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
             <p className="text-xs text-gray-500">Jami kirim</p>
             <p className="text-lg font-bold">{fmt(selected.totalAmount)}</p>
@@ -416,26 +418,26 @@ export default function Suppliers() {
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          <button onClick={() => openKirim(selected)} className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
-            <Package className="w-4 h-4" /> Kirim
-          </button>
-          {selected.totalDebt > 0 && (
-            <button onClick={() => openPayDebt(selected)} className="flex-1 py-3 bg-green-500 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
-              <Banknote className="w-4 h-4" /> Qarz to'lash
+        {/* Action buttons + Info row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex gap-3">
+            <button onClick={() => openKirim(selected)} className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+              <Package className="w-4 h-4" /> Kirim
             </button>
+            {selected.totalDebt > 0 && (
+              <button onClick={() => openPayDebt(selected)} className="flex-1 py-3 bg-green-500 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+                <Banknote className="w-4 h-4" /> Qarz to'lash
+              </button>
+            )}
+          </div>
+          {(selected.company || selected.address || selected.note) && (
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
+              {selected.company && <p className="text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-gray-400" />{selected.company}</p>}
+              {selected.address && <p className="text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-400" />{selected.address}</p>}
+              {selected.note && <p className="text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" />{selected.note}</p>}
+            </div>
           )}
         </div>
-
-        {/* Info */}
-        {(selected.company || selected.address || selected.note) && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
-            {selected.company && <p className="text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-gray-400" />{selected.company}</p>}
-            {selected.address && <p className="text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-400" />{selected.address}</p>}
-            {selected.note && <p className="text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" />{selected.note}</p>}
-          </div>
-        )}
 
         {/* Transactions history */}
         <div>
@@ -443,7 +445,7 @@ export default function Suppliers() {
           {transactions.length === 0 ? (
             <p className="text-center text-gray-500 py-6">Hali kirim yo'q</p>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {transactions.map(tx => (
                 <div key={tx._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                   <div className="flex justify-between items-start mb-2">
@@ -457,7 +459,6 @@ export default function Suppliers() {
                       {tx.totalAmount > 0 ? fmt(tx.totalAmount) : `+${fmt(tx.paidAmount)}`} so'm
                     </p>
                   </div>
-                  {/* Items */}
                   {tx.items.length > 0 && (
                     <div className="mb-2 space-y-1">
                       {tx.items.map((item, i) => (
@@ -468,7 +469,6 @@ export default function Suppliers() {
                       ))}
                     </div>
                   )}
-                  {/* Payment breakdown */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
                     {tx.cashAmount > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Naqd: {fmt(tx.cashAmount)}</span>}
                     {tx.cardAmount > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Karta: {fmt(tx.cardAmount)}</span>}
@@ -485,7 +485,7 @@ export default function Suppliers() {
 
         {/* Delete button */}
         {selected.transactionCount === 0 && (
-          <button onClick={() => deleteSupplier(selected._id)} className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+          <button onClick={() => deleteSupplier(selected._id)} className="w-full md:w-auto md:px-12 py-3 bg-red-50 text-red-600 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
             <Trash2 className="w-4 h-4" /> O'chirish
           </button>
         )}
@@ -507,140 +507,149 @@ export default function Suppliers() {
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-4">
-        {/* Product search */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Mahsulot qo'shish</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={productSearch}
-              onChange={e => setProductSearch(e.target.value)}
-              placeholder="Mahsulot qidirish..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
+      <div className="max-w-5xl mx-auto px-4 pt-4 space-y-4">
+        {/* Product search + Kirim items — side by side on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Product search */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">Mahsulot qo'shish</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                placeholder="Mahsulot qidirish..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+            {products.length > 0 && (
+              <div className="mt-2 max-h-48 md:max-h-[60vh] overflow-y-auto bg-white border border-gray-200 rounded-xl divide-y">
+                {products.filter(p => !kirimItems.find(i => i.product === p._id)).slice(0, 20).map(p => (
+                  <button
+                    key={p._id}
+                    onClick={() => addKirimItem(p)}
+                    className="w-full px-3 py-2.5 text-left text-sm hover:bg-orange-50 flex justify-between items-center"
+                  >
+                    <div>
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-gray-400 ml-2">#{p.code}</span>
+                    </div>
+                    <span className="text-gray-500 text-xs">{p.quantity} {p.unit}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {products.length > 0 && (
-            <div className="mt-2 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl divide-y">
-              {products.filter(p => !kirimItems.find(i => i.product === p._id)).slice(0, 20).map(p => (
-                <button
-                  key={p._id}
-                  onClick={() => addKirimItem(p)}
-                  className="w-full px-3 py-2.5 text-left text-sm hover:bg-orange-50 flex justify-between items-center"
-                >
-                  <div>
-                    <span className="font-medium">{p.name}</span>
-                    <span className="text-gray-400 ml-2">#{p.code}</span>
+
+          {/* Kirim items */}
+          {kirimItems.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Tanlangan mahsulotlar ({kirimItems.length})</h3>
+              <div className="space-y-2 md:max-h-[60vh] md:overflow-y-auto">
+                {kirimItems.map((item, idx) => (
+                  <div key={item.product} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium truncate flex-1">{item.name}</span>
+                      <button onClick={() => removeKirimItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-500">Miqdor</label>
+                        <input
+                          type="number"
+                          value={item.quantity || ''}
+                          onChange={e => updateKirimItem(idx, 'quantity', Number(e.target.value))}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          min="0.01"
+                          step="any"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-500">Narx</label>
+                        <input
+                          type="number"
+                          value={item.price || ''}
+                          onChange={e => updateKirimItem(idx, 'price', Number(e.target.value))}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          min="0"
+                        />
+                      </div>
+                      <div className="w-24 text-right pt-4">
+                        <p className="text-sm font-semibold">{fmt(item.quantity * item.price)}</p>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-gray-500 text-xs">{p.quantity} {p.unit}</span>
-                </button>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Kirim items */}
-        {kirimItems.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Tanlangan mahsulotlar ({kirimItems.length})</h3>
-            <div className="space-y-2">
-              {kirimItems.map((item, idx) => (
-                <div key={item.product} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium truncate flex-1">{item.name}</span>
-                    <button onClick={() => removeKirimItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="text-xs text-gray-500">Miqdor</label>
-                      <input
-                        type="number"
-                        value={item.quantity || ''}
-                        onChange={e => updateKirimItem(idx, 'quantity', Number(e.target.value))}
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        min="0.01"
-                        step="any"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-gray-500">Narx</label>
-                      <input
-                        type="number"
-                        value={item.price || ''}
-                        onChange={e => updateKirimItem(idx, 'price', Number(e.target.value))}
-                        className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        min="0"
-                      />
-                    </div>
-                    <div className="w-24 text-right pt-4">
-                      <p className="text-sm font-semibold">{fmt(item.quantity * item.price)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Payment section */}
         {kirimItems.length > 0 && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 max-w-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold text-gray-900">Jami:</h3>
               <p className="text-lg font-bold text-orange-600">{fmt(kirimTotal)} so'm</p>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Banknote className="w-4 h-4 text-green-600" />
                 </div>
-                <label className="text-sm text-gray-600 w-14">Naqd</label>
-                <input
-                  type="number"
-                  value={payment.cash || ''}
-                  onChange={e => setPayment(p => ({ ...p, cash: Number(e.target.value) }))}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  min="0"
-                />
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500">Naqd</label>
+                  <input
+                    type="number"
+                    value={payment.cash || ''}
+                    onChange={e => setPayment(p => ({ ...p, cash: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    min="0"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <CreditCard className="w-4 h-4 text-blue-600" />
                 </div>
-                <label className="text-sm text-gray-600 w-14">Karta</label>
-                <input
-                  type="number"
-                  value={payment.card || ''}
-                  onChange={e => setPayment(p => ({ ...p, card: Number(e.target.value) }))}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  min="0"
-                />
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500">Karta</label>
+                  <input
+                    type="number"
+                    value={payment.card || ''}
+                    onChange={e => setPayment(p => ({ ...p, card: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    min="0"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Smartphone className="w-4 h-4 text-purple-600" />
                 </div>
-                <label className="text-sm text-gray-600 w-14">Click</label>
-                <input
-                  type="number"
-                  value={payment.click || ''}
-                  onChange={e => setPayment(p => ({ ...p, click: Number(e.target.value) }))}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  min="0"
-                />
-              </div>
-              {debtTotal > 0 && (
-                <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-red-700">Qarz: {fmt(debtTotal)} so'm</p>
-                    <p className="text-xs text-red-500">To'lanmagan qolgan summa qarzga yoziladi</p>
-                  </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500">Click</label>
+                  <input
+                    type="number"
+                    value={payment.click || ''}
+                    onChange={e => setPayment(p => ({ ...p, click: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    min="0"
+                  />
                 </div>
-              )}
+              </div>
             </div>
+            {debtTotal > 0 && (
+              <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg mt-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Qarz: {fmt(debtTotal)} so'm</p>
+                  <p className="text-xs text-red-500">To'lanmagan qolgan summa qarzga yoziladi</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -648,9 +657,11 @@ export default function Suppliers() {
       {/* Submit button */}
       {kirimItems.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-20">
-          <button onClick={submitKirim} className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2">
-            <Check className="w-5 h-5" /> Kirimni saqlash
-          </button>
+          <div className="max-w-5xl mx-auto">
+            <button onClick={submitKirim} className="w-full md:w-auto md:px-16 py-3.5 bg-orange-500 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2">
+              <Check className="w-5 h-5" /> Kirimni saqlash
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -670,7 +681,7 @@ export default function Suppliers() {
         </div>
       </div>
 
-      <div className="px-4 pt-6 space-y-4">
+      <div className="max-w-lg mx-auto px-4 pt-6 space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-700 mb-1 block">Summa</label>
           <input
