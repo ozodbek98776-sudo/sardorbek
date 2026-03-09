@@ -254,8 +254,8 @@ router.get('/employees', auth, authorize('admin'), async (req, res) => {
         { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
         { $project: {
-          name: { $ifNull: ['$user.name', 'Noma\'lum'] },
-          role: { $ifNull: ['$user.role', 'unknown'] },
+          name: { $ifNull: ['$user.name', 'Admin'] },
+          role: { $ifNull: ['$user.role', 'admin'] },
           bonusPercentage: { $ifNull: ['$user.bonusPercentage', 0] },
           salesCount: 1, totalAmount: 1, cashTotal: 1, cardTotal: 1, clickTotal: 1,
           bonus: { $multiply: ['$totalAmount', { $divide: [{ $ifNull: ['$user.bonusPercentage', 0] }, 100] }] }
@@ -271,7 +271,7 @@ router.get('/employees', auth, authorize('admin'), async (req, res) => {
         { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
         { $project: {
-          name: { $ifNull: ['$user.name', 'Noma\'lum'] },
+          name: { $ifNull: ['$user.name', 'Admin'] },
           deliveryCount: 1, totalAmount: 1
         }}
       ])
