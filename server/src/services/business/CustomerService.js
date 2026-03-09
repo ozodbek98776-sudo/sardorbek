@@ -443,6 +443,11 @@ class CustomerService extends BaseService {
         }
       }
 
+      // Address qo'shish
+      if (updateData.address !== undefined) {
+        validatedData.address = updateData.address;
+      }
+
       // Mijozni yangilash
       const updatedCustomer = await Customer.findByIdAndUpdate(
         customerId,
