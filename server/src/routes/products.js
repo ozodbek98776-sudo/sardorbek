@@ -1426,7 +1426,7 @@ router.put('/:id', auth, authorize('admin', 'helper'), async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, authorize('admin'), async (req, res) => {
+router.delete('/:id', auth, authorize('admin', 'helper'), async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Tovar topilmadi' });

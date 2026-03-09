@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Package, X, Edit, Search } from 'lucide-react';
+import { Plus, Package, X, Edit, Search, QrCode, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
 import api from '../../utils/api';
 import { formatNumber, formatInputNumber, parseNumber } from '../../utils/format';
@@ -13,6 +13,7 @@ import { CategoryFilter } from '../../components/kassa/CategoryFilter';
 import { useCategories } from '../../hooks/useCategories';
 import { LoadingSpinner, EmptyState, ActionButton, Badge } from '../../components/common';
 import ProductModal from '../../components/ProductModal';
+import BatchQRPrint from '../../components/BatchQRPrint';
 import { clearProductsCache } from '../../utils/indexedDbService';
 
 export default function HelperProducts() {
@@ -34,6 +35,8 @@ export default function HelperProducts() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showQRPrint, setShowQRPrint] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useModalScrollLock(showModal);
 
@@ -174,6 +177,8 @@ export default function HelperProducts() {
         showAlert('Mahsulot qo\'shildi', 'Muvaffaqiyat', 'success');
       }
       closeModal(true);
+      // Ro'yxatni yangilash
+      fetchProducts(1, false, searchQuery);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       showAlert(err.response?.data?.message || 'Xatolik yuz berdi', 'Xatolik', 'danger');
@@ -253,6 +258,24 @@ export default function HelperProducts() {
     setEditingProduct(null);
     setUploadedImages([]);
     setInitialUploadedImages([]);
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await showConfirm("Mahsulotni o'chirishni tasdiqlaysizmi?", "O'chirish");
+    if (!confirmed) return;
+    try {
+      await api.delete(`/products/${id}`);
+      setProducts(prev => prev.filter(p => p._id !== id));
+      await clearProductsCache().catch(() => {});
+      showAlert('Mahsulot o\'chirildi', 'Muvaffaqiyat', 'success');
+    } catch {
+      showAlert('Mahsulotni o\'chirishda xatolik', 'Xatolik', 'danger');
+    }
+  };
+
+  const openQRModal = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQRPrint(true);
   };
 
   const getProductImage = (product: Product) => {
@@ -345,12 +368,18 @@ export default function HelperProducts() {
                   <div
                     key={product._id}
                     onClick={() => openEditModal(product)}
-                    className="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-lg transition-all overflow-hidden cursor-pointer"
+                    className="group relative bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-lg transition-all overflow-hidden cursor-pointer"
                   >
-                    {/* Edit button */}
-                    <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => openEditModal(product)} className="w-7 h-7 bg-white/90 hover:bg-blue-100 rounded-lg text-blue-600 flex items-center justify-center shadow-sm">
+                    {/* Action Buttons */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => openQRModal(product)} className="w-7 h-7 bg-white/90 hover:bg-purple-100 rounded-lg text-purple-600 flex items-center justify-center shadow-sm" title="QR kod">
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => openEditModal(product)} className="w-7 h-7 bg-white/90 hover:bg-blue-100 rounded-lg text-blue-600 flex items-center justify-center shadow-sm" title="Tahrirlash">
                         <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(product._id)} className="w-7 h-7 bg-white/90 hover:bg-red-100 rounded-lg text-red-600 flex items-center justify-center shadow-sm" title="O'chirish">
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
@@ -413,6 +442,23 @@ export default function HelperProducts() {
         onImagesChange={setUploadedImages}
         restrictedFields={true}
       />
+
+      {showQRPrint && selectedProduct && (
+        <BatchQRPrint
+          products={[{
+            _id: selectedProduct._id,
+            name: selectedProduct.name,
+            code: (selectedProduct as Record<string, unknown>).code as number,
+            price: (() => {
+              const pricesData = (selectedProduct as Record<string, unknown>).prices;
+              const prices = Array.isArray(pricesData) ? pricesData : [];
+              const unitPrice = prices.find((p: Record<string, unknown>) => p.type === 'unit');
+              return (unitPrice as Record<string, number>)?.amount || (selectedProduct as Record<string, unknown>).unitPrice as number || selectedProduct.price || 0;
+            })()
+          }]}
+          onClose={() => { setShowQRPrint(false); setSelectedProduct(null); }}
+        />
+      )}
     </div>
   );
 }
