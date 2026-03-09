@@ -226,28 +226,28 @@ router.get('/:id', async (req, res) => {
 // Yangi xodim qo'shish
 router.post('/', async (req, res) => {
   try {
-    const { name, login, password, phone, role, position, department, hireDate } = req.body;
-    
+    const { name, login, password, phone, role, position, department, hireDate, isDeliveryPerson } = req.body;
+
     // Validatsiya
     if (!name || !login || !password || !role) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Majburiy maydonlar to\'ldirilmagan' 
+      return res.status(400).json({
+        success: false,
+        message: 'Majburiy maydonlar to\'ldirilmagan'
       });
     }
-    
+
     // Login mavjudligini tekshirish (faqat active/inactive xodimlar)
-    const existing = await User.findOne({ 
+    const existing = await User.findOne({
       login,
       status: { $ne: 'terminated' } // Terminated xodimlarni hisobga olmaslik
     });
     if (existing) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Bu login band' 
+      return res.status(400).json({
+        success: false,
+        message: 'Bu login band'
       });
     }
-    
+
     // Yangi xodim yaratish
     const employee = new User({
       name,
@@ -258,7 +258,8 @@ router.post('/', async (req, res) => {
       position,
       department,
       hireDate: hireDate || new Date(),
-      status: 'active'
+      status: 'active',
+      isDeliveryPerson: isDeliveryPerson || false
     });
     
     await employee.save();
@@ -281,14 +282,14 @@ router.post('/', async (req, res) => {
 // Xodimni tahrirlash
 router.put('/:id', async (req, res) => {
   try {
-    const { name, phone, role, position, department, status } = req.body;
-    
+    const { name, phone, role, position, department, status, isDeliveryPerson } = req.body;
+
     const employee = await User.findById(req.params.id);
-    
+
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Xodim topilmadi' });
     }
-    
+
     // Yangilash
     if (name) employee.name = name;
     if (phone) employee.phone = phone;
@@ -296,6 +297,7 @@ router.put('/:id', async (req, res) => {
     if (position) employee.position = position;
     if (department) employee.department = department;
     if (status) employee.status = status;
+    if (isDeliveryPerson !== undefined) employee.isDeliveryPerson = isDeliveryPerson;
     
     await employee.save();
     

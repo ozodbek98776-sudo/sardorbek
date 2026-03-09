@@ -41,7 +41,7 @@ export default function CustomersPro() {
   const [filterRegion, setFilterRegion] = useState('');
   const [filterDistrict, setFilterDistrict] = useState('');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
-  const [sortBy, setSortBy] = useState<'name' | 'debt' | 'purchases'>('name');
+  const [sortBy, setSortBy] = useState<'newest' | 'name' | 'debt' | 'purchases'>('newest');
   const [showContacts, setShowContacts] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -262,6 +262,7 @@ export default function CustomersPro() {
     }
     return matchesSearch && matchesRegion;
   }).sort((a, b) => {
+    if (sortBy === 'newest') return 0; // server tartibini saqlash (createdAt desc)
     if (sortBy === 'debt') return (b.debt || 0) - (a.debt || 0);
     if (sortBy === 'purchases') return ((b as any).totalPurchases || 0) - ((a as any).totalPurchases || 0);
     return a.name.localeCompare(b.name);
@@ -425,6 +426,7 @@ export default function CustomersPro() {
               onChange={e => setSortBy(e.target.value as any)}
               className="px-3 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-500 text-sm font-medium bg-white"
             >
+              <option value="newest">Yangi</option>
               <option value="name">Ism</option>
               <option value="debt">Qarz</option>
               <option value="purchases">Xarid</option>

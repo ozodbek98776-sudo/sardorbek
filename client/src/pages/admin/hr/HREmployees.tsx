@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Users, Plus, Edit, Trash2, DollarSign, TrendingUp, Target, Calendar, CheckCircle } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, DollarSign, TrendingUp, Target, Calendar, CheckCircle, Truck } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 import { UniversalPageHeader, StatCard, ActionButton } from '../../../components/common';
@@ -19,6 +19,7 @@ interface Employee {
   department?: string;
   status: string;
   hireDate?: string;
+  isDeliveryPerson?: boolean;
   salary?: {
     baseSalary: number;
     maxBonus: number;
@@ -67,7 +68,7 @@ export default function HREmployees() {
   // Employee modal
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [formData, setFormData] = useState({ name: '', login: '', password: '', phone: '', role: 'cashier' });
+  const [formData, setFormData] = useState({ name: '', login: '', password: '', phone: '', role: 'cashier', isDeliveryPerson: false });
 
   // Salary modal
   const [showSalaryModal, setShowSalaryModal] = useState(false);
@@ -160,7 +161,7 @@ export default function HREmployees() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const cleanData: Record<string, string> = { name: formData.name, login: formData.login, role: formData.role };
+      const cleanData: Record<string, string | boolean> = { name: formData.name, login: formData.login, role: formData.role, isDeliveryPerson: formData.isDeliveryPerson };
       if (formData.phone?.trim()) cleanData.phone = formData.phone.trim();
       if (!editingEmployee && formData.password) cleanData.password = formData.password;
 
@@ -197,11 +198,11 @@ export default function HREmployees() {
 
   const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
-    setFormData({ name: emp.name, login: emp.login, password: '', phone: emp.phone, role: emp.role });
+    setFormData({ name: emp.name, login: emp.login, password: '', phone: emp.phone, role: emp.role, isDeliveryPerson: emp.isDeliveryPerson || false });
     setShowModal(true);
   };
 
-  const resetForm = () => setFormData({ name: '', login: '', password: '', phone: '', role: 'cashier' });
+  const resetForm = () => setFormData({ name: '', login: '', password: '', phone: '', role: 'cashier', isDeliveryPerson: false });
 
   // ---- Salary Modal ----
   const openSalaryModal = async (emp: Employee) => {
@@ -424,7 +425,15 @@ export default function HREmployees() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
-                        {getRoleBadge(employee.role)}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {getRoleBadge(employee.role)}
+                          {employee.isDeliveryPerson && (
+                            <span className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                              <Truck className="w-3 h-3" />
+                              Dostavchik
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {getStatusBadge(employee.status)}
@@ -543,6 +552,21 @@ export default function HREmployees() {
                   <option value="cashier">Kassir</option>
                   <option value="helper">Yordamchi</option>
                 </select>
+              </div>
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-300 hover:border-orange-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.isDeliveryPerson}
+                    onChange={e => setFormData({ ...formData, isDeliveryPerson: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <Truck className={`w-5 h-5 ${formData.isDeliveryPerson ? 'text-orange-600' : 'text-gray-400'}`} />
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">Dostavchik</p>
+                    <p className="text-xs text-gray-500">Yetkazib berish uchun belgilash</p>
+                  </div>
+                </label>
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => { setShowModal(false); setEditingEmployee(null); resetForm(); }} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Bekor qilish</button>
