@@ -494,52 +494,31 @@ export default function HelperScanner() {
   const total = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-1 sm:p-2 w-full h-full">
+    <div className="min-h-screen bg-slate-50 w-full h-full">
       {AlertComponent}
 
-      {/* Modern Header with Glassmorphism */}
-      <div className="w-full mb-2 sm:mb-3">
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-900/5 border border-white/20 p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
-                <QrCode className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  QR Skaner
-                </h1>
-                <p className="text-sm text-slate-600 mt-1">
-                  Tez va oson savat to'ldirish tizimi
-                </p>
-              </div>
+      {/* Compact Header */}
+      <div className="bg-white border-b border-slate-200 px-3 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+              <QrCode className="w-4 h-4 text-white" />
             </div>
-            
-            {/* Mijoz tanlash tugmasi - Yangilangan dizayn */}
-            <button
-              onClick={() => setShowCustomerModal(true)}
-              className={`group relative overflow-hidden px-6 py-3.5 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 ${
-                selectedCustomer
-                  ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white'
-                  : 'bg-gradient-to-r from-brand-500 to-brand-600 text-white'
-              }`}
-            >
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <User className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-semibold opacity-90">
-                    {selectedCustomer ? 'Tanlangan mijoz' : 'Mijoz tanlash'}
-                  </div>
-                  {selectedCustomer && (
-                    <div className="text-sm font-bold truncate max-w-[150px]">{selectedCustomer.name}</div>
-                  )}
-                </div>
-              </div>
-            </button>
+            <h1 className="text-base font-bold text-slate-900">QR Skaner</h1>
           </div>
+          <button
+            onClick={() => setShowCustomerModal(true)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+              selectedCustomer
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-brand-50 text-brand-700 border border-brand-200'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span className="truncate max-w-[120px]">
+              {selectedCustomer ? selectedCustomer.name : 'Mijoz tanlash'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -713,101 +692,84 @@ export default function HelperScanner() {
         </div>
       )}
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+      <div className="px-3 py-3 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3 items-start">
         {/* Chap tomon - Qidiruv va mahsulotlar */}
-        <div className="space-y-5">
-          {/* Qidiruv va skaner kartasi - Glassmorphism */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/5 border border-white/20 p-5">
-            <div className="space-y-4">
-              {/* Qidiruv input - Modern */}
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-500/20 to-indigo-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-500 z-10" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => handleSearch(e.target.value)}
-                    placeholder="Mahsulot nomi yoki kodi..."
-                    className="w-full h-14 pl-12 pr-12 rounded-2xl border-2 border-slate-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base text-slate-900 placeholder:text-slate-400 bg-white shadow-sm hover:shadow-md font-medium"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => handleSearch('')}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all hover:scale-110 z-10"
-                    >
-                      <X className="w-4 h-4 text-slate-600" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              {/* Kategoriya filtri - Horizontal scroll */}
-              <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-2xl p-3 border border-slate-200/50">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-                  <button
-                    onClick={() => setSelectedCategory('')}
-                    className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
-                      selectedCategory === '' 
-                        ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30 scale-105' 
-                        : 'bg-white text-slate-600 hover:bg-slate-50 shadow-sm hover:shadow-md'
-                    }`}
-                  >
-                    🔹 Barchasi
-                  </button>
-                  {categories.map(category => (
-                    <button
-                      key={category._id}
-                      onClick={() => setSelectedCategory(category.name)}
-                      className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
-                        selectedCategory === category.name 
-                          ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30 scale-105' 
-                          : 'bg-white text-slate-600 hover:bg-slate-50 shadow-sm hover:shadow-md'
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* QR Skaner tugmasi - Premium */}
-              <button
-                onClick={scanning ? stopScanner : startScanner}
-                className={`group relative w-full h-14 rounded-2xl font-bold text-base transition-all duration-300 overflow-hidden ${
-                  scanning 
-                    ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40' 
-                    : 'bg-gradient-to-r from-brand-500 via-brand-600 to-indigo-600 hover:from-brand-600 hover:via-brand-700 hover:to-indigo-700 shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40'
-                } text-white hover:scale-[1.02]`}
-              >
-                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative flex items-center justify-center gap-3">
-                  <QrCode className="w-6 h-6" />
-                  <span>{scanning ? 'Skanerni to\'xtatish' : 'QR Skaner Ochish'}</span>
-                </div>
-              </button>
+        <div className="space-y-3">
+          {/* Qidiruv + kategoriya + QR */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3 space-y-2.5">
+            {/* Qidiruv */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
+                placeholder="Mahsulot nomi yoki kodi..."
+                className="w-full h-10 pl-9 pr-9 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 text-sm text-slate-900 placeholder:text-slate-400"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => handleSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"
+                >
+                  <X className="w-3 h-3 text-slate-500" />
+                </button>
+              )}
             </div>
+
+            {/* Kategoriyalar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+              <button
+                onClick={() => setSelectedCategory('')}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs transition-all ${
+                  selectedCategory === ''
+                    ? 'bg-brand-500 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Barchasi
+              </button>
+              {categories.map(category => (
+                <button
+                  key={category._id}
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs transition-all whitespace-nowrap ${
+                    selectedCategory === category.name
+                      ? 'bg-brand-500 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+
+            {/* QR Skaner tugmasi */}
+            <button
+              onClick={scanning ? stopScanner : startScanner}
+              className={`w-full h-10 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                scanning
+                  ? 'bg-red-500 hover:bg-red-600 text-white'
+                  : 'bg-brand-500 hover:bg-brand-600 text-white'
+              }`}
+            >
+              <QrCode className="w-4 h-4" />
+              {scanning ? 'To\'xtatish' : 'QR Skaner'}
+            </button>
           </div>
 
           {scanning && (
-            <div className="card border border-brand-100 bg-gradient-to-br from-brand-50/60 to-surface-0 shadow-sm">
-              <div className="flex flex-col items-center gap-4 p-4 sm:p-5">
-                <div className="relative w-full max-w-md rounded-2xl overflow-hidden ring-4 ring-brand-300/50 ring-offset-4 ring-offset-surface-0 shadow-lg">
-                  <div id="qr-reader" className="w-full aspect-square bg-black" />
-                  {/* Kamera almashtirish tugmasi - pastki o'ng burchak */}
-                  <button
-                    onClick={switchCamera}
-                    className="absolute bottom-3 right-3 w-9 h-9 bg-white/95 hover:bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all hover:scale-105 z-10 backdrop-blur-sm border border-white/20"
-                    title={facingMode === 'environment' ? 'Old kameraga o\'tish' : 'Orqa kameraga o\'tish'}
-                  >
-                    <RefreshCw className="w-4 h-4 text-surface-600" />
-                  </button>
-                </div>
-                <div className="text-center space-y-1">
-                  <p className="text-sm font-medium text-surface-800">QR kodni kameraga to‘g‘ri tuting</p>
-                  <p className="text-xs text-surface-500">Kamera kodni o‘qigach, tovar ma'lumotlari avtomatik chiqadi.</p>
-                </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3">
+              <div className="relative w-full max-w-sm mx-auto rounded-lg overflow-hidden ring-2 ring-brand-200">
+                <div id="qr-reader" className="w-full aspect-square bg-black" />
+                <button
+                  onClick={switchCamera}
+                  className="absolute bottom-2 right-2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-md z-10"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                </button>
               </div>
+              <p className="text-xs text-slate-500 text-center mt-2">QR kodni kameraga tuting</p>
             </div>
           )}
 
@@ -975,30 +937,30 @@ export default function HelperScanner() {
           )}
 
           {searchQuery && searchResults.length > 0 && (
-            <div className="card p-0 overflow-hidden border border-surface-100 shadow-sm">
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <p className="text-sm font-medium text-surface-700">Qidiruv natijalari</p>
-                <span className="text-xs text-surface-400">{searchResults.length} ta topildi</span>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-700">Natijalar</p>
+                <span className="text-[10px] text-slate-400">{searchResults.length} ta</span>
               </div>
-              <div className="divide-y divide-surface-100 max-h-72 overflow-auto custom-scrollbar">
+              <div className="divide-y divide-slate-100 max-h-60 overflow-auto">
                 {searchResults.map(product => (
                   <button
                     key={product._id}
                     onClick={() => addToCart(product)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-surface-50/80 transition-colors text-left"
+                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 text-left"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
-                        <Package className="w-5 h-5 text-brand-600" />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Package className="w-3.5 h-3.5 text-brand-600" />
                       </div>
-                      <div>
-                        <p className="font-medium text-surface-900 line-clamp-1">{product.name}</p>
-                        <p className="text-xs text-surface-500">Kod: {product.code}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{product.name}</p>
+                        <p className="text-[10px] text-slate-400">Kod: {product.code}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-brand-600">{formatNumber(product.price)} so'm</p>
-                      <p className="text-[11px] text-surface-400">{product.quantity} dona</p>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className="text-xs font-bold text-brand-600">{formatNumber(product.price)}</p>
+                      <p className="text-[10px] text-slate-400">{product.quantity} dona</p>
                     </div>
                   </button>
                 ))}
@@ -1007,87 +969,68 @@ export default function HelperScanner() {
           )}
 
           {searchQuery && searchResults.length === 0 && (
-            <div className="card text-center py-10 bg-surface-0/60 border-dashed border-surface-200">
-              <p className="text-sm text-surface-500">Tovar topilmadi. Nomi yoki kodini tekshirib qayta urinib ko'ring.</p>
+            <div className="bg-white rounded-xl shadow-sm border border-dashed border-slate-200 text-center py-6">
+              <p className="text-xs text-slate-500">Tovar topilmadi</p>
             </div>
           )}
         </div>
 
-        {/* O'ng tomon - Savat - Premium dizayn */}
-        <div className="lg:sticky lg:top-6">
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/20 p-5 overflow-hidden">
-            {/* Savat header - Gradient */}
-            <div className="relative mb-5">
-              <div className="absolute inset-0 bg-gradient-to-r from-brand-500/10 to-indigo-500/10 rounded-2xl blur-xl" />
-              <div className="relative flex items-center justify-between p-4 bg-gradient-to-r from-brand-50 to-indigo-50 rounded-2xl border border-brand-200/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
-                    <ShoppingCart className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-900 text-lg">Savat</span>
-                    <p className="text-xs text-slate-600">Tanlangan mahsulotlar</p>
-                  </div>
+        {/* O'ng tomon - Savat */}
+        <div className="lg:sticky lg:top-4">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3">
+            {/* Savat header */}
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
+                  <ShoppingCart className="w-4 h-4 text-white" />
                 </div>
-                <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold shadow-lg shadow-brand-500/30">
-                  {cart.length}
-                </div>
+                <span className="font-bold text-sm text-slate-900">Savat</span>
               </div>
+              <span className="text-xs font-bold bg-brand-100 text-brand-700 px-2.5 py-1 rounded-lg">
+                {cart.length}
+              </span>
             </div>
 
             {cart.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                  <ShoppingCart className="w-10 h-10 text-slate-400" />
-                </div>
-                <p className="text-slate-600 font-medium mb-1">Savat bo'sh</p>
-                <p className="text-sm text-slate-500">QR skaner yoki qidiruv orqali mahsulot qo'shing</p>
+              <div className="text-center py-8">
+                <ShoppingCart className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-500">Savat bo'sh</p>
               </div>
             ) : (
               <>
-                <div className="space-y-3 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
+                <div className="space-y-2 max-h-[350px] overflow-auto pr-1">
                   {cart.map(item => {
                     const pricingTier = getPricingTier(item.cartQuantity);
                     const product = products.find(p => p._id === item._id);
                     const isExpanded = expandedPricing === item._id;
-                    
+
                     return (
-                    <div key={item._id} className="group bg-gradient-to-br from-white to-slate-50/50 rounded-2xl border-2 border-slate-200 hover:border-brand-300 transition-all duration-300 hover:shadow-lg overflow-hidden">
-                      <div className="flex items-center gap-3 p-3">
+                    <div key={item._id} className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                      <div className="flex items-center gap-2 p-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 truncate">{item.name}</p>
-                          
-                          {/* Pricing tier badge */}
+                          <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
                           <button
                             onClick={() => setExpandedPricing(isExpanded ? null : item._id)}
-                            className="flex items-center gap-2 mt-1.5 hover:opacity-80 transition-opacity"
+                            className="flex items-center gap-1 mt-0.5"
                           >
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                              pricingTier.discount 
-                                ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 border border-emerald-200' 
-                                : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 border border-slate-300'
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                              pricingTier.discount
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-200 text-slate-600'
                             }`}>
                               {pricingTier.name} • {pricingTier.markupPercent}%
                             </span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-                            )}
+                            {isExpanded ? <ChevronUp className="w-3 h-3 text-slate-400" /> : <ChevronDown className="w-3 h-3 text-slate-400" />}
                           </button>
-                          
-                          <p className="text-sm text-brand-600 font-bold mt-1.5">
+                          <p className="text-xs text-brand-600 font-bold mt-0.5">
                             {formatNumber(item.price * item.cartQuantity)} so'm
                           </p>
                         </div>
-                        
-                        {/* Miqdor o'zgartirish - Modern */}
-                        <div className="flex items-center gap-1 bg-white rounded-xl border-2 border-slate-200 px-2 py-1.5 shadow-sm">
-                          <button 
-                            onClick={() => updateQuantity(item._id, -1)} 
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-all hover:scale-110"
-                          >
-                            <Minus className="w-4 h-4" />
+
+                        {/* Miqdor */}
+                        <div className="flex items-center gap-0.5 bg-white rounded-lg border border-slate-200 px-1 py-0.5">
+                          <button onClick={() => updateQuantity(item._id, -1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100">
+                            <Minus className="w-3 h-3" />
                           </button>
                           <input
                             type="number"
@@ -1095,56 +1038,34 @@ export default function HelperScanner() {
                             value={item.cartQuantity}
                             onChange={(e) => {
                               const newQty = parseInt(e.target.value) || 1;
-                              const delta = newQty - item.cartQuantity;
-                              updateQuantity(item._id, delta);
+                              updateQuantity(item._id, newQty - item.cartQuantity);
                             }}
-                            className="w-12 text-center font-bold text-sm bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg"
+                            className="w-9 text-center font-bold text-xs bg-transparent border-none focus:outline-none"
                           />
-                          <button 
-                            onClick={() => updateQuantity(item._id, 1)} 
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-brand-50 hover:text-brand-600 transition-all hover:scale-110"
-                          >
-                            <Plus className="w-4 h-4" />
+                          <button onClick={() => updateQuantity(item._id, 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100">
+                            <Plus className="w-3 h-3" />
                           </button>
                         </div>
-                        
-                        {/* O'chirish tugmasi */}
-                        <button 
-                          onClick={() => removeFromCart(item._id)} 
-                          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-500 transition-all hover:scale-110"
-                        >
-                          <X className="w-4.5 h-4.5" />
+
+                        <button onClick={() => removeFromCart(item._id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400">
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
 
-                      {/* Dropdown - Chegirma tiers */}
+                      {/* Chegirma tiers */}
                       {isExpanded && product && (
-                        <div className="px-3 pb-3 space-y-2 bg-slate-50/50">
-                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
-                            <p className="text-xs font-semibold text-emerald-900">
-                              {product.pricingTiers?.tier1?.minQuantity || 1}-{product.pricingTiers?.tier1?.maxQuantity || 9} dona
-                            </p>
-                            <span className="text-xs font-bold text-emerald-700 px-2 py-1 bg-emerald-100 rounded-lg">
-                              {product.pricingTiers?.tier1?.discountPercent || 15}%
-                            </span>
+                        <div className="px-2 pb-2 space-y-1 bg-white">
+                          <div className="flex items-center justify-between px-2 py-1.5 bg-emerald-50 rounded text-[10px]">
+                            <span className="font-semibold text-emerald-800">{product.pricingTiers?.tier1?.minQuantity || 1}-{product.pricingTiers?.tier1?.maxQuantity || 9} dona</span>
+                            <span className="font-bold text-emerald-700">{product.pricingTiers?.tier1?.discountPercent || 15}%</span>
                           </div>
-
-                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl border border-blue-200">
-                            <p className="text-xs font-semibold text-blue-900">
-                              {product.pricingTiers?.tier2?.minQuantity || 10}-{product.pricingTiers?.tier2?.maxQuantity || 99} dona
-                            </p>
-                            <span className="text-xs font-bold text-blue-700 px-2 py-1 bg-blue-100 rounded-lg">
-                              {product.pricingTiers?.tier2?.discountPercent || 13}%
-                            </span>
+                          <div className="flex items-center justify-between px-2 py-1.5 bg-blue-50 rounded text-[10px]">
+                            <span className="font-semibold text-blue-800">{product.pricingTiers?.tier2?.minQuantity || 10}-{product.pricingTiers?.tier2?.maxQuantity || 99} dona</span>
+                            <span className="font-bold text-blue-700">{product.pricingTiers?.tier2?.discountPercent || 13}%</span>
                           </div>
-
-                          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200">
-                            <p className="text-xs font-semibold text-purple-900">
-                              {product.pricingTiers?.tier3?.minQuantity || 100}+ dona
-                            </p>
-                            <span className="text-xs font-bold text-purple-700 px-2 py-1 bg-purple-100 rounded-lg">
-                              {product.pricingTiers?.tier3?.discountPercent || 11}%
-                            </span>
+                          <div className="flex items-center justify-between px-2 py-1.5 bg-purple-50 rounded text-[10px]">
+                            <span className="font-semibold text-purple-800">{product.pricingTiers?.tier3?.minQuantity || 100}+ dona</span>
+                            <span className="font-bold text-purple-700">{product.pricingTiers?.tier3?.discountPercent || 11}%</span>
                           </div>
                         </div>
                       )}
@@ -1152,31 +1073,25 @@ export default function HelperScanner() {
                   )})}
                 </div>
 
-                {/* Jami va yuborish - Premium */}
-                <div className="mt-5 pt-5 border-t-2 border-slate-200 space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-2xl border border-slate-200">
-                    <span className="text-slate-600 font-semibold">Jami summa</span>
-                    <span className="text-2xl font-bold bg-gradient-to-r from-brand-600 to-indigo-600 bg-clip-text text-transparent">
-                      {formatNumber(total)} so'm
-                    </span>
+                {/* Jami va yuborish */}
+                <div className="mt-3 pt-3 border-t border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-600 font-medium">Jami</span>
+                    <span className="text-lg font-bold text-brand-600">{formatNumber(total)} so'm</span>
                   </div>
-                  
                   <button
                     onClick={sendToCashier}
                     disabled={sending}
-                    className="group relative w-full h-14 rounded-2xl font-bold text-base transition-all duration-300 overflow-hidden bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-10 rounded-lg font-semibold text-sm bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                   >
-                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <div className="relative flex items-center justify-center gap-3">
-                      {sending ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Send className="w-5 h-5" />
-                          <span>Kassaga Yuborish</span>
-                        </>
-                      )}
-                    </div>
+                    {sending ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Kassaga Yuborish
+                      </>
+                    )}
                   </button>
                 </div>
               </>
