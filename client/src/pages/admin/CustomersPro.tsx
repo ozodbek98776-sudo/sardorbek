@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { 
-  Plus, Users, X, Phone, Edit, Trash2, MapPin, Search, DollarSign, 
-  ShoppingCart, AlertCircle, Calendar, CreditCard, ChevronDown, Filter
+import {
+  Plus, Users, X, Phone, Edit, Trash2, MapPin, Search, DollarSign,
+  ShoppingCart, AlertCircle, Calendar, CreditCard, ChevronDown, Filter, BookUser
 } from 'lucide-react';
 import { Customer } from '../../types';
 import api from '../../utils/api';
@@ -13,6 +13,7 @@ import { regions, regionNames } from '../../data/regions';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
+import ContactsImportModal from '../../components/ContactsImportModal';
 
 export default function CustomersPro() {
   const { onMenuToggle } = useOutletContext<{ onMenuToggle: () => void }>();
@@ -41,6 +42,7 @@ export default function CustomersPro() {
   const [filterDistrict, setFilterDistrict] = useState('');
   const [showRegionFilter, setShowRegionFilter] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'debt' | 'purchases'>('name');
+  const [showContacts, setShowContacts] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -288,13 +290,22 @@ export default function CustomersPro() {
         onSearchChange={setSearchQuery}
         onMenuToggle={onMenuToggle}
         actions={
-          <ActionButton 
-            icon={Plus}
-            variant="primary"
-            onClick={() => setShowModal(true)}
-          >
-            Qo'shish
-          </ActionButton>
+          <div className="flex items-center gap-2">
+            <ActionButton
+              icon={BookUser}
+              variant="secondary"
+              onClick={() => setShowContacts(true)}
+            >
+              Kontaktlar
+            </ActionButton>
+            <ActionButton
+              icon={Plus}
+              variant="primary"
+              onClick={() => setShowModal(true)}
+            >
+              Qo'shish
+            </ActionButton>
+          </div>
         }
       />
 
@@ -778,6 +789,12 @@ export default function CustomersPro() {
           </div>
         </div>
       )}
+
+      <ContactsImportModal
+        isOpen={showContacts}
+        onClose={() => setShowContacts(false)}
+        onImported={() => { setCustomers([]); setCurrentPage(1); setHasMore(true); fetchCustomers(1, false); }}
+      />
     </div>
   );
 }
