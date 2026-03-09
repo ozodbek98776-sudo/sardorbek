@@ -22,7 +22,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Kontaktlarni bulk import (bulkWrite - tez)
+// Kontaktlarni bulk import
 router.post('/import', auth, async (req, res) => {
   try {
     const { contacts } = req.body;
@@ -30,27 +30,47 @@ router.post('/import', auth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Kontaktlar ro\'yxati bo\'sh' });
     }
 
-    console.log(`📱 Contacts import: ${contacts.length} ta kontakt`);
+    const valid = contacts.filter(c => c.name && c.phone);
+    console.log(`📱 Contacts import: ${contacts.length} jami, ${valid.length} yaroqli`);
 
-    const ops = contacts
-      .filter(c => c.name && c.phone)
-      .map(c => ({
-        updateOne: {
-          filter: { phone: c.phone },
-          update: { $set: { name: c.name, phone: c.phone, createdBy: req.user._id } },
-          upsert: true
-        }
-      }));
-
-    if (ops.length === 0) {
+    if (valid.length === 0) {
       return res.status(400).json({ success: false, message: 'Yaroqli kontakt topilmadi' });
     }
 
-    const result = await Contact.bulkWrite(ops, { ordered: false });
-    const imported = (result.upsertedCount || 0) + (result.modifiedCount || 0);
-    console.log(`✅ Contacts imported: ${imported} ta`);
+    // Dublikat telefonlarni olib tashlash (oxirgi qolsin)
+    const phoneMap = new Map();
+    for (const c of valid) {
+      phoneMap.set(c.phone, c);
+    }
+    const unique = Array.from(phoneMap.values());
+    console.log(`📱 Unique contacts: ${unique.length}`);
 
-    res.json({ success: true, data: { imported, total: ops.length } });
+    // Batch insertMany — duplikatlarni skip qilish
+    let imported = 0;
+    const BATCH = 500;
+    for (let i = 0; i < unique.length; i += BATCH) {
+      const batch = unique.slice(i, i + BATCH).map(c => ({
+        name: c.name,
+        phone: c.phone,
+        createdBy: req.user._id
+      }));
+      try {
+        const result = await Contact.insertMany(batch, { ordered: false });
+        imported += result.length;
+      } catch (err) {
+        // Duplikat xatolarni skip, qolganlarni hisoblash
+        if (err.insertedDocs) {
+          imported += err.insertedDocs.length;
+        } else if (err.result && err.result.nInserted) {
+          imported += err.result.nInserted;
+        }
+      }
+    }
+
+    const totalInDB = await Contact.countDocuments();
+    console.log(`✅ Imported: ${imported}, Total in DB: ${totalInDB}`);
+
+    res.json({ success: true, data: { imported, total: unique.length, totalInDB } });
   } catch (error) {
     console.error('❌ Contacts import error:', error.message);
     res.status(500).json({ success: false, message: error.message });
