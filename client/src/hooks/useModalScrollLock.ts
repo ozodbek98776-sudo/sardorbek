@@ -1,21 +1,29 @@
-import { useEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 /**
  * Modal ochilganda orqa sahifa scroll bo'lmasligi uchun hook
- * @param isOpen - Modal ochiq yoki yopiq holati
+ * useLayoutEffect — paint dan oldin ishlaydi, scroll jump bo'lmaydi
  */
 export function useModalScrollLock(isOpen: boolean) {
-  useEffect(() => {
+  const scrollYRef = useRef(0);
+
+  useLayoutEffect(() => {
     if (isOpen) {
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.documentElement.style.overflow = 'hidden';
+      scrollYRef.current = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
 
       return () => {
-        document.documentElement.style.overflow = '';
+        const y = scrollYRef.current;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
         document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
+        window.scrollTo(0, y);
       };
     }
   }, [isOpen]);
