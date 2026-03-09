@@ -161,22 +161,38 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
     e.target.value = '';
   }, []);
 
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
+  const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
   const importToDB = async () => {
     if (importContacts.length === 0) return;
     setImporting(true);
     setImportProgress('Saqlanmoqda...');
     try {
       const res = await api.post('/contacts/import', { contacts: importContacts });
-      const result = res.data.data;
-      setImportProgress(`${result.imported} ta yangi saqlandi`);
-      setTotal(result.totalInDB || 0);
+      const { imported, total: sent, totalInDB } = res.data.data;
+      const skipped = sent - imported;
+      setTotal(totalInDB || 0);
       setImportContacts([]);
-      // Real-time: darhol kontaktlar tabiga o'tib yangi datani ko'rsat
       await fetchContacts(1, false, '');
       setTab('contacts');
+      setImportProgress('');
+
+      if (imported === 0) {
+        showToast(`Barcha ${sent} ta kontakt allaqachon saqlangan`, 'warning');
+      } else if (skipped > 0) {
+        showToast(`${imported} ta yangi saqlandi, ${skipped} ta dublikat o'tkazildi`, 'success');
+      } else {
+        showToast(`${imported} ta kontakt saqlandi`, 'success');
+      }
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } } };
-      setImportProgress('Xatolik: ' + (error?.response?.data?.message || 'Server xatosi'));
+      setImportProgress('');
+      showToast(error?.response?.data?.message || 'Server xatosi', 'error');
     } finally {
       setImporting(false);
     }
@@ -220,6 +236,21 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl" style={{ maxHeight: 'calc(100dvh - 2rem)' }}>
+        {/* Toast */}
+        {toast && (
+          <div className={`absolute top-2 left-3 right-3 z-10 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 animate-[slideDown_0.3s_ease] ${
+            toast.type === 'success' ? 'bg-green-500 text-white' :
+            toast.type === 'warning' ? 'bg-amber-500 text-white' :
+            'bg-red-500 text-white'
+          }`}>
+            {toast.type === 'success' ? <Check className="w-4 h-4 flex-shrink-0" /> :
+             toast.type === 'warning' ? '⚠️' : '❌'}
+            <span className="flex-1">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="p-0.5 hover:bg-white/20 rounded">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 flex-shrink-0">
           <div>
