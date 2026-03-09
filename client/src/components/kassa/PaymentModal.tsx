@@ -117,15 +117,16 @@ export function PaymentModal({
   if (!isOpen) return null;
   
   return (
-    <div 
+    <div
       data-modal="true"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 overflow-y-auto"
-      style={{ pointerEvents: 'auto', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+      className="fixed inset-0 bg-black/50 z-[100] overflow-y-auto"
+      style={{ pointerEvents: 'auto' }}
       onClick={handleClose}
     >
-      <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full my-8 overflow-hidden"
-        style={{ pointerEvents: 'auto', marginBottom: '80px' }}
+      <div className="min-h-full flex items-start justify-center p-4 py-8" style={{ paddingBottom: 'max(5rem, env(safe-area-inset-bottom))' }}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+        style={{ pointerEvents: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -136,7 +137,7 @@ export function PaymentModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto scroll-smooth-instagram momentum-scroll thin-scrollbar">
+        <div className="p-6 space-y-4">
           {/* Total - Clickable to collapse */}
           <div 
             onClick={handleTotalClick}
@@ -566,6 +567,7 @@ export function PaymentModal({
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
