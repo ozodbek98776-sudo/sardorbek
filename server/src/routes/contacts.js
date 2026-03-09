@@ -45,24 +45,31 @@ router.post('/import', auth, async (req, res) => {
     const unique = Array.from(phoneMap.values());
     console.log(`📱 Unique contacts: ${unique.length}`);
 
-    // Batch insertMany — duplikatlarni skip qilish
+    // Native MongoDB insertMany — Mongoose ni chetlab o'tish
     let imported = 0;
     const BATCH = 500;
+    const collection = Contact.collection;
+
     for (let i = 0; i < unique.length; i += BATCH) {
       const batch = unique.slice(i, i + BATCH).map(c => ({
-        name: c.name,
-        phone: c.phone,
-        createdBy: req.user._id
+        name: c.name.trim(),
+        phone: c.phone.trim(),
+        createdBy: req.user._id,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }));
       try {
-        const result = await Contact.insertMany(batch, { ordered: false });
-        imported += result.length;
+        const result = await collection.insertMany(batch, { ordered: false });
+        imported += result.insertedCount;
+        console.log(`📦 Batch ${Math.floor(i/BATCH)+1}: ${result.insertedCount} inserted`);
       } catch (err) {
-        // Duplikat xatolarni skip, qolganlarni hisoblash
-        if (err.insertedDocs) {
-          imported += err.insertedDocs.length;
-        } else if (err.result && err.result.nInserted) {
-          imported += err.result.nInserted;
+        // BulkWriteError — duplikatlar skip, qolganlari insert bo'ladi
+        if (err.result) {
+          const n = err.result.nInserted || err.result.insertedCount || 0;
+          imported += n;
+          console.log(`📦 Batch ${Math.floor(i/BATCH)+1}: ${n} inserted (${err.writeErrors?.length || 0} duplicates skipped)`);
+        } else {
+          console.error(`❌ Batch ${Math.floor(i/BATCH)+1} error:`, err.message, err.code);
         }
       }
     }
