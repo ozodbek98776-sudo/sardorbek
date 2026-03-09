@@ -13,6 +13,8 @@ interface ContactsImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImported: () => void;
+  onSelectContact?: (contact: { name: string; phone: string }) => void;
+  selectLabel?: string;
 }
 
 const hasContactPicker = 'contacts' in navigator && 'ContactsManager' in window;
@@ -56,7 +58,7 @@ function normalizePhone(phone: string): string {
   return p;
 }
 
-export default function ContactsImportModal({ isOpen, onClose, onImported }: ContactsImportModalProps) {
+export default function ContactsImportModal({ isOpen, onClose, onImported, onSelectContact, selectLabel }: ContactsImportModalProps) {
   const [tab, setTab] = useState<'contacts' | 'import'>('contacts');
   const [savedContacts, setSavedContacts] = useState<SavedContact[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -346,24 +348,36 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
                         <p className="text-xs text-slate-500">{contact.phone}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        {!contact.isCustomer && (
+                        {onSelectContact ? (
                           <button
-                            onClick={() => addAsCustomer(contact)}
-                            disabled={addingCustomer === contact._id}
-                            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 active:scale-95"
+                            onClick={() => { onSelectContact({ name: contact.name, phone: contact.phone }); onClose(); }}
+                            className="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 active:scale-95"
                           >
-                            {addingCustomer === contact._id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <UserPlus className="w-3 h-3" />
-                            )}
-                            Mijoz
+                            <UserPlus className="w-3 h-3" />
+                            {selectLabel || 'Tanlash'}
                           </button>
-                        )}
-                        {contact.isCustomer && (
-                          <span className="p-1.5">
-                            <Check className="w-4 h-4 text-green-500" />
-                          </span>
+                        ) : (
+                          <>
+                            {!contact.isCustomer && (
+                              <button
+                                onClick={() => addAsCustomer(contact)}
+                                disabled={addingCustomer === contact._id}
+                                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 active:scale-95"
+                              >
+                                {addingCustomer === contact._id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <UserPlus className="w-3 h-3" />
+                                )}
+                                Mijoz
+                              </button>
+                            )}
+                            {contact.isCustomer && (
+                              <span className="p-1.5">
+                                <Check className="w-4 h-4 text-green-500" />
+                              </span>
+                            )}
+                          </>
                         )}
                         <button
                           onClick={() => deleteContact(contact._id)}
