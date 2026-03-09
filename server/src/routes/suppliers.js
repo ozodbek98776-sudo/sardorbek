@@ -50,6 +50,11 @@ router.post('/', async (req, res) => {
     const { name, phone, company, address, note } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Ism majburiy' });
 
+    if (phone) {
+      const existing = await Supplier.findOne({ phone });
+      if (existing) return res.status(400).json({ success: false, message: "Bu telefon raqam allaqachon mavjud" });
+    }
+
     const supplier = await Supplier.create({
       name, phone, company, address, note,
       createdBy: req.user._id

@@ -232,17 +232,6 @@ export default function Suppliers() {
     } catch { showAlert("Xatolik", 'error'); }
   };
 
-  // Select contact → create supplier directly
-  const handleSelectContact = async (c: { name: string; phone: string }) => {
-    try {
-      await api.post('/suppliers', { name: c.name, phone: c.phone });
-      showAlert("Ta'minotchi qo'shildi", 'success');
-      fetchSuppliers();
-    } catch {
-      showAlert("Xatolik", 'error');
-    }
-  };
-
   // Product search effect
   useEffect(() => {
     if (view === 'kirim') {
@@ -326,7 +315,7 @@ export default function Suppliers() {
         isOpen={showContacts}
         onClose={() => setShowContacts(false)}
         onImported={() => fetchSuppliers()}
-        onSelectContact={handleSelectContact}
+        onSelectContact={() => {}}
         selectLabel="Ta'minotchi"
       />
     </div>

@@ -7,6 +7,7 @@ interface SavedContact {
   name: string;
   phone: string;
   isCustomer?: boolean;
+  isSupplier?: boolean;
 }
 
 interface ContactsImportModalProps {
@@ -77,6 +78,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
   const loadingRef = useRef(false);
 
   const [addingCustomer, setAddingCustomer] = useState<string | null>(null);
+  const [addingSupplier, setAddingSupplier] = useState<string | null>(null);
 
   const fetchContacts = useCallback(async (pageNum: number, append = false, search = '') => {
     if (loadingRef.current && append) return;
@@ -227,6 +229,27 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
     }
   };
 
+  // Real-time: ta'minotchi qilgach darhol UI yangilanadi
+  const addAsSupplier = async (contact: SavedContact) => {
+    setAddingSupplier(contact._id);
+    try {
+      await api.post('/suppliers', { name: contact.name, phone: contact.phone });
+      setSavedContacts(prev => prev.map(c =>
+        c._id === contact._id ? { ...c, isSupplier: true } : c
+      ));
+      onImported();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string }, status?: number } };
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('mavjud')) {
+        setSavedContacts(prev => prev.map(c =>
+          c._id === contact._id ? { ...c, isSupplier: true } : c
+        ));
+      }
+    } finally {
+      setAddingSupplier(null);
+    }
+  };
+
   // Real-time: o'chirgach darhol UI dan ketadi
   const deleteContact = async (id: string) => {
     setSavedContacts(prev => prev.filter(c => c._id !== id));
@@ -330,9 +353,9 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
                   {savedContacts.map(contact => (
                     <div key={contact._id} className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-50 active:bg-slate-50">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        contact.isCustomer ? 'bg-green-100' : 'bg-blue-100'
+                        contact.isSupplier ? 'bg-orange-100' : contact.isCustomer ? 'bg-green-100' : 'bg-blue-100'
                       }`}>
-                        <span className={`text-sm font-bold ${contact.isCustomer ? 'text-green-600' : 'text-blue-600'}`}>
+                        <span className={`text-sm font-bold ${contact.isSupplier ? 'text-orange-600' : contact.isCustomer ? 'text-green-600' : 'text-blue-600'}`}>
                           {contact.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -344,18 +367,34 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
                               Mijoz
                             </span>
                           )}
+                          {contact.isSupplier && (
+                            <span className="text-[10px] font-medium bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex-shrink-0">
+                              Ta'minotchi
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-500">{contact.phone}</p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {onSelectContact ? (
-                          <button
-                            onClick={() => { onSelectContact({ name: contact.name, phone: contact.phone }); onClose(); }}
-                            className="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 active:scale-95"
-                          >
-                            <UserPlus className="w-3 h-3" />
-                            {selectLabel || 'Tanlash'}
-                          </button>
+                          contact.isSupplier ? (
+                            <span className="p-1.5">
+                              <Check className="w-4 h-4 text-orange-500" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => addAsSupplier(contact)}
+                              disabled={addingSupplier === contact._id}
+                              className="px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 active:scale-95"
+                            >
+                              {addingSupplier === contact._id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                              {selectLabel || "Ta'minotchi"}
+                            </button>
+                          )
                         ) : (
                           <>
                             {!contact.isCustomer && (
