@@ -28,6 +28,7 @@ const TelegramSettings = lazy(() => import('./pages/admin/TelegramSettings'));
 const Categories = lazy(() => import('./pages/admin/Categories'));
 const Expenses = lazy(() => import('./pages/admin/Expenses'));
 const CustomersPro = lazy(() => import('./pages/admin/CustomersPro'));
+const Suppliers = lazy(() => import('./pages/admin/Suppliers'));
 import FloatingCalculator from './components/FloatingCalculator';
 // HR sahifalari
 const HREmployees = lazy(() => import('./pages/admin/hr/HREmployees'));
@@ -184,6 +185,7 @@ function App() {
                 <Route path="orders" element={<Suspense fallback={<PageLoader />}><Orders /></Suspense>} />
                 <Route path="customers" element={<Suspense fallback={<PageLoader />}><CustomersPro /></Suspense>} />
                 <Route path="expenses" element={<Suspense fallback={<PageLoader />}><Expenses /></Suspense>} />
+                <Route path="suppliers" element={<Suspense fallback={<PageLoader />}><Suppliers /></Suspense>} />
                 {/* HR Routes */}
                 <Route path="hr" element={<Suspense fallback={<PageLoader />}><HREmployees /></Suspense>} />
                 <Route path="hr/tracking" element={<Suspense fallback={<PageLoader />}><HRTracking /></Suspense>} />
