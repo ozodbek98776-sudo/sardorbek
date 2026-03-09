@@ -164,7 +164,7 @@ app.use(cors({
   credentials: true,
   optionsSuccessStatus: 200 // IE11 uchun
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // ✅ ETag support - agar ma'lumot o'zgarmagan bo'lsa, 304 Not Modified qaytarish
 app.set('etag', 'strong'); // strong ETag ishlatish
