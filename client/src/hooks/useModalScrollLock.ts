@@ -1,30 +1,43 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useEffect, useRef } from 'react';
+
+// Global scroll pozitsiya — scroll event bilan doim yangilanadi
+let lastScrollY = 0;
+let listenerAttached = false;
+
+function trackScroll() {
+  lastScrollY = window.scrollY;
+}
+
+function ensureScrollListener() {
+  if (!listenerAttached) {
+    window.addEventListener('scroll', trackScroll, { passive: true });
+    listenerAttached = true;
+  }
+}
 
 /**
  * Modal ochilganda orqa sahifa scroll bo'lmasligi uchun hook
- * scrollY ni har renderda saqlaydi (isOpen=false da), keyin isOpen=true bo'lganda ishlatadi
  */
 export function useModalScrollLock(isOpen: boolean) {
-  const scrollYRef = useRef(0);
-  const wasOpenRef = useRef(false);
+  const savedYRef = useRef(0);
 
-  // isOpen=false da scroll pozitsiyani doim saqlash
-  if (!isOpen && !wasOpenRef.current) {
-    scrollYRef.current = window.scrollY;
-  }
+  // Scroll listener ni o'rnatish
+  useEffect(() => {
+    ensureScrollListener();
+  }, []);
 
   useLayoutEffect(() => {
     if (isOpen) {
-      wasOpenRef.current = true;
+      // Eng oxirgi scroll pozitsiya
+      savedYRef.current = lastScrollY || window.scrollY;
       document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.top = `-${savedYRef.current}px`;
       document.body.style.left = '0';
       document.body.style.right = '0';
       document.body.style.overflow = 'hidden';
 
       return () => {
-        const y = scrollYRef.current;
-        wasOpenRef.current = false;
+        const y = savedYRef.current;
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.left = '';
