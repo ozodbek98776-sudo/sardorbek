@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   Truck, Plus, Search, ArrowLeft, Package, Phone, Building2,
   CreditCard, Banknote, Smartphone, AlertCircle, X, ChevronRight,
-  Calendar, FileText, Trash2, Edit3, Check, MapPin
+  FileText, Trash2, Edit3, Check, MapPin, BookUser
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
-import { UniversalPageHeader, LoadingSpinner } from '../../components/common';
+import { UniversalPageHeader, ActionButton, LoadingSpinner } from '../../components/common';
+import ContactsImportModal from '../../components/ContactsImportModal';
 
 interface Supplier {
   _id: string;
@@ -74,6 +75,7 @@ export default function Suppliers() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [showContacts, setShowContacts] = useState(false);
 
   // Form states
   const [form, setForm] = useState({ name: '', phone: '', company: '', address: '', note: '' });
@@ -87,12 +89,6 @@ export default function Suppliers() {
   // Pay debt
   const [debtPayAmount, setDebtPayAmount] = useState(0);
   const [debtPayMethod, setDebtPayMethod] = useState<'cash' | 'card' | 'click'>('cash');
-
-  // Contacts for adding supplier
-  const [contacts, setContacts] = useState<Array<{ _id: string; name: string; phone: string }>>([]);
-  const [contactSearch, setContactSearch] = useState('');
-  const contactPage = useRef(1);
-  const [hasMoreContacts, setHasMoreContacts] = useState(true);
 
   // Fetch suppliers
   const fetchSuppliers = useCallback(async () => {
@@ -125,30 +121,10 @@ export default function Suppliers() {
     } catch {}
   }, []);
 
-  // Fetch contacts
-  const fetchContacts = useCallback(async (reset = false) => {
-    const page = reset ? 1 : contactPage.current;
-    try {
-      const { data } = await api.get('/contacts', { params: { search: contactSearch || undefined, page, limit: 30 } });
-      const list = data.contacts || data.data || [];
-      if (reset) {
-        setContacts(list);
-        contactPage.current = 2;
-      } else {
-        setContacts(prev => [...prev, ...list]);
-        contactPage.current = page + 1;
-      }
-      setHasMoreContacts(list.length >= 30);
-    } catch {}
-  }, [contactSearch]);
-
   // Open add supplier
   const openAdd = () => {
     setForm({ name: '', phone: '', company: '', address: '', note: '' });
-    setContactSearch('');
-    setContacts([]);
     setView('add');
-    fetchContacts(true);
   };
 
   // Open edit
@@ -256,9 +232,15 @@ export default function Suppliers() {
     } catch { showAlert("Xatolik", 'error'); }
   };
 
-  // Select contact as supplier
-  const selectContact = (c: { name: string; phone: string }) => {
-    setForm(prev => ({ ...prev, name: c.name, phone: c.phone }));
+  // Select contact → create supplier directly
+  const handleSelectContact = async (c: { name: string; phone: string }) => {
+    try {
+      await api.post('/suppliers', { name: c.name, phone: c.phone });
+      showAlert("Ta'minotchi qo'shildi", 'success');
+      fetchSuppliers();
+    } catch {
+      showAlert("Xatolik", 'error');
+    }
   };
 
   // Product search effect
@@ -268,14 +250,6 @@ export default function Suppliers() {
       return () => clearTimeout(t);
     }
   }, [productSearch, view]);
-
-  // Contact search effect
-  useEffect(() => {
-    if (view === 'add') {
-      const t = setTimeout(() => fetchContacts(true), 300);
-      return () => clearTimeout(t);
-    }
-  }, [contactSearch, view]);
 
   // === RENDERS ===
 
@@ -321,22 +295,21 @@ export default function Suppliers() {
       <UniversalPageHeader
         title="Ta'minotchilar"
         onMenuToggle={onMenuToggle}
+        showSearch
+        searchValue={search}
+        onSearchChange={setSearch}
         actions={
-          <button onClick={openAdd} className="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center">
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <ActionButton icon={BookUser} variant="secondary" onClick={() => setShowContacts(true)}>
+              Kontaktlar
+            </ActionButton>
+            <ActionButton icon={Plus} variant="primary" onClick={openAdd}>
+              Qo'shish
+            </ActionButton>
+          </div>
         }
       />
       <div className="px-4 pt-2 pb-4">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Qidirish..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
-        </div>
         {loading ? <LoadingSpinner /> : suppliers.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Truck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -348,6 +321,14 @@ export default function Suppliers() {
           </div>
         )}
       </div>
+
+      <ContactsImportModal
+        isOpen={showContacts}
+        onClose={() => setShowContacts(false)}
+        onImported={() => fetchSuppliers()}
+        onSelectContact={handleSelectContact}
+        selectLabel="Ta'minotchi"
+      />
     </div>
   );
 
@@ -362,39 +343,6 @@ export default function Suppliers() {
         <h1 className="text-lg font-bold">{view === 'edit' ? "Tahrirlash" : "Yangi ta'minotchi"}</h1>
       </div>
       <div className="px-4 pt-4 space-y-4">
-        {/* Kontaktdan tanlash */}
-        {view === 'add' && (
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Kontaktdan tanlash</label>
-            <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                value={contactSearch}
-                onChange={e => setContactSearch(e.target.value)}
-                placeholder="Kontakt qidirish..."
-                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-            <div className="max-h-40 overflow-y-auto bg-white border border-gray-200 rounded-lg divide-y">
-              {contacts.map(c => (
-                <button
-                  key={c._id}
-                  onClick={() => selectContact(c)}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-orange-50 flex justify-between items-center"
-                >
-                  <span className="font-medium">{c.name}</span>
-                  <span className="text-gray-500">{c.phone}</span>
-                </button>
-              ))}
-              {hasMoreContacts && contacts.length > 0 && (
-                <button onClick={() => fetchContacts(false)} className="w-full py-2 text-sm text-orange-600 font-medium">
-                  Ko'proq yuklash...
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         <div>
           <label className="text-sm font-medium text-gray-700 mb-1 block">Ism *</label>
           <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
