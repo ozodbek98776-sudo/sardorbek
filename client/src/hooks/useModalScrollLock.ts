@@ -1,29 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 /**
  * Modal ochilganda orqa sahifa scroll bo'lmasligi uchun hook
  * @param isOpen - Modal ochiq yoki yopiq holati
  */
 export function useModalScrollLock(isOpen: boolean) {
-  const scrollYRef = useRef(0);
-
   useEffect(() => {
     if (isOpen) {
-      scrollYRef.current = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
 
       return () => {
-        const savedY = scrollYRef.current;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
+        document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
-        window.scrollTo(0, savedY);
+        document.body.style.paddingRight = '';
       };
     }
   }, [isOpen]);
