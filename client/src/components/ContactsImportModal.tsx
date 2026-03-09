@@ -79,6 +79,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
 
   const [addingCustomer, setAddingCustomer] = useState<string | null>(null);
   const [addingSupplier, setAddingSupplier] = useState<string | null>(null);
+  const supplierPhonesRef = useRef<Set<string>>(new Set());
 
   const fetchContacts = useCallback(async (pageNum: number, append = false, search = '') => {
     if (loadingRef.current && append) return;
@@ -88,10 +89,15 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
     try {
       const res = await api.get('/contacts', { params: { page: pageNum, limit: 50, search: search || undefined } });
       const { data, total: t, hasMore: hm } = res.data;
+      const phones = supplierPhonesRef.current;
+      const marked = (data || []).map((c: SavedContact) => ({
+        ...c,
+        isSupplier: c.isSupplier || (phones.size > 0 && phones.has(c.phone))
+      }));
       if (append) {
-        setSavedContacts(prev => [...prev, ...(data || [])]);
+        setSavedContacts(prev => [...prev, ...marked]);
       } else {
-        setSavedContacts(data || []);
+        setSavedContacts(marked);
       }
       setTotal(t || 0);
       setHasMore(hm || false);
@@ -107,13 +113,23 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
 
   useEffect(() => {
     if (isOpen) {
-      fetchContacts(1, false, '');
+      const init = async () => {
+        if (onSelectContact) {
+          try {
+            const { data } = await api.get('/suppliers');
+            const phones = new Set<string>((data.suppliers || []).map((s: { phone?: string }) => s.phone).filter(Boolean));
+            supplierPhonesRef.current = phones;
+          } catch { supplierPhonesRef.current = new Set(); }
+        }
+        fetchContacts(1, false, '');
+      };
+      init();
       setTab('contacts');
       setImportContacts([]);
       setSearchQuery('');
       setImportProgress('');
     }
-  }, [isOpen, fetchContacts]);
+  }, [isOpen, fetchContacts, onSelectContact]);
 
   const handleSearch = useCallback((val: string) => {
     setSearchQuery(val);
@@ -234,6 +250,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported, onSel
     setAddingSupplier(contact._id);
     try {
       await api.post('/suppliers', { name: contact.name, phone: contact.phone });
+      if (contact.phone) supplierPhonesRef.current.add(contact.phone);
       setSavedContacts(prev => prev.map(c =>
         c._id === contact._id ? { ...c, isSupplier: true } : c
       ));
