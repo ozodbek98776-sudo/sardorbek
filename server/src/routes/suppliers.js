@@ -55,10 +55,11 @@ router.post('/', async (req, res) => {
       if (existing) return res.status(400).json({ success: false, message: "Bu telefon raqam allaqachon mavjud" });
     }
 
-    const supplier = await Supplier.create({
-      name, phone, company, address, note,
-      createdBy: req.user._id
-    });
+    const supplierData = { name, phone, company, address, note };
+    if (req.user._id && req.user._id !== 'hardcoded-admin-id') {
+      supplierData.createdBy = req.user._id;
+    }
+    const supplier = await Supplier.create(supplierData);
     res.status(201).json({ success: true, supplier });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -145,7 +146,7 @@ router.post('/:id/transactions', async (req, res) => {
       debtAmount: actualDebt > 0 ? actualDebt : 0,
       paidAmount,
       note,
-      createdBy: req.user._id
+      ...(req.user._id !== 'hardcoded-admin-id' && { createdBy: req.user._id })
     });
 
     // Mahsulotlar miqdorini yangilash
@@ -189,7 +190,7 @@ router.post('/:id/pay-debt', async (req, res) => {
       paidAmount: amount,
       debtAmount: -amount,
       note: note || "Qarz to'lash",
-      createdBy: req.user._id
+      ...(req.user._id !== 'hardcoded-admin-id' && { createdBy: req.user._id })
     });
 
     res.json({ success: true, supplier });
