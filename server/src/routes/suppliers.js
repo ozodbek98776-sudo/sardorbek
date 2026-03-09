@@ -149,11 +149,12 @@ router.post('/:id/transactions', async (req, res) => {
       ...(req.user._id !== 'hardcoded-admin-id' && { createdBy: req.user._id })
     });
 
-    // Mahsulotlar miqdorini yangilash
+    // Mahsulotlar miqdorini va tan narxini yangilash
     for (const item of txItems) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { quantity: item.quantity }
-      });
+      const product = productMap.get(item.product.toString());
+      product.quantity += item.quantity;
+      product.updatePrice('cost', item.price);
+      await product.save();
     }
 
     // Ta'minotchi statistikasini yangilash
