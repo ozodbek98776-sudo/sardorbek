@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Users, Phone, Mail, ShoppingBag, AlertCircle, TrendingUp, DollarSign } from 'lucide-react';
+import { Search, Users, Phone, Mail, ShoppingBag, AlertCircle, TrendingUp, DollarSign, BookUser } from 'lucide-react';
 import { Customer } from '../../types';
 import api from '../../utils/api';
 import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
+import ContactsImportModal from '../../components/ContactsImportModal';
 
 export default function KassaClients() {
   const { showAlert, AlertComponent } = useAlert();
@@ -15,6 +16,7 @@ export default function KassaClients() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debtFilter, setDebtFilter] = useState<'all' | 'withDebt' | 'noDebt'>('all');
+  const [showContacts, setShowContacts] = useState(false);
 
   useEffect(() => {
     fetchCustomers(true);
@@ -170,7 +172,7 @@ export default function KassaClients() {
             </div>
           </div>
 
-          {/* Qidiruv va Yangilash */}
+          {/* Qidiruv va Kontaktlar */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -190,7 +192,13 @@ export default function KassaClients() {
                 </button>
               )}
             </div>
-
+            <button
+              onClick={() => setShowContacts(true)}
+              className="flex-shrink-0 px-3 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl transition-all shadow-md flex items-center gap-1.5"
+            >
+              <BookUser className="w-4 h-4" />
+              <span className="text-sm font-medium hidden sm:inline">Kontaktlar</span>
+            </button>
           </div>
         </div>
       </div>
@@ -274,6 +282,11 @@ export default function KassaClients() {
           </div>
         )}
       </div>
+      <ContactsImportModal
+        isOpen={showContacts}
+        onClose={() => setShowContacts(false)}
+        onImported={() => fetchCustomers(false)}
+      />
     </div>
   );
 }
