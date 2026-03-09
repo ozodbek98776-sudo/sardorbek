@@ -2,14 +2,20 @@ import { useLayoutEffect, useRef } from 'react';
 
 /**
  * Modal ochilganda orqa sahifa scroll bo'lmasligi uchun hook
- * useLayoutEffect — paint dan oldin ishlaydi, scroll jump bo'lmaydi
+ * scrollY ni har renderda saqlaydi (isOpen=false da), keyin isOpen=true bo'lganda ishlatadi
  */
 export function useModalScrollLock(isOpen: boolean) {
   const scrollYRef = useRef(0);
+  const wasOpenRef = useRef(false);
+
+  // isOpen=false da scroll pozitsiyani doim saqlash
+  if (!isOpen && !wasOpenRef.current) {
+    scrollYRef.current = window.scrollY;
+  }
 
   useLayoutEffect(() => {
     if (isOpen) {
-      scrollYRef.current = window.scrollY;
+      wasOpenRef.current = true;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollYRef.current}px`;
       document.body.style.left = '0';
@@ -18,6 +24,7 @@ export function useModalScrollLock(isOpen: boolean) {
 
       return () => {
         const y = scrollYRef.current;
+        wasOpenRef.current = false;
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.left = '';
