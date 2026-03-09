@@ -16,6 +16,8 @@ interface ReceiptData {
   items: ReceiptItem[];
   total: number;
   discount?: number;
+  bonusAmount?: number;
+  remainingAmount?: number;
   paidAmount: number;
   cashAmount?: number;
   cardAmount?: number;
@@ -130,7 +132,14 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
                 <span className="font-semibold text-orange-600">-{formatNumber(receipt.discount)} so'm</span>
               </div>
             )}
-            
+
+            {receipt.bonusAmount && receipt.bonusAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-emerald-600">Bonus:</span>
+                <span className="font-semibold text-emerald-600">-{formatNumber(receipt.bonusAmount)} so'm</span>
+              </div>
+            )}
+
             {receipt.paymentMethod === 'mixed' ? (
               <>
                 {(receipt.cashAmount || 0) > 0 && (
@@ -170,6 +179,13 @@ export function ReceiptPrintModal({ isOpen, onClose, receipt }: ReceiptPrintModa
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600">Qaytim:</span>
                 <span className="font-semibold text-green-600">{formatNumber(change)} so'm</span>
+              </div>
+            )}
+
+            {receipt.remainingAmount && receipt.remainingAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-amber-600 font-semibold">Qarz:</span>
+                <span className="font-bold text-amber-600">{formatNumber(receipt.remainingAmount)} so'm</span>
               </div>
             )}
           </div>

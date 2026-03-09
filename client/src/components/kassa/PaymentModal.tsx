@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Banknote, CreditCard, AlertTriangle, Smartphone } from 'lucide-react';
+import { X, Banknote, CreditCard, AlertTriangle, Smartphone, FileText, Gift } from 'lucide-react';
 import { Customer, CartItem } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
@@ -22,6 +22,7 @@ export interface PaymentData {
   clickAmount: number;
   total: number;
   debtAmount: number;
+  bonusAmount: number;
   discount?: number;
 }
 
@@ -41,17 +42,20 @@ export function PaymentModal({
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [debtInput, setDebtInput] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [totalClickCount, setTotalClickCount] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+
   // Modal scroll lock
   useModalScrollLock(isOpen);
   useSwipeToClose(isOpen ? onClose : undefined);
 
   const totalPaid = cashAmount + cardAmount + clickAmount;
-  const debtAmount = Math.max(0, total - discount - totalPaid);
-  const changeAmount = Math.max(0, totalPaid - (total - discount));
+  const finalTotal = total - discount;
+  const debtAmount = selectedCustomer ? Math.min(debtInput, Math.max(0, finalTotal - totalPaid)) : 0;
+  const bonusAmount = Math.max(0, finalTotal - totalPaid - debtAmount);
+  const changeAmount = Math.max(0, totalPaid + debtAmount - finalTotal);
   
   const handleTotalClick = () => {
     setTotalClickCount(prev => prev + 1);
@@ -68,18 +72,14 @@ export function PaymentModal({
       return;
     }
 
-    if (debtAmount > 0 && !selectedCustomer) {
-      alert('Qarzga sotish uchun mijozni tanlang!');
-      return;
-    }
-    
     onPayment({
       customer: selectedCustomer,
       cashAmount,
       cardAmount,
       clickAmount,
-      total: total - discount,
+      total: finalTotal,
       debtAmount,
+      bonusAmount,
       discount
     });
     
@@ -92,6 +92,7 @@ export function PaymentModal({
     setCashAmount(0);
     setCardAmount(0);
     setClickAmount(0);
+    setDebtInput(0);
     setDiscount(0);
     setTotalClickCount(0);
     setIsCollapsed(false);
@@ -247,31 +248,31 @@ export function PaymentModal({
               {/* Payment summary */}
               <div className="bg-slate-50 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Jami to'lanadi:</span>
-                  <span className="font-bold text-slate-900">{formatNumber(total - discount)} so'm</span>
+                  <span className="text-slate-600">Jami:</span>
+                  <span className="font-bold text-slate-900">{formatNumber(finalTotal)} so'm</span>
                 </div>
-                
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-orange-600">Chegirma:</span>
-                    <span className="font-bold text-orange-600">-{formatNumber(discount)} so'm</span>
-                  </div>
-                )}
-                
+
                 {totalPaid > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">To'langan:</span>
                     <span className="font-bold text-slate-900">{formatNumber(totalPaid)} so'm</span>
                   </div>
                 )}
-                
+
                 {debtAmount > 0 && (
-                  <div className="flex justify-between text-sm border-t pt-2">
+                  <div className="flex justify-between text-sm">
                     <span className="text-amber-600">Qarz:</span>
                     <span className="font-bold text-amber-600">{formatNumber(debtAmount)} so'm</span>
                   </div>
                 )}
-                
+
+                {bonusAmount > 0 && totalPaid > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-600">Bonus:</span>
+                    <span className="font-bold text-emerald-600">-{formatNumber(bonusAmount)} so'm</span>
+                  </div>
+                )}
+
                 {changeAmount > 0 && (
                   <div className="flex justify-between text-sm border-t pt-2">
                     <span className="text-green-600">Qaytim:</span>
@@ -284,7 +285,7 @@ export function PaymentModal({
               <div className="flex gap-2">
                 <button
                   onClick={handleSubmit}
-                  disabled={totalPaid <= 0 || (debtAmount > 0 && !selectedCustomer)}
+                  disabled={totalPaid <= 0}
                   className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   Tasdiqlash
@@ -453,49 +454,91 @@ export function PaymentModal({
                 </button>
               </div>
             </div>
+
+            {/* Qarz input — faqat mijoz tanlanganda */}
+            {selectedCustomer && (
+              <div>
+                <label className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                  Qarz
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={debtInput || ''}
+                    onChange={(e) => setDebtInput(Math.max(0, Number(e.target.value)))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                    className="flex-1 px-4 py-3 border-2 border-amber-200 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-lg font-semibold bg-amber-50/50"
+                  />
+                  <button
+                    onClick={() => setDebtInput(Math.max(0, finalTotal - totalPaid))}
+                    className="px-4 py-3 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold rounded-xl transition-all whitespace-nowrap"
+                  >
+                    To'liq
+                  </button>
+                </div>
+                <p className="text-xs text-amber-600 mt-1">
+                  {selectedCustomer.name} nomiga qarzga yoziladi
+                </p>
+              </div>
+            )}
           </div>
+
+          {/* Bonus — qolgan summa avtomatik chegirma */}
+          {bonusAmount > 0 && totalPaid > 0 && (
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3 flex items-start gap-3">
+              <Gift className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-emerald-900 text-sm">Bonus (chegirma)</p>
+                <p className="text-lg font-bold text-emerald-700">{formatNumber(bonusAmount)} so'm</p>
+                <p className="text-xs text-emerald-600 mt-0.5">Qolgan summa chegirma sifatida berildi</p>
+              </div>
+            </div>
+          )}
 
           {/* Payment summary */}
           {totalPaid > 0 && (
             <div className="space-y-2">
               <div className="bg-slate-50 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Jami to'lanadi:</span>
+                  <span className="text-slate-600">Jami:</span>
+                  <span className="font-bold text-slate-900">{formatNumber(finalTotal)} so'm</span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">To'langan:</span>
                   <span className="font-bold text-slate-900">{formatNumber(totalPaid)} so'm</span>
                 </div>
-                
+
                 {debtAmount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-600">Qarz:</span>
                     <span className="font-bold text-amber-600">{formatNumber(debtAmount)} so'm</span>
                   </div>
                 )}
-                
-                {changeAmount > 0 && (
+
+                {bonusAmount > 0 && (
                   <div className="flex justify-between text-sm">
+                    <span className="text-emerald-600">Bonus:</span>
+                    <span className="font-bold text-emerald-600">-{formatNumber(bonusAmount)} so'm</span>
+                  </div>
+                )}
+
+                {changeAmount > 0 && (
+                  <div className="flex justify-between text-sm border-t pt-2">
                     <span className="text-green-600">Qaytim:</span>
                     <span className="font-bold text-green-600">{formatNumber(changeAmount)} so'm</span>
                   </div>
                 )}
               </div>
 
-              {/* Warnings */}
-              {debtAmount > 0 && !selectedCustomer && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 flex items-start gap-2">
-                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-red-900 text-sm">Oddiy mijozga qarzga sotib bo'lmaydi!</p>
-                    <p className="text-xs text-red-700 mt-1">To'liq to'lov qiling yoki mijozni tanlang</p>
-                  </div>
-                </div>
-              )}
-
+              {/* Qarz warning */}
               {debtAmount > 0 && selectedCustomer && (
                 <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 flex items-start gap-2">
                   <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-amber-900 text-sm">Qisman to'lov</p>
-                    <p className="text-xs text-amber-700 mt-1">
+                    <p className="text-xs text-amber-700">
                       {formatNumber(debtAmount)} so'm <span className="font-bold">{selectedCustomer.name}</span> nomiga qarzga yoziladi
                     </p>
                   </div>
@@ -508,7 +551,7 @@ export function PaymentModal({
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleSubmit}
-              disabled={totalPaid <= 0 || (debtAmount > 0 && !selectedCustomer)}
+              disabled={totalPaid <= 0}
               className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               Tasdiqlash

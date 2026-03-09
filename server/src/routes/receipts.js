@@ -801,7 +801,7 @@ router.post('/', auth, async (req, res) => {
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     console.log('User:', req.user);
     
-    const { items, total, paidAmount, cashAmount, cardAmount, clickAmount, paymentMethod, customer, isReturn } = req.body;
+    const { items, total, paidAmount, cashAmount, cardAmount, clickAmount, paymentMethod, customer, isReturn, bonusAmount } = req.body;
     const isHelper = req.user.role === 'helper';
 
     // To'langan summani hisoblash
@@ -841,6 +841,8 @@ router.post('/', auth, async (req, res) => {
       cashAmount: cashAmount || 0,
       cardAmount: cardAmount || 0,
       clickAmount: clickAmount || 0,
+      bonusAmount: bonusAmount || 0,
+      remainingAmount: debtAmount || 0,
       paymentMethod,
       customer,
       status: isHelper ? 'pending' : 'completed',

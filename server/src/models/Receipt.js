@@ -51,7 +51,8 @@ const receiptSchema = new mongoose.Schema({
   cashAmount: { type: Number, default: 0 }, // Naqd pul summasi
   cardAmount: { type: Number, default: 0 }, // Karta summasi
   clickAmount: { type: Number, default: 0 }, // CLICK summasi
-  remainingAmount: { type: Number, default: 0 }, // Qoldiq summa
+  remainingAmount: { type: Number, default: 0 }, // Qoldiq summa (qarz)
+  bonusAmount: { type: Number, default: 0 }, // Bonus (chegirma)
   receiptNumber: { type: String }, // Chek raqami
   metadata: {
     offlineId: { type: String, index: true },

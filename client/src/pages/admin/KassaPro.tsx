@@ -746,7 +746,7 @@ export default function KassaProNew() {
   const handlePayment = async (data: PaymentData) => {
     console.log('💰 handlePayment boshlandi:', data);
     
-    const { customer, cashAmount, cardAmount, clickAmount, debtAmount, discount = 0 } = data;
+    const { customer, cashAmount, cardAmount, clickAmount, debtAmount, bonusAmount = 0, discount = 0 } = data;
     
     // Validatsiya
     if (cart.length === 0) {
@@ -772,7 +772,7 @@ export default function KassaProNew() {
       finalPaymentMethod = 'click';
     }
     
-    const finalTotal = total - discount;
+    const finalTotal = total - discount - bonusAmount;
     
     const saleData = {
       items: cart.map(item => ({
@@ -784,6 +784,7 @@ export default function KassaProNew() {
       })),
       total: finalTotal,
       discount,
+      bonusAmount,
       paidAmount: cashAmount + cardAmount + clickAmount,
       cashAmount,
       cardAmount,
