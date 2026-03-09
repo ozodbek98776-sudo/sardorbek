@@ -244,11 +244,8 @@ export default function Suppliers() {
 
   // Supplier card
   const SupplierCard = ({ s }: { s: Supplier }) => (
-    <div
-      onClick={() => openDetail(s)}
-      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform"
-    >
-      <div className="flex items-start justify-between">
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between cursor-pointer" onClick={() => openDetail(s)}>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 truncate">{s.name}</h3>
           {s.phone && <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{s.phone}</p>}
@@ -274,6 +271,23 @@ export default function Suppliers() {
           <p className="text-sm font-semibold">{s.transactionCount}</p>
         </div>
       </div>
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        <button onClick={() => openKirim(s)} className="flex-1 py-2 bg-orange-50 text-orange-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-orange-100 transition-colors">
+          <Package className="w-3.5 h-3.5" /> Kirim
+        </button>
+        <button onClick={() => openEdit(s)} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors">
+          <Edit3 className="w-3.5 h-3.5" /> Tahrirlash
+        </button>
+        {s.transactionCount === 0 ? (
+          <button onClick={(e) => { e.stopPropagation(); deleteSupplier(s._id); }} className="py-2 px-3 bg-red-50 text-red-500 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-red-100 transition-colors">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        ) : s.totalDebt > 0 ? (
+          <button onClick={() => openPayDebt(s)} className="flex-1 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 hover:bg-green-100 transition-colors">
+            <Banknote className="w-3.5 h-3.5" /> Qarz
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 
@@ -298,14 +312,14 @@ export default function Suppliers() {
           </div>
         }
       />
-      <div className="px-4 pt-2 pb-4">
+      <div className="px-4 pt-2 pb-4 max-w-6xl mx-auto">
         {loading ? <LoadingSpinner /> : suppliers.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Truck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p>Ta'minotchilar yo'q</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {suppliers.map(s => <SupplierCard key={s._id} s={s} />)}
           </div>
         )}
