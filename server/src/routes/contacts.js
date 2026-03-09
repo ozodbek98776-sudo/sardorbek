@@ -4,10 +4,12 @@ const Contact = require('../models/Contact');
 
 const router = express.Router();
 
-// Barcha kontaktlarni olish
+// Kontaktlarni olish (pagination + search)
 router.get('/', auth, async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, page = 1, limit = 50 } = req.query;
+    const p = Math.max(1, parseInt(page));
+    const l = Math.min(100, Math.max(10, parseInt(limit) || 50));
     const filter = {};
     if (search) {
       filter.$or = [
@@ -15,8 +17,11 @@ router.get('/', auth, async (req, res) => {
         { phone: { $regex: search, $options: 'i' } }
       ];
     }
-    const contacts = await Contact.find(filter).sort({ name: 1 }).lean();
-    res.json({ success: true, data: contacts });
+    const [contacts, total] = await Promise.all([
+      Contact.find(filter).sort({ name: 1 }).skip((p - 1) * l).limit(l).lean(),
+      Contact.countDocuments(filter)
+    ]);
+    res.json({ success: true, data: contacts, total, page: p, limit: l, hasMore: p * l < total });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
