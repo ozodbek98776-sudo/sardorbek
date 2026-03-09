@@ -244,7 +244,7 @@ export default function Suppliers() {
 
   // Supplier card
   const SupplierCard = ({ s }: { s: Supplier }) => (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between cursor-pointer" onClick={() => openDetail(s)}>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 truncate">{s.name}</h3>

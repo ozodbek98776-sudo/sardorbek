@@ -174,17 +174,18 @@ export default function CustomersPro() {
         address: formData.region && formData.district ? `${formData.region}, ${formData.district}` : ''
       };
       if (editingCustomer) {
-        await api.put(`/customers/${editingCustomer._id}`, data);
+        const res = await api.put(`/customers/${editingCustomer._id}`, data);
+        const updated = res.data?.data || { ...editingCustomer, ...data };
+        setCustomers(prev => prev.map(c => c._id === editingCustomer._id ? { ...c, ...updated } : c));
         showAlert('Mijoz yangilandi', 'Muvaffaqiyat', 'success');
       } else {
         await api.post('/customers', data);
         showAlert('Mijoz qo\'shildi', 'Muvaffaqiyat', 'success');
+        setCustomers([]);
+        setCurrentPage(1);
+        setHasMore(true);
+        fetchCustomers(1, false);
       }
-      // Reset and reload from page 1
-      setCustomers([]);
-      setCurrentPage(1);
-      setHasMore(true);
-      fetchCustomers(1, false);
       closeModal();
     } catch (err) { 
       console.error(err);
