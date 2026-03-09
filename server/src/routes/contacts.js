@@ -22,7 +22,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Kontaktlarni bulk import
+// Kontaktlarni bulk import (bulkWrite - tez)
 router.post('/import', auth, async (req, res) => {
   try {
     const { contacts } = req.body;
@@ -30,35 +30,29 @@ router.post('/import', auth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Kontaktlar ro\'yxati bo\'sh' });
     }
 
-    const results = { imported: 0, skipped: 0, errors: 0, details: [] };
+    console.log(`📱 Contacts import: ${contacts.length} ta kontakt`);
 
-    for (const c of contacts) {
-      if (!c.name || !c.phone) {
-        results.errors++;
-        results.details.push({ name: c.name, phone: c.phone, status: 'error', message: 'Ism yoki telefon yo\'q' });
-        continue;
-      }
-      try {
-        await Contact.findOneAndUpdate(
-          { phone: c.phone },
-          { name: c.name, phone: c.phone, createdBy: req.user._id },
-          { upsert: true, new: true }
-        );
-        results.imported++;
-        results.details.push({ name: c.name, phone: c.phone, status: 'success' });
-      } catch (err) {
-        if (err.code === 11000) {
-          results.skipped++;
-          results.details.push({ name: c.name, phone: c.phone, status: 'exists', message: 'Allaqachon mavjud' });
-        } else {
-          results.errors++;
-          results.details.push({ name: c.name, phone: c.phone, status: 'error', message: err.message });
+    const ops = contacts
+      .filter(c => c.name && c.phone)
+      .map(c => ({
+        updateOne: {
+          filter: { phone: c.phone },
+          update: { $set: { name: c.name, phone: c.phone, createdBy: req.user._id } },
+          upsert: true
         }
-      }
+      }));
+
+    if (ops.length === 0) {
+      return res.status(400).json({ success: false, message: 'Yaroqli kontakt topilmadi' });
     }
 
-    res.json({ success: true, data: results });
+    const result = await Contact.bulkWrite(ops, { ordered: false });
+    const imported = (result.upsertedCount || 0) + (result.modifiedCount || 0);
+    console.log(`✅ Contacts imported: ${imported} ta`);
+
+    res.json({ success: true, data: { imported, total: ops.length } });
   } catch (error) {
+    console.error('❌ Contacts import error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 });

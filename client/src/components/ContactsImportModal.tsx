@@ -66,7 +66,6 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
   // Import state
   const [importContacts, setImportContacts] = useState<{ name: string; phone: string }[]>([]);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mijoz qilish state
@@ -90,7 +89,6 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
       fetchContacts();
       setTab('contacts');
       setImportContacts([]);
-      setImportResult(null);
       setCustomerResults({});
       setSearchQuery('');
     }
@@ -128,18 +126,19 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
     e.target.value = '';
   }, []);
 
-  // Bazaga import qilish
+  // Bazaga import qilish — tugagach darhol kontaktlar tab ga o'tadi
   const importToDB = async () => {
     if (importContacts.length === 0) return;
     setImporting(true);
     try {
       const res = await api.post('/contacts/import', { contacts: importContacts });
-      const data = res.data.data;
-      setImportResult({ imported: data.imported, skipped: data.skipped });
-      fetchContacts();
+      console.log('Import result:', res.data);
       setImportContacts([]);
-    } catch {
-      setImportResult({ imported: 0, skipped: 0 });
+      await fetchContacts();
+      setTab('contacts');
+    } catch (err) {
+      console.error('Import error:', err);
+      alert('Import xatolik: ' + ((err as Record<string, Record<string, Record<string, string>>>)?.response?.data?.message || 'Server xatosi'));
     } finally {
       setImporting(false);
     }
@@ -304,7 +303,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
           {/* ===== IMPORT ===== */}
           {tab === 'import' && (
             <div className="p-4 space-y-3">
-              {importContacts.length === 0 && !importResult && (
+              {importContacts.length === 0 && (
                 <>
                   {hasContactPicker && (
                     <button
@@ -345,7 +344,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
               )}
 
               {/* Import preview */}
-              {importContacts.length > 0 && !importResult && (
+              {importContacts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium text-slate-700">{importContacts.length} ta kontakt topildi</p>
@@ -385,24 +384,8 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
                 </div>
               )}
 
-              {/* Import result */}
-              {importResult && (
-                <div className="text-center py-4">
-                  <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Check className="w-7 h-7 text-green-600" />
-                  </div>
-                  <p className="text-lg font-bold text-slate-900 mb-1">{importResult.imported} ta saqlandi</p>
-                  {importResult.skipped > 0 && (
-                    <p className="text-sm text-amber-600">{importResult.skipped} ta allaqachon mavjud edi</p>
-                  )}
-                  <button
-                    onClick={() => { setImportResult(null); setTab('contacts'); }}
-                    className="mt-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors text-sm"
-                  >
-                    Kontaktlarni ko'rish
-                  </button>
-                </div>
-              )}
+
+
             </div>
           )}
         </div>
