@@ -321,7 +321,7 @@ export default function Suppliers() {
       <UniversalPageHeader
         title="Ta'minotchilar"
         onMenuToggle={onMenuToggle}
-        rightContent={
+        actions={
           <button onClick={openAdd} className="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center">
             <Plus className="w-5 h-5" />
           </button>
