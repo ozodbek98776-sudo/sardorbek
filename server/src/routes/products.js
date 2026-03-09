@@ -1070,15 +1070,16 @@ router.post('/', auth, authorize('admin', 'helper'), async (req, res) => {
     // Auto-generate code if not provided
     let productCode = code;
     if (!productCode) {
-      const lastProduct = await Product.findOne().sort({ createdAt: -1 });
+      const lastProduct = await Product.findOne().sort({ code: -1 });
       let nextNum = 1;
       if (lastProduct && lastProduct.code) {
-        const match = lastProduct.code.match(/(\d+)$/);
+        const codeStr = String(lastProduct.code);
+        const match = codeStr.match(/(\d+)$/);
         if (match) {
           nextNum = parseInt(match[1]) + 1;
         }
       }
-      productCode = String(nextNum);
+      productCode = nextNum;
     }
 
     // Check if code already exists
