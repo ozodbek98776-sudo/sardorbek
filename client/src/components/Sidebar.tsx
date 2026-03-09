@@ -548,5 +548,6 @@ export const cashierMenuItems: MenuItem[] = [
 
 export const helperMenuItems: MenuItem[] = [
   { icon: <Sparkles className="w-5 h-5" />, label: 'Scanner', path: '' },
+  { icon: <Package className="w-5 h-5" />, label: 'Mahsulotlar', path: '/products' },
   { icon: <User className="w-5 h-5" />, label: 'Mening Profilim', path: '/profile' },
 ];

@@ -41,7 +41,7 @@ const ROLE_PERMISSIONS = {
     orders: []
   },
   [ROLES.HELPER]: {
-    products: ['read'],
+    products: ['create', 'read', 'update', 'upload_images'],
     customers: ['create', 'read'],
     receipts: ['create', 'read'],
     debts: [],

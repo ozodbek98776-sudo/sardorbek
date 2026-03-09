@@ -470,7 +470,7 @@ router.get('/scan-qr/:code', auth, async (req, res) => {
 });
 
 // Upload images for product - admin va kassa uchun
-router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array('images', 8), async (req, res) => {
+router.post('/upload-images', auth, authorize('admin', 'cashier', 'helper'), upload.array('images', 8), async (req, res) => {
   try {
     console.log('📸 Rasm upload so\'rovi keldi');
     console.log('Files:', req.files?.length || 0);
@@ -556,7 +556,7 @@ router.post('/upload-images', auth, authorize('admin', 'cashier'), upload.array(
 });
 
 // MUAMMO 5 YECHIMI: Cleanup unused images - bekor qilingan rasmlarni o'chirish
-router.post('/cleanup-images', auth, authorize('admin', 'cashier'), async (req, res) => {
+router.post('/cleanup-images', auth, authorize('admin', 'cashier', 'helper'), async (req, res) => {
   try {
     const { imagePaths } = req.body;
     
@@ -1060,7 +1060,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, authorize('admin'), async (req, res) => {
+router.post('/', auth, authorize('admin', 'helper'), async (req, res) => {
   try {
     console.log('🔍 POST / request received');
     console.log('Request body keys:', Object.keys(req.body));
@@ -1287,7 +1287,7 @@ router.put('/:id/category', async (req, res) => {
   }
 });
 
-router.put('/:id', auth, authorize('admin'), async (req, res) => {
+router.put('/:id', auth, authorize('admin', 'helper'), async (req, res) => {
   try {
     console.log('🔍 PUT /:id request received for ID:', req.params.id);
     console.log('Request body keys:', Object.keys(req.body));

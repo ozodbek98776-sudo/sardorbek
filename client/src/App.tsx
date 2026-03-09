@@ -37,6 +37,7 @@ const LocationCheckIn = lazy(() => import('./pages/attendance/LocationCheckIn'))
 const KassaLayout = lazy(() => import('./layouts/KassaLayout'));
 const HelperLayout = lazy(() => import('./layouts/HelperLayout'));
 const HelperScanner = lazy(() => import('./pages/helper/Scanner'));
+const HelperProducts = lazy(() => import('./pages/helper/HelperProducts'));
 // Kassa sahifalari (admin va kassir uchun)
 const KassaReceipts = lazy(() => import('./pages/kassa/KassaReceipts'));
 const KassaClients = lazy(() => import('./pages/kassa/KassaClients'));
@@ -198,6 +199,7 @@ function App() {
               {/* Helper Routes */}
               <Route path="/helper" element={<ProtectedRoute roles={['helper']}><Suspense fallback={<PageLoader />}><HelperLayout /></Suspense></ProtectedRoute>}>
                 <Route index element={<Suspense fallback={<PageLoader />}><HelperScanner /></Suspense>} />
+                <Route path="products" element={<Suspense fallback={<PageLoader />}><HelperProducts /></Suspense>} />
                 <Route path="profile" element={<Suspense fallback={<PageLoader />}><MyProfile /></Suspense>} />
               </Route>
             </Routes>

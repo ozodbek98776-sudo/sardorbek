@@ -42,6 +42,7 @@ interface ProductModalProps {
   onFormChange: (updates: any) => void;
   uploadedImages: string[];
   onImagesChange: (images: string[]) => void;
+  restrictedFields?: boolean; // true = tan narx va chegirma faqat ko'rinadi, o'zgartirib bo'lmaydi
 }
 
 export default function ProductModal({
@@ -55,6 +56,7 @@ export default function ProductModal({
   onFormChange,
   uploadedImages,
   onImagesChange,
+  restrictedFields = false,
 }: ProductModalProps) {
   useSwipeToClose(isOpen ? onClose : undefined);
   useModalScrollLock(isOpen);
@@ -221,18 +223,19 @@ export default function ProductModal({
         </div>
 
         {/* Cost Prices */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid grid-cols-2 gap-4 ${restrictedFields ? 'opacity-70' : ''}`}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (USD)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (USD) {restrictedFields && <span className="text-xs text-slate-400">(faqat ko'rish)</span>}</label>
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 value={formData.costPriceUsd || ''}
                 onChange={(e) => {
+                  if (restrictedFields) return;
                   const value = e.target.value ? Number(e.target.value) : '';
                   if (value) {
                     const uzsValue = convertUsdToUzs(Number(value));
@@ -242,21 +245,24 @@ export default function ProductModal({
                   }
                 }}
                 placeholder="0.00"
+                readOnly={restrictedFields}
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (UZS)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tan narxi (UZS) {restrictedFields && <span className="text-xs text-slate-400">(faqat ko'rish)</span>}</label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
               value={formData.costPrice ? formatInputNumber(formData.costPrice) : ''}
               onChange={(e) => {
+                if (restrictedFields) return;
                 const value = parseNumber(e.target.value);
                 handleFormChange({ costPrice: value });
               }}
               placeholder="0"
               title="USD dan avtomatik hisoblanadi yoki to'g'ridan-to'g'ri kiritish mumkin"
+              readOnly={restrictedFields}
             />
             {formData.costPriceUsd && (
               <p className="text-xs text-blue-600 mt-1">
@@ -277,9 +283,10 @@ export default function ProductModal({
                 min="0"
                 max="10000"
                 step="0.1"
-                className="w-full pl-3 pr-7 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full pl-3 pr-7 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
                 value={markupPercent}
                 onChange={(e) => {
+                  if (restrictedFields) return;
                   const pct = e.target.value;
                   setMarkupPercent(pct);
                   const cost = parseFloat(formData.costPrice) || 0;
@@ -289,6 +296,7 @@ export default function ProductModal({
                   }
                 }}
                 placeholder="0"
+                readOnly={restrictedFields}
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium pointer-events-none">%</span>
             </div>
@@ -393,8 +401,8 @@ export default function ProductModal({
         )}
 
         {/* Discounts */}
-        <div className="border-t pt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Chegirma sozlamalari (ixtiyoriy)</label>
+        <div className={`border-t pt-4 ${restrictedFields ? 'opacity-70' : ''}`}>
+          <label className="block text-sm font-medium text-gray-700 mb-3">Chegirma sozlamalari (ixtiyoriy) {restrictedFields && <span className="text-xs text-slate-400">(faqat ko'rish)</span>}</label>
 
           {/* Discount 1 */}
           <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -404,23 +412,25 @@ export default function ProductModal({
                 <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount1.minQuantity}
-                  onChange={(e) => handleNestedChange('discount1', { minQuantity: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount1', { minQuantity: e.target.value }); }}
                   placeholder="10"
                   min="1"
+                  readOnly={restrictedFields}
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount1.percent}
-                  onChange={(e) => handleNestedChange('discount1', { percent: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount1', { percent: e.target.value }); }}
                   placeholder="5"
                   min="0"
                   max="100"
+                  readOnly={restrictedFields}
                 />
                 {formData.discount1.percent && formData.unitPrice && (
                   <p className="text-xs text-green-700 mt-0.5 font-medium">
@@ -439,23 +449,25 @@ export default function ProductModal({
                 <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount2.minQuantity}
-                  onChange={(e) => handleNestedChange('discount2', { minQuantity: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount2', { minQuantity: e.target.value }); }}
                   placeholder="50"
                   min="1"
+                  readOnly={restrictedFields}
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount2.percent}
-                  onChange={(e) => handleNestedChange('discount2', { percent: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount2', { percent: e.target.value }); }}
                   placeholder="10"
                   min="0"
                   max="100"
+                  readOnly={restrictedFields}
                 />
                 {formData.discount2.percent && formData.unitPrice && (
                   <p className="text-xs text-blue-700 mt-0.5 font-medium">
@@ -474,23 +486,25 @@ export default function ProductModal({
                 <label className="block text-xs text-gray-600 mb-1">Minimal miqdor</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount3.minQuantity}
-                  onChange={(e) => handleNestedChange('discount3', { minQuantity: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount3', { minQuantity: e.target.value }); }}
                   placeholder="100"
                   min="1"
+                  readOnly={restrictedFields}
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Chegirma %</label>
                 <input
                   type="number"
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500"
+                  className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500 ${restrictedFields ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   value={formData.discount3.percent}
-                  onChange={(e) => handleNestedChange('discount3', { percent: e.target.value })}
+                  onChange={(e) => { if (!restrictedFields) handleNestedChange('discount3', { percent: e.target.value }); }}
                   placeholder="15"
                   min="0"
                   max="100"
+                  readOnly={restrictedFields}
                 />
                 {formData.discount3.percent && formData.unitPrice && (
                   <p className="text-xs text-purple-700 mt-0.5 font-medium">
