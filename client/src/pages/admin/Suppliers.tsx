@@ -317,7 +317,7 @@ export default function Suppliers() {
   // LIST VIEW
   if (view === 'list') return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <AlertComponent />
+      {AlertComponent}
       <UniversalPageHeader
         title="Ta'minotchilar"
         onMenuToggle={onMenuToggle}
@@ -354,7 +354,7 @@ export default function Suppliers() {
   // ADD / EDIT VIEW
   if (view === 'add' || view === 'edit') return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <AlertComponent />
+      {AlertComponent}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
         <button onClick={() => setView('list')} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100">
           <ArrowLeft className="w-5 h-5" />
@@ -430,7 +430,7 @@ export default function Suppliers() {
   // DETAIL VIEW
   if (view === 'detail' && selected) return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <AlertComponent />
+      {AlertComponent}
       <div className="sticky top-0 z-30 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3 flex items-center gap-3">
         <button onClick={() => { setView('list'); fetchSuppliers(); }} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/20">
           <ArrowLeft className="w-5 h-5" />
@@ -545,7 +545,7 @@ export default function Suppliers() {
   // KIRIM VIEW
   if (view === 'kirim' && selected) return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      <AlertComponent />
+      {AlertComponent}
       <div className="sticky top-0 z-30 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3 flex items-center gap-3">
         <button onClick={() => openDetail(selected)} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/20">
           <ArrowLeft className="w-5 h-5" />
@@ -708,7 +708,7 @@ export default function Suppliers() {
   // PAY DEBT VIEW
   if (view === 'pay-debt' && selected) return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <AlertComponent />
+      {AlertComponent}
       <div className="sticky top-0 z-30 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 flex items-center gap-3">
         <button onClick={() => openDetail(selected)} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/20">
           <ArrowLeft className="w-5 h-5" />
