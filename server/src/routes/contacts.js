@@ -1,6 +1,7 @@
 const express = require('express');
 const { auth } = require('../middleware/auth');
 const Contact = require('../models/Contact');
+const Customer = require('../models/Customer');
 
 const router = express.Router();
 
@@ -21,7 +22,12 @@ router.get('/', auth, async (req, res) => {
       Contact.find(filter).sort({ name: 1 }).skip((p - 1) * l).limit(l).lean(),
       Contact.countDocuments(filter)
     ]);
-    res.json({ success: true, data: contacts, total, page: p, limit: l, hasMore: p * l < total });
+    // Qaysi kontaktlar allaqachon mijoz ekanini tekshirish
+    const phones = contacts.map(c => c.phone);
+    const existingCustomers = await Customer.find({ phone: { $in: phones } }, { phone: 1 }).lean();
+    const customerPhones = new Set(existingCustomers.map(c => c.phone));
+    const data = contacts.map(c => ({ ...c, isCustomer: customerPhones.has(c.phone) }));
+    res.json({ success: true, data, total, page: p, limit: l, hasMore: p * l < total });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
