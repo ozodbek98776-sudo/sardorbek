@@ -117,7 +117,7 @@ export default function HelperScanner() {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get('/products');
+      const res = await api.get('/products/kassa', { params: { limit: 1000 } });
       // Handle both paginated and non-paginated responses
       const productsData = res.data.data || res.data;
       setProducts(Array.isArray(productsData) ? productsData : []);
@@ -321,7 +321,7 @@ export default function HelperScanner() {
       if (query.length > 0) {
         try {
           // Serverdan qidirish - barcha mahsulotlar orasidan
-          const res = await api.get('/products', {
+          const res = await api.get('/products/kassa', {
             params: {
               search: query,
               category: selectedCategory || undefined
@@ -349,7 +349,7 @@ export default function HelperScanner() {
         // Agar qidiruv bo'sh bo'lsa, faqat kategoriya bo'yicha filtrlash
         if (selectedCategory) {
           try {
-            const res = await api.get('/products', {
+            const res = await api.get('/products/kassa', {
               params: { category: selectedCategory }
             });
             const productsData = res.data.data || res.data;
