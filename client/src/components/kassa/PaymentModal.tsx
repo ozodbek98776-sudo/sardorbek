@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { X, Banknote, CreditCard, AlertTriangle, Smartphone, FileText, Gift } from 'lucide-react';
+import { X, Banknote, CreditCard, AlertTriangle, Smartphone, FileText, Gift, Truck } from 'lucide-react';
 import { Customer, CartItem } from '../../types';
 import { formatNumber } from '../../utils/format';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
+
+interface DeliveryPerson {
+  _id: string;
+  name: string;
+  phone?: string;
+}
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -13,6 +19,8 @@ interface PaymentModalProps {
   customers: Customer[];
   onPayment: (data: PaymentData) => void;
   onCreateCustomer: (name: string, phone: string) => Promise<void>;
+  isDeliveryMode?: boolean;
+  deliveryPersons?: DeliveryPerson[];
 }
 
 export interface PaymentData {
@@ -24,16 +32,20 @@ export interface PaymentData {
   debtAmount: number;
   bonusAmount: number;
   discount?: number;
+  isDelivery?: boolean;
+  deliveryPerson?: string;
 }
 
-export function PaymentModal({ 
-  isOpen, 
-  onClose, 
-  total, 
+export function PaymentModal({
+  isOpen,
+  onClose,
+  total,
   cart,
   customers,
   onPayment,
-  onCreateCustomer
+  onCreateCustomer,
+  isDeliveryMode,
+  deliveryPersons = []
 }: PaymentModalProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [cashAmount, setCashAmount] = useState(0);
@@ -46,6 +58,7 @@ export function PaymentModal({
   const [discount, setDiscount] = useState(0);
   const [totalClickCount, setTotalClickCount] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
 
   // Modal scroll lock
   useModalScrollLock(isOpen);
@@ -72,6 +85,11 @@ export function PaymentModal({
       return;
     }
 
+    if (isDeliveryMode && !selectedDeliveryPerson) {
+      alert('Dostavchikni tanlang!');
+      return;
+    }
+
     onPayment({
       customer: selectedCustomer,
       cashAmount,
@@ -80,7 +98,9 @@ export function PaymentModal({
       total: finalTotal,
       debtAmount,
       bonusAmount,
-      discount
+      discount,
+      isDelivery: isDeliveryMode || false,
+      deliveryPerson: isDeliveryMode ? selectedDeliveryPerson : undefined
     });
     
     // Reset
@@ -96,6 +116,7 @@ export function PaymentModal({
     setDiscount(0);
     setTotalClickCount(0);
     setIsCollapsed(false);
+    setSelectedDeliveryPerson('');
     setShowNewCustomerForm(false);
     setNewCustomerName('');
     setNewCustomerPhone('');
@@ -130,8 +151,11 @@ export function PaymentModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-4 text-white flex items-center justify-between">
-          <h3 className="text-xl font-bold">To'lov</h3>
+        <div className={`px-6 py-4 text-white flex items-center justify-between ${isDeliveryMode ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'bg-gradient-to-r from-brand-500 to-brand-600'}`}>
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            {isDeliveryMode && <Truck className="w-5 h-5" />}
+            {isDeliveryMode ? 'Yetkazib berish' : 'To\'lov'}
+          </h3>
           <button onClick={handleClose} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
             <X className="w-6 h-6" />
           </button>
@@ -384,6 +408,31 @@ export function PaymentModal({
               </div>
             )}
           </div>
+
+          {/* Delivery person select */}
+          {isDeliveryMode && (
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-orange-600" />
+                Dostavchik
+              </label>
+              <select
+                value={selectedDeliveryPerson}
+                onChange={(e) => setSelectedDeliveryPerson(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 bg-orange-50/50"
+              >
+                <option value="">Dostavchikni tanlang...</option>
+                {deliveryPersons.map(p => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}{p.phone ? ` - ${p.phone}` : ''}
+                  </option>
+                ))}
+              </select>
+              {!selectedDeliveryPerson && (
+                <p className="text-xs text-orange-600">Dostavchikni tanlash majburiy</p>
+              )}
+            </div>
+          )}
 
           {/* Payment inputs */}
           <div className="space-y-3">

@@ -8,6 +8,7 @@ export interface Helper {
   phone: string;
   role: 'cashier' | 'helper';
   bonusPercentage: number;
+  isDeliveryPerson?: boolean;
   receiptCount: number;
   totalAmount: number;
   totalEarnings: number;

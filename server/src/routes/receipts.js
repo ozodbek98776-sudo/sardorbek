@@ -847,7 +847,10 @@ router.post('/', auth, async (req, res) => {
       customer,
       status: isHelper ? 'pending' : 'completed',
       isReturn: isReturn || false,
-      receiptType: isHelper ? 'helper_receipt' : 'direct_sale' // Xodim cheki yoki to'g'ridan-to'g'ri sotuv
+      receiptType: isHelper ? 'helper_receipt' : (req.body.isDelivery ? 'delivery' : 'direct_sale'),
+      isDelivery: req.body.isDelivery || false,
+      deliveryPerson: req.body.deliveryPerson || undefined,
+      deliveryStatus: req.body.isDelivery ? 'pending' : undefined
     };
 
     // createdBy va helperId - faqat real ObjectId bo'lsa qo'shamiz

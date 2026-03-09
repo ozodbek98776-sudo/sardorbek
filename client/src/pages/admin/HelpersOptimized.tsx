@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Users, Plus, Edit2, Trash2, User, Phone, Lock, ShoppingCart, Shield, DollarSign, X, Receipt, Calendar, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, User, Phone, Lock, ShoppingCart, Shield, DollarSign, X, Receipt, Calendar, Search, Filter, ArrowUpDown, Truck } from 'lucide-react';
 import { useHelpersStore, Helper } from '../../store/helpersStore';
 import { UniversalPageHeader, ActionButton } from '../../components/common';
 import { formatDateTime } from '../../utils/format';
@@ -37,11 +37,19 @@ const HelperCard = memo(({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-sm truncate">{helper.name}</h3>
-            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${
-              helper.role === 'cashier' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
-            }`}>
-              {helper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                helper.role === 'cashier' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {helper.role === 'cashier' ? 'Kassir' : 'Yordamchi'}
+              </span>
+              {helper.isDeliveryPerson && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-medium bg-orange-100 text-orange-700">
+                  <Truck className="w-2.5 h-2.5" />
+                  Dostavchik
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex gap-1 flex-shrink-0">
@@ -152,7 +160,8 @@ export default function HelpersOptimized() {
     phone: '',
     password: '',
     role: 'cashier' as 'cashier' | 'helper',
-    bonusPercentage: 0
+    bonusPercentage: 0,
+    isDeliveryPerson: false
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -213,7 +222,8 @@ export default function HelpersOptimized() {
       phone: '',
       password: '',
       role: 'cashier',
-      bonusPercentage: 0
+      bonusPercentage: 0,
+      isDeliveryPerson: false
     });
     setShowModal(true);
   }, []);
@@ -227,7 +237,8 @@ export default function HelpersOptimized() {
       phone: helper.phone,
       password: '',
       role: helper.role,
-      bonusPercentage: helper.bonusPercentage || 0
+      bonusPercentage: helper.bonusPercentage || 0,
+      isDeliveryPerson: helper.isDeliveryPerson || false
     });
     setShowModal(true);
   }, []);
@@ -247,12 +258,13 @@ export default function HelpersOptimized() {
     try {
       if (editingUser) {
         // Edit mode - faqat o'zgargan ma'lumotlarni yuborish
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           name: formData.name,
           login: formData.login,
           phone: formData.phone,
           role: formData.role,
-          bonusPercentage: formData.bonusPercentage
+          bonusPercentage: formData.bonusPercentage,
+          isDeliveryPerson: formData.isDeliveryPerson
         };
         
         // Faqat parol o'zgargan bo'lsa yuborish
@@ -269,7 +281,8 @@ export default function HelpersOptimized() {
           phone: formData.phone,
           password: formData.password,
           role: formData.role,
-          bonusPercentage: formData.bonusPercentage
+          bonusPercentage: formData.bonusPercentage,
+          isDeliveryPerson: formData.isDeliveryPerson
         };
         
         await addHelper(addData);
@@ -543,6 +556,23 @@ export default function HelpersOptimized() {
                   </p>
                 </div>
               )}
+
+              {/* Dostavchik toggle */}
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 border-surface-200 hover:border-orange-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={formData.isDeliveryPerson}
+                    onChange={e => setFormData({ ...formData, isDeliveryPerson: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <Truck className={`w-5 h-5 ${formData.isDeliveryPerson ? 'text-orange-600' : 'text-surface-400'}`} />
+                  <div>
+                    <p className="font-medium text-surface-900 text-sm">Dostavchik</p>
+                    <p className="text-xs text-surface-500">Yetkazib berish uchun belgilash</p>
+                  </div>
+                </label>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">

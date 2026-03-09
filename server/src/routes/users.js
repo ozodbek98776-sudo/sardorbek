@@ -37,11 +37,21 @@ router.get('/kassa', auth, async (req, res) => {
   }
 });
 
+// Dostavchilar ro'yxati
+router.get('/delivery-persons', auth, async (req, res) => {
+  try {
+    const persons = await User.find({ isDeliveryPerson: true, status: 'active' }).select('name phone _id');
+    res.json({ success: true, data: persons });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, login, phone, password, role, bonusPercentage } = req.body;
+    const { name, login, phone, password, role, bonusPercentage, isDeliveryPerson } = req.body;
 
-    console.log('📝 POST /users - Received data:', { name, login, phone, password: password ? '***' : undefined, role, bonusPercentage });
+    console.log('📝 POST /users - Received data:', { name, login, phone, password: password ? '***' : undefined, role, bonusPercentage, isDeliveryPerson });
 
     // Validation
     if (!name || !password || !role) {
@@ -83,8 +93,9 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 
     // Agar kassir bo'lsa va bonus foizi berilgan bo'lsa
     if (role === 'cashier' && bonusPercentage !== undefined) {
-      userData.bonusPercentage = Math.max(0, Math.min(100, bonusPercentage)); // 0-100% orasida
+      userData.bonusPercentage = Math.max(0, Math.min(100, bonusPercentage));
     }
+    if (isDeliveryPerson) userData.isDeliveryPerson = true;
 
     const user = new User(userData);
     await user.save();
@@ -105,7 +116,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   try {
-    const { name, phone, role, password, bonusPercentage } = req.body;
+    const { name, phone, role, password, bonusPercentage, isDeliveryPerson } = req.body;
 
     // XAVFSIZLIK: Faqat o'zi yaratgan foydalanuvchilarni o'zgartirishi mumkin
     // Hardcoded admin uchun istisno - barcha foydalanuvchilarni o'zgartirishi mumkin
@@ -129,6 +140,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
       user.bonusPercentage = 0; // Kassir bo'lmasa bonus yo'q
     }
 
+    user.isDeliveryPerson = isDeliveryPerson || false;
     if (password) {
       user.password = password;
     }

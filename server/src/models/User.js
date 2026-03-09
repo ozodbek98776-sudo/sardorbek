@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema({
   hireDate: { type: Date },
   terminationDate: { type: Date },
   
+  // Dostavchik belgisi
+  isDeliveryPerson: { type: Boolean, default: false },
+
   // Bonus tizimi
   bonusPercentage: { type: Number, default: 0, min: 0, max: 100 },
   totalEarnings: { type: Number, default: 0 },

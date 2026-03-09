@@ -45,7 +45,11 @@ const receiptSchema = new mongoose.Schema({
   // Kassir cheklari uchun yangi maydonlar
   helperId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Chekni chiqargan kassir
   isPaid: { type: Boolean, default: false }, // To'lov holati
-  receiptType: { type: String, enum: ['sale', 'helper_receipt', 'direct_sale'], default: 'sale' }, // Chek turi
+  receiptType: { type: String, enum: ['sale', 'helper_receipt', 'direct_sale', 'delivery'], default: 'sale' }, // Chek turi
+  // Yetkazib berish
+  isDelivery: { type: Boolean, default: false },
+  deliveryPerson: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  deliveryStatus: { type: String, enum: ['pending', 'in_transit', 'delivered'], default: 'pending' },
   // To'lov ma'lumotlari
   paidAmount: { type: Number, default: 0 }, // To'langan summa
   cashAmount: { type: Number, default: 0 }, // Naqd pul summasi
@@ -64,5 +68,7 @@ receiptSchema.index({ createdAt: -1 });
 receiptSchema.index({ createdBy: 1 });
 receiptSchema.index({ customer: 1 });
 receiptSchema.index({ status: 1 });
+receiptSchema.index({ isDelivery: 1 });
+receiptSchema.index({ deliveryPerson: 1 });
 
 module.exports = mongoose.model('Receipt', receiptSchema);

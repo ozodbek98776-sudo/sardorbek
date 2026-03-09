@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ShoppingCart, Search, X, Package2, Calendar } from 'lucide-react';
+import { ShoppingCart, Search, X, Package2, Calendar, Truck } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { UPLOADS_URL } from '../../config/api';
@@ -63,6 +63,8 @@ export default function KassaProNew() {
   const [initialLoading, setInitialLoading] = useState(true);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isDeliveryMode, setIsDeliveryMode] = useState(false);
+  const [deliveryPersons, setDeliveryPersons] = useState<{ _id: string; name: string; phone?: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -280,6 +282,14 @@ export default function KassaProNew() {
     }
   }, [selectedCategory, selectedSection]);
   
+  // Dostavchilar
+  const fetchDeliveryPersons = useCallback(async () => {
+    try {
+      const res = await api.get('/users/delivery-persons');
+      setDeliveryPersons(res.data.data || []);
+    } catch { setDeliveryPersons([]); }
+  }, []);
+
   // ⚡ Fetch statistics - DB dagi jami mahsulotlar soni (search bo'yicha)
   const fetchStats = useCallback(async (searchTerm: string = '') => {
     try {
@@ -377,6 +387,7 @@ export default function KassaProNew() {
         // 4. Boshqa ma'lumotlarni yuklash
         fetchStats('');
         fetchCustomers();
+        fetchDeliveryPersons();
         fetchHelperReceipts();
         loadSavedReceipts();
       } catch (err) {
@@ -746,7 +757,7 @@ export default function KassaProNew() {
   const handlePayment = async (data: PaymentData) => {
     console.log('💰 handlePayment boshlandi:', data);
     
-    const { customer, cashAmount, cardAmount, clickAmount, debtAmount, bonusAmount = 0, discount = 0 } = data;
+    const { customer, cashAmount, cardAmount, clickAmount, debtAmount, bonusAmount = 0, discount = 0, isDelivery, deliveryPerson } = data;
     
     // Validatsiya
     if (cart.length === 0) {
@@ -790,7 +801,9 @@ export default function KassaProNew() {
       cardAmount,
       clickAmount,
       paymentMethod: finalPaymentMethod,
-      customer: customer?._id
+      customer: customer?._id,
+      isDelivery: isDelivery || false,
+      deliveryPerson: deliveryPerson || undefined
     };
     
     console.log('📤 Serverga yuborilayotgan ma\'lumot:', JSON.stringify(saleData, null, 2));
@@ -923,7 +936,27 @@ export default function KassaProNew() {
                         <p className="text-sm sm:text-base font-bold text-green-700 truncate">{formatNumber(stats.totalValue)}</p>
                       </div>
                     </div>
-                    
+
+                    {/* Sotuv / Yetkazib berish toggle */}
+                    <div className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1">
+                      <button
+                        onClick={() => setIsDeliveryMode(false)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+                          !isDeliveryMode ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" /> Sotuv
+                      </button>
+                      <button
+                        onClick={() => setIsDeliveryMode(true)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
+                          isDeliveryMode ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Truck className="w-3.5 h-3.5" /> Yetkazib berish
+                      </button>
+                    </div>
+
                     {/* Search Input */}
                     <div className="relative group">
                       <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-slate-400 group-focus-within:text-brand-500 transition-colors" />
@@ -1243,6 +1276,8 @@ export default function KassaProNew() {
         customers={customers}
         onPayment={handlePayment}
         onCreateCustomer={handleCreateCustomer}
+        isDeliveryMode={isDeliveryMode}
+        deliveryPersons={deliveryPersons}
       />
       
       {/* Saved Receipts Modal */}

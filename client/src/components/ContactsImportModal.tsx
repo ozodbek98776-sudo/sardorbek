@@ -72,10 +72,13 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const loadingRef = useRef(false);
 
   const [addingCustomer, setAddingCustomer] = useState<string | null>(null);
 
   const fetchContacts = useCallback(async (pageNum: number, append = false, search = '') => {
+    if (loadingRef.current && append) return;
+    loadingRef.current = true;
     if (pageNum === 1 && !append) setLoadingContacts(true);
     else setLoadingMore(true);
     try {
@@ -94,6 +97,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
     } finally {
       setLoadingContacts(false);
       setLoadingMore(false);
+      loadingRef.current = false;
     }
   }, []);
 
@@ -235,7 +239,7 @@ export default function ContactsImportModal({ isOpen, onClose, onImported }: Con
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl" style={{ maxHeight: 'calc(100dvh - 2rem)' }}>
+      <div className="relative bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl no-swipe" style={{ maxHeight: 'calc(100dvh - 2rem)' }}>
         {/* Toast */}
         {toast && (
           <div className={`absolute top-2 left-3 right-3 z-10 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 animate-[slideDown_0.3s_ease] ${
