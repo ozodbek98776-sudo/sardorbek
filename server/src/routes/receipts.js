@@ -441,6 +441,42 @@ router.get('/helper/:helperId/receipts', auth, authorize('admin'), async (req, r
   }
 });
 
+// Helper o'z cheklari - arxiv uchun
+router.get('/my-receipts', auth, async (req, res) => {
+  try {
+    const receipts = await Receipt.find({
+      helperId: req.user._id,
+      receiptType: 'helper_receipt'
+    })
+      .populate('customer', 'name phone')
+      .populate('items.product', 'name code images price')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    const formatted = receipts.map(r => ({
+      _id: r._id,
+      receiptNumber: r.receiptNumber || `CHK-${r._id.toString().slice(-6).toUpperCase()}`,
+      items: (r.items || []).map(item => ({
+        product: item.product?._id || item.product,
+        name: item.product?.name || item.name,
+        code: item.product?.code || item.code || '',
+        price: item.price,
+        quantity: item.quantity
+      })),
+      total: r.total,
+      status: r.status,
+      customer: r.customer ? { _id: r.customer._id, name: r.customer.name } : null,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt
+    }));
+
+    res.json({ success: true, receipts: formatted });
+  } catch (error) {
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
 // Kassa paneli uchun cheklar ro'yxati - hodimlar tomonidan yaratilgan cheklar
 router.get('/kassa', auth, async (req, res) => {
   try {
@@ -1008,6 +1044,48 @@ router.post('/', auth, async (req, res) => {
     console.error('Xato:', error);
     console.error('Xato xabari:', error.message);
     console.error('Stack:', error.stack);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Helper arxiv - chek itemlarini tahrirlash
+router.put('/:id/update-items', auth, async (req, res) => {
+  try {
+    const receipt = await Receipt.findById(req.params.id);
+    if (!receipt) return res.status(404).json({ message: 'Chek topilmadi' });
+
+    if (receipt.receiptType !== 'helper_receipt') {
+      return res.status(403).json({ message: 'Faqat xodim chekini tahrirlash mumkin' });
+    }
+
+    if (req.user.role !== 'admin' && receipt.helperId?.toString() !== req.user._id?.toString()) {
+      return res.status(403).json({ message: 'Faqat o\'z chekingizni tahrirlashingiz mumkin' });
+    }
+
+    const { items } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ message: 'Kamida 1 ta mahsulot bo\'lishi kerak' });
+    }
+
+    const newTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
+
+    receipt.items = items.map(item => ({
+      product: item.product,
+      name: item.name,
+      code: item.code || '',
+      price: item.price,
+      quantity: item.quantity
+    }));
+    receipt.total = newTotal;
+    receipt.paidAmount = newTotal;
+    await receipt.save();
+
+    if (global.io) {
+      global.io.emit('receipt:updated', { _id: receipt._id, total: newTotal });
+    }
+
+    res.json({ success: true, receipt });
+  } catch (error) {
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });

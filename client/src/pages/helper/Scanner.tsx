@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { QrCode, Search, Send, Plus, Minus, X, Package, ShoppingCart, CheckCircle, User, Users, RefreshCw, ChevronDown, ChevronUp, Filter, Archive, Edit3, Save, Clock } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, CartItem } from '../../types';
 import api from '../../utils/api';
@@ -20,6 +20,17 @@ interface Customer {
 interface NewCustomerForm {
   name: string;
   phone: string;
+}
+
+interface ArchiveReceipt {
+  _id: string;
+  receiptNumber: string;
+  items: { product: string; name: string; code: string; price: number; quantity: number }[];
+  total: number;
+  status: string;
+  customer: { _id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function HelperScanner() {
@@ -44,6 +55,12 @@ export default function HelperScanner() {
   const [addingCustomer, setAddingCustomer] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'scanner' | 'archive'>('scanner');
+  const [archiveReceipts, setArchiveReceipts] = useState<ArchiveReceipt[]>([]);
+  const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
+  const [editingItems, setEditingItems] = useState<{ product: string; name: string; code: string; price: number; quantity: number }[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,15 +104,20 @@ export default function HelperScanner() {
 
     // Mahsulot o'chirilganda
     socket.on('product:deleted', (data: { _id: string }) => {
-      console.log('📡 Helper Scanner: Mahsulot o\'chirildi', data._id);
       setProducts(prev => prev.filter(p => p._id !== data._id));
       setSearchResults(prev => prev.filter(p => p._id !== data._id));
+    });
+
+    // Chek yangilanganda arxivni refresh
+    socket.on('receipt:updated', () => {
+      fetchArchiveReceipts();
     });
 
     return () => {
       socket.off('product:updated');
       socket.off('product:created');
       socket.off('product:deleted');
+      socket.off('receipt:updated');
     };
   }, [socket]);
 
@@ -192,6 +214,59 @@ export default function HelperScanner() {
     } catch (err) { 
       console.error('Error fetching customers:', err);
       setCustomers([]); // Set empty array on error
+    }
+  };
+
+  // === ARXIV FUNKSIYALARI ===
+  const fetchArchiveReceipts = async () => {
+    setArchiveLoading(true);
+    try {
+      const res = await api.get('/receipts/my-receipts');
+      setArchiveReceipts(res.data.receipts || []);
+    } catch (err) {
+      console.error('Error fetching archive:', err);
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'archive') fetchArchiveReceipts();
+  }, [activeTab]);
+
+  const startEditReceipt = (receipt: ArchiveReceipt) => {
+    setEditingReceiptId(receipt._id);
+    setEditingItems(receipt.items.map(item => ({ ...item })));
+  };
+
+  const cancelEdit = () => {
+    setEditingReceiptId(null);
+    setEditingItems([]);
+  };
+
+  const updateEditItemQty = (index: number, delta: number) => {
+    setEditingItems(prev => prev.map((item, i) =>
+      i === index ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
+    ));
+  };
+
+  const removeEditItem = (index: number) => {
+    setEditingItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveEditReceipt = async () => {
+    if (!editingReceiptId || editingItems.length === 0) return;
+    setSavingEdit(true);
+    try {
+      await api.put(`/receipts/${editingReceiptId}/update-items`, { items: editingItems });
+      showAlert('Chek yangilandi!', 'Muvaffaqiyat', 'success');
+      cancelEdit();
+      fetchArchiveReceipts();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      showAlert(error.response?.data?.message || 'Xatolik', 'Xatolik', 'danger');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -458,6 +533,7 @@ export default function HelperScanner() {
       showAlert(`Chek ${customerName} uchun saqlandi!`, 'Muvaffaqiyat', 'success');
       setCart([]);
       setSelectedCustomer(null);
+      setActiveTab('archive');
     } catch (err) {
       console.error('Error sending receipt:', err);
       showAlert('Xatolik yuz berdi', 'Xatolik', 'danger');
@@ -502,6 +578,37 @@ export default function HelperScanner() {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Tab switcher */}
+      <div className="flex gap-2 mx-3 mt-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+        <button
+          onClick={() => setActiveTab('scanner')}
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+            activeTab === 'scanner'
+              ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md'
+              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+          Skaner
+        </button>
+        <button
+          onClick={() => setActiveTab('archive')}
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+            activeTab === 'archive'
+              ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-md'
+              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Archive className="w-4 h-4" />
+          Arxiv
+          {archiveReceipts.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-bold leading-none">
+              {archiveReceipts.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Mijoz tanlash modali */}
@@ -674,6 +781,128 @@ export default function HelperScanner() {
         </div>
       )}
 
+      {/* === ARXIV TAB === */}
+      {activeTab === 'archive' && (
+        <div className="p-3 space-y-3">
+          {archiveLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : archiveReceipts.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center shadow-sm">
+              <Archive className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-600 font-medium">Cheklar yo'q</p>
+              <p className="text-sm text-slate-400 mt-1">Yuborgan cheklar shu yerda ko'rinadi</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {archiveReceipts.map(receipt => (
+                <div key={receipt._id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-slate-800">Chek #{receipt.receiptNumber}</p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
+                      </p>
+                      {receipt.customer && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          <span className="font-medium">Mijoz:</span> {receipt.customer.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-brand-600">{formatNumber(receipt.total)} so'm</p>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        receipt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        receipt.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        receipt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {receipt.status === 'pending' ? 'Kutilmoqda' :
+                         receipt.status === 'approved' ? 'Tasdiqlangan' :
+                         receipt.status === 'completed' ? 'Yakunlangan' : 'Rad etilgan'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {editingReceiptId === receipt._id ? (
+                    <div className="space-y-2">
+                      {editingItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded-lg p-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                            <p className="text-xs text-slate-500">{formatNumber(item.price)} so'm</p>
+                          </div>
+                          <div className="flex items-center bg-white rounded-lg border border-slate-200">
+                            <button onClick={() => updateEditItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center">
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
+                            <button onClick={() => updateEditItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center">
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <button onClick={() => removeEditItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:bg-red-50 rounded">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-semibold pt-2 border-t border-slate-200">
+                        <span>Yangi jami:</span>
+                        <span className="text-brand-600">
+                          {formatNumber(editingItems.reduce((s, i) => s + i.price * i.quantity, 0))} so'm
+                        </span>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <button onClick={cancelEdit} className="flex-1 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium">
+                          Bekor
+                        </button>
+                        <button
+                          onClick={saveEditReceipt}
+                          disabled={savingEdit || editingItems.length === 0}
+                          className="flex-1 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {savingEdit ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <><Save className="w-4 h-4" /> Saqlash</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        {receipt.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-slate-600">{item.name} × {item.quantity}</span>
+                            <span className="font-medium text-slate-800">{formatNumber(item.price * item.quantity)} so'm</span>
+                          </div>
+                        ))}
+                      </div>
+                      {receipt.status === 'pending' && (
+                        <div className="mt-3 pt-3 border-t border-slate-100">
+                          <button
+                            onClick={() => startEditReceipt(receipt)}
+                            className="w-full px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Tahrirlash
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === SCANNER TAB === */}
+      {activeTab === 'scanner' && (
       <div className="px-3 py-3 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-3 items-start">
         {/* Chap tomon - Qidiruv va mahsulotlar */}
         <div className="space-y-3">
@@ -1100,6 +1329,7 @@ export default function HelperScanner() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

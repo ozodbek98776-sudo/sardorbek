@@ -554,11 +554,17 @@ export default function KassaProNew() {
       fetchHelperReceipts();
     });
 
+    // Helper chek tahrirlanganda
+    socket.on('receipt:updated', () => {
+      fetchHelperReceipts();
+    });
+
     return () => {
       socket.off('product:updated');
       socket.off('product:created');
       socket.off('product:deleted');
       socket.off('helper:receipt:new');
+      socket.off('receipt:updated');
     };
   }, [socket, searchQuery, fetchStats, selectedCategory]);
   
