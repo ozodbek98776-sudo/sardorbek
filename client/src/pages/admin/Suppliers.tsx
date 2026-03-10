@@ -3,10 +3,11 @@ import { useOutletContext } from 'react-router-dom';
 import {
   Truck, Plus, Search, ArrowLeft, Package, Phone, Building2,
   CreditCard, Banknote, Smartphone, AlertCircle, X, ChevronRight,
-  FileText, Trash2, Edit3, Check, MapPin, BookUser
+  FileText, Trash2, Edit3, Check, MapPin, BookUser, DollarSign
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
+import { getExchangeRate, convertUsdToUzs, convertUzsToUsd } from '../../utils/exchangeRate';
 import { UniversalPageHeader, ActionButton, LoadingSpinner } from '../../components/common';
 import ContactsImportModal from '../../components/ContactsImportModal';
 
@@ -59,6 +60,7 @@ interface KirimItem {
   name: string;
   quantity: number;
   price: number;
+  priceUsd: number;
 }
 
 type View = 'list' | 'detail' | 'kirim' | 'add' | 'edit' | 'pay-debt';
@@ -177,7 +179,7 @@ export default function Suppliers() {
   // Add product to kirim
   const addKirimItem = (p: ProductOption) => {
     if (kirimItems.find(i => i.product === p._id)) return;
-    setKirimItems(prev => [...prev, { product: p._id, name: p.name, quantity: 1, price: 0 }]);
+    setKirimItems(prev => [...prev, { product: p._id, name: p.name, quantity: 1, price: 0, priceUsd: 0 }]);
   };
 
   // Remove kirim item
@@ -186,8 +188,18 @@ export default function Suppliers() {
   };
 
   // Update kirim item
-  const updateKirimItem = (idx: number, field: 'quantity' | 'price', value: number) => {
-    setKirimItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  const updateKirimItem = (idx: number, field: 'quantity' | 'price' | 'priceUsd', value: number) => {
+    const rate = getExchangeRate();
+    setKirimItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      if (field === 'priceUsd') {
+        return { ...item, priceUsd: value, price: Math.round(value * rate) };
+      }
+      if (field === 'price') {
+        return { ...item, price: value, priceUsd: rate > 0 ? Math.round((value / rate) * 100) / 100 : 0 };
+      }
+      return { ...item, [field]: value };
+    }));
   };
 
   // Kirim total
@@ -554,8 +566,8 @@ export default function Suppliers() {
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
+                    <div className="flex gap-2 items-end">
+                      <div className="w-20">
                         <label className="text-xs text-gray-500">Miqdor</label>
                         <input
                           type="number"
@@ -567,7 +579,21 @@ export default function Suppliers() {
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="text-xs text-gray-500">Narx</label>
+                        <label className="text-xs text-gray-500 flex items-center gap-1">
+                          <DollarSign className="w-3 h-3 text-green-600" /> Dollar
+                        </label>
+                        <input
+                          type="number"
+                          value={item.priceUsd || ''}
+                          onChange={e => updateKirimItem(idx, 'priceUsd', Number(e.target.value))}
+                          className="w-full px-2 py-1.5 border border-green-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-green-50"
+                          min="0"
+                          step="any"
+                          placeholder="$"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-gray-500">So'm</label>
                         <input
                           type="number"
                           value={item.price || ''}
@@ -576,7 +602,8 @@ export default function Suppliers() {
                           min="0"
                         />
                       </div>
-                      <div className="w-24 text-right pt-4">
+                      <div className="w-24 text-right">
+                        <p className="text-xs text-gray-400">Jami</p>
                         <p className="text-sm font-semibold">{fmt(item.quantity * item.price)}</p>
                       </div>
                     </div>
@@ -590,10 +617,14 @@ export default function Suppliers() {
         {/* Payment section */}
         {kirimItems.length > 0 && (
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 max-w-xl">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-bold text-gray-900">Jami:</h3>
-              <p className="text-lg font-bold text-orange-600">{fmt(kirimTotal)} so'm</p>
+              <div className="text-right">
+                <p className="text-lg font-bold text-orange-600">{fmt(kirimTotal)} so'm</p>
+                <p className="text-xs text-green-600">≈ ${convertUzsToUsd(kirimTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+              </div>
             </div>
+            <p className="text-xs text-gray-400 mb-4">Kurs: 1$ = {fmt(getExchangeRate())} so'm</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
