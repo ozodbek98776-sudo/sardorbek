@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["client/node_modules/vite/bin/vite.js", "client", "--port", "5173"],
+      "port": 5173
+    },
+    {
+      "name": "client",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["client/node_modules/vite/bin/vite.js", "client", "--port", "5173"],
+      "port": 5173
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=server/.env", "server/src/index.js"],
+      "port": 8000
+    }
+  ]
+}
