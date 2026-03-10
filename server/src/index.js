@@ -55,6 +55,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const expenseRoutes = require('./routes/expenses');
 const contactRoutes = require('./routes/contacts');
 const supplierRoutes = require('./routes/suppliers');
+const settingsRoutes = require('./routes/settings');
 
 // HR Routes
 const hrEmployeeRoutes = require('./routes/hr/employees');
@@ -237,6 +238,7 @@ app.use('/api/monitoring', adminLimiter, monitoringRoutes); // Admin operations
 app.use('/api/expenses', adminLimiter, expenseRoutes); // Admin operations - Xarajatlar
 app.use('/api/contacts', contactRoutes);
 app.use('/api/suppliers', adminLimiter, supplierRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // HR Routes - Admin only
 app.use('/api/hr/employees', adminLimiter, hrEmployeeRoutes);

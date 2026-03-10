@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useAlert } from '../../hooks/useAlert';
-import { getExchangeRate, convertUsdToUzs, convertUzsToUsd } from '../../utils/exchangeRate';
+import { getExchangeRate, convertUzsToUsd, fetchExchangeRate } from '../../utils/exchangeRate';
 import { UniversalPageHeader, ActionButton, LoadingSpinner } from '../../components/common';
 import ContactsImportModal from '../../components/ContactsImportModal';
 
@@ -103,6 +103,7 @@ export default function Suppliers() {
   }, [search]);
 
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
+  useEffect(() => { fetchExchangeRate(); }, []);
 
   // Fetch supplier detail
   const openDetail = async (s: Supplier) => {

@@ -11,6 +11,7 @@ import { useSwipeToClose } from '../hooks/useSwipeToClose';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import api from '../utils/api';
 import { formatPhone } from '../utils/format';
+import { fetchExchangeRate, saveExchangeRate, setExchangeRate as setCachedRate } from '../utils/exchangeRate';
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -54,12 +55,9 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
     return () => window.removeEventListener('keydown', handleEscape);
   }, [mobileOpen]);
 
-  // Load exchange rate from localStorage
+  // Load exchange rate from server
   useEffect(() => {
-    const savedRate = localStorage.getItem('usdToUzsRate');
-    if (savedRate) {
-      setExchangeRate(Number(savedRate));
-    }
+    fetchExchangeRate().then(rate => setExchangeRate(rate));
   }, []);
   
   // Body scroll ni boshqarish
@@ -84,11 +82,16 @@ export default function Sidebar({ items, basePath, collapsed = false, setCollaps
     setShowEditModal(true);
   };
 
-  const handleExchangeRateSave = () => {
+  const handleExchangeRateSave = async () => {
     if (exchangeRate > 0) {
-      localStorage.setItem('usdToUzsRate', String(exchangeRate));
-      setShowExchangeRateModal(false);
-      alert('USD/UZS kursi saqlandi: 1 USD = ' + exchangeRate + ' UZS');
+      const ok = await saveExchangeRate(exchangeRate);
+      if (ok) {
+        setCachedRate(exchangeRate);
+        setShowExchangeRateModal(false);
+        alert('USD/UZS kursi saqlandi: 1 USD = ' + exchangeRate + ' UZS');
+      } else {
+        alert('Xatolik yuz berdi');
+      }
     }
   };
 
