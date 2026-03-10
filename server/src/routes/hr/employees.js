@@ -282,12 +282,26 @@ router.post('/', async (req, res) => {
 // Xodimni tahrirlash
 router.put('/:id', async (req, res) => {
   try {
-    const { name, phone, role, position, department, status, isDeliveryPerson } = req.body;
+    const { name, phone, role, position, department, status, isDeliveryPerson, login, password } = req.body;
 
     const employee = await User.findById(req.params.id);
 
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Xodim topilmadi' });
+    }
+
+    // Login o'zgartirish
+    if (login && login !== employee.login) {
+      const existing = await User.findOne({ login, status: { $ne: 'terminated' }, _id: { $ne: employee._id } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Bu login band' });
+      }
+      employee.login = login;
+    }
+
+    // Parol o'zgartirish
+    if (password) {
+      employee.password = password; // Model pre-save da hash qiladi
     }
 
     // Yangilash

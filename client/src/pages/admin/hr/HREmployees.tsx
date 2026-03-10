@@ -163,7 +163,7 @@ export default function HREmployees() {
     try {
       const cleanData: Record<string, string | boolean> = { name: formData.name, login: formData.login, role: formData.role, isDeliveryPerson: formData.isDeliveryPerson };
       if (formData.phone?.trim()) cleanData.phone = formData.phone.trim();
-      if (!editingEmployee && formData.password) cleanData.password = formData.password;
+      if (formData.password) cleanData.password = formData.password;
 
       if (editingEmployee) {
         const res = await axios.put(`${API_BASE_URL}/hr/employees/${editingEmployee._id}`, cleanData, { headers });
@@ -529,7 +529,7 @@ export default function HREmployees() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Login *</label>
-                <input type="text" required value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" disabled={!!editingEmployee} />
+                <input type="text" required value={formData.login} onChange={(e) => setFormData({ ...formData, login: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
               </div>
               {!editingEmployee ? (
                 <div>
