@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { ShoppingCart, Search, X, Package2, Calendar, Truck } from 'lucide-react';
+import { ShoppingCart, Search, X, Package2, Calendar, Truck, ShoppingBag, Trash2, Check, XCircle } from 'lucide-react';
 import { CartItem, Product, Customer } from '../../types';
 import api from '../../utils/api';
 import { UPLOADS_URL } from '../../config/api';
@@ -1190,6 +1190,63 @@ export default function KassaProNew() {
                               </p>
                             </div>
                           )}
+
+                          {/* Action buttons */}
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                            <button
+                              onClick={() => {
+                                const cartItems = (receipt.items || []).map((item: any) => ({
+                                  _id: item.product?._id || item.product || item._id,
+                                  name: item.product?.name || item.name,
+                                  code: item.code || item.product?.code || '',
+                                  price: item.price,
+                                  cartQuantity: item.quantity,
+                                  quantity: item.quantity,
+                                  unit: item.unit || 'dona',
+                                  prices: item.product?.prices || [],
+                                  images: item.product?.images || []
+                                }));
+                                setCart(cartItems);
+                                setActiveTab('products');
+                                showAlert('Chek savatga yuklandi!', 'Muvaffaqiyat', 'success');
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <ShoppingBag className="w-4 h-4" />
+                              Savatga olish
+                            </button>
+                            {receipt.status === 'pending' && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.put(`/receipts/${receipt._id}/approve`);
+                                    showAlert('Chek tasdiqlandi!', 'Muvaffaqiyat', 'success');
+                                    fetchHelperReceipts();
+                                  } catch (err: any) {
+                                    showAlert(err.response?.data?.message || 'Xatolik', 'Xatolik', 'danger');
+                                  }
+                                }}
+                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Bu chekni o\'chirishni xohlaysizmi?')) return;
+                                try {
+                                  await api.delete(`/receipts/${receipt._id}`);
+                                  showAlert('Chek o\'chirildi', 'Ma\'lumot', 'info');
+                                  fetchHelperReceipts();
+                                } catch (err: any) {
+                                  showAlert(err.response?.data?.message || 'Xatolik', 'Xatolik', 'danger');
+                                }
+                              }}
+                              className="flex items-center justify-center px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
