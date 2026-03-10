@@ -919,7 +919,16 @@ export default function HelperScanner() {
                                 <button onClick={() => updateEditItemQty(idx, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-l-lg">
                                   <Minus className="w-3 h-3" />
                                 </button>
-                                <span className="w-7 text-center text-xs font-bold">{item.quantity}</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={item.quantity}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value.replace(/\D/g, '')) || 1;
+                                    setEditingItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, val) } : it));
+                                  }}
+                                  className="w-9 text-center text-xs font-bold bg-transparent border-none focus:outline-none"
+                                />
                                 <button onClick={() => updateEditItemQty(idx, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-r-lg">
                                   <Plus className="w-3 h-3" />
                                 </button>
