@@ -29,7 +29,6 @@ const Categories = lazy(() => import('./pages/admin/Categories'));
 const Expenses = lazy(() => import('./pages/admin/Expenses'));
 const CustomersPro = lazy(() => import('./pages/admin/CustomersPro'));
 const Suppliers = lazy(() => import('./pages/admin/Suppliers'));
-import FloatingCalculator from './components/FloatingCalculator';
 // HR sahifalari
 const HREmployees = lazy(() => import('./pages/admin/hr/HREmployees'));
 const HRTracking = lazy(() => import('./pages/admin/hr/HRTracking'));
@@ -206,7 +205,6 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
-          <FloatingCalculator />
           {/* <DebugModal /> */}
         </AuthProvider>
       </LanguageProvider>

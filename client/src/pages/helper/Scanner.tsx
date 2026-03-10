@@ -7,7 +7,7 @@ import { formatNumber } from '../../utils/format';
 import { useAlert } from '../../hooks/useAlert';
 import { useCategories } from '../../hooks/useCategories';
 import { useSocket } from '../../hooks/useSocket';
-import { getDiscountPrices, getUnitLabel, getUnitPrice, getCostPrice } from '../../utils/pricing';
+import { getDiscountPrices, getUnitLabel, getUnitPrice, getCostPrice, calculateBestPrice } from '../../utils/pricing';
 import { useSwipeToClose } from '../../hooks/useSwipeToClose';
 import { useModalScrollLock } from '../../hooks/useModalScrollLock';
 
@@ -42,9 +42,12 @@ export default function HelperScanner() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState<NewCustomerForm>({ name: '', phone: '' });
   const [addingCustomer, setAddingCustomer] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useSwipeToClose(showCustomerModal ? () => setShowCustomerModal(false) : undefined);
   useSwipeToClose(scannedProduct ? () => setScannedProduct(null) : undefined);
@@ -55,7 +58,11 @@ export default function HelperScanner() {
     fetchCustomers();
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        try {
+          const p = scannerRef.current.stop();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
+        scannerRef.current = null;
       }
     };
   }, []);
@@ -110,16 +117,69 @@ export default function HelperScanner() {
     }
   }, [showCustomerModal, scannedProduct]);
 
-  // Kategoriya o'zgarganda qidiruvni qayta ishga tushirish
+  const performSearch = async (query: string, category: string) => {
+    if (!query && !category) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
+    setIsSearching(true);
+
+    try {
+      const res = await api.get('/products/kassa', {
+        params: {
+          search: query || undefined,
+          category: category || undefined,
+          limit: 50
+        },
+        signal: abortControllerRef.current.signal
+      });
+      const data = res.data.data || res.data.products || res.data;
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return;
+      const results = products.filter(p => {
+        const matchesQ = !query ||
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          String(p.code || '').toLowerCase().includes(query.toLowerCase());
+        const matchesC = !category || p.category === category;
+        return matchesQ && matchesC;
+      });
+      setSearchResults(results);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setScannedProduct(null);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!query && !selectedCategory) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(() => performSearch(query, selectedCategory), 300);
+  };
+
+  // Kategoriya o'zgarganda darhol (debounssiz) qidirish
   useEffect(() => {
-    handleSearch(searchQuery);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    performSearch(searchQuery, selectedCategory);
   }, [selectedCategory]);
 
   const fetchProducts = async () => {
     try {
       const res = await api.get('/products/kassa', { params: { limit: 1000 } });
-      // Handle both paginated and non-paginated responses
-      const productsData = res.data.data || res.data;
+      const productsData = res.data.data || res.data.products || res.data;
       setProducts(Array.isArray(productsData) ? productsData : []);
     } catch (err) { console.error('Error fetching products:', err); }
   };
@@ -252,11 +312,11 @@ export default function HelperScanner() {
           }
 
           if (product) {
-            setScannedProduct(product);
-            // Agar serverdan topilgan bo'lsa, local products'ga qo'shamiz
+            // Serverdan topilgan bo'lsa, local products'ga qo'shamiz
             if (!products.find(p => p._id === product._id)) {
               setProducts(prev => [...prev, product]);
             }
+            addToCart(product);
           } else {
             showAlert('Tovar topilmadi: ' + searchKey, 'Xatolik', 'warning');
           }
@@ -267,6 +327,7 @@ export default function HelperScanner() {
       );
     } catch (err: any) {
       console.error('Scanner error:', err);
+      scannerRef.current = null;
       setScanning(false);
       let errorMessage = 'Kamerani ishga tushirishda xatolik';
       
@@ -307,92 +368,19 @@ export default function HelperScanner() {
     }
   };
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    setScannedProduct(null);
-    
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Debounce: 500ms kutish
-    searchTimeoutRef.current = setTimeout(async () => {
-      if (query.length > 0) {
-        try {
-          // Serverdan qidirish - barcha mahsulotlar orasidan
-          const res = await api.get('/products/kassa', {
-            params: {
-              search: query,
-              category: selectedCategory || undefined
-            }
-          });
-          
-          const productsData = res.data.data || res.data;
-          const results = Array.isArray(productsData) ? productsData : [];
-          setSearchResults(results);
-        } catch (err) {
-          console.error('Search error:', err);
-          // Xatolik bo'lsa, local'dan qidirish
-          let results = products.filter(p =>
-            p.name.toLowerCase().includes(query.toLowerCase()) ||
-            String(p.code || '').toLowerCase().includes(query.toLowerCase())
-          );
-          
-          if (selectedCategory) {
-            results = results.filter(p => p.category === selectedCategory);
-          }
-          
-          setSearchResults(results);
-        }
-      } else {
-        // Agar qidiruv bo'sh bo'lsa, faqat kategoriya bo'yicha filtrlash
-        if (selectedCategory) {
-          try {
-            const res = await api.get('/products/kassa', {
-              params: { category: selectedCategory }
-            });
-            const productsData = res.data.data || res.data;
-            const results = Array.isArray(productsData) ? productsData : [];
-            setSearchResults(results);
-          } catch (err) {
-            const results = products.filter(p => p.category === selectedCategory);
-            setSearchResults(results);
-          }
-        } else {
-          setSearchResults([]);
-        }
-      }
-    }, 500);
-  };
-
-  // Miqdorga qarab narx hisoblash funksiyasi (chegirma tizimi)
-  const calculateDynamicPrice = (basePrice: number, quantity: number): number => {
-    let markupPercent = 15; // Default 15%
-    
-    // Pricing tier aniqlash
-    if (quantity >= 100) {
-      markupPercent = 11; // 100+ dona uchun 11% (katta chegirma)
-    } else if (quantity >= 10) {
-      markupPercent = 13; // 10-99 dona uchun 13% (o'rta chegirma)
-    } else {
-      markupPercent = 15; // 1-9 dona uchun 15% (oddiy narx)
-    }
-    
-    // Narxni hisoblash
-    const finalPrice = basePrice * (1 + markupPercent / 100);
-    return Math.round(finalPrice);
-  };
 
   // Pricing tier ma'lumotini olish
-  const getPricingTier = (quantity: number) => {
-    if (quantity >= 100) {
-      return { name: '100+ dona', markupPercent: 11, discount: true };
-    } else if (quantity >= 10) {
-      return { name: '10-99 dona', markupPercent: 13, discount: true };
-    } else {
-      return { name: '1-9 dona', markupPercent: 15, discount: false };
-    }
+  const getPricingTier = (product: Product, quantity: number) => {
+    const calc = calculateBestPrice(product, quantity);
+    const unitPrice = getUnitPrice(product);
+    const hasDiscount = calc.price < unitPrice;
+    const discounts = getDiscountPrices(product);
+    const applied = [...discounts].reverse().find(d => quantity >= d.minQuantity);
+    return {
+      name: applied ? `${applied.minQuantity}+ dona` : '1-9 dona',
+      markupPercent: applied ? applied.discountPercent : 0,
+      discount: hasDiscount
+    };
   };
 
   const addToCart = (product: Product) => {
@@ -400,16 +388,11 @@ export default function HelperScanner() {
       const existing = prev.find(p => p._id === product._id);
       if (existing) {
         const newQuantity = existing.cartQuantity + 1;
-        const dynamicPrice = calculateDynamicPrice(product.price, newQuantity);
-        return prev.map(p => p._id === product._id ? { 
-          ...p, 
-          cartQuantity: newQuantity,
-          price: dynamicPrice 
-        } : p);
+        const price = Math.round(calculateBestPrice(product, newQuantity).price);
+        return prev.map(p => p._id === product._id ? { ...p, cartQuantity: newQuantity, price } : p);
       }
-      // Yangi mahsulot uchun 1 dona narxi
-      const dynamicPrice = calculateDynamicPrice(product.price, 1);
-      return [...prev, { ...product, cartQuantity: 1, price: dynamicPrice }];
+      const price = Math.round(calculateBestPrice(product, 1).price);
+      return [...prev, { ...product, cartQuantity: 1, price }];
     });
     setSearchQuery('');
     setSearchResults([]);
@@ -420,10 +403,10 @@ export default function HelperScanner() {
     setCart(prev => prev.map(item => {
       if (item._id === id) {
         const newQuantity = Math.max(1, item.cartQuantity + delta);
-        const product = products.find(p => p._id === id);
+        const product = products.find(p => p._id === id) || searchResults.find(p => p._id === id);
         if (product) {
-          const dynamicPrice = calculateDynamicPrice(product.price, newQuantity);
-          return { ...item, cartQuantity: newQuantity, price: dynamicPrice };
+          const price = Math.round(calculateBestPrice(product, newQuantity).price);
+          return { ...item, cartQuantity: newQuantity, price };
         }
         return { ...item, cartQuantity: newQuantity };
       }
@@ -442,7 +425,6 @@ export default function HelperScanner() {
     }
     
     if (!selectedCustomer) {
-      showAlert('Iltimos, mijozni tanlang!', 'Ogohlantirish', 'warning');
       setShowCustomerModal(true);
       return;
     }
@@ -707,14 +689,23 @@ export default function HelperScanner() {
                 placeholder="Mahsulot nomi yoki kodi..."
                 className="w-full h-10 pl-9 pr-9 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 text-sm text-slate-900 placeholder:text-slate-400"
               />
-              {searchQuery && (
+              {isSearching ? (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              ) : searchQuery && searchResults.length === 1 ? (
+                <button
+                  onClick={() => { addToCart(searchResults[0]); handleSearch(''); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-success-500 flex items-center justify-center"
+                >
+                  <CheckCircle className="w-4 h-4 text-white" />
+                </button>
+              ) : searchQuery ? (
                 <button
                   onClick={() => handleSearch('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"
                 >
                   <X className="w-3 h-3 text-slate-500" />
                 </button>
-              )}
+              ) : null}
             </div>
 
             {/* Kategoriyalar */}
@@ -936,18 +927,20 @@ export default function HelperScanner() {
             </div>
           )}
 
-          {searchQuery && searchResults.length > 0 && (
+          {(searchQuery || selectedCategory) && searchResults.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
               <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-700">Natijalar</p>
+                <p className="text-xs font-semibold text-slate-700">
+                  {searchQuery ? 'Qidiruv natijalari' : selectedCategory}
+                </p>
                 <span className="text-[10px] text-slate-400">{searchResults.length} ta</span>
               </div>
-              <div className="divide-y divide-slate-100 max-h-60 overflow-auto">
-                {searchResults.map(product => (
+              <div className="divide-y divide-slate-100 max-h-64 overflow-auto">
+                {searchResults.map((product) => (
                   <button
                     key={product._id}
                     onClick={() => addToCart(product)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 text-left"
+                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 active:bg-slate-100 text-left transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-7 h-7 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -960,7 +953,9 @@ export default function HelperScanner() {
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
                       <p className="text-xs font-bold text-brand-600">{formatNumber(product.price)}</p>
-                      <p className="text-[10px] text-slate-400">{product.quantity} dona</p>
+                      <p className={`text-[10px] ${product.quantity === 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                        {product.quantity} dona
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -968,9 +963,11 @@ export default function HelperScanner() {
             </div>
           )}
 
-          {searchQuery && searchResults.length === 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-dashed border-slate-200 text-center py-6">
-              <p className="text-xs text-slate-500">Tovar topilmadi</p>
+          {(searchQuery || selectedCategory) && !isSearching && searchResults.length === 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-dashed border-slate-200 text-center py-8">
+              <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-600">Tovar topilmadi</p>
+              {searchQuery && <p className="text-xs text-slate-400 mt-1">"{searchQuery}" bo'yicha natija yo'q</p>}
             </div>
           )}
         </div>
@@ -1000,8 +997,8 @@ export default function HelperScanner() {
               <>
                 <div className="space-y-2 max-h-[350px] overflow-auto pr-1">
                   {cart.map(item => {
-                    const pricingTier = getPricingTier(item.cartQuantity);
                     const product = products.find(p => p._id === item._id);
+                    const pricingTier = getPricingTier(product || item, item.cartQuantity);
                     const isExpanded = expandedPricing === item._id;
 
                     return (
@@ -1028,22 +1025,26 @@ export default function HelperScanner() {
                         </div>
 
                         {/* Miqdor */}
-                        <div className="flex items-center gap-0.5 bg-white rounded-lg border border-slate-200 px-1 py-0.5">
-                          <button onClick={() => updateQuantity(item._id, -1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100">
-                            <Minus className="w-3 h-3" />
+                        <div className="flex items-center bg-white rounded-lg border border-slate-200">
+                          <button onClick={() => updateQuantity(item._id, -1)} className="w-9 h-9 flex items-center justify-center rounded-l-lg hover:bg-slate-100 flex-shrink-0">
+                            <Minus className="w-4 h-4" />
                           </button>
                           <input
-                            type="number"
-                            min="1"
-                            value={item.cartQuantity}
+                            type="text"
+                            inputMode="numeric"
+                            value={item._id in editValues ? editValues[item._id] : String(item.cartQuantity)}
                             onChange={(e) => {
-                              const newQty = parseInt(e.target.value) || 1;
-                              updateQuantity(item._id, newQty - item.cartQuantity);
+                              const raw = e.target.value.replace(/\D/g, '');
+                              setEditValues(prev => ({ ...prev, [item._id]: raw }));
+                              const num = parseInt(raw);
+                              if (num >= 1) updateQuantity(item._id, num - item.cartQuantity);
                             }}
-                            className="w-9 text-center font-bold text-xs bg-transparent border-none focus:outline-none"
+                            onBlur={() => setEditValues(prev => { const n = { ...prev }; delete n[item._id]; return n; })}
+                            style={{ width: `calc(${Math.max(2, String(item._id in editValues ? editValues[item._id] || '1' : item.cartQuantity).length)}ch + 1rem)` }}
+                            className="text-center font-bold text-base bg-transparent border-x border-slate-200 focus:outline-none py-1"
                           />
-                          <button onClick={() => updateQuantity(item._id, 1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100">
-                            <Plus className="w-3 h-3" />
+                          <button onClick={() => updateQuantity(item._id, 1)} className="w-9 h-9 flex items-center justify-center rounded-r-lg hover:bg-slate-100 flex-shrink-0">
+                            <Plus className="w-4 h-4" />
                           </button>
                         </div>
 

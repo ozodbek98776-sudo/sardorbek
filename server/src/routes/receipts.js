@@ -804,16 +804,6 @@ router.post('/', auth, async (req, res) => {
     const { items, total, paidAmount, cashAmount, cardAmount, clickAmount, paymentMethod, customer, isReturn, bonusAmount } = req.body;
     const isHelper = req.user.role === 'helper';
 
-    // To'langan summani hisoblash
-    const actualPaidAmount = paidAmount || total;
-    const debtAmount = total - actualPaidAmount;
-
-    console.log(`💰 To'lov ma'lumotlari:`);
-    console.log(`   - Jami: ${total} so'm`);
-    console.log(`   - To'langan: ${actualPaidAmount} so'm`);
-    console.log(`   - Qarz: ${debtAmount} so'm`);
-    console.log(`   - Mijoz ID: ${customer || 'yo\'q'}`);
-
     // Check stock availability before sale (not for returns)
     if (!isReturn && !isHelper) {
       for (const item of items) {
@@ -833,16 +823,24 @@ router.post('/', auth, async (req, res) => {
 
     console.log('✅ Mahsulot tekshiruvi muvaffaqiyatli');
 
+    // Total ni items dan qayta hisoblash (client xato yuborsa ham to'g'ri bo'ladi)
+    const calculatedTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
+    const finalTotal = calculatedTotal > 0 ? calculatedTotal : (total || 0);
+
+    // To'langan summani hisoblash
+    const actualPaidAmount = paidAmount || finalTotal;
+    const debtAmount = finalTotal - actualPaidAmount;
+
     // Receipt ma'lumotlarini tayyorlash
     const receiptData = {
       items,
-      total,
+      total: finalTotal,
       paidAmount: actualPaidAmount,
       cashAmount: cashAmount || 0,
       cardAmount: cardAmount || 0,
       clickAmount: clickAmount || 0,
       bonusAmount: bonusAmount || 0,
-      remainingAmount: debtAmount || 0,
+      remainingAmount: debtAmount > 0 ? debtAmount : 0,
       paymentMethod,
       customer,
       status: isHelper ? 'pending' : 'completed',

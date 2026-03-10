@@ -84,15 +84,11 @@ router.get('/kassa', async (req, res) => {
     // Search query faqat string va bo'sh bo'lmasa
     if (search && typeof search === 'string' && search.trim() !== '' && search !== 'undefined') {
       const searchTerm = search.trim();
-      // Agar qidiruv faqat raqamlardan iborat bo'lsa, kod bo'yicha qidirish
       const isNumericSearch = /^\d+$/.test(searchTerm);
 
       if (isNumericSearch) {
-        query.$or = [
-          { code: Number(searchTerm) },
-          { $expr: { $regexMatch: { input: { $toString: '$code' }, regex: `^${searchTerm}` } } },
-          { name: { $regex: searchTerm, $options: 'i' } }
-        ];
+        // Faqat aniq kod bo'yicha qidirish (1 qidirganda faqat kod=1, 11 yoki 112 emas)
+        query.code = Number(searchTerm);
       } else {
         query.$or = [
           { name: { $regex: searchTerm, $options: 'i' } }
