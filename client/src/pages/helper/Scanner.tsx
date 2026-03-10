@@ -218,6 +218,10 @@ export default function HelperScanner() {
   };
 
   // === ARXIV FUNKSIYALARI ===
+  const [editSearchQuery, setEditSearchQuery] = useState('');
+  const [editSearchResults, setEditSearchResults] = useState<Product[]>([]);
+  const editSearchTimeout = useRef<NodeJS.Timeout | null>(null);
+
   const fetchArchiveReceipts = async () => {
     setArchiveLoading(true);
     try {
@@ -237,11 +241,15 @@ export default function HelperScanner() {
   const startEditReceipt = (receipt: ArchiveReceipt) => {
     setEditingReceiptId(receipt._id);
     setEditingItems(receipt.items.map(item => ({ ...item })));
+    setEditSearchQuery('');
+    setEditSearchResults([]);
   };
 
   const cancelEdit = () => {
     setEditingReceiptId(null);
     setEditingItems([]);
+    setEditSearchQuery('');
+    setEditSearchResults([]);
   };
 
   const updateEditItemQty = (index: number, delta: number) => {
@@ -252,6 +260,42 @@ export default function HelperScanner() {
 
   const removeEditItem = (index: number) => {
     setEditingItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditSearch = (query: string) => {
+    setEditSearchQuery(query);
+    if (editSearchTimeout.current) clearTimeout(editSearchTimeout.current);
+    if (!query.trim()) { setEditSearchResults([]); return; }
+    editSearchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await api.get('/products/kassa', { params: { search: query, limit: 20 } });
+        const data = res.data.data || res.data.products || res.data;
+        setEditSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        const results = products.filter(p =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          String(p.code || '').includes(query)
+        );
+        setEditSearchResults(results);
+      }
+    }, 300);
+  };
+
+  const addProductToEdit = (product: Product) => {
+    const existing = editingItems.findIndex(item => item.product === product._id);
+    if (existing >= 0) {
+      updateEditItemQty(existing, 1);
+    } else {
+      setEditingItems(prev => [...prev, {
+        product: product._id,
+        name: product.name,
+        code: String(product.code || ''),
+        price: product.price,
+        quantity: 1
+      }]);
+    }
+    setEditSearchQuery('');
+    setEditSearchResults([]);
   };
 
   const saveEditReceipt = async () => {
@@ -796,106 +840,140 @@ export default function HelperScanner() {
             </div>
           ) : (
             <div className="space-y-3">
-              {archiveReceipts.map(receipt => (
-                <div key={receipt._id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-slate-800">Chek #{receipt.receiptNumber}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Clock className="w-3 h-3" />
-                        {new Date(receipt.createdAt).toLocaleString('uz-UZ')}
-                      </p>
-                      {receipt.customer && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          <span className="font-medium">Mijoz:</span> {receipt.customer.name}
-                        </p>
-                      )}
+              {archiveReceipts.map(receipt => {
+                const isEditing = editingReceiptId === receipt._id;
+                const editTotal = editingItems.reduce((s, i) => s + i.price * i.quantity, 0);
+                return (
+                <div key={receipt._id} className={`bg-white rounded-xl shadow-sm border ${isEditing ? 'border-brand-300 ring-2 ring-brand-100' : 'border-slate-100'}`}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        receipt.status === 'pending' ? 'bg-amber-100' : 'bg-green-100'
+                      }`}>
+                        <ShoppingCart className={`w-4 h-4 ${receipt.status === 'pending' ? 'text-amber-600' : 'text-green-600'}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">#{receipt.receiptNumber}</p>
+                        <p className="text-[11px] text-slate-400">{new Date(receipt.createdAt).toLocaleString('uz-UZ')}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-brand-600">{formatNumber(receipt.total)} so'm</p>
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        receipt.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        receipt.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        receipt.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                        'bg-red-100 text-red-700'
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        receipt.status === 'pending' ? 'bg-amber-50 text-amber-600' :
+                        receipt.status === 'approved' ? 'bg-green-50 text-green-600' :
+                        receipt.status === 'completed' ? 'bg-blue-50 text-blue-600' :
+                        'bg-red-50 text-red-600'
                       }`}>
                         {receipt.status === 'pending' ? 'Kutilmoqda' :
                          receipt.status === 'approved' ? 'Tasdiqlangan' :
                          receipt.status === 'completed' ? 'Yakunlangan' : 'Rad etilgan'}
                       </span>
+                      {!isEditing && receipt.status === 'pending' && (
+                        <button onClick={() => startEditReceipt(receipt)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {editingReceiptId === receipt._id ? (
-                    <div className="space-y-2">
-                      {editingItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded-lg p-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
-                            <p className="text-xs text-slate-500">{formatNumber(item.price)} so'm</p>
-                          </div>
-                          <div className="flex items-center bg-white rounded-lg border border-slate-200">
-                            <button onClick={() => updateEditItemQty(idx, -1)} className="w-8 h-8 flex items-center justify-center">
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
-                            <button onClick={() => updateEditItemQty(idx, 1)} className="w-8 h-8 flex items-center justify-center">
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <button onClick={() => removeEditItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:bg-red-50 rounded">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-sm font-semibold pt-2 border-t border-slate-200">
-                        <span>Yangi jami:</span>
-                        <span className="text-brand-600">
-                          {formatNumber(editingItems.reduce((s, i) => s + i.price * i.quantity, 0))} so'm
-                        </span>
-                      </div>
-                      <div className="flex gap-2 pt-2">
-                        <button onClick={cancelEdit} className="flex-1 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium">
-                          Bekor
-                        </button>
-                        <button
-                          onClick={saveEditReceipt}
-                          disabled={savingEdit || editingItems.length === 0}
-                          className="flex-1 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          {savingEdit ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <><Save className="w-4 h-4" /> Saqlash</>
+                  {/* Content */}
+                  <div className="px-4 py-3">
+                    {isEditing ? (
+                      <>
+                        {/* Mahsulot qo'shish - search */}
+                        <div className="relative mb-3">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            value={editSearchQuery}
+                            onChange={e => handleEditSearch(e.target.value)}
+                            placeholder="Mahsulot qo'shish..."
+                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-dashed border-brand-300 bg-brand-50/50 text-sm placeholder:text-brand-300 focus:outline-none focus:border-brand-500"
+                          />
+                          {editSearchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg max-h-48 overflow-auto">
+                              {editSearchResults.map(p => (
+                                <button
+                                  key={p._id}
+                                  onClick={() => addProductToEdit(p)}
+                                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-brand-50 text-left text-sm transition-colors"
+                                >
+                                  <span className="text-slate-700 truncate">{p.name}</span>
+                                  <span className="text-xs font-semibold text-brand-600 ml-2 flex-shrink-0">{formatNumber(p.price)}</span>
+                                </button>
+                              ))}
+                            </div>
                           )}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-1.5">
+                        </div>
+
+                        {/* Items list */}
+                        <div className="space-y-1.5">
+                          {editingItems.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                                <p className="text-[11px] text-slate-400">{formatNumber(item.price)} × {item.quantity} = <span className="font-semibold text-slate-600">{formatNumber(item.price * item.quantity)}</span></p>
+                              </div>
+                              <div className="flex items-center bg-white rounded-lg border border-slate-200">
+                                <button onClick={() => updateEditItemQty(idx, -1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-l-lg">
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="w-7 text-center text-xs font-bold">{item.quantity}</span>
+                                <button onClick={() => updateEditItemQty(idx, 1)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-50 rounded-r-lg">
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <button onClick={() => removeEditItem(idx)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:bg-red-50 rounded-lg">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-1">
                         {receipt.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-sm">
-                            <span className="text-slate-600">{item.name} × {item.quantity}</span>
-                            <span className="font-medium text-slate-800">{formatNumber(item.price * item.quantity)} so'm</span>
+                          <div key={idx} className="flex justify-between text-sm py-0.5">
+                            <span className="text-slate-600">{item.name} <span className="text-slate-400">× {item.quantity}</span></span>
+                            <span className="font-medium text-slate-700">{formatNumber(item.price * item.quantity)}</span>
                           </div>
                         ))}
                       </div>
-                      {receipt.status === 'pending' && (
-                        <div className="mt-3 pt-3 border-t border-slate-100">
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className={`px-4 py-3 border-t ${isEditing ? 'border-brand-100 bg-brand-50/30' : 'border-slate-100 bg-slate-50/50'} rounded-b-xl`}>
+                    {isEditing ? (
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-slate-600">Yangi jami:</span>
+                          <span className="text-base font-bold text-brand-600">{formatNumber(editTotal)} so'm</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={cancelEdit} className="flex-1 h-9 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
+                            Bekor
+                          </button>
                           <button
-                            onClick={() => startEditReceipt(receipt)}
-                            className="w-full px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                            onClick={saveEditReceipt}
+                            disabled={savingEdit || editingItems.length === 0}
+                            className="flex-1 h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors"
                           >
-                            <Edit3 className="w-4 h-4" />
-                            Tahrirlash
+                            {savingEdit ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Saqlash</>}
                           </button>
                         </div>
-                      )}
-                    </>
-                  )}
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-500">{receipt.items.length} ta mahsulot</span>
+                        <span className="text-base font-bold text-slate-800">{formatNumber(receipt.total)} so'm</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
